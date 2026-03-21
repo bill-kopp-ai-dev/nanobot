@@ -422,10 +422,24 @@ class AgentLoop:
                 message_tool.start_turn()
 
         history = session.get_history(max_messages=0)
+        
+        # Automatically extract local image paths from <filename> in the content
+        import re
+        from pathlib import Path
+        import mimetypes
+        
+        local_media = list(msg.media) if msg.media else []
+        for match in re.finditer(r'<([^>]+)>', msg.content):
+            p = Path(match.group(1))
+            if p.is_file():
+                mime_type, _ = mimetypes.guess_type(str(p))
+                if mime_type and mime_type.startswith('image/'):
+                    local_media.append(str(p.resolve()))
+
         initial_messages = self.context.build_messages(
             history=history,
             current_message=msg.content,
-            media=msg.media if msg.media else None,
+            media=local_media if local_media else None,
             channel=msg.channel, chat_id=msg.chat_id,
         )
 
