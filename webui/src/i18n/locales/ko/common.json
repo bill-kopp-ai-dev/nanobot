@@ -56,6 +56,7 @@
     },
     "apps": "앱",
     "automations": "자동화",
+    "knowledgeGraph": "지식 그래프",
     "skills": {
       "title": "스킬"
     }

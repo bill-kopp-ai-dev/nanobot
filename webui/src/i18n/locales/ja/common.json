@@ -56,6 +56,7 @@
     },
     "apps": "アプリ",
     "automations": "自動タスク",
+    "knowledgeGraph": "ナレッジグラフ",
     "skills": {
       "title": "スキル"
     }

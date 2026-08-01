@@ -56,6 +56,7 @@
     },
     "apps": "Apps",
     "automations": "Automações",
+    "knowledgeGraph": "Grafo de Conhecimento",
     "skills": {
       "title": "Skills"
     }
