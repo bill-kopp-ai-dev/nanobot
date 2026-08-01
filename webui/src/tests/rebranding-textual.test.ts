@@ -133,15 +133,16 @@ describe("rebranding textual — index.html", () => {
 
 describe("rebranding textual — walker recursivo (sanity check)", () => {
   // Garante que o rebranding não apagou conteúdo: cada locale deve ter
-  // ocorrências de 'percival' em valores visíveis. Se uma das substituições
-  // tivesse errado o alvo (sed mal-escapado), o walker detectaria.
+  // ocorrências de 'percival' (case-insensitive) em valores visíveis.
+  // Se uma das substituições tivesse errado o alvo (sed mal-escapado), o
+  // walker detectaria.
   it.each(LOCALES)("locale %s tem 'percival' em algum valor visível", (locale) => {
     const data = resources[locale as keyof typeof resources]?.common;
     expect(data).toBeDefined();
     const found: string[] = [];
     const walk = (value: unknown): void => {
       if (typeof value === "string") {
-        if (value.includes("percival")) found.push(value);
+        if (/percival/i.test(value)) found.push(value);
       } else if (value && typeof value === "object") {
         for (const v of Object.values(value)) walk(v);
       }
