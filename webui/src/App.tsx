@@ -11,7 +11,9 @@ import {
 import { Moon, PanelLeft, ShieldCheck, Sun, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { channelUiPresentation } from "@/channel-plugins/registry";
-import { Sidebar } from "@/components/Sidebar";
+// PERCIVAL: usar PercivalSidebar em vez de Sidebar upstream (P8 etapa 4).
+// Wrapper via composição por fora (G2-AltB); aceita mesmas props de Sidebar.
+import { PercivalSidebar as Sidebar } from "@/components/percival/PercivalSidebar";
 import type { SettingsSectionKey } from "@/components/settings/SettingsView";
 import { ThreadShell } from "@/components/thread/ThreadShell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
