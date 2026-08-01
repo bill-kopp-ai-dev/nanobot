@@ -94,6 +94,55 @@ describe("rebranding textual — index.html", () => {
     expect(html).toContain("/brand/nanobot_favicon_32.png");
     expect(html).toContain("/brand/nanobot_apple_touch.png");
   });
+
+  it.each(LOCALES)(
+    "fallback JS '%s' (boot e description) contém 'percival'",
+    (locale) => {
+      // Valida o bloco do locale no objeto `copy` do IIFE em index.html.
+      // A chave aceita tanto aspas (ex: "zh-CN":) quanto identificador (ex: en:).
+      // Usa [\s\S]*? com lookahead para capturar o menor bloco até o próximo
+      // locale ou final do objeto.
+      const escapedLocale = JSON.stringify(locale);
+      const keyAlt = `(${escapedLocale}|[a-zA-Z_$][a-zA-Z0-9_$]*?)`;
+      // Primeira tentativa: chave-quoted (ex: "zh-CN": ou "id":).
+      const quoted = new RegExp(
+        `${escapedLocale}:\\s*\\{[\\s\\S]*?\\}`,
+        "u",
+      );
+      // Segunda: identificador (ex: en: ou fr:).
+      const ident = new RegExp(
+        `(^|[\\s,{])${locale}:\\s*\\{[\\s\\S]*?\\}`,
+        "u",
+      );
+      const found = quoted.exec(html) ?? ident.exec(html);
+      expect(found, `bloco do locale ${locale} em index.html`).not.toBeNull();
+      const block = found?.[0] ?? "";
+      // Garante que nenhum dos campos tem 'nanobot' (substituído por 'percival').
+      expect(block).not.toMatch(/nanobot/);
+      // Sanity check: ao menos um dos campos deve ter 'percival'.
+      expect(block).toMatch(/percival/);
+    },
+  );
+});
+
+describe("rebranding textual — walker recursivo (sanity check)", () => {
+  // Garante que o rebranding não apagou conteúdo: cada locale deve ter
+  // ocorrências de 'percival' em valores visíveis. Se uma das substituições
+  // tivesse errado o alvo (sed mal-escapado), o walker detectaria.
+  it.each(LOCALES)("locale %s tem 'percival' em algum valor visível", (locale) => {
+    const data = resources[locale as keyof typeof resources]?.common;
+    expect(data).toBeDefined();
+    const found: string[] = [];
+    const walk = (value: unknown): void => {
+      if (typeof value === "string") {
+        if (value.includes("percival")) found.push(value);
+      } else if (value && typeof value === "object") {
+        for (const v of Object.values(value)) walk(v);
+      }
+    };
+    walk(data);
+    expect(found.length, `locale ${locale} deve ter 'percival' em algum texto`).toBeGreaterThan(0);
+  });
 });
 
 describe("rebranding textual — assets em public/brand", () => {
