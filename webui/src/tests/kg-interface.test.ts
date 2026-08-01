@@ -23,6 +23,13 @@ describe("resolveKgInterfaceUrl", () => {
     expect(resolveKgInterfaceUrl()).toBe("");
   });
 
+  it("não normaliza whitespace (decisão B1: sem coerção)", () => {
+    vi.stubEnv("VITE_KG_INTERFACE_URL", "  http://localhost:5173  ");
+    // Decisão B1: helper é pass-through; validação/normalização é responsabilidade
+    // do chamador (C4: documentar no RUNBOOK como setar a env var).
+    expect(resolveKgInterfaceUrl()).toBe("  http://localhost:5173  ");
+  });
+
   it("DEFAULT_KG_INTERFACE_URL é exatamente /kg-interface/", () => {
     expect(DEFAULT_KG_INTERFACE_URL).toBe("/kg-interface/");
   });
