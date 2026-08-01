@@ -22,7 +22,6 @@ export function PercivalSidebar(
       {/* PERCIVAL: link Knowledge Graph no rodapé (B2 revisada, G2-AltB). */}
       <a
         href={kgUrl}
-        className="kg-link"
         target="_blank"
         rel="noopener noreferrer"
         aria-label={t("sidebar.knowledgeGraph")}
