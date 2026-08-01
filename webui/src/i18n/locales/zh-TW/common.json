@@ -263,7 +263,7 @@
       "exporting": "正在匯出…"
     },
     "byok": {
-      "description": "使用自備的供應商金鑰。Nanobot 會從目前的設定檔讀取這些值，只有已設定的供應商可用於模型預設。",
+      "description": "使用自備的供應商金鑰。percival 會從目前的設定檔讀取這些值，只有已設定的供應商可用於模型預設。",
       "configured": "已設定",
       "notConfigured": "未設定",
       "configuredSection": "已設定",
@@ -1307,7 +1307,7 @@
     },
     "workspaceScopeRejected": {
       "title": "工作區未變更",
-      "body": "閘道拒絕要求的專案或存取模式，因此 Nanobot 繼續使用先前的工作區。"
+      "body": "閘道拒絕要求的專案或存取模式，因此 percival 繼續使用先前的工作區。"
     },
     "turnRejected": {
       "title": "訊息未傳送",

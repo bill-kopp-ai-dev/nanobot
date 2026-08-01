@@ -40,25 +40,30 @@ describe("rebranding textual — i18n locales", () => {
   );
 
   it.each(LOCALES)(
-    "locale %s: não contém 'nanobot' em valores visíveis (fora das exceções)",
+    "locale %s: não contém 'nanobot' (case-insensitive) em valores visíveis (fora das exceções)",
     (locale) => {
-      // Verifica que cada valor string não contém 'nanobot', com 2 exceções
-      // explícitas: app.error.gatewayHint (CLI) e, se presente,
-      // filePreview.routeMissing (CLI Restart).
+      // PERCIVAL: achado de revisão — a versão anterior deste teste usava
+      // `.includes("nanobot")` (case-sensitive, minúsculo), que não pega ocorrências
+      // capitalizadas em início de frase (ex: "Nanobot reads these values...").
+      // Isso deixou passar 20 strings com "Nanobot" (maiúsculo) não rebrandizadas em
+      // 9 dos 10 locales (settings.byok.description, settings.oauth.localCodeHelp,
+      // settings.oauth.localCallbackHelp, errors.workspaceScopeRejected.body).
+      // Regex /nanobot/i pega os dois casos.
+      const NANOBOT_RE = /nanobot/i;
       const data = resources[locale as keyof typeof resources]?.common;
       const whitelist: string[] = [];
       const hint = (data as { app?: { error?: { gatewayHint?: string } } } | undefined)
         ?.app?.error?.gatewayHint;
-      if (typeof hint === "string" && hint.includes("nanobot")) whitelist.push(hint);
+      if (typeof hint === "string" && NANOBOT_RE.test(hint)) whitelist.push(hint);
       const route = (
         data as { filePreview?: { routeMissing?: string } } | undefined
       )?.filePreview?.routeMissing;
-      if (typeof route === "string" && route.includes("nanobot")) whitelist.push(route);
+      if (typeof route === "string" && NANOBOT_RE.test(route)) whitelist.push(route);
 
       const collected: string[] = [];
       const walk = (value: unknown): void => {
         if (typeof value === "string") {
-          if (value.includes("nanobot") && !whitelist.includes(value)) collected.push(value);
+          if (NANOBOT_RE.test(value) && !whitelist.includes(value)) collected.push(value);
         } else if (value && typeof value === "object") {
           for (const v of Object.values(value)) walk(v);
         }
@@ -103,7 +108,6 @@ describe("rebranding textual — index.html", () => {
       // Usa [\s\S]*? com lookahead para capturar o menor bloco até o próximo
       // locale ou final do objeto.
       const escapedLocale = JSON.stringify(locale);
-      const keyAlt = `(${escapedLocale}|[a-zA-Z_$][a-zA-Z0-9_$]*?)`;
       // Primeira tentativa: chave-quoted (ex: "zh-CN": ou "id":).
       const quoted = new RegExp(
         `${escapedLocale}:\\s*\\{[\\s\\S]*?\\}`,
@@ -118,9 +122,11 @@ describe("rebranding textual — index.html", () => {
       expect(found, `bloco do locale ${locale} em index.html`).not.toBeNull();
       const block = found?.[0] ?? "";
       // Garante que nenhum dos campos tem 'nanobot' (substituído por 'percival').
-      expect(block).not.toMatch(/nanobot/);
+      // PERCIVAL: case-insensitive — ver achado de revisão acima sobre "Nanobot"
+      // capitalizado escapando de checagens case-sensitive.
+      expect(block).not.toMatch(/nanobot/i);
       // Sanity check: ao menos um dos campos deve ter 'percival'.
-      expect(block).toMatch(/percival/);
+      expect(block).toMatch(/percival/i);
     },
   );
 });

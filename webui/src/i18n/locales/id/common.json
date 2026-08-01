@@ -263,7 +263,7 @@
       "exporting": "Mengekspor..."
     },
     "byok": {
-      "description": "Gunakan kunci provider Anda sendiri. Nanobot membaca nilai ini dari config saat ini dan hanya provider yang sudah dikonfigurasi yang dapat digunakan dalam preset model.",
+      "description": "Gunakan kunci provider Anda sendiri. percival membaca nilai ini dari config saat ini dan hanya provider yang sudah dikonfigurasi yang dapat digunakan dalam preset model.",
       "configured": "Terkonfigurasi",
       "notConfigured": "Belum dikonfigurasi",
       "configuredSection": "Terkonfigurasi",
@@ -1307,7 +1307,7 @@
     },
     "workspaceScopeRejected": {
       "title": "Workspace tidak berubah",
-      "body": "Gateway menolak proyek atau mode akses yang diminta, jadi Nanobot tetap memakai workspace sebelumnya."
+      "body": "Gateway menolak proyek atau mode akses yang diminta, jadi percival tetap memakai workspace sebelumnya."
     },
     "turnRejected": {
       "title": "Pesan tidak terkirim",

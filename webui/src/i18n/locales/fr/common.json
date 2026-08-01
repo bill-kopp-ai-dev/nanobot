@@ -263,7 +263,7 @@
       "exporting": "Exportation..."
     },
     "byok": {
-      "description": "Utilisez vos propres clés de fournisseur. Nanobot lit ces valeurs depuis la configuration actuelle et seuls les fournisseurs configurés peuvent être utilisés dans les préréglages de modèle.",
+      "description": "Utilisez vos propres clés de fournisseur. percival lit ces valeurs depuis la configuration actuelle et seuls les fournisseurs configurés peuvent être utilisés dans les préréglages de modèle.",
       "configured": "Configuré",
       "notConfigured": "Non configuré",
       "configuredSection": "Configurés",
@@ -1307,7 +1307,7 @@
     },
     "workspaceScopeRejected": {
       "title": "L’espace de travail n’a pas changé",
-      "body": "La passerelle a refusé le projet ou le mode d’accès demandé ; Nanobot a conservé l’espace de travail précédent."
+      "body": "La passerelle a refusé le projet ou le mode d’accès demandé ; percival a conservé l’espace de travail précédent."
     },
     "turnRejected": {
       "title": "Le message n’a pas été envoyé",

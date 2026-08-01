@@ -263,7 +263,7 @@
       "exporting": "내보내는 중..."
     },
     "byok": {
-      "description": "직접 provider 키를 가져옵니다. Nanobot은 현재 config에서 값을 읽고, 설정된 provider만 모델 프리셋에서 사용할 수 있습니다.",
+      "description": "직접 provider 키를 가져옵니다. percival은 현재 config에서 값을 읽고, 설정된 provider만 모델 프리셋에서 사용할 수 있습니다.",
       "configured": "설정됨",
       "notConfigured": "설정 안 됨",
       "configuredSection": "설정됨",
@@ -1307,7 +1307,7 @@
     },
     "workspaceScopeRejected": {
       "title": "작업공간이 변경되지 않았습니다",
-      "body": "요청한 프로젝트 또는 접근 모드가 게이트웨이에서 거부되어 Nanobot이 이전 작업공간을 계속 사용합니다."
+      "body": "요청한 프로젝트 또는 접근 모드가 게이트웨이에서 거부되어 percival이 이전 작업공간을 계속 사용합니다."
     },
     "turnRejected": {
       "title": "메시지가 전송되지 않았습니다",

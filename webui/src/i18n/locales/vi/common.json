@@ -263,7 +263,7 @@
       "exporting": "Đang xuất..."
     },
     "byok": {
-      "description": "Dùng key provider của riêng bạn. Nanobot đọc các giá trị này từ config hiện tại và chỉ provider đã cấu hình mới có thể dùng trong cấu hình mô hình đặt trước.",
+      "description": "Dùng key provider của riêng bạn. percival đọc các giá trị này từ config hiện tại và chỉ provider đã cấu hình mới có thể dùng trong cấu hình mô hình đặt trước.",
       "configured": "Đã cấu hình",
       "notConfigured": "Chưa cấu hình",
       "configuredSection": "Đã cấu hình",
@@ -1307,7 +1307,7 @@
     },
     "workspaceScopeRejected": {
       "title": "Workspace không thay đổi",
-      "body": "Gateway đã từ chối dự án hoặc chế độ truy cập được yêu cầu, nên Nanobot giữ workspace trước đó."
+      "body": "Gateway đã từ chối dự án hoặc chế độ truy cập được yêu cầu, nên percival giữ workspace trước đó."
     },
     "turnRejected": {
       "title": "Tin nhắn chưa được gửi",

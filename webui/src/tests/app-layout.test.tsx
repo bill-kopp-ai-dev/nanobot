@@ -2009,7 +2009,7 @@ describe("App layout", () => {
     expect(screen.queryByText("Ant Ling")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
-        "Bring your own provider keys. Nanobot reads these values from the current config and only configured providers can be used in model presets.",
+        "Bring your own provider keys. percival reads these values from the current config and only configured providers can be used in model presets.",
       ),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("azure_openai")).not.toBeInTheDocument();

@@ -28,8 +28,9 @@ foi substituído pelo logo percival.
 
 **Status:** SEM versão SVG do logo percival.
 
-**Impacto:** O favicon em browser (Sidebar, aba do navegador) e o ícone do app
-instalado (apple-touch-icon) usam o SVG antigo do nanobot.
+**Impacto:** apenas o favicon em aba do navegador e o mark na Sidebar (ambos servidos
+pelo SVG) ainda mostram o "n" antigo do nanobot — o apple-touch-icon já usa o PNG novo
+(ver mitigação abaixo).
 
 **Mitigação até Etapa 9:**
 - O apple-touch-icon (180×180 PNG) já foi substituído — quando o app é instalado,

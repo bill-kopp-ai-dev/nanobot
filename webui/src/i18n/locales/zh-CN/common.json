@@ -411,7 +411,7 @@
       "exporting": "正在导出..."
     },
     "byok": {
-      "description": "自带服务商密钥。Nanobot 会从当前 config 读取这些值，只有已配置的服务商才能用于模型预设。",
+      "description": "自带服务商密钥。percival 会从当前 config 读取这些值，只有已配置的服务商才能用于模型预设。",
       "configured": "已配置",
       "notConfigured": "未配置",
       "configuredSection": "已配置",
@@ -1321,7 +1321,7 @@
     },
     "workspaceScopeRejected": {
       "title": "工作区未更改",
-      "body": "网关拒绝了请求的项目或访问权限，Nanobot 已继续使用之前的工作区。"
+      "body": "网关拒绝了请求的项目或访问权限，percival 已继续使用之前的工作区。"
     },
     "turnRejected": {
       "title": "消息未发送",

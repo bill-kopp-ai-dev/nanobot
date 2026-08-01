@@ -2625,7 +2625,7 @@ describe("SettingsView Apps catalog", () => {
 
     expect(
       screen.getByText(
-        "Complete sign-in in your browser. Nanobot usually finishes automatically; if it does not, paste the authorization code below.",
+        "Complete sign-in in your browser. percival usually finishes automatically; if it does not, paste the authorization code below.",
       ),
     ).toBeInTheDocument();
     const callbackInput = await screen.findByRole("textbox", {
@@ -2820,7 +2820,7 @@ describe("SettingsView Apps catalog", () => {
     expect(openMock).not.toHaveBeenCalled();
     expect(
       within(dialog).getByText(
-        "Complete sign-in in your browser. Nanobot usually finishes automatically; if it does not, copy the full localhost callback URL from the address bar and paste it below.",
+        "Complete sign-in in your browser. percival usually finishes automatically; if it does not, copy the full localhost callback URL from the address bar and paste it below.",
       ),
     ).toBeInTheDocument();
     expect(within(dialog).getByText("Waiting for the browser callback…")).toBeInTheDocument();

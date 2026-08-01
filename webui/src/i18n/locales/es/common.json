@@ -263,7 +263,7 @@
       "exporting": "Exportando..."
     },
     "byok": {
-      "description": "Usa tus propias claves de proveedor. Nanobot lee estos valores desde la configuración actual y solo los proveedores configurados pueden usarse en los preajustes de modelo.",
+      "description": "Usa tus propias claves de proveedor. percival lee estos valores desde la configuración actual y solo los proveedores configurados pueden usarse en los preajustes de modelo.",
       "configured": "Configurado",
       "notConfigured": "Sin configurar",
       "configuredSection": "Configurados",
@@ -1308,7 +1308,7 @@
     },
     "workspaceScopeRejected": {
       "title": "El espacio de trabajo no cambió",
-      "body": "El gateway rechazó el proyecto o modo de acceso solicitado, así que Nanobot conservó el espacio de trabajo anterior."
+      "body": "El gateway rechazó el proyecto o modo de acceso solicitado, así que percival conservó el espacio de trabajo anterior."
     },
     "turnRejected": {
       "title": "El mensaje no se envió",

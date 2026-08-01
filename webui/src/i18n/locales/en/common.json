@@ -411,7 +411,7 @@
       "exporting": "Exporting..."
     },
     "byok": {
-      "description": "Bring your own provider keys. Nanobot reads these values from the current config and only configured providers can be used in model presets.",
+      "description": "Bring your own provider keys. percival reads these values from the current config and only configured providers can be used in model presets.",
       "configured": "Configured",
       "notConfigured": "Not configured",
       "configuredSection": "Configured",
@@ -782,9 +782,9 @@
       "proxyLabel": "Network proxy",
       "proxySaveBeforeSignIn": "Save proxy changes before signing in.",
       "saveProxy": "Save proxy",
-      "localCodeHelp": "Complete sign-in in your browser. Nanobot usually finishes automatically; if it does not, paste the authorization code below.",
+      "localCodeHelp": "Complete sign-in in your browser. percival usually finishes automatically; if it does not, paste the authorization code below.",
       "remoteCodeHelp": "Select Sign in to open xAI on your computer. After signing in, paste the authorization code shown by xAI below.",
-      "localCallbackHelp": "Complete sign-in in your browser. Nanobot usually finishes automatically; if it does not, copy the full localhost callback URL from the address bar and paste it below.",
+      "localCallbackHelp": "Complete sign-in in your browser. percival usually finishes automatically; if it does not, copy the full localhost callback URL from the address bar and paste it below.",
       "remoteCallbackHelp": "Open ChatGPT in this browser and finish signing in. When the localhost page fails to load, copy the full URL from the address bar and paste it below.",
       "authorizationCode": "Authorization code",
       "callbackUrl": "Full callback URL",
@@ -1321,7 +1321,7 @@
     },
     "workspaceScopeRejected": {
       "title": "Workspace was not changed",
-      "body": "Nanobot kept the previous workspace because the requested project or access mode was rejected by the gateway."
+      "body": "percival kept the previous workspace because the requested project or access mode was rejected by the gateway."
     },
     "turnRejected": {
       "title": "Message was not sent",
