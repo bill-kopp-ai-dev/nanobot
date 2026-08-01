@@ -1,12 +1,12 @@
 {
   "app": {
-    "brand": "nanobot",
+    "brand": "percival",
     "loading": {
-      "connecting": "Đang kết nối tới nanobot…",
-      "boot": "Đang tải nanobot…"
+      "connecting": "Đang kết nối tới percival…",
+      "boot": "Đang tải percival…"
     },
     "error": {
-      "title": "Không thể kết nối tới nanobot",
+      "title": "Không thể kết nối tới percival",
       "gatewayHint": "Hãy chắc chắn gateway đang chạy (`nanobot gateway`) và trang này được mở trên cùng máy."
     },
     "auth": {
@@ -23,8 +23,8 @@
     },
     "system": {
       "section": "Hệ thống",
-      "restartHint": "Khởi động lại nanobot để áp dụng thay đổi runtime.",
-      "restart": "Khởi động lại nanobot",
+      "restartHint": "Khởi động lại percival để áp dụng thay đổi runtime.",
+      "restart": "Khởi động lại percival",
       "restarting": "Đang khởi động lại...",
       "restartEngine": "Khởi động lại engine",
       "restartingEngine": "Đang khởi động lại engine..."
@@ -33,11 +33,11 @@
       "completed": "Khởi động lại hoàn tất sau {{seconds}} giây."
     },
     "documentTitle": {
-      "base": "nanobot",
-      "chat": "{{title}} · nanobot"
+      "base": "percival",
+      "chat": "{{title}} · percival"
     },
     "meta": {
-      "description": "Giao diện web nanobot — trò chuyện với workspace nanobot của bạn."
+      "description": "Giao diện web percival — trò chuyện với workspace percival của bạn."
     }
   },
   "sidebar": {
@@ -113,7 +113,7 @@
       "language": "Ngôn ngữ",
       "provider": "Nhà cung cấp",
       "model": "Mô hình",
-      "restart": "Khởi động lại nanobot",
+      "restart": "Khởi động lại percival",
       "configPath": "Đường dẫn cấu hình",
       "activePreset": "Preset đang dùng",
       "gateway": "Cổng",
@@ -180,7 +180,7 @@
       "defaultAspectRatio": "Se usa cuando el prompt no elige una proporción.",
       "defaultImageSize": "Gợi ý kích thước gửi tới nhà cung cấp hỗ trợ.",
       "maxImagesPerTurn": "Giới hạn trên cho một yêu cầu generate_image.",
-      "botName": "Se muestra donde nanobot usa un nombre visible.",
+      "botName": "Se muestra donde percival usa un nombre visible.",
       "botIcon": "Emoji o texto corto junto al nombre del bot.",
       "timezone": "Se usa para horarios y respuestas con conciencia temporal.",
       "localServiceAccess": "Cho phép lệnh shell Full Access truy cập dịch vụ localhost.",
@@ -190,7 +190,7 @@
       "selectedModelProvider": "Definido por el modelo seleccionado.",
       "selectedModelValue": "Definido por el modelo seleccionado.",
       "brandLogos": "Hiển thị logo nhà cung cấp bên thứ ba và CLI trong Cài đặt.",
-      "cliAppsCatalog": "Instala solo adaptadores CLI de apps que nanobot puede ejecutar localmente; las apps nativas no se modifican.",
+      "cliAppsCatalog": "Instala solo adaptadores CLI de apps que percival puede ejecutar localmente; las apps nativas no se modifican.",
       "cliAppsFilter": "Busca por app, categoría o capacidad.",
       "logs": "Abre la carpeta de registros del motor nativo.",
       "diagnostics": "Exporta un pequeño informe de runtime para soporte.",
@@ -236,11 +236,11 @@
       "loadError": "Không thể tải cài đặt",
       "unsaved": "Có thay đổi chưa lưu.",
       "upToDate": "Đã cập nhật.",
-      "savedRestart": "Guardado. Reinicia nanobot para aplicar.",
+      "savedRestart": "Guardado. Reinicia percival para aplicar.",
       "restartAfterSaving": "Guarda los cambios y reinicia cuando puedas.",
       "savedRestartApply": "Guardado. Reinicia cuando puedas.",
       "imageProviderRestart": "Cambios del proveedor de imagen guardados. Reinicia cuando puedas.",
-      "hostRestartAfterSaving": "Al guardar, nanobot reiniciará su motor.",
+      "hostRestartAfterSaving": "Al guardar, percival reiniciará su motor.",
       "hostRestartPending": "Guardado. El motor se reiniciará cuando esté listo.",
       "hostApiUnavailable": "Las acciones del host solo están disponibles en la app nativa.",
       "logsOpened": "Carpeta de registros abierta.",
@@ -487,7 +487,7 @@
       "saveCustom": "Lưu MCP",
       "configImport": "Nhập mcp.json",
       "importConfig": "Nhập",
-      "restartRequired": "Khởi động lại nanobot để kết nối các công cụ MCP đã cập nhật.",
+      "restartRequired": "Khởi động lại percival để kết nối các công cụ MCP đã cập nhật.",
       "toolsFound": "{{count}} công cụ",
       "loading": "Đang tải preset MCP...",
       "empty": "Không có preset MCP nào khớp bộ lọc này.",
@@ -524,14 +524,14 @@
       "autoInstall": "Hỗ trợ API sẽ tự động được cài khi khởi động."
     },
     "observability": {
-      "title": "Khả năng quan sát", "configured": "Thông tin xác thực tracing đã sẵn sàng cho nanobot.",
-      "environment": "Đặt LANGFUSE_SECRET_KEY và LANGFUSE_PUBLIC_KEY rồi khởi động lại nanobot.", "enable": "Bật hỗ trợ tracing"
+      "title": "Khả năng quan sát", "configured": "Thông tin xác thực tracing đã sẵn sàng cho percival.",
+      "environment": "Đặt LANGFUSE_SECRET_KEY và LANGFUSE_PUBLIC_KEY rồi khởi động lại percival.", "enable": "Bật hỗ trợ tracing"
     },
     "legal": {
       "thirdPartyBrands": "Tên sản phẩm, logo và thương hiệu thuộc về chủ sở hữu tương ứng. Việc sử dụng chỉ nhằm nhận diện và không ngụ ý được xác nhận."
     },
     "apps": {
-      "description": "Thêm công cụ vào nanobot, sau đó dùng @ trong cuộc trò chuyện.",
+      "description": "Thêm công cụ vào percival, sau đó dùng @ trong cuộc trò chuyện.",
       "cliLabel": "Ứng dụng",
       "mcpLabel": "Tích hợp",
       "channelLabel": "Kênh",
@@ -546,21 +546,21 @@
       "featured": "Công cụ",
       "loading": "Đang tải ứng dụng...",
       "empty": "Không có công cụ phù hợp với chế độ xem này.",
-      "restartRequired": "Khởi động lại nanobot để áp dụng ứng dụng và tính năng đã cập nhật."
+      "restartRequired": "Khởi động lại percival để áp dụng ứng dụng và tính năng đã cập nhật."
     },
     "channels": {
-      "description": "Kết nối nanobot với các ứng dụng chat. Cài đặt hỗ trợ chỉ thêm gói tích hợp; hầu hết kênh vẫn cần token hoặc cấu hình workspace.",
+      "description": "Kết nối percival với các ứng dụng chat. Cài đặt hỗ trợ chỉ thêm gói tích hợp; hầu hết kênh vẫn cần token hoặc cấu hình workspace.",
       "caption": "{{enabled}} đã bật · {{total}} kênh",
       "searchPlaceholder": "Tìm kênh",
       "backToChannels": "Tất cả kênh",
       "catalog": "Kênh",
       "loading": "Đang tải kênh...",
       "empty": "Không có kênh nào phù hợp.",
-      "restartRequired": "Khởi động lại nanobot để áp dụng hỗ trợ kênh đã cập nhật.",
+      "restartRequired": "Khởi động lại percival để áp dụng hỗ trợ kênh đã cập nhật.",
       "requires": "Yêu cầu: {{requirements}}",
       "setUp": "Thiết lập",
       "setupGuide": "Hướng dẫn thiết lập",
-      "setupSummary": "Bật chỉ kích hoạt hỗ trợ của nanobot. Thêm thông tin xác thực nền tảng rồi khởi động lại nanobot.",
+      "setupSummary": "Bật chỉ kích hoạt hỗ trợ của percival. Thêm thông tin xác thực nền tảng rồi khởi động lại percival.",
       "configKeys": "Khóa cấu hình",
       "enable": "Bật kênh",
       "disable": "Tắt kênh",
@@ -621,7 +621,7 @@
       "missingDependency": "Thiếu gói hỗ trợ",
       "installSupport": "Cài gói hỗ trợ",
       "installConfirmTitle": "Cài hỗ trợ cho {{name}}?",
-      "installConfirmDescription": "nanobot sẽ thêm những gì {{name}} cần, rồi bật tính năng này. Tiếp tục?",
+      "installConfirmDescription": "percival sẽ thêm những gì {{name}} cần, rồi bật tính năng này. Tiếp tục?",
       "installConfirmAction": "Cài và bật",
       "websocketRequired": "Bắt buộc cho WebUI",
       "channelDisabled": "Kênh đang tắt",
@@ -646,7 +646,7 @@
       "loading": "Đang tải tự động hóa...",
       "noMatches": "Không có tự động hóa phù hợp với chế độ xem này.",
       "empty": "Chưa có tự động hóa.",
-      "emptyHint": "Tạo từ nơi tác vụ sẽ chạy để nanobot giữ đúng ngữ cảnh.",
+      "emptyHint": "Tạo từ nơi tác vụ sẽ chạy để percival giữ đúng ngữ cảnh.",
       "oneShot": "Một lần",
       "systemTask": "Tự động hóa do hệ thống quản lý",
       "localTrigger": "Trình kích hoạt cục bộ",
@@ -760,7 +760,7 @@
       "signedInAs": "Đã đăng nhập bằng {{account}}",
       "signInHelp": "Inicia sesión desde este dispositivo; no se guarda API key en config.",
       "remoteSignInHelp": "Chọn Đăng nhập để mở xAI trên máy tính của bạn, sau đó dán mã ủy quyền được hiển thị sau khi đăng nhập.",
-      "codexRemoteSignInHelp": "Đăng nhập trong trình duyệt này, sau đó dán lại URL callback localhost đầy đủ vào nanobot.",
+      "codexRemoteSignInHelp": "Đăng nhập trong trình duyệt này, sau đó dán lại URL callback localhost đầy đủ vào percival.",
       "signInRequired": "Cần đăng nhập",
       "signInBeforeSaving": "Hãy đăng nhập nhà cung cấp này trước khi lưu cấu hình đặt trước.",
       "signedIn": "Đã đăng nhập",
@@ -768,9 +768,9 @@
       "proxyLabel": "Proxy mạng",
       "proxySaveBeforeSignIn": "Hãy lưu thay đổi proxy trước khi đăng nhập.",
       "saveProxy": "Lưu proxy",
-      "localCodeHelp": "Hoàn tất đăng nhập trong trình duyệt. nanobot thường tự động hoàn tất; nếu không, hãy dán mã ủy quyền bên dưới.",
+      "localCodeHelp": "Hoàn tất đăng nhập trong trình duyệt. percival thường tự động hoàn tất; nếu không, hãy dán mã ủy quyền bên dưới.",
       "remoteCodeHelp": "Chọn Đăng nhập để mở xAI trên máy tính của bạn. Sau khi đăng nhập, hãy dán mã ủy quyền do xAI hiển thị bên dưới.",
-      "localCallbackHelp": "Hoàn tất đăng nhập trong trình duyệt. nanobot thường tự động hoàn tất; nếu không, hãy sao chép URL callback localhost đầy đủ từ thanh địa chỉ và dán vào bên dưới.",
+      "localCallbackHelp": "Hoàn tất đăng nhập trong trình duyệt. percival thường tự động hoàn tất; nếu không, hãy sao chép URL callback localhost đầy đủ từ thanh địa chỉ và dán vào bên dưới.",
       "remoteCallbackHelp": "Mở ChatGPT trong trình duyệt này và hoàn tất đăng nhập. Khi trang localhost không tải được, hãy sao chép URL đầy đủ từ thanh địa chỉ và dán vào bên dưới.",
       "authorizationCode": "Mã ủy quyền",
       "callbackUrl": "URL callback đầy đủ",
@@ -813,7 +813,7 @@
       "deleteConfirmAction": "Xóa skill",
       "instructionsTitle": "Hướng dẫn skill",
       "setupRequired": "Cần thiết lập",
-      "setupDescription": "Cài đặt phần phụ thuộc còn thiếu trên máy chạy nanobot rồi kiểm tra lại.",
+      "setupDescription": "Cài đặt phần phụ thuộc còn thiếu trên máy chạy percival rồi kiểm tra lại.",
       "copySetupCommand": "Sao chép lệnh thiết lập",
       "checkAgain": "Kiểm tra lại",
       "marketplaceSearchFailed": "Không thể tìm kiếm các kho kỹ năng.",
@@ -981,7 +981,7 @@
       "imageQuickActions": {
         "icon": {
           "title": "Thiết kế biểu tượng app",
-          "prompt": "Tạo một biểu tượng ứng dụng 1:1 gọn gàng cho nanobot: robot thân thiện, phong cách vector đơn giản, bảng màu xanh trắng dịu, không có chữ."
+          "prompt": "Tạo một biểu tượng ứng dụng 1:1 gọn gàng cho percival: robot thân thiện, phong cách vector đơn giản, bảng màu xanh trắng dịu, không có chữ."
         },
         "sticker": {
           "title": "Tạo sticker",
@@ -1117,7 +1117,7 @@
             "description": "Hủy lượt agent đang chạy trong cuộc trò chuyện này."
           },
           "restart": {
-            "title": "Khởi động lại nanobot",
+            "title": "Khởi động lại percival",
             "description": "Khởi động lại tiến trình bot tại chỗ."
           },
           "status": {
@@ -1287,7 +1287,7 @@
     "close": "Đóng xem trước tệp",
     "loading": "Đang tải bản xem trước...",
     "failed": "Không thể xem trước tệp này.",
-    "routeMissing": "Xem trước tệp cần gateway mới nhất. Hãy khởi động lại nanobot gateway rồi thử lại.",
+    "routeMissing": "Xem trước tệp cần gateway mới nhất. Hãy khởi động lại percival gateway rồi thử lại.",
     "resize": "Đổi kích thước bản xem trước tệp",
     "truncated": "Bản xem trước bị cắt vì tệp này lớn."
   },

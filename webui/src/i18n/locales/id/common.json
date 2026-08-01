@@ -1,12 +1,12 @@
 {
   "app": {
-    "brand": "nanobot",
+    "brand": "percival",
     "loading": {
-      "connecting": "Menghubungkan ke nanobot…",
-      "boot": "Memuat nanobot…"
+      "connecting": "Menghubungkan ke percival…",
+      "boot": "Memuat percival…"
     },
     "error": {
-      "title": "Tidak dapat menjangkau nanobot",
+      "title": "Tidak dapat menjangkau percival",
       "gatewayHint": "Pastikan gateway sedang berjalan (`nanobot gateway`) dan halaman ini dibuka pada mesin yang sama."
     },
     "auth": {
@@ -23,8 +23,8 @@
     },
     "system": {
       "section": "Sistem",
-      "restartHint": "Mulai ulang nanobot untuk menerapkan perubahan runtime.",
-      "restart": "Mulai ulang nanobot",
+      "restartHint": "Mulai ulang percival untuk menerapkan perubahan runtime.",
+      "restart": "Mulai ulang percival",
       "restarting": "Memulai ulang...",
       "restartEngine": "Mulai ulang engine",
       "restartingEngine": "Memulai ulang engine..."
@@ -33,11 +33,11 @@
       "completed": "Mulai ulang selesai dalam {{seconds}} dtk."
     },
     "documentTitle": {
-      "base": "nanobot",
-      "chat": "{{title}} · nanobot"
+      "base": "percival",
+      "chat": "{{title}} · percival"
     },
     "meta": {
-      "description": "UI web nanobot — ngobrol dengan workspace nanobot Anda."
+      "description": "UI web percival — ngobrol dengan workspace percival Anda."
     }
   },
   "sidebar": {
@@ -113,7 +113,7 @@
       "language": "Bahasa",
       "provider": "Penyedia",
       "model": "Model",
-      "restart": "Mulai ulang nanobot",
+      "restart": "Mulai ulang percival",
       "configPath": "Path konfigurasi",
       "activePreset": "Preset aktif",
       "gateway": "Gerbang",
@@ -180,7 +180,7 @@
       "defaultAspectRatio": "Se usa cuando el prompt no elige una proporción.",
       "defaultImageSize": "Petunjuk ukuran yang dikirim ke penyedia yang mendukungnya.",
       "maxImagesPerTurn": "Batas atas untuk satu permintaan generate_image.",
-      "botName": "Se muestra donde nanobot usa un nombre visible.",
+      "botName": "Se muestra donde percival usa un nombre visible.",
       "botIcon": "Emoji o texto corto junto al nombre del bot.",
       "timezone": "Se usa para horarios y respuestas con conciencia temporal.",
       "localServiceAccess": "Izinkan perintah shell Full Access menjangkau layanan localhost.",
@@ -190,7 +190,7 @@
       "selectedModelProvider": "Definido por el modelo seleccionado.",
       "selectedModelValue": "Definido por el modelo seleccionado.",
       "brandLogos": "Tampilkan logo penyedia pihak ketiga dan CLI di Pengaturan.",
-      "cliAppsCatalog": "Instala solo adaptadores CLI de apps que nanobot puede ejecutar localmente; las apps nativas no se modifican.",
+      "cliAppsCatalog": "Instala solo adaptadores CLI de apps que percival puede ejecutar localmente; las apps nativas no se modifican.",
       "cliAppsFilter": "Busca por app, categoría o capacidad.",
       "logs": "Abre la carpeta de registros del motor nativo.",
       "diagnostics": "Exporta un pequeño informe de runtime para soporte.",
@@ -236,11 +236,11 @@
       "loadError": "Tidak dapat memuat pengaturan",
       "unsaved": "Perubahan belum disimpan.",
       "upToDate": "Sudah terbaru.",
-      "savedRestart": "Guardado. Reinicia nanobot para aplicar.",
+      "savedRestart": "Guardado. Reinicia percival para aplicar.",
       "restartAfterSaving": "Guarda los cambios y reinicia cuando puedas.",
       "savedRestartApply": "Guardado. Reinicia cuando puedas.",
       "imageProviderRestart": "Cambios del proveedor de imagen guardados. Reinicia cuando puedas.",
-      "hostRestartAfterSaving": "Al guardar, nanobot reiniciará su motor.",
+      "hostRestartAfterSaving": "Al guardar, percival reiniciará su motor.",
       "hostRestartPending": "Guardado. El motor se reiniciará cuando esté listo.",
       "hostApiUnavailable": "Las acciones del host solo están disponibles en la app nativa.",
       "logsOpened": "Carpeta de registros abierta.",
@@ -487,7 +487,7 @@
       "saveCustom": "Simpan MCP",
       "configImport": "Impor mcp.json",
       "importConfig": "Impor",
-      "restartRequired": "Mulai ulang nanobot untuk menyambungkan alat MCP yang diperbarui.",
+      "restartRequired": "Mulai ulang percival untuk menyambungkan alat MCP yang diperbarui.",
       "toolsFound": "{{count}} alat",
       "loading": "Memuat preset MCP...",
       "empty": "Tidak ada preset MCP yang cocok dengan filter ini.",
@@ -524,14 +524,14 @@
       "autoInstall": "Dukungan API akan dipasang otomatis saat dimulai."
     },
     "observability": {
-      "title": "Observabilitas", "configured": "Kredensial tracing tersedia untuk nanobot.",
-      "environment": "Atur LANGFUSE_SECRET_KEY dan LANGFUSE_PUBLIC_KEY, lalu mulai ulang nanobot.", "enable": "Aktifkan dukungan tracing"
+      "title": "Observabilitas", "configured": "Kredensial tracing tersedia untuk percival.",
+      "environment": "Atur LANGFUSE_SECRET_KEY dan LANGFUSE_PUBLIC_KEY, lalu mulai ulang percival.", "enable": "Aktifkan dukungan tracing"
     },
     "legal": {
       "thirdPartyBrands": "Nama produk, logo, dan merek adalah milik pemiliknya masing-masing. Penggunaan hanya untuk identifikasi dan tidak menyiratkan dukungan."
     },
     "apps": {
-      "description": "Tambahkan alat ke nanobot, lalu gunakan dengan @ di chat.",
+      "description": "Tambahkan alat ke percival, lalu gunakan dengan @ di chat.",
       "cliLabel": "Aplikasi",
       "mcpLabel": "Integrasi",
       "channelLabel": "Kanal",
@@ -546,21 +546,21 @@
       "featured": "Alat",
       "loading": "Memuat aplikasi...",
       "empty": "Tidak ada alat yang cocok dengan tampilan ini.",
-      "restartRequired": "Mulai ulang nanobot untuk menerapkan aplikasi dan fitur yang diperbarui."
+      "restartRequired": "Mulai ulang percival untuk menerapkan aplikasi dan fitur yang diperbarui."
     },
     "channels": {
-      "description": "Hubungkan nanobot ke aplikasi chat. Memasang dukungan hanya menambahkan paket integrasi; sebagian besar kanal tetap memerlukan token atau pengaturan workspace.",
+      "description": "Hubungkan percival ke aplikasi chat. Memasang dukungan hanya menambahkan paket integrasi; sebagian besar kanal tetap memerlukan token atau pengaturan workspace.",
       "caption": "{{enabled}} aktif · {{total}} kanal",
       "searchPlaceholder": "Cari kanal",
       "backToChannels": "Semua kanal",
       "catalog": "Kanal",
       "loading": "Memuat kanal...",
       "empty": "Tidak ada kanal yang cocok dengan filter ini.",
-      "restartRequired": "Mulai ulang nanobot untuk menerapkan dukungan kanal yang diperbarui.",
+      "restartRequired": "Mulai ulang percival untuk menerapkan dukungan kanal yang diperbarui.",
       "requires": "Memerlukan: {{requirements}}",
       "setUp": "Siapkan",
       "setupGuide": "Panduan setup",
-      "setupSummary": "Mengaktifkan hanya menyalakan dukungan nanobot. Tambahkan kredensial platform, lalu mulai ulang nanobot.",
+      "setupSummary": "Mengaktifkan hanya menyalakan dukungan percival. Tambahkan kredensial platform, lalu mulai ulang percival.",
       "configKeys": "Kunci konfigurasi",
       "enable": "Aktifkan kanal",
       "disable": "Nonaktifkan kanal",
@@ -621,7 +621,7 @@
       "missingDependency": "Dukungan belum terpasang",
       "installSupport": "Instal dukungan",
       "installConfirmTitle": "Instal dukungan untuk {{name}}?",
-      "installConfirmDescription": "nanobot akan menambahkan yang dibutuhkan {{name}}, lalu mengaktifkannya. Lanjutkan?",
+      "installConfirmDescription": "percival akan menambahkan yang dibutuhkan {{name}}, lalu mengaktifkannya. Lanjutkan?",
       "installConfirmAction": "Instal dan aktifkan",
       "websocketRequired": "Wajib untuk WebUI",
       "channelDisabled": "Kanal dinonaktifkan",
@@ -646,7 +646,7 @@
       "loading": "Memuat otomasi...",
       "noMatches": "Tidak ada otomasi yang cocok dengan tampilan ini.",
       "empty": "Belum ada otomasi.",
-      "emptyHint": "Buat dari tempat tugas ini berjalan agar nanobot menyimpan konteks yang tepat.",
+      "emptyHint": "Buat dari tempat tugas ini berjalan agar percival menyimpan konteks yang tepat.",
       "oneShot": "Satu kali",
       "systemTask": "Automasi yang dikelola sistem",
       "localTrigger": "Pemicu lokal",
@@ -760,7 +760,7 @@
       "signedInAs": "Masuk sebagai {{account}}",
       "signInHelp": "Inicia sesión desde este dispositivo; no se guarda API key en config.",
       "remoteSignInHelp": "Pilih Masuk untuk membuka xAI di komputer Anda, lalu tempel kode otorisasi yang ditampilkan setelah masuk.",
-      "codexRemoteSignInHelp": "Masuk melalui browser ini, lalu tempel URL callback localhost lengkap kembali ke nanobot.",
+      "codexRemoteSignInHelp": "Masuk melalui browser ini, lalu tempel URL callback localhost lengkap kembali ke percival.",
       "signInRequired": "Perlu masuk",
       "signInBeforeSaving": "Masuk ke penyedia ini sebelum menyimpan preset.",
       "signedIn": "Sudah masuk",
@@ -768,9 +768,9 @@
       "proxyLabel": "Proksi jaringan",
       "proxySaveBeforeSignIn": "Simpan perubahan proksi sebelum login.",
       "saveProxy": "Simpan proksi",
-      "localCodeHelp": "Selesaikan proses masuk di browser. nanobot biasanya menyelesaikannya secara otomatis; jika tidak, tempel kode otorisasi di bawah.",
+      "localCodeHelp": "Selesaikan proses masuk di browser. percival biasanya menyelesaikannya secara otomatis; jika tidak, tempel kode otorisasi di bawah.",
       "remoteCodeHelp": "Pilih Masuk untuk membuka xAI di komputer Anda. Setelah masuk, tempel kode otorisasi yang ditampilkan xAI di bawah.",
-      "localCallbackHelp": "Selesaikan proses masuk di browser. nanobot biasanya menyelesaikannya secara otomatis; jika tidak, salin URL callback localhost lengkap dari bilah alamat dan tempel di bawah.",
+      "localCallbackHelp": "Selesaikan proses masuk di browser. percival biasanya menyelesaikannya secara otomatis; jika tidak, salin URL callback localhost lengkap dari bilah alamat dan tempel di bawah.",
       "remoteCallbackHelp": "Buka ChatGPT di browser ini dan selesaikan proses masuk. Saat halaman localhost gagal dimuat, salin URL lengkap dari bilah alamat dan tempel di bawah.",
       "authorizationCode": "Kode otorisasi",
       "callbackUrl": "URL callback lengkap",
@@ -813,7 +813,7 @@
       "deleteConfirmAction": "Hapus skill",
       "instructionsTitle": "Petunjuk skill",
       "setupRequired": "Perlu penyiapan",
-      "setupDescription": "Instal dependensi yang belum tersedia di mesin yang menjalankan nanobot, lalu periksa lagi.",
+      "setupDescription": "Instal dependensi yang belum tersedia di mesin yang menjalankan percival, lalu periksa lagi.",
       "copySetupCommand": "Salin perintah penyiapan",
       "checkAgain": "Periksa lagi",
       "marketplaceSearchFailed": "Tidak dapat mencari marketplace skill.",
@@ -981,7 +981,7 @@
       "imageQuickActions": {
         "icon": {
           "title": "Desain ikon aplikasi",
-          "prompt": "Buat ikon aplikasi 1:1 yang bersih untuk nanobot: robot ramah, gaya vektor sederhana, palet biru dan putih lembut, tanpa teks."
+          "prompt": "Buat ikon aplikasi 1:1 yang bersih untuk percival: robot ramah, gaya vektor sederhana, palet biru dan putih lembut, tanpa teks."
         },
         "sticker": {
           "title": "Buat stiker",
@@ -1117,7 +1117,7 @@
             "description": "Batalkan giliran agent yang sedang aktif di chat ini."
           },
           "restart": {
-            "title": "Mulai ulang nanobot",
+            "title": "Mulai ulang percival",
             "description": "Mulai ulang proses bot di tempat."
           },
           "status": {
@@ -1287,7 +1287,7 @@
     "close": "Tutup pratinjau file",
     "loading": "Memuat pratinjau...",
     "failed": "Tidak dapat mempratinjau file ini.",
-    "routeMissing": "Pratinjau file memerlukan gateway terbaru. Mulai ulang nanobot gateway lalu coba lagi.",
+    "routeMissing": "Pratinjau file memerlukan gateway terbaru. Mulai ulang percival gateway lalu coba lagi.",
     "resize": "Ubah ukuran pratinjau file",
     "truncated": "Pratinjau dipotong karena file ini besar."
   },
