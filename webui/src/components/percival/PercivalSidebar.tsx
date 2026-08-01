@@ -17,18 +17,29 @@ export function PercivalSidebar(
   const kgUrl = resolveKgInterfaceUrl();
 
   return (
-    <>
-      <UpstreamSidebar {...props} />
+    // PERCIVAL: UpstreamSidebar's own root is `h-full` — as a plain flow sibling, the
+    // KG link would render *after* that 100%-height nav and get clipped by the
+    // `overflow-hidden` ancestors that wrap Sidebar everywhere in App.tsx (invisible,
+    // 0 visible pixels; confirmed by rendering the real compiled CSS in a headless
+    // browser). `flex-1 min-h-0` on the Sidebar's wrapper makes it share height with
+    // the KG row instead of claiming all of it, so Sidebar's own footer
+    // (Settings/ConnectionBadge) stays fully visible and the KG link gets a real row
+    // below it, with no clipping and no overlap.
+    <div className="relative flex h-full w-full flex-col">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <UpstreamSidebar {...props} />
+      </div>
       {/* PERCIVAL: link Knowledge Graph no rodapé (B2 revisada, G2-AltB). */}
       <a
         href={kgUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={t("sidebar.knowledgeGraph")}
+        className="flex shrink-0 items-center gap-2 px-2.5 py-3 text-xs text-sidebar-foreground hover:bg-sidebar-accent/75"
       >
         <Network className="h-4 w-4" />
         <span>{t("sidebar.knowledgeGraph")}</span>
       </a>
-    </>
+    </div>
   );
 }

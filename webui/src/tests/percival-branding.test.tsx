@@ -21,6 +21,28 @@ describe("branding percival", () => {
     }
   });
 
+  it("o link KG é irmão direto do root do wrapper, não descendente da Sidebar (regressão de clipping)", () => {
+    // PERCIVAL: jsdom não calcula layout real, então nenhum outro teste aqui pega
+    // regressões de CSS. UpstreamSidebar tem `h-full` na raiz — se o link KG fosse
+    // irmão de fragment (implementação anterior), ele renderizaria depois desse nav
+    // 100%-de-altura e seria cortado pelos ancestrais `overflow-hidden` que envolvem
+    // a Sidebar em todo o App.tsx (confirmado renderizando o CSS real compilado num
+    // browser headless: 0 pixels visíveis). A correção envolve `<UpstreamSidebar>`
+    // num wrapper `flex-1 min-h-0 overflow-hidden` para que ela ceda espaço ao link.
+    // Este teste garante estruturalmente que o link é filho direto do root do
+    // PercivalSidebar (fora da região que a Sidebar upstream controla), não um
+    // descendente dela — Sidebar.tsx tem sua própria div interna com classes
+    // "flex-1 overflow-hidden" (o wrapper do ChatList), então checar apenas a
+    // presença dessas classes no container não diferencia os dois casos.
+    const wrapper = renderWithClient();
+    const { container } = render(<PercivalSidebar {...buildSidebarProps()} />, {
+      wrapper,
+    });
+    const link = screen.getByText("Knowledge Graph").closest("a");
+    expect(link?.parentElement).toBe(container.firstElementChild);
+    expect(link?.parentElement?.className ?? "").not.toMatch(/overflow-hidden/);
+  });
+
   it("renderiza o link Knowledge Graph com a URL resolvida", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
@@ -70,9 +92,7 @@ describe("branding percival", () => {
 
   it("Knowledge Graph usa o ícone Lucide-react (Network)", () => {
     const wrapper = renderWithClient();
-    const { container } = render(<PercivalSidebar {...buildSidebarProps()} />, {
-      wrapper,
-    });
+    render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
     const link = screen.getByText("Knowledge Graph").closest("a");
     expect(link?.querySelector("svg")).not.toBeNull();
   });

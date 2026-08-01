@@ -49,10 +49,19 @@ export function buildSidebarProps(
  * componentes da Sidebar estão implementados.
  */
 function buildFakeClient(): NanobotClient {
-  const noop = () => {};
+  const status: ConnectionStatus = "open";
+  const handlers = new Set<(s: ConnectionStatus) => void>();
   return {
-    status: "open" as ConnectionStatus,
-    onStatus: (_handler: (s: ConnectionStatus) => void) => noop,
+    status,
+    // PERCIVAL: espelha o contrato real de NanobotClient.onStatus (nanobot-client.ts) —
+    // invoca o handler imediatamente com o status atual, depois no unsubscribe.
+    onStatus: (handler: (s: ConnectionStatus) => void) => {
+      handlers.add(handler);
+      handler(status);
+      return () => {
+        handlers.delete(handler);
+      };
+    },
   } as unknown as NanobotClient;
 }
 
