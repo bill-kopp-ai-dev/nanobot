@@ -131,16 +131,43 @@ describe("branding percival", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("Positronic Bean é omitido no modo collapsed (rail 56px não tem largura)", () => {
-    // Decisão B2-2 (2026-08-02): Positronic Bean só renderiza expandido.
-    // No rail, mantém só o KG icon-only (legado) pra não poluir os 56px.
+  it("no modo collapsed (rail 56px), KG e Positronic Bean ambos viram icon-only (32×32) na mesma ordem da expandida", () => {
+    // PERCIVAL: revisão visual 2026-08-02 — a imagem do rail mostrou que
+    // Positronic Bean não aparecia (decisão B2-2 original restringia ao
+    // modo expandido) e os ícones estavam sem espaçamento consistente
+    // (``bottom-[60px]`` não casava com a altura do footer do rail que
+    // cresce ~92px no flex-col). Solução: sub-componente ``RailIconLink``
+    // (32×32, mesmo ``h-8 w-8`` dos ``SidebarActionButton`` do upstream)
+    // e offset unificado via ``bottom-[96px]`` no rail (footer ~92px + 4px
+    // de respiro). Preserva a ordem KG → Positronic Bean → Settings → Badge.
     const wrapper = renderWithClient();
-    render(<PercivalSidebar {...buildSidebarProps({ collapsed: true })} />, {
-      wrapper,
-    });
-    expect(screen.queryByText("Positronic Bean")).toBeNull();
-    // KG continua presente no rail (fallback icon-only).
-    expect(screen.getByLabelText("Knowledge Graph")).toBeInTheDocument();
+    const { container } = render(
+      <PercivalSidebar {...buildSidebarProps({ collapsed: true })} />,
+      { wrapper },
+    );
+    // Ambos presentes, renderizados como ``<a className="h-8 w-8 grid">`` com svg.
+    const kgLink = screen.getByLabelText("Knowledge Graph");
+    const pbLink = screen.getByLabelText("Positronic Bean");
+    expect(kgLink).toHaveAttribute("title", "Knowledge Graph");
+    expect(pbLink).toHaveAttribute("title", "Positronic Bean");
+    for (const link of [kgLink, pbLink]) {
+      expect(link.tagName).toBe("A");
+      expect(link.className).toMatch(/\bh-8\b/);
+      expect(link.className).toMatch(/\bw-8\b/);
+      expect(link.querySelector("svg")).not.toBeNull();
+    }
+    // Ordem DOM: KG antes de Positronic Bean (de cima pra baixo no rail).
+    const railLinks = Array.from(
+      container.querySelectorAll('[data-testid="rail-icon-link"]'),
+    ) as HTMLAnchorElement[];
+    expect(railLinks.length).toBe(2);
+    expect(railLinks[0]).toBe(kgLink);
+    expect(railLinks[1]).toBe(pbLink);
+    // Slot externo é absoluto com ``bottom-[96px]`` (não ``[60px]``),
+    // garantindo que os ícones ficam ACIMA do footer do rail, sem
+    // sobrepor visualmente os controles.
+    const slot = container.querySelector('[data-testid="external-cards-slot"]');
+    expect(slot?.className ?? "").toMatch(/bottom-\[96px\]/);
   });
 
   it("Settings continua visível e funcional (não foi escondido)", () => {
