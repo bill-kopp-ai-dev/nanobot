@@ -107,7 +107,7 @@ export function Sidebar(props: SidebarProps) {
           onClick={collapsed ? props.onExpand : undefined}
           tabIndex={collapsed ? 0 : -1}
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors",
+            "flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl transition-colors",
             collapsed
               ? "-ml-0.5 hover:bg-sidebar-accent/75"
               : "pointer-events-none -ml-0.5",
@@ -117,13 +117,13 @@ export function Sidebar(props: SidebarProps) {
               (`nanobot_mark.svg`, fonte nanobot) pelo `nanobot_icon.png`
               192×192 (marca percival — md5sum bate com
               `New_logos/percival_icon.png` por design). Botão wrapper
-              `h-9 w-9` → `h-10 w-10`; imagem `h-8 w-8` → `h-9 w-9`.
+              `h-9 w-9` → `h-20 w-20`; imagem `h-8 w-8` → `h-19 w-19`.
               Atenção Etapa 9 (ver ASSETS-SPEC.md): quando houver SVG do
               novo logo, podemos voltar pro .svg (vetorial). */}
           <img
             src="/brand/nanobot_icon.png"
             alt=""
-            className="h-9 w-9 select-none object-contain"
+            className="h-19 w-19 select-none object-contain"
             draggable={false}
           />
         </button>
