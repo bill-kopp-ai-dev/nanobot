@@ -21,31 +21,34 @@ describe("branding percival", () => {
     }
   });
 
-  it("o link KG fica num slot fora da Sidebar upstream (regressão de clipping)", () => {
+  it("os cards externos (KG + Positronic Bean) ficam num slot fora da Sidebar upstream (regressão de clipping)", () => {
     // PERCIVAL: jsdom não calcula layout real, então nenhum outro teste aqui pega
-    // regressões de CSS. UpstreamSidebar tem `h-full` na raiz — se o link KG fosse
-    // descendente dela, renderizaria dentro do nav 100%-de-altura e seria cortado
-    // pelos ancestrais `overflow-hidden` que envolvem a Sidebar em todo o App.tsx
-    // (confirmado renderizando o CSS real compilado num browser headless: 0 pixels
-    // visíveis). A correção envolve `<UpstreamSidebar>` num wrapper
-    // `flex-1 min-h-0 overflow-hidden` e posiciona o KG num slot (`kg-card-slot`)
-    // irmão do wrapper da Sidebar, dentro do root do PercivalSidebar. O slot em si
-    // não pode ter `overflow-hidden` (senão o card seria cortado); o card KG é seu
+    // regressões de CSS. UpstreamSidebar tem `h-full` na raiz — se o slot dos
+    // cards fosse descendente dela, renderizaria dentro do nav 100%-de-altura e
+    // seria cortado pelos ancestrais `overflow-hidden` que envolvem a Sidebar
+    // em todo o App.tsx (confirmado renderizando o CSS real compilado num
+    // browser headless: 0 pixels visíveis). A correção envolve
+    // `<UpstreamSidebar>` num wrapper `flex-1 min-h-0 overflow-hidden` e
+    // posiciona os cards num slot (`external-cards-slot`) irmão do wrapper da
+    // Sidebar, dentro do root do PercivalSidebar. O slot em si não pode ter
+    // `overflow-hidden` (senão os cards seriam cortados); cada card é seu
     // único filho interativo (`pointer-events-auto`).
     const wrapper = renderWithClient();
     const { container } = render(<PercivalSidebar {...buildSidebarProps()} />, {
       wrapper,
     });
-    const slot = container.querySelector('[data-testid="kg-card-slot"]');
+    const slot = container.querySelector('[data-testid="external-cards-slot"]');
     expect(slot).not.toBeNull();
     // Slot é filho direto do root do PercivalSidebar, irmão do wrapper da Sidebar.
     expect(slot?.parentElement).toBe(container.firstElementChild);
     expect(slot?.className ?? "").not.toMatch(/overflow-hidden/);
-    const link = screen.getByText("Knowledge Graph").closest("a");
+    const kgLink = screen.getByText("Knowledge Graph").closest("a");
     // O link vive dentro do slot (não direto no root), mas o slot é que controla
     // o posicionamento absoluto; o link em si não precisa ser filho do root.
-    expect(link).not.toBeNull();
-    expect(link?.closest('[data-testid="kg-card-slot"]')).toBe(slot);
+    expect(kgLink).not.toBeNull();
+    expect(kgLink?.closest('[data-testid="external-cards-slot"]')).toBe(slot);
+    const pbLink = screen.getByText("Positronic Bean").closest("a");
+    expect(pbLink?.closest('[data-testid="external-cards-slot"]')).toBe(slot);
   });
 
   it("no modo collapsed (rail), o label do KG fica recolhido e o link vira icon-only (regressão de overflow)", () => {
@@ -97,6 +100,37 @@ describe("branding percival", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
+  it("renderiza o link Positronic Bean com a URL default do helper (positronic-bean.ts)", () => {
+    const wrapper = renderWithClient();
+    render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
+    const link = screen.getByText("Positronic Bean").closest("a");
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute(
+      "href",
+      "https://labs.positronicbean.com",
+    );
+  });
+
+  it("o link Positronic Bean abre em nova aba (target=_blank, rel=noopener noreferrer)", () => {
+    const wrapper = renderWithClient();
+    render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
+    const link = screen.getByText("Positronic Bean").closest("a");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("Positronic Bean é omitido no modo collapsed (rail 56px não tem largura)", () => {
+    // Decisão B2-2 (2026-08-02): Positronic Bean só renderiza expandido.
+    // No rail, mantém só o KG icon-only (legado) pra não poluir os 56px.
+    const wrapper = renderWithClient();
+    render(<PercivalSidebar {...buildSidebarProps({ collapsed: true })} />, {
+      wrapper,
+    });
+    expect(screen.queryByText("Positronic Bean")).toBeNull();
+    // KG continua presente no rail (fallback icon-only).
+    expect(screen.getByLabelText("Knowledge Graph")).toBeInTheDocument();
+  });
+
   it("Settings continua visível e funcional (não foi escondido)", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
@@ -135,32 +169,42 @@ describe("branding percival", () => {
     expect(link?.querySelector("svg")).not.toBeNull();
   });
 
-  it("expandido, o card KG é centralizado horizontalmente dentro de uma caixa elegante acima do footer", () => {
-    // PERCIVAL: revisão visual 2026-08-02 — o link KG virou um "card de
-    // destaque": slot absolutamente posicionado com `justify-center` (centraliza
-    // horizontalmente) + `bottom-[60px]` (flutua acima do footer do upstream
-    // ~56px sem cobrir Settings). O <a> interno tem borda + sombra + fundo
-    // gradiente que indicam que é um botão importante.
+  it("expandido, os cards externos (KG + Positronic Bean) ficam centralizados dentro de caixas elegantes acima do footer", () => {
+    // PERCIVAL: revisão visual 2026-08-02 — os cards externos viraram "cartões
+    // de destaque": slot absolutamente posicionado com `bottom-[60px]`
+    // (flutua acima do footer do upstream ~56px sem cobrir Settings), flex-col
+    // empilhando KG no topo e Positronic Bean embaixo. Cada <a> interno tem
+    // borda + sombra + fundo gradiente que indicam que é um botão importante.
     const wrapper = renderWithClient();
     const { container } = render(<PercivalSidebar {...buildSidebarProps()} />, {
       wrapper,
     });
-    const slot = container.querySelector('[data-testid="kg-card-slot"]');
+    const slot = container.querySelector('[data-testid="external-cards-slot"]');
     expect(slot).not.toBeNull();
     const slotClass = slot?.className ?? "";
-    expect(slotClass).toMatch(/justify-center/);
     expect(slotClass).toMatch(/bottom-\[60px\]/);
-    const link = screen.getByText("Knowledge Graph").closest("a");
-    expect(link).not.toBeNull();
-    const linkClass = link?.className ?? "";
+    expect(slotClass).toMatch(/flex-col/);
+    const kgLink = screen.getByText("Knowledge Graph").closest("a");
+    expect(kgLink).not.toBeNull();
+    const kgClass = kgLink?.className ?? "";
     // Caixa elegante: borda + sombra + fundo gradiente + cantos arredondados.
-    expect(linkClass).toMatch(/rounded-xl/);
-    expect(linkClass).toMatch(/border/);
-    expect(linkClass).toMatch(/shadow-\[/);
-    expect(linkClass).toMatch(/bg-gradient-to-br/);
+    expect(kgClass).toMatch(/rounded-xl/);
+    expect(kgClass).toMatch(/border/);
+    expect(kgClass).toMatch(/shadow-\[/);
+    expect(kgClass).toMatch(/bg-gradient-to-br/);
+    const pbLink = screen.getByText("Positronic Bean").closest("a");
+    expect(pbLink).not.toBeNull();
+    const pbClass = pbLink?.className ?? "";
+    expect(pbClass).toMatch(/rounded-xl/);
+    expect(pbClass).toMatch(/bg-gradient-to-br/);
+    // KG renderiza antes de Positronic Bean no DOM.
+    const ordered = [kgLink, pbLink].filter(
+      (el): el is HTMLAnchorElement => el !== null,
+    );
+    expect(ordered.indexOf(kgLink!)).toBeLessThan(ordered.indexOf(pbLink!));
   });
 
-  it("Knowledge Graph fica no rodapé em diferentes props (consistente)", () => {
+  it("os cards externos ficam no rodapé em diferentes props (consistente)", () => {
     const wrapper = renderWithClient();
     const { container: c1 } = render(<PercivalSidebar {...buildSidebarProps()} />, {
       wrapper,
@@ -173,10 +217,15 @@ describe("branding percival", () => {
       const ordered = Array.from(c.querySelectorAll("button, a"));
       const i = (label: string) =>
         ordered.findIndex((el) => el.textContent?.includes(label));
-      // KG é sempre o último elemento da ordem do DOM (depois de toda a Sidebar).
-      expect(i("Knowledge Graph")).toBe(ordered.length - 1);
+      // Positronic Bean é o último elemento do DOM (depois de KG, que
+      // também fica depois de toda a Sidebar). Garante que a ordem do
+      // slot externo (KG → Positronic Bean) é estável em diferentes props.
+      const pb = i("Positronic Bean");
+      expect(pb).toBe(ordered.length - 1);
+      expect(i("Knowledge Graph")).toBeGreaterThan(i("Settings"));
+      expect(i("Knowledge Graph")).toBeLessThan(pb);
       expect(i("Automations")).toBeLessThan(i("Knowledge Graph"));
-      expect(i("Settings")).toBeLessThan(i("Knowledge Graph"));
+      expect(i("Settings")).toBeLessThan(pb);
     }
   });
 });
