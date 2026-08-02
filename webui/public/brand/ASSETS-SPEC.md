@@ -20,7 +20,7 @@ foi substituído pelo logo percival.
 | 1 | `nanobot_mark.svg` | image/svg+xml | viewBox (SVG, 1358 chars) | viewBox original | NÃO | `Sidebar.tsx:117`, `index.html:14` |
 | 2 | `nanobot_favicon_32.png` | image/png | **32×32** | 32×32 | NÃO | `index.html:15` |
 | 3 | `nanobot_apple_touch.png` | image/png | **180×180** | 180×180 | NÃO | `index.html:16` |
-| 4 | `nanobot_icon.png` | image/png | **192×192** | 73×75 | SIM (era 73×75) | (não referenciado — órfão) |
+| 4 | `nanobot_icon.png` | image/png | **192×192** | 73×75 | SIM (era 73×75) | `Sidebar.tsx:117` (mark da sidebar, desde 2026-08-02) |
 | 5 | `nanobot_logo.png` | image/png | **2426×386** | 400×75 | SIM (era 400×75) | (não referenciado — órfão) |
 | 6 | `nanobot_logo.webp` | image/webp | **2425×385** | 399×74 | SIM (era 399×74) | (não referenciado — órfão) |
 
