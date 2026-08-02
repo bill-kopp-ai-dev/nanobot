@@ -51,23 +51,35 @@ describe("branding percival", () => {
     expect(pbLink?.closest('[data-testid="external-cards-slot"]')).toBe(slot);
   });
 
-  it("no modo collapsed (rail), o label do KG fica recolhido e o link vira icon-only (regressão de overflow)", () => {
-    // PERCIVAL: achado de revisão integrada — a implementação original ignorava
-    // `props.collapsed`, então no rail de 56px (SIDEBAR_RAIL_WIDTH em App.tsx) o
-    // texto "Knowledge Graph" vazava para fora da sidebar (confirmado renderizando
-    // o CSS real compilado num browser headless). jsdom não calcula layout, então
-    // este teste checa a mesma classe de recolhimento (`max-w-0`/`opacity-0`) que
-    // SidebarActionButton já usa para os outros botões da Sidebar, em vez de medir
-    // pixels — a ausência dela é exatamente o que causava o overflow.
+  it("no modo collapsed (rail), o KG vira icon-only e fica ACIMA do footer (mesma ordem da expandida)", () => {
+    // PERCIVAL: revisão 2026-08-02 — unificamos o slot externo: agora o KG
+    // icon-only no rail usa o mesmo slot absoluto `external-cards-slot` que a
+    // expandida, posicionado acima do footer do upstream (Settings +
+    // ConnectionBadge). Isso preserva a ORDEM visual da expandida
+    // (KG → Positronic Bean → Settings → ConnectionBadge, de cima pra baixo).
+    //
+    // Achado histórico: a implementação original ignorava `props.collapsed`,
+    // então no rail de 56px (SIDEBAR_RAIL_WIDTH em App.tsx) o texto "Knowledge
+    // Graph" vazava para fora da sidebar (confirmado renderizando o CSS real
+    // compilado num browser headless). jsdom não calcula layout, então este
+    // teste checa que no rail o KG é renderizado como ícone de 32×32 sem
+    // label visível (ícone Network dentro de uma grade 32×32 com hover).
     const wrapper = renderWithClient();
-    render(<PercivalSidebar {...buildSidebarProps({ collapsed: true })} />, {
-      wrapper,
-    });
+    const { container } = render(
+      <PercivalSidebar {...buildSidebarProps({ collapsed: true })} />,
+      { wrapper },
+    );
     const link = screen.getByLabelText("Knowledge Graph");
     expect(link.tagName).toBe("A");
     expect(link).toHaveAttribute("title", "Knowledge Graph");
-    const label = link.querySelector("span");
-    expect(label?.className ?? "").toMatch(/max-w-0/);
+    // KG icon-only no rail: quadrado 32×32 (`grid h-8 w-8`), sem span de label.
+    expect(link.className).toMatch(/h-8/);
+    expect(link.className).toMatch(/w-8/);
+    expect(link.querySelector("svg")).not.toBeNull();
+    // KG é renderizado dentro do slot externo (não depois do footer).
+    const slot = container.querySelector('[data-testid="external-cards-slot"]');
+    expect(slot).not.toBeNull();
+    expect(link.closest('[data-testid="external-cards-slot"]')).toBe(slot);
   });
 
   it("expandido (collapsed=false), o card KG fica visível com label e title para acessibilidade", () => {

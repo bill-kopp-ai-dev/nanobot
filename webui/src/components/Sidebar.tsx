@@ -234,7 +234,7 @@ export function Sidebar(props: SidebarProps) {
       </div>
       <div
         className={cn(
-          "flex items-center gap-1 bg-sidebar/55 px-2.5 py-3 text-xs",
+          "flex items-center gap-1 bg-sidebar/55 px-3 py-3 text-xs",
           collapsed && "w-14 flex-col px-0",
         )}
       >

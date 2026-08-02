@@ -56,51 +56,54 @@ export function PercivalSidebar(
           do footer do upstream. Em modo expandido (largura 272px), o slot
           empilha 2 cards com estilo elegante: borda + sombra + fundo gradiente,
           ícone num quadrado tinted, label e ArrowUpRight indicando recurso
-          externo. Em modo collapsed (rail 56px), cai pro fallback icon-only
-          (só KG; Positronic Bean é omitido pra não poluir o rail). */}
-      {!collapsed ? (
-        <div
-          data-testid="external-cards-slot"
-          className={cn(
-            "pointer-events-none absolute inset-x-0 z-10 flex flex-col items-stretch gap-1.5 px-3",
-            EXTERNAL_CARDS_BOTTOM_OFFSET_EXPANDED,
-          )}
-        >
+          externo. Em modo collapsed (rail 56px), usa o MESMO slot absoluto
+          mas com fallback icon-only (KG acima, Positronic Bean omitido pra
+          não poluir o rail) — preserva a ORDEM visual da expandida
+          (KG → Positronic Bean → Settings → ConnectionBadge, de cima pra
+          baixo). Positronic Bean fica fora do rail porque 56px não comporta
+          mais um ícone. */}
+      <div
+        data-testid="external-cards-slot"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 z-10 flex px-3",
+          EXTERNAL_CARDS_BOTTOM_OFFSET_EXPANDED,
+          collapsed
+            ? "w-14 flex-col items-center gap-1.5"
+            : "flex-col items-stretch gap-1.5",
+        )}
+      >
+        {!collapsed && (
           <ExternalSidebarCard
             href={kgUrl}
             label={kgLabel}
             Icon={Network}
           />
+        )}
+        {collapsed && (
+          <a
+            href={kgUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={kgLabel}
+            title={kgLabel}
+            className={cn(
+              "pointer-events-auto grid h-8 w-8 place-items-center rounded-lg",
+              "text-sidebar-foreground hover:bg-sidebar-accent/75",
+              "transition-colors duration-200 ease-out",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            )}
+          >
+            <Network className="h-4 w-4" aria-hidden />
+          </a>
+        )}
+        {!collapsed && (
           <ExternalSidebarCard
             href={pbUrl}
             label={pbLabel}
             Icon={Sprout}
           />
-        </div>
-      ) : (
-        <a
-          href={kgUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={kgLabel}
-          title={kgLabel}
-          className={cn(
-            "flex shrink-0 items-center gap-2 overflow-hidden py-3 text-xs text-sidebar-foreground hover:bg-sidebar-accent/75",
-            "transition-[width,padding] duration-300 ease-out",
-            "w-14 justify-center px-0",
-          )}
-        >
-          <Network className="h-4 w-4 shrink-0" aria-hidden />
-          <span
-            className={cn(
-              "min-w-0 max-w-0 overflow-hidden truncate whitespace-nowrap opacity-0",
-              "transition-[max-width,opacity] duration-200 ease-out",
-            )}
-          >
-            {kgLabel}
-          </span>
-        </a>
-      )}
+        )}
+      </div>
     </div>
   );
 }
