@@ -43,6 +43,36 @@ describe("branding percival", () => {
     expect(link?.parentElement?.className ?? "").not.toMatch(/overflow-hidden/);
   });
 
+  it("no modo collapsed (rail), o label do KG fica recolhido e o link vira icon-only (regressão de overflow)", () => {
+    // PERCIVAL: achado de revisão integrada — a implementação original ignorava
+    // `props.collapsed`, então no rail de 56px (SIDEBAR_RAIL_WIDTH em App.tsx) o
+    // texto "Knowledge Graph" vazava para fora da sidebar (confirmado renderizando
+    // o CSS real compilado num browser headless). jsdom não calcula layout, então
+    // este teste checa a mesma classe de recolhimento (`max-w-0`/`opacity-0`) que
+    // SidebarActionButton já usa para os outros botões da Sidebar, em vez de medir
+    // pixels — a ausência dela é exatamente o que causava o overflow.
+    const wrapper = renderWithClient();
+    render(<PercivalSidebar {...buildSidebarProps({ collapsed: true })} />, {
+      wrapper,
+    });
+    const link = screen.getByLabelText("Knowledge Graph");
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("title", "Knowledge Graph");
+    const label = link.querySelector("span");
+    expect(label?.className ?? "").toMatch(/max-w-0/);
+  });
+
+  it("expandido (collapsed=false), o label do KG fica visível e sem atributo title redundante", () => {
+    const wrapper = renderWithClient();
+    render(<PercivalSidebar {...buildSidebarProps({ collapsed: false })} />, {
+      wrapper,
+    });
+    const link = screen.getByLabelText("Knowledge Graph");
+    expect(link).not.toHaveAttribute("title");
+    const label = link.querySelector("span");
+    expect(label?.className ?? "").not.toMatch(/max-w-0/);
+  });
+
   it("renderiza o link Knowledge Graph com a URL resolvida", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });

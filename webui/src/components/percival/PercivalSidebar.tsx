@@ -9,12 +9,21 @@ import { Network } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Sidebar as UpstreamSidebar } from "@/components/Sidebar";
 import { resolveKgInterfaceUrl } from "@/lib/kg-interface";
+import { cn } from "@/lib/utils";
 
 export function PercivalSidebar(
   props: React.ComponentProps<typeof UpstreamSidebar>,
 ) {
   const { t } = useTranslation();
   const kgUrl = resolveKgInterfaceUrl();
+  // PERCIVAL: achado de revisão integrada — o link KG ignorava `props.collapsed`,
+  // então no modo rail (56px, ver SIDEBAR_RAIL_WIDTH em App.tsx) o texto "Knowledge
+  // Graph" não cabia e vazava para fora da sidebar (confirmado renderizando o CSS
+  // real compilado num browser headless). Espelha o mesmo padrão de
+  // SidebarActionButton (Sidebar.tsx): ícone centrado + label recolhida via
+  // max-width/opacity, com `title` como tooltip no lugar do label visível.
+  const collapsed = Boolean(props.collapsed);
+  const kgLabel = t("sidebar.knowledgeGraph");
 
   return (
     // PERCIVAL: UpstreamSidebar's own root is `h-full` — as a plain flow sibling, the
@@ -34,11 +43,23 @@ export function PercivalSidebar(
         href={kgUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={t("sidebar.knowledgeGraph")}
-        className="flex shrink-0 items-center gap-2 px-2.5 py-3 text-xs text-sidebar-foreground hover:bg-sidebar-accent/75"
+        aria-label={kgLabel}
+        title={collapsed ? kgLabel : undefined}
+        className={cn(
+          "flex shrink-0 items-center gap-2 overflow-hidden py-3 text-xs text-sidebar-foreground hover:bg-sidebar-accent/75",
+          "transition-[width,padding] duration-300 ease-out",
+          collapsed ? "w-14 justify-center px-0" : "w-full justify-start px-2.5",
+        )}
       >
-        <Network className="h-4 w-4" />
-        <span>{t("sidebar.knowledgeGraph")}</span>
+        <Network className="h-4 w-4 shrink-0" aria-hidden />
+        <span
+          className={cn(
+            "min-w-0 overflow-hidden truncate whitespace-nowrap transition-[max-width,opacity] duration-200 ease-out",
+            collapsed ? "max-w-0 opacity-0" : "max-w-[12rem] opacity-100",
+          )}
+        >
+          {kgLabel}
+        </span>
       </a>
     </div>
   );
