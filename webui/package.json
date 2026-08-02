@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
+    "build:dev-kg": "VITE_KG_INTERFACE_URL=http://localhost:5174/ tsc -p tsconfig.build.json && VITE_KG_INTERFACE_URL=http://localhost:5174/ vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

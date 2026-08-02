@@ -76,6 +76,43 @@ If your gateway listens on a non-default port, point the dev server at it:
 NANOBOT_API_URL=http://127.0.0.1:9000 bun run dev
 ```
 
+### 4a. (Optional) Open the Knowledge Graph SPA alongside the WebUI
+
+The sidebar shows a "Knowledge Graph" button that opens the
+`mcp_servers/spa/` SPA. In dev local they run on different origins
+(WebUI on `:5173`, SPA on `:5174` — see
+`docker/mcp_servers/spa/vite.config.ts`), so the WebUI needs to know
+the SPA's absolute URL. The shipped `.env.development` sets
+`VITE_KG_INTERFACE_URL=http://localhost:5174/`, so a vanilla
+`bun run dev` already works — no action needed unless you change the
+SPA's port. If you do, override:
+
+```bash
+VITE_KG_INTERFACE_URL=http://localhost:5180/ bun run dev
+```
+
+The helper (`src/lib/kg-interface.ts`) also has a runtime fallback:
+if the WebUI itself is served from `:5173` (the Vite dev server), it
+auto-detects the SPA on `:5174` without requiring the env var. This
+makes the button work even when the user only runs `bun run dev`
+without an `.env` file. **Caveat:** this fallback only fires on
+`:5173` — if you access the gateway/prod build (`:8765`), the helper
+falls back to the relative `/kg-interface/` (P10 default) and won't
+find the SPA on a different origin. For that scenario, rebuild the
+WebUI bundle with the SPA URL baked in:
+
+```bash
+bun run build:dev-kg
+```
+
+This embeds `VITE_KG_INTERFACE_URL=http://localhost:5174/` into the
+bundle served by the gateway, so the button works regardless of how
+you reach the WebUI (dev server OR gateway).
+
+In production (P10) the SPA is served by Caddy on the same origin as
+the WebUI under `/kg-interface/`, so the helper defaults to that
+relative path and no env var is needed.
+
 ## Build for packaged runtime
 
 You usually do not need to run this by hand: `python -m build` invokes the WebUI build automatically when packaging the wheel.
