@@ -8,12 +8,12 @@ describe("resolveKgInterfaceUrl", () => {
   // Stubamos manualmente em cada teste para isolar o caminho esperado.
   const ORIGINAL_LOCATION = window.location;
 
+  // Stub o location.href para uma origem não-dev (porta 9000 — arbitrária,
+  // fora da lista {5173, 8765}). Assim o teste do default relativo cai no
+  // caminho (3) do helper.
   beforeEach(() => {
-    // Stub o location.href para uma origem não-dev (8765 do gateway), que
-    // NÃO dispara o fallback de runtime detection; assim o teste do default
-    // relativo cai no caminho (3) do helper.
     Object.defineProperty(window, "location", {
-      value: { hostname: "127.0.0.1", port: "8765" },
+      value: { hostname: "127.0.0.1", port: "9000" },
       writable: true,
       configurable: true,
     });
@@ -29,15 +29,15 @@ describe("resolveKgInterfaceUrl", () => {
   });
 
   it("retorna o default /kg-interface/ quando VITE_KG_INTERFACE_URL não está setada e não estamos no dev server", () => {
-    // Caminho (3): sem env var + origin ≠ dev server (8765 do gateway) →
-    // default relativo (produção / VPS / P10).
+    // Caminho (3): sem env var + origin fora da lista de dev → default
+    // relativo (produção / VPS / P10).
     expect(resolveKgInterfaceUrl()).toBe(DEFAULT_KG_INTERFACE_URL);
   });
 
   it("detecta em runtime o dev server da webui (porta 5173) e aponta pra SPA dev (5174)", () => {
-    // Caminho (2): sem env var + webui rodando na porta 5173 → aponta pra
-    // SPA dev em 5174 sem precisar de env var (resiliente a cache/skip
-    // do .env.development).
+    // Caminho (2a): sem env var + webui rodando na porta 5173 (Vite direto)
+    // → aponta pra SPA dev em 5174 sem precisar de env var (resiliente a
+    // cache/skip do .env.development).
     Object.defineProperty(window, "location", {
       value: { hostname: "127.0.0.1", port: "5173" },
       writable: true,
@@ -55,9 +55,50 @@ describe("resolveKgInterfaceUrl", () => {
     expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
   });
 
-  it("NÃO detecta como dev quando a porta não é 5173 (ex: 8765 do gateway)", () => {
+  // PERCIVAL: regressão 2026-08-06 — em dev local o usuário abre a webui
+  // pelo gateway nanobot (http://127.0.0.1:8765), não pelo Vite direto em
+  // :5173 (o `dev-spa.sh` sobe apenas a SPA + adapters, e a webui é servida
+  // pelo bundle estático que o gateway entrega). Antes desta correção, o
+  // helper caía no caminho (3) e o botão abria
+  // `http://127.0.0.1:8765/kg-interface/` (404 no dev local — o gateway não
+  // sabe servir `/kg-interface/`; esse path só existe atrás do Caddy/Cloudflare
+  // em P10). Agora :8765 também aciona o atalho pra :5174.
+  it("detecta em runtime o gateway nanobot local (porta 8765) e aponta pra SPA dev (5174)", () => {
     Object.defineProperty(window, "location", {
       value: { hostname: "127.0.0.1", port: "8765" },
+      writable: true,
+      configurable: true,
+    });
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+  });
+
+  it("detecta em runtime o gateway nanobot local via hostname localhost também", () => {
+    Object.defineProperty(window, "location", {
+      value: { hostname: "localhost", port: "8765" },
+      writable: true,
+      configurable: true,
+    });
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+  });
+
+  it("NÃO detecta como dev quando a porta não é 5173 nem 8765 (ex: produção no mesmo origin)", () => {
+    // Em produção o Caddy serve o caminho /kg-interface/ no MESMO origin
+    // da webui (HTTPS em 443), então o default relativo é o que faz
+    // sentido (mesmo origin = cookie de auth preservado).
+    Object.defineProperty(window, "location", {
+      value: { hostname: "127.0.0.1", port: "443" },
+      writable: true,
+      configurable: true,
+    });
+    expect(resolveKgInterfaceUrl()).toBe(DEFAULT_KG_INTERFACE_URL);
+  });
+
+  it("NÃO detecta como dev quando o hostname não é localhost/127.0.0.1 (ex: produção)", () => {
+    // Garante que o atalho :5174 não dispara em hosts remotos (ex:
+    // `https://nanobot.example.com` em produção apontaria pra
+    // `http://localhost:5174/`, que não é alcançável do browser).
+    Object.defineProperty(window, "location", {
+      value: { hostname: "nanobot.example.com", port: "8765" },
       writable: true,
       configurable: true,
     });
@@ -87,7 +128,7 @@ describe("resolveKgInterfaceUrl", () => {
     // helper) substitui o antigo comportamento pass-through. Antes,
     // `VITE_KG_INTERFACE_URL=""` retornava `""` (decisão B1); agora cai
     // no próximo fallback porque `""` é falsy. Como o location.stubado
-    // aponta pra 8765 (não-dev), cai no default relativo /kg-interface/.
+    // aponta pra 9000 (não-dev), cai no default relativo /kg-interface/.
     // Isso é uma melhoria: o botão nunca fica quebrado por env var vazia.
     vi.stubEnv("VITE_KG_INTERFACE_URL", "");
     expect(resolveKgInterfaceUrl()).toBe(DEFAULT_KG_INTERFACE_URL);
