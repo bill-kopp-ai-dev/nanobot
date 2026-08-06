@@ -347,7 +347,7 @@ MCP_PRESETS: tuple[McpPreset, ...] = (
         requires="Docker and GitHub token",
         server=MCPServerConfig(
             type="stdio",
-            command="docker",
+            command="agent-docker",
             args=[
                 "run",
                 "-i",

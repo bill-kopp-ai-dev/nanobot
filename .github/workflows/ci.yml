@@ -179,7 +179,7 @@ jobs:
         working-directory: webui
         run: bun run build
 
-  docker:
+  agent-docker:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

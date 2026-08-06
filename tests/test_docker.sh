@@ -13,7 +13,7 @@ docker run --name nanobot-test-run "$IMAGE_NAME" onboard
 
 echo ""
 echo "=== Running 'nanobot status' ==="
-STATUS_OUTPUT=$(docker commit nanobot-test-run nanobot-test-onboarded > /dev/null && \
+STATUS_OUTPUT=$(agent-docker commit nanobot-test-run nanobot-test-onboarded > /dev/null && \
     docker run --rm nanobot-test-onboarded status 2>&1) || true
 
 echo "$STATUS_OUTPUT"

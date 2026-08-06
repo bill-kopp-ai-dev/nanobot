@@ -81,7 +81,7 @@ NANOBOT_API_URL=http://127.0.0.1:9000 bun run dev
 The sidebar shows a "Knowledge Graph" button that opens the
 `mcp_servers/spa/` SPA. In dev local they run on different origins
 (WebUI on `:5173`, SPA on `:5174` — see
-`docker/mcp_servers/spa/vite.config.ts`), so the WebUI needs to know
+`agent-docker/mcp_servers/spa/vite.config.ts`), so the WebUI needs to know
 the SPA's absolute URL. The shipped `.env.development` sets
 `VITE_KG_INTERFACE_URL=http://localhost:5174/`, so a vanilla
 `bun run dev` already works — no action needed unless you change the

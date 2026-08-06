@@ -6,8 +6,8 @@ describe("code language helpers", () => {
   it.each([
     ["src/App.tsx", "tsx"],
     ["templates/index.html", "markup"],
-    ["Dockerfile", "docker"],
-    ["Dockerfile.dev", "docker"],
+    ["Dockerfile", "agent-docker"],
+    ["Dockerfile.dev", "agent-docker"],
     ["CMakeLists.txt", "cmake"],
     ["scripts/setup.sh:12:4", "bash"],
     ["config/settings.yaml?raw=1", "yaml"],
@@ -18,7 +18,7 @@ describe("code language helpers", () => {
 
   it("normalizes aliases used by the file preview API", () => {
     expect(normalizeCodeLanguage("html")).toBe("markup");
-    expect(normalizeCodeLanguage("dockerfile")).toBe("docker");
+    expect(normalizeCodeLanguage("dockerfile")).toBe("agent-docker");
     expect(normalizeCodeLanguage(undefined)).toBe("text");
   });
 });

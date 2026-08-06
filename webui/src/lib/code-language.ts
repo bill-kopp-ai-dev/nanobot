@@ -1,6 +1,6 @@
 const LANGUAGE_ALIASES: Record<string, string> = {
   cjs: "javascript",
-  dockerfile: "docker",
+  dockerfile: "agent-docker",
   htm: "markup",
   html: "markup",
   js: "javascript",
@@ -20,7 +20,7 @@ const LANGUAGE_ALIASES: Record<string, string> = {
 
 const FILE_NAME_LANGUAGES: Record<string, string> = {
   "cmakelists.txt": "cmake",
-  dockerfile: "docker",
+  dockerfile: "agent-docker",
   gemfile: "ruby",
   makefile: "makefile",
   procfile: "ruby",
@@ -91,7 +91,7 @@ export function codeLanguageFromPath(path?: string | null): string {
     .replace(/\\/g, "/");
   const name = normalizedPath.split("/").pop()?.toLowerCase() ?? "";
   if (!name) return "text";
-  if (name.startsWith("dockerfile.")) return "docker";
+  if (name.startsWith("dockerfile.")) return "agent-docker";
   const namedLanguage = FILE_NAME_LANGUAGES[name];
   if (namedLanguage) return namedLanguage;
   const extension = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1) : "";

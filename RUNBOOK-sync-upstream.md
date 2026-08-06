@@ -10,7 +10,7 @@
 
 ## 0. Política de branches (regra fixa)
 
-> **Todos os push em `docker/nanobot` (este fork) vão para branches de feature, nunca para `main`.**
+> **Todos os push em `agent-docker/nanobot` (este fork) vão para branches de feature, nunca para `main`.**
 > **O repo `mcp-servers-percival` (repo pai, escopo mais amplo) continua recebendo push em `main` como padrão.**
 
 - **`main` deste fork** = espelha o upstream, recebe apenas `fetch + merge` do `upstream/main`.
@@ -26,7 +26,7 @@ Razão: preservar o "diff cirúrgico" e tornar o merge com upstream trivial.
 Adicionar o remote `upstream` (uma vez por clone):
 
 ```bash
-cd docker/nanobot
+cd agent-docker/nanobot
 git remote add upstream https://github.com/HKUDS/nanobot.git
 git fetch upstream
 ```
@@ -45,7 +45,7 @@ upstream  https://github.com/HKUDS/nanobot.git (fetch/push)
 Quando o `HKUDS/nanobot` lançar novos commits e você quiser trazê-los:
 
 ```bash
-cd docker/nanobot
+cd agent-docker/nanobot
 git fetch upstream
 git checkout main
 git merge upstream/main
@@ -64,7 +64,7 @@ periodicamente. **Use merge, não rebase** (preserva histórico, evita reescrita
 simplifica o trabalho com submódulos).
 
 ```bash
-cd docker/nanobot
+cd agent-docker/nanobot
 git checkout feat/percival-branding
 git merge main
 # resolver conflitos — esperados em:
@@ -85,7 +85,7 @@ git push origin feat/percival-branding
 Backup antes de mexer:
 
 ```bash
-cd docker/nanobot
+cd agent-docker/nanobot
 cp webui/src/components/Sidebar.tsx webui/src/components/Sidebar.tsx.bak
 git merge main
 # revisar diff, reaplicar manualmente as mudanças do percival:
@@ -110,10 +110,10 @@ Idem para `webui/src/main.tsx` (import do `percival-overrides.css`) e
 ```bash
 cd /home/bill/Codes/mcp-servers-percival
 git checkout main
-git submodule update --remote docker/nanobot
+git submodule update --remote agent-docker/nanobot
 git status
-git diff docker/nanobot
-git add docker/nanobot
+git diff agent-docker/nanobot
+git add agent-docker/nanobot
 git commit -m "chore(nanobot): point submodule at feat/percival-branding"
 git push origin main
 ```

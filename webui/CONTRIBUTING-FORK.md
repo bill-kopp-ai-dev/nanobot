@@ -1,6 +1,6 @@
 # Contribuindo no fork `feat/percival-branding`
 
-Documento de referência para a branch `feat/percival-branding` do `docker/nanobot`,
+Documento de referência para a branch `feat/percival-branding` do `agent-docker/nanobot`,
 a webui customizada do Percival. Cobre:
 
 - O que foi alterado em relação à `nanobot/webui` upstream (HKUDS/nanobot).
@@ -15,7 +15,7 @@ a webui customizada do Percival. Cobre:
 
 ## 1. Filosofia do fork
 
-A webui vive como **submodule** de `docker/mcp_servers/spa/percival` apontando
+A webui vive como **submodule** de `agent-docker/mcp_servers/spa/percival` apontando
 para https://github.com/bill-kopp-ai-dev/nanobot.git, branch `feat/percival-branding`.
 A upstream é `git://github.com/HKUDS/nanobot.git` (remote `upstream`).
 
@@ -32,7 +32,7 @@ A upstream é `git://github.com/HKUDS/nanobot.git` (remote `upstream`).
 Quando esses dois princípios entrarem em tensão com um requisito novo, **abrir
 PR descrevendo o trade-off antes de fazer o patch** — decisões historicamente
 discutidas (B1, B2, B4, G2-AltB) ficam em
-`docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/`.
+`agent-docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/`.
 
 ---
 
@@ -241,7 +241,7 @@ Tabela de risco estimado por arquivo quando `git pull upstream main`:
 ## 4. Procedimento de merge com upstream
 
 ```bash
-# Workspace no submodule docker/nanobot
+# Workspace no submodule agent-docker/nanobot
 git checkout feat/percival-branding
 git fetch upstream main
 
@@ -400,8 +400,8 @@ git log --oneline 2cb6fd1c^..HEAD
 
 ## 8. Contatos / referências
 
-- Plano P8 completo: `docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/`.
+- Plano P8 completo: `agent-docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/`.
 - Decisões históricas (B1, B2, B4, G2-AltB): ver índice em
-  `docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/P8-decisions-2026-08-01.md`.
+  `agent-docker/mcp_servers/MCP_Docs/percival-collective-memory-Docs/plans/P8-decisions-2026-08-01.md`.
 - Upstream remoto: `https://github.com/HKUDS/nanobot`.
 - Branch remoto fork: `https://github.com/bill-kopp-ai-dev/nanobot/tree/feat/percival-branding`.
