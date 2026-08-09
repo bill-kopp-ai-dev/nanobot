@@ -42,7 +42,7 @@ describe("branding percival", () => {
     // Slot é filho direto do root do PercivalSidebar, irmão do wrapper da Sidebar.
     expect(slot?.parentElement).toBe(container.firstElementChild);
     expect(slot?.className ?? "").not.toMatch(/overflow-hidden/);
-    const kgLink = screen.getByText("Knowledge Graph").closest("a");
+    const kgLink = screen.getByText("p-brain").closest("a");
     // O link vive dentro do slot (não direto no root), mas o slot é que controla
     // o posicionamento absoluto; o link em si não precisa ser filho do root.
     expect(kgLink).not.toBeNull();
@@ -69,9 +69,9 @@ describe("branding percival", () => {
       <PercivalSidebar {...buildSidebarProps({ collapsed: true })} />,
       { wrapper },
     );
-    const link = screen.getByLabelText("Knowledge Graph");
+    const link = screen.getByLabelText("p-brain");
     expect(link.tagName).toBe("A");
-    expect(link).toHaveAttribute("title", "Knowledge Graph");
+    expect(link).toHaveAttribute("title", "p-brain");
     // KG icon-only no rail: quadrado 32×32 (`grid h-8 w-8`), sem span de label.
     expect(link.className).toMatch(/h-8/);
     expect(link.className).toMatch(/w-8/);
@@ -90,16 +90,16 @@ describe("branding percival", () => {
     render(<PercivalSidebar {...buildSidebarProps({ collapsed: false })} />, {
       wrapper,
     });
-    const link = screen.getByLabelText("Knowledge Graph");
-    expect(link).toHaveAttribute("title", "Knowledge Graph");
+    const link = screen.getByLabelText("p-brain");
+    expect(link).toHaveAttribute("title", "p-brain");
     const label = link.querySelector("span");
     expect(label?.className ?? "").not.toMatch(/max-w-0/);
   });
 
-  it("renderiza o link Knowledge Graph com a URL resolvida", () => {
+  it("renderiza o link p-brain com a URL resolvida", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
-    const link = screen.getByText("Knowledge Graph").closest("a");
+    const link = screen.getByText("p-brain").closest("a");
     expect(link).not.toBeNull();
     expect(link).toHaveAttribute("href", "http://localhost:5174");
   });
@@ -107,7 +107,7 @@ describe("branding percival", () => {
   it("o link KG abre em nova aba (target=_blank, rel=noopener noreferrer)", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
-    const link = screen.getByText("Knowledge Graph").closest("a");
+    const link = screen.getByText("p-brain").closest("a");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
@@ -146,9 +146,9 @@ describe("branding percival", () => {
       { wrapper },
     );
     // Ambos presentes, renderizados como ``<a className="h-8 w-8 grid">`` com svg.
-    const kgLink = screen.getByLabelText("Knowledge Graph");
+    const kgLink = screen.getByLabelText("p-brain");
     const pbLink = screen.getByLabelText("Positronic Bean");
-    expect(kgLink).toHaveAttribute("title", "Knowledge Graph");
+    expect(kgLink).toHaveAttribute("title", "p-brain");
     expect(pbLink).toHaveAttribute("title", "Positronic Bean");
     for (const link of [kgLink, pbLink]) {
       expect(link.tagName).toBe("A");
@@ -176,7 +176,7 @@ describe("branding percival", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
-  it("Knowledge Graph aparece depois de Automations e Settings (G2-AltB)", () => {
+  it("p-brain aparece depois de Automations e Settings (G2-AltB)", () => {
     const wrapper = renderWithClient();
     const { container } = render(<PercivalSidebar {...buildSidebarProps()} />, {
       wrapper,
@@ -189,22 +189,22 @@ describe("branding percival", () => {
       ordered.findIndex((el) => el.textContent?.includes(label));
     expect(indexOf("Automations")).toBeGreaterThan(-1);
     expect(indexOf("Settings")).toBeGreaterThan(-1);
-    expect(indexOf("Knowledge Graph")).toBeGreaterThan(-1);
-    expect(indexOf("Automations")).toBeLessThan(indexOf("Knowledge Graph"));
-    expect(indexOf("Settings")).toBeLessThan(indexOf("Knowledge Graph"));
+    expect(indexOf("p-brain")).toBeGreaterThan(-1);
+    expect(indexOf("Automations")).toBeLessThan(indexOf("p-brain"));
+    expect(indexOf("Settings")).toBeLessThan(indexOf("p-brain"));
   });
 
-  it("Knowledge Graph tem aria-label igual ao texto visível", () => {
+  it("p-brain tem aria-label igual ao texto visível", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
-    const link = screen.getByLabelText("Knowledge Graph");
+    const link = screen.getByLabelText("p-brain");
     expect(link.tagName).toBe("A");
   });
 
-  it("Knowledge Graph usa o ícone Lucide-react (Network)", () => {
+  it("p-brain usa o ícone Lucide-react (Brain)", () => {
     const wrapper = renderWithClient();
     render(<PercivalSidebar {...buildSidebarProps()} />, { wrapper });
-    const link = screen.getByText("Knowledge Graph").closest("a");
+    const link = screen.getByText("p-brain").closest("a");
     expect(link?.querySelector("svg")).not.toBeNull();
   });
 
@@ -223,7 +223,7 @@ describe("branding percival", () => {
     const slotClass = slot?.className ?? "";
     expect(slotClass).toMatch(/bottom-\[60px\]/);
     expect(slotClass).toMatch(/flex-col/);
-    const kgLink = screen.getByText("Knowledge Graph").closest("a");
+    const kgLink = screen.getByText("p-brain").closest("a");
     expect(kgLink).not.toBeNull();
     const kgClass = kgLink?.className ?? "";
     // Caixa elegante: borda + sombra + fundo gradiente + cantos arredondados.
@@ -261,9 +261,9 @@ describe("branding percival", () => {
       // slot externo (KG → Positronic Bean) é estável em diferentes props.
       const pb = i("Positronic Bean");
       expect(pb).toBe(ordered.length - 1);
-      expect(i("Knowledge Graph")).toBeGreaterThan(i("Settings"));
-      expect(i("Knowledge Graph")).toBeLessThan(pb);
-      expect(i("Automations")).toBeLessThan(i("Knowledge Graph"));
+      expect(i("p-brain")).toBeGreaterThan(i("Settings"));
+      expect(i("p-brain")).toBeLessThan(pb);
+      expect(i("Automations")).toBeLessThan(i("p-brain"));
       expect(i("Settings")).toBeLessThan(pb);
     }
   });

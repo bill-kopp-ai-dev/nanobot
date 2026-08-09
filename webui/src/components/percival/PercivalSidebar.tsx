@@ -14,7 +14,7 @@
 // Decisão B4: ícone Lucide-react (Network para KG, Sprout para Positronic
 // Bean — broto/semente combina com "Bean" + labs; distinto do Network).
 
-import { ArrowUpRight, type LucideIcon, Network, Sprout } from "lucide-react";
+import { ArrowUpRight, type LucideIcon, Brain, Sprout } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Sidebar as UpstreamSidebar } from "@/components/Sidebar";
 import { resolveKgInterfaceUrl } from "@/lib/kg-interface";
@@ -121,7 +121,7 @@ function renderExternalCardsSlot(args: {
           "bottom-[96px]",
         )}
       >
-        <RailIconLink href={kgUrl} label={kgLabel} Icon={Network} />
+        <RailIconLink href={kgUrl} label={kgLabel} Icon={Brain} />
         <RailIconLink href={pbUrl} label={pbLabel} Icon={Sprout} />
       </div>
     );
@@ -141,7 +141,7 @@ function renderExternalCardsSlot(args: {
         EXTERNAL_CARDS_BOTTOM_OFFSET_EXPANDED,
       )}
     >
-      <ExternalSidebarCard href={kgUrl} label={kgLabel} Icon={Network} />
+      <ExternalSidebarCard href={kgUrl} label={kgLabel} Icon={Brain} />
       <ExternalSidebarCard
         href={pbUrl}
         label={pbLabel}
