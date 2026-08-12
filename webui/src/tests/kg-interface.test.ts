@@ -43,7 +43,7 @@ describe("resolveKgInterfaceUrl", () => {
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
   });
 
   it("detecta em runtime o dev server via hostname localhost também", () => {
@@ -52,7 +52,7 @@ describe("resolveKgInterfaceUrl", () => {
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
   });
 
   // PERCIVAL: regressão 2026-08-06 — em dev local o usuário abre a webui
@@ -69,7 +69,7 @@ describe("resolveKgInterfaceUrl", () => {
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
   });
 
   it("detecta em runtime o gateway nanobot local via hostname localhost também", () => {
@@ -78,7 +78,7 @@ describe("resolveKgInterfaceUrl", () => {
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/");
+    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
   });
 
   it("NÃO detecta como dev quando a porta não é 5173 nem 8765 (ex: produção no mesmo origin)", () => {

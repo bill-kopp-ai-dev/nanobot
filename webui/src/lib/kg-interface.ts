@@ -5,7 +5,7 @@
 //   1. **Build-time env var** `VITE_KG_INTERFACE_URL` (decisão B1). Vite
 //      substitui `import.meta.env.VITE_*` em build time pelo valor literal;
 //      em runtime a string já está embutida no bundle. Em dev local o
-//      `.env.development` define `http://localhost:5174/`; em produção
+//      `.env.development` define `http://localhost:5174/kg-interface/`; em produção
 //      (Caddy/P10) define o origin público ou fica vazia para cair no (3).
 //
 //   2. **Runtime detection**: se a webui está sendo servida por um dev server
@@ -13,7 +13,8 @@
 //      `webui/vite.config.ts:server.port`) OU pelo gateway nanobot local
 //      (porta 8765, que serve o bundle estático da webui em dev/prod) —,
 //      assume-se que o usuário também subiu a SPA kg-interface em outra
-//      porta (`5174` — `spa/vite.config.ts:server.port`). Aponta direto
+//      porta (`5174` — `spa/vite.config.ts:server.port`), sob o path
+//      `/kg-interface/` (`spa/vite.config.ts:base`). Aponta direto
 //      para ela sem exigir env var.
 //
 //      Por que tratar 8765 também? Em dev local o caminho natural é abrir
@@ -40,6 +41,20 @@ export const DEFAULT_KG_INTERFACE_URL = "/kg-interface/" as const;
 const WEBUI_DEV_PORTS = new Set(["5173", "8765"]);
 const SPA_DEV_PORT = "5174";
 
+// PERCIVAL (BUG-127 / ADR-H029): desde 2026-08-12 a SPA declara
+// `base: "/kg-interface/"` no seu vite.config.ts, então o dev server dela
+// serve a aplicação sob esse path — e não mais na raiz de :5174. O sufixo
+// aqui mantém a URL de dev IDÊNTICA à de produção (nível 3), que é a razão
+// de o `base` ser incondicional lá.
+//
+// Não é conserto de quebra: sem o sufixo, o Vite responde 302 da raiz para o
+// base e o botão ainda chega à SPA. É um salto a menos, e uma URL a menos
+// para explicar.
+//
+// Mantenha alinhado com `spa/vite.config.ts:base` — os dois juntos são o
+// contrato da URL de dev.
+const SPA_DEV_BASE = "/kg-interface/";
+
 // PERCIVAL: hosts locais que justificam o "atalho" pra SPA dev em 5174.
 // Em produção o Caddy serve o caminho /kg-interface/ no MESMO origin da
 // webui, então apontar pra outra porta quebraria o cookie de auth, etc.
@@ -55,7 +70,7 @@ export function resolveKgInterfaceUrl(): string {
   if (typeof window !== "undefined") {
     const { hostname, port } = window.location;
     if (LOCAL_HOSTNAMES.has(hostname) && WEBUI_DEV_PORTS.has(port)) {
-      return `http://localhost:${SPA_DEV_PORT}/`;
+      return `http://localhost:${SPA_DEV_PORT}${SPA_DEV_BASE}`;
     }
   }
   // 3) Default relativo (produção / VPS / P10).
