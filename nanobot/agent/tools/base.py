@@ -300,15 +300,41 @@ class Tool(ABC):
             raise ValueError(f"Schema must be object type, got {schema.get('type')!r}")
         return Schema.validate_json_schema_value(params, {**schema, "type": "object"}, "")
 
+    @property
+    def strict(self) -> bool | None:
+        """Whether to request strict JSON-Schema adherence from the model.
+
+        ``None`` (default) omits the flag entirely, preserving today's payload
+        byte-for-byte. Subclasses opt in — see ``MCPTool``, which reads it from
+        the per-server ``strictTools`` config.
+
+        Motivation: some models silently degrade nested arguments instead of
+        honouring the schema. MiniMax stringifies ``array``-of-``object``
+        parameters and then retries with progressively more malformed payloads
+        (observed: 7 of 13 calls to one tool, the failures arriving as
+        ``'['``, ``'½'`` and a JSON string truncated one character short of
+        valid). Upstream reports point at ``strict`` as the switch that turns
+        on schema validation for nested parameters.
+
+        Note that OpenAI's own strict mode additionally constrains the schema
+        (every property in ``required``, ``additionalProperties: false``), so a
+        provider that follows those semantics may reject a schema it accepted
+        before. That is why this is opt-in per server rather than global.
+        """
+        return None
+
     def to_schema(self) -> dict[str, Any]:
         """OpenAI function schema."""
+        function: dict[str, Any] = {
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.parameters,
+        }
+        if self.strict is not None:
+            function["strict"] = self.strict
         return {
             "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": self.parameters,
-            },
+            "function": function,
         }
 
 

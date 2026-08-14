@@ -394,6 +394,32 @@ class TestConvertTools:
         assert result[0]["description"] == ""
         assert result[0]["parameters"] == {}
 
+    def test_strict_is_carried_through(self):
+        """`strict` must survive the rebuild.
+
+        This converter constructs the spec field by field, so anything not
+        explicitly copied is dropped. `strict` used to fall in that gap, which
+        made the flag work on the chat-completions path (tools pass verbatim)
+        and silently do nothing here.
+        """
+        tools = [{"type": "function", "function": {
+            "name": "f", "description": "d", "parameters": {}, "strict": True,
+        }}]
+        assert convert_tools(tools)[0]["strict"] is True
+
+    def test_strict_absent_stays_absent(self):
+        """No `strict` in, no `strict` out — the payload is unchanged for
+        every server that has not opted in."""
+        tools = [{"type": "function", "function": {"name": "f", "parameters": {}}}]
+        assert "strict" not in convert_tools(tools)[0]
+
+    def test_strict_false_is_preserved_not_dropped(self):
+        """`strict: False` is an explicit opt-out, not a missing value."""
+        tools = [{"type": "function", "function": {
+            "name": "f", "parameters": {}, "strict": False,
+        }}]
+        assert convert_tools(tools)[0]["strict"] is False
+
     def test_multiple_tools(self):
         tools = [
             {"type": "function", "function": {"name": "a", "parameters": {}}},

@@ -187,12 +187,20 @@ def convert_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not name:
             continue
         params: object = fn.get("parameters") or {}
-        converted.append({
+        spec: dict[str, Any] = {
             "type": "function",
             "name": name,
             "description": fn.get("description") or "",
             "parameters": params if isinstance(params, dict) else {},
-        })
+        }
+        # Carry `strict` through. This function rebuilds the spec field by
+        # field, so anything not listed here is silently dropped — which is
+        # what happened to `strict` before, making the flag work on the chat
+        # completions path (which passes tools verbatim) and nowhere else.
+        strict = fn.get("strict")
+        if isinstance(strict, bool):
+            spec["strict"] = strict
+        converted.append(spec)
     return converted
 
 
