@@ -3,7 +3,16 @@ import sys
 import zipfile
 from pathlib import Path
 
-SCRIPT_DIR = Path("nanobot/skills/skill-creator/scripts").resolve()
+# O caminho relativo ``nanobot/skills/...`` resolve quando o teste roda
+# do CWD ``agent-docker/nanobot`` (CWD histórico do submódulo), mas
+# quebra quando roda da raiz do monorepo — exatamente o CWD que
+# ``pyproject.toml::testpaths`` da raiz usa para coletar a suíte inteira.
+# Caminho relativo ao próprio arquivo do teste: ele vive em
+# ``tests/agent/test_skill_creator_scripts.py`` e os scripts em
+# ``../../nanobot/skills/skill-creator/scripts``.
+SCRIPT_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "nanobot/skills/skill-creator/scripts"
+)
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 

@@ -358,7 +358,7 @@ describe("App layout", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveClass("startup-status");
-    expect(screen.queryByText("Loading nanobot…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading percival…")).not.toBeInTheDocument();
   });
 
   it.each([false, true])("enables task controls only when bootstrap advertises support: %s", async (supported) => {
@@ -396,7 +396,7 @@ describe("App layout", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Connect to nanobot" }))
+    expect(await screen.findByRole("heading", { level: 1, name: "Connect to percival" }))
       .toBeInTheDocument();
     const password = screen.getByLabelText("WebUI password");
     expect(password).not.toHaveAttribute("aria-describedby");
@@ -424,7 +424,7 @@ describe("App layout", () => {
     await screen.findByRole("listbox");
     await user.keyboard("{ArrowDown}{Enter}");
 
-    expect(await screen.findByRole("heading", { name: "连接到 nanobot" }))
+    expect(await screen.findByRole("heading", { name: "连接到 percival" }))
       .toBeInTheDocument();
     expect(screen.getByLabelText("WebUI 密码")).toHaveValue("draft-password");
     expect(screen.getByRole("button", { name: "连接", exact: true })).toBeEnabled();
@@ -532,7 +532,7 @@ describe("App layout", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Connect to nanobot" }))
+    expect(await screen.findByRole("heading", { level: 1, name: "Connect to percival" }))
       .toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(connectSpy).not.toHaveBeenCalled();
@@ -698,7 +698,7 @@ describe("App layout", () => {
     expect(await screen.findByRole("heading", { name: "Channels" })).toBeVisible();
     expect(window.location.hash).toBe("#/channels");
     expect(channels).toHaveAttribute("aria-current", "page");
-    expect(document.title).toBe("Channels · nanobot");
+    expect(document.title).toBe("Channels · percival");
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
     await waitFor(() => expect(window.location.hash).toBe("#/new"));
     fireEvent.keyDown(window, { key: "$", code: "Digit4", ctrlKey: true, shiftKey: true });
@@ -918,7 +918,7 @@ describe("App layout", () => {
     expect(within(screen.getByTestId("thread-header")).getByText(
       "first private message",
     )).toBeInTheDocument();
-    await waitFor(() => expect(document.title).toBe("first private message · nanobot"));
+    await waitFor(() => expect(document.title).toBe("first private message · percival"));
     expect(screen.queryByRole("button", { name: "Temporary chat" })).not.toBeInTheDocument();
 
     fireEvent.click(within(sidebar).getByRole("button", {
@@ -1390,7 +1390,7 @@ describe("App layout", () => {
       "aria-current",
       "page",
     );
-    expect(document.title).toBe("Skills · nanobot");
+    expect(document.title).toBe("Skills · percival");
 
     fireEvent.click(screen.getByRole("button", { name: "Back to chat" }));
     expect(await screen.findByText(HERO_GREETING_PATTERN)).toBeInTheDocument();
@@ -1792,7 +1792,7 @@ describe("App layout", () => {
       "aria-current",
       "page",
     );
-    expect(document.title).toBe("Automations · nanobot");
+    expect(document.title).toBe("Automations · percival");
 
   });
 
@@ -2077,7 +2077,7 @@ describe("App layout", () => {
     expect(screen.queryByText("近期无问题")).not.toBeInTheDocument();
     expect(screen.queryByText("Workspace automations")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "刷新" })).not.toBeInTheDocument();
-    expect(document.title).toBe("自动任务 · nanobot");
+    expect(document.title).toBe("自动任务 · percival");
   });
 
   it("resizes the sidebar, collapses at the drag threshold and restores its saved width", async () => {
@@ -2448,7 +2448,7 @@ describe("App layout", () => {
       expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
       await user.click(await within(sheet).findByRole("button", { name: `${title} mobile chat` }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      await waitFor(() => expect(document.title).toBe(`${title} mobile chat · nanobot`));
+      await waitFor(() => expect(document.title).toBe(`${title} mobile chat · percival`));
       expect(screen.getByRole("button", { name: `${title} mobile chat` }))
         .toHaveAttribute("aria-current", "page");
     }
@@ -2866,7 +2866,7 @@ describe("App layout", () => {
     render(<App />);
 
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
-    await waitFor(() => expect(document.title).toBe("Active after reload · nanobot"));
+    await waitFor(() => expect(document.title).toBe("Active after reload · percival"));
     const sidebar = screen.getByRole("navigation", { name: "Sidebar navigation" });
     expect(
       within(sidebar).getByRole("button", { name: /^Active after reload$/ }),
@@ -3017,7 +3017,7 @@ describe("App layout", () => {
     fireEvent.click(appsButton);
 
     expect(await screen.findByRole("heading", { name: "Apps" })).toBeInTheDocument();
-    expect(screen.queryByText("Add tools to nanobot, then @ them in chat.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add tools to percival, then mention them with @ in chat.")).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Sidebar navigation" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Settings sections" })).not.toBeInTheDocument();
     expect(within(sidebar).getByRole("button", { name: "Apps" })).toHaveAttribute(
@@ -3040,7 +3040,7 @@ describe("App layout", () => {
       "duration-200",
       "motion-reduce:animate-none",
     );
-    expect(document.title).toBe("Apps · nanobot");
+    expect(document.title).toBe("Apps · percival");
 
     fireEvent.click(within(sidebar).getByRole("button", { name: "Skills" }));
 
@@ -3060,7 +3060,7 @@ describe("App layout", () => {
       "data-active-id",
       "utility:skills",
     );
-    expect(document.title).toBe("Skills · nanobot");
+    expect(document.title).toBe("Skills · percival");
   });
 
   it("returns from settings to the blank start page when no session was active", async () => {
@@ -3195,7 +3195,7 @@ describe("App layout", () => {
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
     const sidebar = screen.getByRole("navigation", { name: "Sidebar navigation" });
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
-    await waitFor(() => expect(document.title).toBe("nanobot"));
+    await waitFor(() => expect(document.title).toBe("percival"));
 
     fireEvent.click(within(sidebar).getByRole("button", { name: "Settings" }));
     expect(
@@ -3203,7 +3203,7 @@ describe("App layout", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Back to chat" }));
 
-    await waitFor(() => expect(document.title).toBe("nanobot"));
+    await waitFor(() => expect(document.title).toBe("percival"));
     expect(screen.getByText(HERO_GREETING_PATTERN)).toBeInTheDocument();
   });
 

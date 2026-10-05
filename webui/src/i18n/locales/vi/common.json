@@ -293,17 +293,17 @@
     "saveError": "Có thể đã xảy ra sự cố mạng. Lời nhắc này có thể xuất hiện lại."
   },
   "app": {
-    "brand": "nanobot",
+    "brand": "percival",
     "loading": {
-      "connecting": "Đang kết nối tới nanobot…",
-      "boot": "Đang tải nanobot…"
+      "connecting": "Đang kết nối tới percival…",
+      "boot": "Đang tải percival…"
     },
     "error": {
-      "title": "Không thể kết nối tới nanobot",
+      "title": "Không thể kết nối tới percival",
       "gatewayHint": "Hãy chắc chắn gateway đang chạy (`nanobot gateway`) và trình duyệt này có thể truy cập địa chỉ WebUI của gateway."
     },
     "auth": {
-      "title": "Kết nối với nanobot",
+      "title": "Kết nối với percival",
       "label": "Mật khẩu WebUI",
       "helpTitle": "Tìm mật khẩu ở đâu?",
       "helpConfig": "Trên thiết bị đang chạy nanobot, mở tệp cấu hình, thường nằm tại:",
@@ -333,11 +333,11 @@
       "completed": "Khởi động lại hoàn tất sau {{seconds}} giây."
     },
     "documentTitle": {
-      "base": "nanobot",
-      "chat": "{{title}} · nanobot"
+      "base": "percival",
+      "chat": "{{title}} · percival"
     },
     "meta": {
-      "description": "Giao diện web nanobot — trò chuyện với không gian làm việc nanobot của bạn."
+      "description": "Giao diện web percival — trò chuyện với không gian làm việc percival của bạn."
     },
     "pairing": {
       "title": "Ghép nối tài khoản trò chuyện của bạn",
@@ -375,6 +375,8 @@
     },
     "apps": "Ứng dụng",
     "automations": "Tự động hóa",
+    "knowledgeGraph": "p-brain",
+    "positronicBean": "Positronic Bean",
     "skills": {
       "title": "Kỹ năng"
     }

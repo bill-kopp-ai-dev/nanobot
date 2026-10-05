@@ -11,8 +11,8 @@ import {
 import { ArrowRight, ChevronDown, Eye, EyeOff, Moon, ShieldCheck, Sun, X } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { channelUiPresentation } from "@/channel-plugins/registry";
+import { PercivalSidebar as Sidebar } from "@/components/percival/PercivalSidebar";
 import { StarPrompt } from "@/components/StarPrompt";
-import { Sidebar } from "@/components/Sidebar";
 import { RemoteInstances, useRemoteConnections } from "@/components/remote/RemoteInstances";
 import { RemoteConnectionsPage } from "@/components/remote/RemoteConnectionsPage";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";

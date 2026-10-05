@@ -5,7 +5,7 @@
 services:
   - type: web
     name: nanobot
-    runtime: docker
+    runtime: agent-docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
     # Render's Docker Command REPLACES the Dockerfile CMD but keeps the

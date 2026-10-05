@@ -605,6 +605,7 @@ class MCPToolWrapper(_MCPWrapperBase):
         server_name: str,
         tool_def: MCPToolDefinition,
         tool_timeout: int = 30,
+        strict_tools: bool = False,
     ):
         self._set_mcp_connection(session, server_name)
         self._original_name = tool_def.name
@@ -613,6 +614,9 @@ class MCPToolWrapper(_MCPWrapperBase):
         raw_schema = tool_def.inputSchema or {"type": "object", "properties": {}}
         self._parameters = _normalize_schema_for_openai(raw_schema)
         self._tool_timeout = tool_timeout
+        # ``False`` stays ``None`` on the wire so the default payload is
+        # unchanged for every server that has not opted in.
+        self._strict: bool | None = True if strict_tools else None
 
     @property
     def name(self) -> str:
@@ -625,6 +629,10 @@ class MCPToolWrapper(_MCPWrapperBase):
     @property
     def parameters(self) -> dict[str, Any]:
         return self._parameters
+
+    @property
+    def strict(self) -> bool | None:
+        return self._strict
 
     async def execute(self, **kwargs: Any) -> str:
         retried_transient = False
@@ -1170,7 +1178,13 @@ async def connect_mcp_servers(
                         name,
                     )
                     continue
-                wrapper = MCPToolWrapper(session, name, tool_def, tool_timeout=cfg.tool_timeout)
+                wrapper = MCPToolWrapper(
+                    session,
+                    name,
+                    tool_def,
+                    tool_timeout=cfg.tool_timeout,
+                    strict_tools=cfg.strict_tools,
+                )
                 registry.register(wrapper)
                 logger.debug("MCP: registered tool '{}' from server '{}'", wrapper.name, name)
                 registered_count += 1

@@ -293,17 +293,17 @@
     "saveError": "Puede que haya un problema de conexión. Este recordatorio podría volver a aparecer."
   },
   "app": {
-    "brand": "nanobot",
+    "brand": "percival",
     "loading": {
-      "connecting": "Conectando con nanobot…",
-      "boot": "Cargando nanobot…"
+      "connecting": "Conectando con percival…",
+      "boot": "Cargando percival…"
     },
     "error": {
-      "title": "No se pudo conectar con nanobot",
+      "title": "No se pudo conectar con percival",
       "gatewayHint": "Asegúrate de que la gateway esté en ejecución (`nanobot gateway`) y de que este navegador pueda acceder a la dirección de la WebUI."
     },
     "auth": {
-      "title": "Conectar con nanobot",
+      "title": "Conectar con percival",
       "label": "Contraseña de WebUI",
       "helpTitle": "¿Dónde encuentro la contraseña?",
       "helpConfig": "En el dispositivo que ejecuta nanobot, abre el archivo de configuración, normalmente ubicado en:",
@@ -333,11 +333,11 @@
       "completed": "Reinicio completado en {{seconds}} s."
     },
     "documentTitle": {
-      "base": "nanobot",
-      "chat": "{{title}} · nanobot"
+      "base": "percival",
+      "chat": "{{title}} · percival"
     },
     "meta": {
-      "description": "Interfaz web de nanobot: conversa con tu espacio de trabajo de nanobot."
+      "description": "Interfaz web de percival: conversa con tu espacio de trabajo de percival."
     },
     "pairing": {
       "title": "Vincular tu cuenta de chat",
@@ -375,6 +375,8 @@
     },
     "apps": "Aplicaciones",
     "automations": "Automatizaciones",
+    "knowledgeGraph": "p-brain",
+    "positronicBean": "Positronic Bean",
     "skills": {
       "title": "Habilidades"
     }

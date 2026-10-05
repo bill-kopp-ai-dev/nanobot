@@ -293,17 +293,17 @@
     "saveError": "There may be a network issue. This reminder may appear again."
   },
   "app": {
-    "brand": "nanobot",
+    "brand": "percival",
     "loading": {
-      "connecting": "Connecting to nanobot…",
-      "boot": "Loading nanobot…"
+      "connecting": "Connecting to percival…",
+      "boot": "Loading percival…"
     },
     "error": {
-      "title": "Couldn't reach nanobot",
+      "title": "Couldn't reach percival",
       "gatewayHint": "Make sure the gateway is running (`nanobot gateway`) and this browser can reach its WebUI address."
     },
     "auth": {
-      "title": "Connect to nanobot",
+      "title": "Connect to percival",
       "label": "WebUI password",
       "helpTitle": "Where can I find the password?",
       "helpConfig": "On the device running nanobot, open the config file, usually at:",
@@ -333,11 +333,11 @@
       "completed": "Restart completed in {{seconds}}s."
     },
     "documentTitle": {
-      "base": "nanobot",
-      "chat": "{{title}} · nanobot"
+      "base": "percival",
+      "chat": "{{title}} · percival"
     },
     "meta": {
-      "description": "nanobot web UI — chat with your nanobot workspace."
+      "description": "percival web UI — chat with your percival workspace."
     },
     "pairing": {
       "title": "Pair your chat account",
@@ -375,6 +375,8 @@
     },
     "apps": "Apps",
     "automations": "Automations",
+    "knowledgeGraph": "p-brain",
+    "positronicBean": "Positronic Bean",
     "skills": {
       "title": "Skills"
     }

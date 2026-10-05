@@ -37,7 +37,10 @@ function createTestStorage(): Storage {
   };
 }
 
-if (typeof window !== "undefined" && typeof localStorage.setItem !== "function") {
+// Use isolated in-memory storage instead of a host-provided persistent
+// localStorage (for example Node 26's --localstorage-file), which is shared by
+// parallel Vitest workers and makes tests order-dependent.
+if (typeof window !== "undefined") {
   const storage = createTestStorage();
   Object.defineProperty(window, "localStorage", {
     value: storage,
