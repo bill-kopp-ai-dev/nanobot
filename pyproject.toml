@@ -55,6 +55,9 @@ dependencies = [
     "filelock>=3.25.2",
     "watchfiles>=1.1.1,<2.0.0",
     "packaging>=24.0",
+    # Ensures ``zoneinfo`` has a timezone database on platforms without
+    # system tzdb (notably Windows). Recommended by the Python docs:
+    # https://docs.python.org/3/library/zoneinfo.html
     "tzdata>=2025.2",
     "tzlocal>=5.3.1,<6.0.0",
     "defusedxml>=0.7.1,<1.0.0",
@@ -107,6 +110,7 @@ dev = [
     "python-pptx>=1.0.0,<2.0.0",
     "python-socketio>=5.16.0,<6.0.0",
     "msgpack>=1.1.0,<2.0.0",
+    "freezegun>=1.5,<2.0",
 ]
 
 [project.scripts]
