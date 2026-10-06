@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from nanobot.agent.tools.file_state import FileStates
     from nanobot.agent.tools.runtime_control import RuntimeControl
     from nanobot.bus.queue import MessageBus
+    from nanobot.config.kg import PercivalKgConfig
     from nanobot.config.schema import ProviderConfig, ToolsConfig
     from nanobot.cron.service import CronService
     from nanobot.providers.factory import ProviderSnapshot
@@ -89,6 +90,7 @@ def current_request_session_key() -> str | None:
 class ToolContext:
     config: ToolsConfig
     workspace: str
+    kg_config: PercivalKgConfig | None = None
     bus: MessageBus | None = None
     subagent_manager: SubagentManager | None = None
     cron_service: CronService | None = None

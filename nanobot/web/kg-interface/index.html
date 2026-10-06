@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- PERCIVAL: alinhamento visual 2026-08-02 — favicon agora aponta pro
+         mesmo PNG percival da webui (`/brand/percival_favicon_32.png`,
+         cópia verbatim de `nanobot_favicon_32.png`). Antigo SVG abstrato
+         (`/kg-interface_logo.svg`) ainda existe em `public/` mas não é
+         mais referenciado — removê-lo numa próxima revision. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/kg-interface/brand/percival_favicon_32.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Knowledge Graph interface for the percival collective memory" />
+    <title>p-brain</title>
+    <!--
+      Anti-FOUC: aplica o tema (light/dark) ANTES do React montar,
+      lendo direto do localStorage + fallback prefers-color-scheme.
+      Sem esse script, o primeiro paint acontece com a cor "errada"
+      (sempre light) e depois pisca para "dark" quando
+      ``useTheme`` roda seu effect de hidratação. Bug SPA-6 (revisão).
+      Fonte única: ambos ``main.tsx`` (``useTheme``) e este
+      ``index.html`` precisam usar a mesma chave
+      ``kg-interface.theme`` e a mesma lógica de prefers-color-scheme.
+      Mudar a chave em um lugar sem mudar no outro = FOUC permanente.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = window.localStorage.getItem("kg-interface.theme");
+          if (stored === "light" || stored === "dark") {
+            if (stored === "dark") document.documentElement.classList.add("dark");
+          } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/kg-interface/assets/index-ZIxPmxp_.js"></script>
+    <link rel="stylesheet" crossorigin href="/kg-interface/assets/index-DoY8kHsm.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

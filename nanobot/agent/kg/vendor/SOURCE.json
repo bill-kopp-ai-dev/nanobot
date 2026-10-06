@@ -1,0 +1,38 @@
+{
+  "patched_files": [
+    "frontmatter.py",
+    "lock.py"
+  ],
+  "revision": "ad047aa80a849bc4038daf6efcea63e954008be9",
+  "source": "https://github.com/bill-kopp-ai-dev/okf-bundle-core",
+  "upstream_python_sha256": {
+    "__init__.py": "4a05b2bb5bdee5d3948959897f80ffb88e30932982c9de315282888ff1ce02a1",
+    "envelope.py": "ce6bbf8bb8c3cf4615c6bf0e10a17f3c562c553b08de98c78ed317e9477ae606",
+    "errors.py": "52b7ac6496fb319a30debaf381105f68423d4e9f03a7256f0e7b0789f00df89e",
+    "frontmatter.py": "6b9818646a683b2a66855940a22aedea76dae418f343c289603ddcd1dc2a68b5",
+    "gitstore.py": "4e28e4536a371ef0fd690149ee2dc02dfef652bd9b708c0134fa55d40f953471",
+    "graph.py": "7c2d85d791371e40a0f09a21071b88f11d3f121b46b8fd8c1b36ecdbc7d407fc",
+    "graph_query.py": "815866b20f071411c807a23b97dfc66226cfde6cc42b399522ad903a87ae8a59",
+    "lock.py": "4c6eb5694ce9f80957fd99db42edd6dc62c20204cdc62e14165d538570ab900b",
+    "paths.py": "5f8a68fd9495c3b69406d1b7330c769fa3a26ab6e19c2c4e081a5bef52e2cac3",
+    "schema.py": "3c3496e10c4333c257e30d6721c9b318f027698e41bdb2123bdf486a93568663",
+    "storage.py": "e224080524e60c306be0936244f417ee65704e29fd890add20672cc11d4b0fc4",
+    "validators.py": "bb5d742180bca7a51475f6ac04d22e393157dc256bf62e5987acf66eb5fa36b4",
+    "zettel.py": "c14839204fdd4226d2b36d4b1ded176591353e443b537925cac504a508c2ce62"
+  },
+  "vendor_python_sha256": {
+    "__init__.py": "4a05b2bb5bdee5d3948959897f80ffb88e30932982c9de315282888ff1ce02a1",
+    "envelope.py": "ce6bbf8bb8c3cf4615c6bf0e10a17f3c562c553b08de98c78ed317e9477ae606",
+    "errors.py": "52b7ac6496fb319a30debaf381105f68423d4e9f03a7256f0e7b0789f00df89e",
+    "frontmatter.py": "df192f7a863c9bde59010ea8812a12ef4a0868bde5593ba28d149ee0660a53d5",
+    "gitstore.py": "4e28e4536a371ef0fd690149ee2dc02dfef652bd9b708c0134fa55d40f953471",
+    "graph.py": "7c2d85d791371e40a0f09a21071b88f11d3f121b46b8fd8c1b36ecdbc7d407fc",
+    "graph_query.py": "815866b20f071411c807a23b97dfc66226cfde6cc42b399522ad903a87ae8a59",
+    "lock.py": "e01df95c6f679131480121a4c7c16e5a5757c48354987669974add5e6a13ba7b",
+    "paths.py": "5f8a68fd9495c3b69406d1b7330c769fa3a26ab6e19c2c4e081a5bef52e2cac3",
+    "schema.py": "3c3496e10c4333c257e30d6721c9b318f027698e41bdb2123bdf486a93568663",
+    "storage.py": "e224080524e60c306be0936244f417ee65704e29fd890add20672cc11d4b0fc4",
+    "validators.py": "bb5d742180bca7a51475f6ac04d22e393157dc256bf62e5987acf66eb5fa36b4",
+    "zettel.py": "c14839204fdd4226d2b36d4b1ded176591353e443b537925cac504a508c2ce62"
+  }
+}
