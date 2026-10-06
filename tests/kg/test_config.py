@@ -21,6 +21,9 @@ def test_config_aliases_and_timeout() -> None:
         PercivalKgConfig(cm_enrich_timeout_s=0)
     with pytest.raises(ValidationError):
         PercivalKgConfig(mode="disabled")
+    for field in ("cmEnrichModel", "cm_enrich_model", "cmEnrichBaseUrl", "cm_enrich_base_url"):
+        with pytest.raises(ValidationError, match="obsolete"):
+            Config.model_validate({"kg": {field: "former setting"}})
 
 
 def test_bundle_root_uses_request_workspace_and_legacy_override(

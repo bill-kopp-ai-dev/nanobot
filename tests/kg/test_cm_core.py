@@ -152,7 +152,7 @@ async def test_cm_root_follows_request_workspace_and_restricts_external_write(tm
         await restricted_read.execute(id=NOTE_ID)
 
 
-def test_loader_registers_exact_four_cm_tools_and_obeys_mode(tmp_path: Path) -> None:
+def test_loader_registers_cm_note_tools_and_obeys_mode(tmp_path: Path) -> None:
     from nanobot.agent.tools.loader import ToolLoader
 
     native = ToolRegistry()
@@ -161,7 +161,7 @@ def test_loader_registers_exact_four_cm_tools_and_obeys_mode(tmp_path: Path) -> 
     )
     registered = ToolLoader().load(ctx, native)
     cm_tools = {name for name in registered if name.startswith("cm_") or name == "cm_note_history"}
-    assert cm_tools == {"cm_notes_read", "cm_notes_write", "cm_notes_search", "cm_note_history"}
+    assert cm_tools == {"cm_notes_read", "cm_notes_write", "cm_notes_search", "cm_note_history", "cm_memory_enrich"}
 
     mcp_only = ToolRegistry()
     mcp_ctx = ToolContext(

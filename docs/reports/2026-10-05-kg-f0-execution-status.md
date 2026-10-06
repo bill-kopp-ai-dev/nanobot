@@ -274,3 +274,38 @@ Evidence on 2026-10-05:
 
 F2 is implemented and its local code gates pass. The full F0 release gate is
 still open; F3 (CM enrich) has not started.
+
+## F3: native CM enrichment and guidance
+
+Implemented `cm_memory_enrich` with a typed PydanticAI proposal and 45-second
+pre-write/model budget; absent `MINIMAX_API_KEY` returns `missing_key` without
+writing. The model may only propose summary, tags and supersedes; writes use
+body-hash CAS. The outbound client validates the endpoint and pins DNS for
+each request and redirect without using ambient proxies. Six legacy prompts
+were adapted as built-in skills, not registered as additional operational tools.
+
+Evidence on 2026-10-06: `tests/kg` **31 passed, 2 skipped**; full `pytest -q`
+**9136 passed, 49 skipped, 1 warning** (355.80 seconds); `basedpyright nanobot`
+zero errors and `ruff check .` passed. A real-key smoke was not run. See the
+[F3 implementation note](../plans/kg-integration-plan.md#f3--cm-enrich-e-guidance-1-tool)
+for operational limits. The F0 gates above remain open; F9 skill usage and
+graph CLI validation remain pending.
+
+## F3 correction: use the agent's selected inference runtime
+
+On 2026-10-06 the CM enrichment tool was changed to consume the requesting
+turn's immutable `LLMRuntime`. It calls the existing `LLMProvider` with the
+captured model/generation and validates the returned proposal with Pydantic.
+It no longer constructs a PydanticAI/MiniMax client or reads a CM-specific key.
+Missing runtime gives `runtime_unavailable` without a write. The previous F3
+evidence above is historical, not evidence for this changed contract.
+
+F0 already binds the admitted runtime to `RequestContext`; F1/F2 are
+deterministic and required no code changes. Test fakes cover two consecutive
+turns using different providers/models, captured generation, output retries,
+timeout, CAS, no-op and error paths. `tests/kg`: **32 passed, 2 skipped**;
+full Python suite: **9137 passed, 49 skipped, 1 warning** (330.78 seconds);
+`basedpyright nanobot` zero errors, `ruff check .` passed. A live provider call
+was not made. The guarantee applies to native tools; `kg.mode=mcp` remains a
+legacy rollback path with its own inference client, and `both` exposes both.
+F0 platform/distribution gaps and later SPA/AK phases remain open.
