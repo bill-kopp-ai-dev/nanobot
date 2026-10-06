@@ -43,9 +43,10 @@ uploading to PyPI, and deploying the documentation are separate operations.
 10. **KG platform gate** (Percival only): before tagging any KG-capable release, confirm that
     `.github/workflows/kg-platform.yml` is green on Linux, macOS and Windows runners. The matrix
     asserts (a) the bundle lock uses `fcntl` on POSIX and `msvcrt` on Windows, (b) a
-    cross-process writer blocks a concurrent reader for the expected budget, and (c) the audio
-    capability contract remains explicitly opt-in (`LLMProvider.supports_modality("audio", …)`
-    is `False` by default). A red or skipped matrix is a release blocker for the KG feature
+    cross-process writer blocks a concurrent reader for the expected budget, and (c) the chat
+    provider audio capability remains opt-in (`LLMProvider.supports_modality("audio", …)` is
+    `False` by default); AK audio instead uses the configured Groq Whisper STT service.
+    A red or skipped matrix is a release blocker for the KG feature
     set, but does not block TUI/WebUI-only releases when KG has not changed. Record the matrix
     run URL alongside the release notes for the KG candidate.
 11. Merge the release-preparation PR only after its current checks and reviews pass. Confirm the

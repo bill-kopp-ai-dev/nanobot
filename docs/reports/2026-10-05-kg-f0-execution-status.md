@@ -761,3 +761,90 @@ The fork is therefore not blocked by agent-side work to issue a KG tag
 beyond this commit, the B6 rehearsal and the B5 audio decision. The
 2026-10-06 F9 snapshot reconciliation (above) and A3 clean-checkout
 provenance run close the agent-side gates.
+
+## B5 — decisão e implementação de áudio AK (2026-10-06)
+
+**Decisão do operador:** usar o serviço de áudio padrão do nanobot, Groq
+Whisper. D12 registra a exceção explícita a D11: apenas áudio AK usa o serviço
+de STT configurado; caption de imagem e enrich continuam no runtime do turno.
+`ak_audio_transcribe` e `ak_source_ingest` de áudio chamam
+`nanobot.audio.transcription.transcribe_audio_file` com provider Groq, modelo
+configurado ou padrão `whisper-large-v3`, idioma configurado ou `pt`, e enviam
+arquivo multipart à API da Groq. Falha/credencial ausente não gera transcript
+falso nem nota parcial. O limite padrão é 25 MB; aumentar requer verificar o
+plano Groq. Não foi enviado áudio real à API neste ciclo.
+
+Fonte oficial consultada em 2026-10-06:
+[Groq Speech to Text](https://console.groq.com/docs/speech-to-text.md):
+`POST /openai/v1/audio/transcriptions`, modelos `whisper-large-v3` e
+`whisper-large-v3-turbo`, campo `language` ISO-639-1, limite 25 MB free /
+100 MB dev e formatos flac/mp3/mp4/mpeg/mpga/m4a/ogg/wav/webm.
+Para encerrar a validação operacional, executar amostra autorizada com
+credencial real e verificar custo, latência e qualidade antes da release.
+Validação local após a integração: suíte KG + provider STT 201 passed /
+2 skipped; `basedpyright nanobot` 0; `ruff check .` e `git diff --check`
+passaram após regularizar newline final em três arquivos F9 preexistentes.
+A suíte completa executada antes da correção de uma asserção do teste novo
+teve 9231 passed / 49 skipped / 1 failure (o mock recebeu URL em `kwargs`,
+não `args`); os testes focados passaram após a correção. A suíte completa
+não foi repetida após essa alteração localizada.
+
+## B8/B9 — freeze (D5) e EOL (D10) dos servidores MCP legados (2026-10-06)
+
+**Decisão do operador:** descontinuar `percival-collective-memory` e
+`percival-acquire-knowledge`. Os repos ficam disponíveis apenas para
+rollback; não há mais desenvolvimento, PRs nem novos deployments.
+
+**Status GitHub:** archive (bandeira padrão do GitHub, via `gh repo
+archive --yes` após login). Mantido público. As URLs continuam
+resolvendo para o último commit (`legacy-final`) e os `git clone` dos
+consumidores que pinam a tag continuam funcionando.
+
+**Data de corte e tag final:** `legacy-final` em cada repo, apontando para o
+último commit antes do banner EOL.
+
+- `percival-collective-memory`: tag `legacy-final` em `7e3fb54`
+  (2026-08-14, `fix(batch-link): mensagens de erro apontavam o caminho
+  errado`); commit de EOL `ec4e95f docs(eol): freeze legacy CM MCP
+  server — see MIGRATION.md` empurrado em `main`.
+- `percival-acquire-knowledge`: tag `legacy-final` em `8171fd5`
+  (2026-08-14, `docs: README.md refletia 18 tools, servidor já expõe 20
+  (A4/A5)`); commit de EOL `a979902 docs(eol): freeze legacy AK MCP
+  server — see MIGRATION.md` empurrado em `main`.
+
+**Quem escreve e commita:** o operador autoriza o agente a escrever
+diretamente nos repos legados, então o commit e push ficam locais em
+`~/Projects/percival-{collective-memory,acquire-knowledge}` e são enviados
+via SSH ao remoto `git@github.com:bill-kopp-ai-dev/...`.
+
+**Mudanças em cada repo:**
+
+- `MIGRATION.md` (novo, raiz): status congelado, data de corte,
+  repositório substituto, mapeamento das 20 CM + 14 AK tools para as
+  `cm_*` / `ak_*` nativas (com D6/D11/D12 quando aplicável), migração de
+  `config.json`, rollback via tag `legacy-final`, licença.
+- Banner no `README.md` logo após o título, apontando para `MIGRATION.md`
+  e o fork Percival.
+- `.gitignore` ganhou `.positronic/` (regra global do operador; já valia
+  para o fork Percival).
+- AK: o `AGENTS.md` local (untracked, com tabela de verificação e
+  convenções) teve seu conteúdo preservado em `MIGRATION.md` §6
+  "Legacy verification" e o arquivo permanece local sem ser versionado.
+
+**Auditoria não automatizada:** não há CI em execução; o congelamento
+documental é binário, sem teste de equivalência. O congelamento **não
+afirma paridade funcional** — o que prova paridade são os gates A1–A10
+do fork Percival (`docs/kg-migration.md` e `docs/kg-endpoint-inventory.md`).
+
+**Próximas ações humanas:** arquivar os repos no GitHub (bandeira "Archive
+this repository") e arquivar a comunidade em
+`https://github.com/bill-kopp-ai-dev/percival-{collective-memory,acquire-knowledge}/settings`
+após `gh auth login`. Não foi feito nesta sessão porque `gh` não está
+logado (`gh auth status` retorna "not logged into any GitHub hosts").
+
+**Decisão do operador (2026-10-06, posterior ao freeze):** arquivar via
+**console web** do GitHub (Settings → General → Danger Zone → Archive
+this repository) em vez de `gh auth login` + `gh repo archive`. Sequência
+prevista: `percival-collective-memory` primeiro, `percival-acquire-knowledge`
+em seguida. `gh auth login` permanece pendente, mas não é necessário para
+esta escolha.

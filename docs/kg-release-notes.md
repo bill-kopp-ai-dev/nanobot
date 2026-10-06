@@ -10,9 +10,12 @@
   deleção dos três assets antigos.
 - Migração: seguir [guia](kg-migration.md); manter os MCPs instaláveis para
   rollback, backup **incluindo** `sources/` e `assets/` e ensaio em cópia.
-- Incompatibilidades: `cmEnrichModel`/`cmEnrichBaseUrl` rejeitados; provider
-  do turno substitui chave dedicada. Grafo nativo não gera HTML/rotulagem
-  graphify. Áudio nativo não transcreve e retorna `unsupported_capability`.
+- Incompatibilidades: `cmEnrichModel`/`cmEnrichBaseUrl` rejeitados; enrich e
+  imagem usam provider do turno. Grafo nativo não gera HTML/rotulagem graphify.
+  Para áudio AK, a decisão B5 usa o serviço Groq Whisper do nanobot: envia o
+  arquivo à Groq, requer credencial/configuração explícita e não troca o
+  modelo de chat do turno. A integração foi testada com HTTP simulado; falta
+  prova com credencial e arquivo reais.
 - Distribuição/plataformas: core KG usa `fcntl` no Linux/macOS e `msvcrt`
   no Windows. CI matrix em `.github/workflows/kg-platform.yml` ainda não foi
   executado em runner macOS/Windows real (apenas local em Linux); manter a
@@ -20,7 +23,7 @@
 
 ## Proveniência verificada em clone limpo do fork (A3)
 
-Em clone sem vizinhos a partir do commit `5c26b30c` (sem `webui/` ou
+Em clone sem vizinhos a partir do commit `3129e0f1` (sem `webui/` ou
 `spa/` vizinhos), em `uv build --sdist` → `uv build --wheel` → instalação
 isolada em Python 3.12:
 
@@ -43,6 +46,17 @@ isolada em Python 3.12:
 Gate de publicação: seguir [checklist upstream](releasing.md) **mais**
 [F9](plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release),
 smoke wheel/sdist isolado, comparação e rollback sobre **cópias de bundles
-reais**, CI por plataforma e decisão explícita para áudio. Após os gates,
-reconciliar versão/changelog/artefatos com o commit final; tag, push remoto,
+reais**, CI por plataforma e validação operacional de áudio Groq. Após os gates,
 PyPI e status/EOL dos repos legados exigem autorização do operador.
+
+## Repos legados congelados (2026-10-06)
+
+`percival-collective-memory` e `percival-acquire-knowledge` foram congelados
+(D5/D10) com tag `legacy-final` apontando para o último commit antes do
+banner EOL; ver
+[`docs/reports/2026-10-05-kg-f0-execution-status.md`](reports/2026-10-05-kg-f0-execution-status.md#b8b9--freeze-d5-e-eol-d10-dos-servidores-mcp-legados-2026-10-06)
+e o `MIGRATION.md` na raiz de cada repositório legado para o mapeamento de
+tools, migração de `config.json` e rollback via tag `legacy-final`. A flag
+`Archive this repository` no GitHub ainda depende de `gh auth login` (ação
+humana). Para usuários fora do Percival, a recomendação oficial é parar de
+instalar cópias novas dos MCPs legados e migrar para `nanobot-ai >= 0.3.5`.

@@ -38,8 +38,12 @@ em cópia de bundle real (itens B6/B7 do plano de auditoria).
 `kg.mode` aceita `native` (padrão), `mcp` e `both`. `kg.cmRoot` e
 `kg.akRoot` apontam para o **diretório pai** dos bundles. `kg.cmEnrichEnabled`
 (padrão `true`) e `kg.cmEnrichTimeoutS` (45 s) controlam enrich; as flags
-`kg.akImageCaptionEnabled` e `kg.akAudioTranscribeEnabled` não criam suporte
-de modalidade no provider. `tools.restrictToWorkspace` impede acesso a roots
+`kg.akImageCaptionEnabled` habilita a tool de imagem (sujeita ao suporte do
+modelo do turno); `kg.akAudioTranscribeEnabled` habilita a tool de áudio.
+Para áudio, configurar `transcription.provider=groq` (padrão),
+`providers.groq.apiKey` ou `GROQ_API_KEY`, e opcionalmente
+`transcription.model` (`whisper-large-v3` por padrão; `whisper-large-v3-turbo`
+para menor custo) e `transcription.language`. `tools.restrictToWorkspace` impede acesso a roots
 fora do workspace sem autorização apropriada. Conferir
 [`nanobot/config/kg.py`](../nanobot/config/kg.py) e
 [`nanobot/agent/kg/roots.py`](../nanobot/agent/kg/roots.py) antes de alterar
@@ -48,7 +52,13 @@ roots, em especial se variáveis legadas ainda estiverem exportadas.
 Operações determinísticas e leitura de bundles não exigem credencial de
 modelo. Enrich requer runtime do turno; caption de imagem exige
 `supports_modality("image", model)` e runtime, sem fallback implícito.
-Transcrição de áudio nativa retorna `unsupported_capability`. `diskcache`
+Áudio AK envia os bytes à API da Groq mesmo se o modelo do turno não for
+Groq; `ak_audio_transcribe` usa `transcription.language` (ou `pt` se não definida)
+por padrão e aceita um código ISO-639-1 de dois caracteres. Com STT desativado, sem chave ou outro provider
+configurado retorna `unsupported_capability`; falha de transcrição não
+produz uma nota de ingest. O limite padrão de upload é 25 MB
+(`transcription.maxUploadMb`); confira o limite do plano Groq antes de
+aumentá-lo. `diskcache`
 é cache opcional/lazy para multimodal; `markitdown` é CLI externo opcional
 para converter formatos documentais durante ingest (instale e valide o
 binário antes de usar esse path). `networkx`, `markdown-it-py` e as deps do
@@ -74,7 +84,8 @@ prebuilt quando a integridade do snapshot passa.
    navegação pelo gateway + SPA autenticados; valide bytes dos binários
    em `sources/` e assets depois. Preserve commits e hashes antes/depois.
    Enrichment usa provider/modelo do **turno**; imagem só se o provider/modelo
-   anunciar suporte. Áudio é `unsupported_capability`, não resultado real.
+    anunciar suporte. Para áudio use uma amostra consentida na cópia, confirme
+    a transcrição e o registro de origem; o arquivo será enviado à Groq.
 
 ## Cutover e rollback
 
@@ -100,3 +111,16 @@ e `cmEnrichBaseUrl` antigos devem ser removidos; configure o provider/preset
 do agente. Raízes externas exigem política de workspace apropriada. O acesso
 HTTP da SPA usa bootstrap do gateway e bearer em GET; escritas usam WS
 autenticado. A chave de bootstrap não deve ir para URL, log ou localStorage.
+
+## Status dos repos legados (2026-10-06)
+
+Os repos [`bill-kopp-ai-dev/percival-collective-memory`](https://github.com/bill-kopp-ai-dev/percival-collective-memory)
+e [`bill-kopp-ai-dev/percival-acquire-knowledge`](https://github.com/bill-kopp-ai-dev/percival-acquire-knowledge)
+foram **congelados** em 2026-10-06 (D5/D10 — ver `docs/reports/2026-10-05-kg-f0-execution-status.md`):
+banner EOL em cada `README.md`, novo `MIGRATION.md` com mapeamento para as
+tools nativas e rollback via tag `legacy-final`. `mode="mcp"` continua
+suportado para rollback, mas não há mais commits upstream, PRs ou
+releases; a flag `Archive this repository` no GitHub ainda depende de
+`gh auth login`. Para usuários fora do Percival, a recomendação oficial
+é adotar a distribuição `nanobot-ai` e parar de instalar cópias novas
+dos MCPs legados.
