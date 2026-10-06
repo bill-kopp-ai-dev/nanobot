@@ -1,0 +1,90 @@
+name: KG platform matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'nanobot/agent/kg/**'
+      - 'nanobot/agent/tools/cm_*.py'
+      - 'nanobot/agent/tools/ak_*.py'
+      - 'nanobot/webui/kg_*.py'
+      - 'tests/kg/**'
+      - 'scripts/kg_platform_*.py'
+      - '.github/workflows/kg-platform.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'nanobot/agent/kg/**'
+      - 'nanobot/agent/tools/cm_*.py'
+      - 'nanobot/agent/tools/ak_*.py'
+      - 'nanobot/webui/kg_*.py'
+      - 'tests/kg/**'
+      - 'scripts/kg_platform_*.py'
+      - '.github/workflows/kg-platform.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lock_and_modality:
+    name: KG platform smoke (${{ matrix.os }}, py ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: '3.12'
+            expected_lock: fcntl
+          - os: macos-latest
+            python-version: '3.12'
+            expected_lock: fcntl
+          - os: windows-latest
+            python-version: '3.12'
+            expected_lock: msvcrt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libolm-dev build-essential
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Install channel dependencies
+        run: uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
+
+      - name: Verify KG lock backend
+        shell: bash
+        run: |
+          python -c "import os; assert os.name == ('nt' if '${{ matrix.expected_lock }}' == 'msvcrt' else 'posix'), os.name"
+
+      - name: Cross-process lock smoke
+        shell: bash
+        run: uv run --no-sync python scripts/kg_platform_lock_smoke.py
+
+      - name: Audio capability gate
+        shell: bash
+        run: uv run --no-sync python scripts/kg_platform_modality_smoke.py
+
+      - name: KG focused tests
+        shell: bash
+        run: |
+          uv run --no-sync pytest tests/kg \
+            -o addopts='' --ignore=tests/kg/test_f7_browser.py \
+            --durations=15 --durations-min=1.0

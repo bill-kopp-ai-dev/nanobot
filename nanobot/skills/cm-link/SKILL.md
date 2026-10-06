@@ -5,7 +5,7 @@ description: Choose a semantic relation between CM notes and avoid misleading gr
 
 # Link collective-memory notes
 
-Adapted from `prompt_runbook_link` (D65). Read both notes when they exist and use the first relation that actually applies:
+Adapted from `prompt_runbook_link` (D65). Read both notes when they exist and use the first relation that actually applies, in order `supersedes > contradicts > derived_from > related`:
 
 - `supersedes`: A replaces an obsolete B; stored in frontmatter. B is not automatically archived.
 - `contradicts`: A and B disagree while both retain value; represented in the body.

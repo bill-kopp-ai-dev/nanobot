@@ -12,4 +12,4 @@ Adapted from `prompt_runbook_write_note`.
 3. Call `cm_notes_write(id, body, frontmatter_patch, expected_*_hash, reason)`. On creation the note has no prior hash. Never assume arbitrary frontmatter keys are patchable: verify the returned frontmatter.
 4. If there is a real relation, call `memory_link(from_id, to_id, relation)`; choose the relation using `cm-link`. A standalone note need not have a fabricated edge.
 
-`cm_memory_enrich` is for model proposals limited to summary, tags and supersedes; it does not grant authority to change sources, verification or policy fields.
+`cm_memory_enrich` uses the provider, model and generation settings selected for this turn for proposals limited to summary, tags and supersedes. Without a turn runtime it returns `runtime_unavailable` without writing; it does not grant authority to change sources, verification or policy fields.

@@ -32,15 +32,23 @@ uploading to PyPI, and deploying the documentation are separate operations.
    retrievable and the runtime versions match the lockfile and notices. Obtain the maintainer's
    commitment to honor `tui/SOURCE_OFFER.md` for its entire stated period; tests cannot grant it.
 9. Build all five native TUI targets using the same scripts as the publication workflow.
-   Include ad-hoc signatures for macOS before packaging. Verify every archive's checksum,
-   manifest, executable architecture, required notices/licenses, and embedded source contents.
-   Run platform-specific smoke tests where supported; record cross-compiled-only targets as
-   such and link exact-head CI evidence instead of claiming native execution everywhere.
-   Bundle these archives into the five platform wheels using the command below. Check all final
-   wheels with `twine check`, validate their RECORDs, tags and installed executable permissions,
-   and test first launch with an empty cache and `NANOBOT_TUI_NO_DOWNLOAD=1`. The installed
-   executable must come from `site-packages/nanobot/tui/bin/`, not the checkout or a cache.
-10. Merge the release-preparation PR only after its current checks and reviews pass. Confirm the
+    Include ad-hoc signatures for macOS before packaging. Verify every archive's checksum,
+    manifest, executable architecture, required notices/licenses, and embedded source contents.
+    Run platform-specific smoke tests where supported; record cross-compiled-only targets as
+    such and link exact-head CI evidence instead of claiming native execution everywhere.
+    Bundle these archives into the five platform wheels using the command below. Check all final
+    wheels with `twine check`, validate their RECORDs, tags and installed executable permissions,
+    and test first launch with an empty cache and `NANOBOT_TUI_NO_DOWNLOAD=1`. The installed
+    executable must come from `site-packages/nanobot/tui/bin/`, not the checkout or a cache.
+10. **KG platform gate** (Percival only): before tagging any KG-capable release, confirm that
+    `.github/workflows/kg-platform.yml` is green on Linux, macOS and Windows runners. The matrix
+    asserts (a) the bundle lock uses `fcntl` on POSIX and `msvcrt` on Windows, (b) a
+    cross-process writer blocks a concurrent reader for the expected budget, and (c) the audio
+    capability contract remains explicitly opt-in (`LLMProvider.supports_modality("audio", …)`
+    is `False` by default). A red or skipped matrix is a release blocker for the KG feature
+    set, but does not block TUI/WebUI-only releases when KG has not changed. Record the matrix
+    run URL alongside the release notes for the KG candidate.
+11. Merge the release-preparation PR only after its current checks and reviews pass. Confirm the
     merged source tree matches the tested candidate; if it does not, rebuild and recheck before
     tagging. Reconcile the final changelog and documentation source references. The tag must
     point to this verified commit, not an unchecked later `main` tip.

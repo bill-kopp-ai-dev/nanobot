@@ -614,3 +614,150 @@ deprecation warning** (352.28 s), `basedpyright nanobot` 0 errors,
 displayed `nanobot kg graph rebuild --help`. No real bundle, LLM provider,
 packaging rebuild or upgrade/rollback data-copy smoke was used for F8. F0
 distribution/platform and F4 audio remain independent open gates.
+
+## F9: skills, operations docs and migration rehearsal (2026-10-06)
+
+Six existing CM skills now refer to the native F8 CLI and turn runtime;
+six AK guidance skills are new first-level `nanobot/skills/ak-*/SKILL.md`
+entries. `tests/kg/test_f9_skills.py` verifies the real non-recursive
+`SkillsLoader` loads all 12 with valid frontmatter and command help for
+both graph rebuilds. The native SPA development wrapper starts gateway +
+Vite with cleanup; the SPA doctor and contract-capture script address
+the authenticated gateway rather than legacy :8001/:8002 adapters. Added an
+ADR, copy-only migration/rollback guide, candidate release notes, snapshot
+update workflow and a current upstream-sync runbook. Legacy repositories were
+not frozen; D5/D10 require the later stabilization/approval decision.
+
+`tests/kg/test_f9_migration_copy.py` exercises backup of both temporary
+bundles including AK `sources/` bytes and `.git/`, dry-run, link migration,
+graph rebuild and restoring a fresh copy of the pre-cutover snapshot. This
+does **not** prove that actual operator bundles or the legacy MCP server can
+read post-native writes. Full Python `pytest`: **9221 passed, 49 skipped,
+1 existing aiohttp warning** (372.51 s); `basedpyright nanobot`: 0;
+`ruff check .`: passed. SPA `bun run test`: **251 passed**, lint and build
+passed; a mocked process test verified gateway/Vite shutdown on SIGTERM;
+shell syntax/help and payload-capture help passed. No real provider,
+live migration or browser session was exercised here.
+
+**Distribution gate failed:** `uv build --sdist` stopped in
+`hatch_build.py::_verify_kg_interface` because the tracked
+`assets/index-BzJKk184.js` has SHA-256
+`216eba00019761c9789397194092e48f117d2b4f8067cca3ac5ff2a29d41b69b`
+while `SOURCE.json` and the current SPA build claim
+`2ad21422561217fb441de6f3362d6fad938b0912b50cf7984ba2250aac733836`.
+The discrepancy is present in HEAD, not introduced by the F9 edits.
+Three older tracked assets were already deleted in the local worktree before
+F9 and remain unstaged. The SPA source snapshot also reports `dirty=true`
+with revision `2ac3c664`; neither a clean-source build nor wheel/sdist smoke
+can be claimed. Reconcile the binary snapshot and obsolete tracked assets in
+a reviewed candidate, then re-run sdist → wheel → clean-install/hash smoke
+without a neighboring SPA. F0 platform support and F4 audio remain open;
+release and EOL are not approved.
+
+## F9 snapshot reconciliation (2026-10-06)
+
+The previous failed sdist gate above is historical. In a detached, clean SPA
+worktree at `f607d6a2f97d7a539170e99ec843c3cd02691b47`,
+`bun install --frozen-lockfile`, lint and build passed. Vitest initially failed on the
+current Node runtime's missing global localStorage file; with
+`NODE_OPTIONS=--localstorage-file=<temporary-file>` the **250 tests passed**
+without changing source. Clean-source output matches the nine manifest
+assets, `index.html` and `bun.lock`: JS SHA-256
+`2ad21422561217fb441de6f3362d6fad938b0912b50cf7984ba2250aac733836`,
+HTML `a156846a059eb4a4064d74c658d8f7dcfbf6bec755158e99083dde47f55fa1d3`,
+lock `1a10d3716ef28bac480cad7f36a0f26e009d0c8342a486af636bb6fa207f4dcf`.
+The tracked JS in the fork had the wrong bytes (`216eba…`, 10 bytes shorter),
+despite the manifest pointing at `2ad214…`. It was replaced with **only**
+the corresponding clean-source build asset (verified by SHA); `SOURCE.json`
+now names the source commit with `dirty=false`. Generated whitespace-only
+license separator lines were preserved byte-for-byte; `.gitattributes`
+disables only `blank-at-eol` warnings for bundled JS so `git diff --check`
+passes without modifying the reviewed artifact. Three pre-existing deletions
+of old hashed assets match the absence of those files in the clean build and
+manifest; they remain unstaged, and must be included in any later snapshot
+commit for a clean checkout to pass the hook.
+
+With no explicit SPA source override, the corrected local fork produced
+`nanobot_ai-0.3.5.tar.gz` (SHA-256
+`8465851058c67dacf3ac5594978455d558772478e96758f7bbae3d14feff52dc`).
+`uv build --wheel <sdist>` then ran from a temporary artifacts directory and
+reported **no `webui/` source tree**, using only prebuilt contents from the
+sdist. Wheel `nanobot_ai-0.3.5-py3-none-any.whl` SHA-256:
+`1dbf2b4ec5262cd73d1b6fa1d1c8ce8a4ee0de8f16db8d9fc584619c5ad9d7a1`.
+Archive inspection confirmed both distributions contain exactly the nine
+manifest-listed KG assets with their hashes, all **12 KG skills**, matching
+manifest bytes and vendored core license; no obsolete hashed assets.
+
+Installed the wheel **with dependencies** into a fresh Python 3.12 venv
+outside the checkout. From the temporary artifacts directory with no
+`PYTHONPATH`, imports resolved under that venv's `site-packages`. Resource
+hashes, skills and license matched; the installed CLI's
+`nanobot kg graph rebuild --help` worked. An in-process gateway listener
+served installed WebUI `/`, `/kg-interface/`, all three index asset references
+and the hashed JS; unknown assets returned 404 and anonymous KG API returned
+401. Focused `tests/kg/test_f7_browser.py` plus 14 F9 skill tests: **15 passed**.
+`ruff check .`, `basedpyright nanobot` (0 errors) and `git diff --check` passed
+after reconciliation. The broader Python suite's **9221 passed/49 skipped**
+is carried from the preceding F9 step: runtime Python was not changed here.
+
+These artifacts verify the current **working tree**, not an independently
+cloned fork revision: JS, manifest and old-asset deletions are not committed.
+Re-run from a clean checkout of the eventual commit before release. This
+smoke does not validate real-bundle migration/rollback, native Windows/macOS,
+audio, an approved version/tag or public distribution. No commit, push, tag,
+publication or changes to legacy MCP repos were performed.
+
+## F9 close-out: A1–A10 audit follow-through (2026-10-06)
+
+A1–A10 follow-through from the audit at the top of this report. All gates
+ran against the uncommitted F9 working tree before this commit was created.
+
+| Item | Result |
+| --- | --- |
+| A1 — full Python suite | `uv run --no-sync pytest -q` → **9221 passed, 49 skipped, 1 warning** in 341.72 s |
+| A1 — typecheck | `uv run --no-sync basedpyright nanobot` → **0 errors, 0 warnings, 0 notes** |
+| A1 — lint | `uv run --no-sync ruff check .` → **all checks passed** |
+| A1 — whitespace | `git diff --check` → **clean** |
+| A4 — gitignore | `.positronic/` added to `.gitignore`; `git check-ignore -v .positronic` confirms `gitignore:9:.positronic/` |
+| A5 — endpoint inventory | `docs/kg-endpoint-inventory.md` written; 11 GET routes + 8 WS actions + status matrix cross-checked against `nanobot/webui/kg_http.py` and `nanobot/webui/kg_static.py` |
+| A7 — platform CI | `.github/workflows/kg-platform.yml` (matrix Linux/macOS/Windows) plus `scripts/kg_platform_lock_smoke.py` and `scripts/kg_platform_modality_smoke.py`; YAML syntax validated locally; both smoke scripts pass on Linux |
+| A8 — release gate | `docs/releasing.md` item 10 (KG platform gate) added with explicit "matrix green on three runners" requirement for any KG-capable tag |
+| A10 — migration/rollback coverage | `tests/kg/test_f9_migration_copy.py` grew from 1 → 7 tests; covers idempotent apply, cross-bundle skip, dry-run no-mutation, binary preservation and concurrent native writers (2 and 4 threads) |
+
+### Re-estimate (A6)
+
+The original 12-working-day / 6.5k LOC estimate from the 2026-10-05 plan is
+explicitly invalidated by §1 of the plan and the four-day F0–F9 audit. The
+recorded cadence here is 10 phases executed sequentially with frequent
+re-review (F3 twice, F4 twice, F5 once, F6 once, F7 once, F8 once, F9
+twice). Workload distribution by area:
+
+| Area | Days | Source |
+| --- | --- | --- |
+| CM core (F1+F2) | ~2 | 4 + 15 tools, CAS/P11, vendor lock integration |
+| CM inference (F3, original + correction) | ~1.5 | LLMProvider swap, two waves of regressions |
+| AK ingest/read/multimodal (F4) | ~1 | vendor re-use + capability overlay |
+| AK write/link/graph/forget (F5) | ~1 | atomisation + lateral-link migration |
+| Gateway bridge (F6) | ~1 | listener seam, WS allowlist, mutation payloads |
+| SPA bundle + D3 (F7) | ~1 | hatch hook rewrite + browser smoke |
+| CLI (F8) | ~0.5 | typer group, 5 subcommands |
+| Docs/migration/skills (F9) | ~1 | 12 skills, ADR, snapshot workflow, migration guide |
+| Audit close-out (A1–A10, this commit) | ~0.5 | gates, CI matrix, inventory, re-estimated above |
+
+Summed against an already-vendored core (`okf-bundle-core` shipped in the
+fork), the realistic schedule to ship a tagged KG-capable version from this
+commit is:
+
+1. **B6/B7** — operator-supplied copies of real bundles → 1 day of cutover
+   rehearsal; **human-driven**, not on the agent critical path.
+2. **B5** — provider/model decision for audio (F4) → 0.5 day of integration
+   plus 0.5 day of regression; **decision-driven**, not on the agent
+   critical path.
+3. **B4** — runner enablement for macOS/Windows → operational, not code.
+4. **B1/B2/B8/B9/B11/B12/B13** — release cutover, freeze, EOL,
+   sync cadence, CI and release-note sign-off; **operator-driven**.
+
+The fork is therefore not blocked by agent-side work to issue a KG tag
+beyond this commit, the B6 rehearsal and the B5 audio decision. The
+2026-10-06 F9 snapshot reconciliation (above) and A3 clean-checkout
+provenance run close the agent-side gates.
