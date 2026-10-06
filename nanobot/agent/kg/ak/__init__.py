@@ -9,13 +9,9 @@ from typing import Any
 class UnsupportedCapabilityError(Exception):
     """Raised when the active provider/model cannot consume a requested modality.
 
-    Multimodal AK tools (image_caption, audio_transcribe) call
-    ``runtime.provider.supports_modality(modality, model)`` and surface this
-    error when the check returns ``False``.  The legacy AK code used a
-    deterministic stub (FakeVisionAgent) when the MiniMax key was absent, but
-    the plan requires that native tools reuse the requesting turn's runtime
-    and never substitute a different model — a stub would silently return
-    placeholder text and look like a real caption.
+    Image captioning requires a compatible turn runtime. Audio transcription
+    requires the explicitly configured Groq Whisper service. Neither tool
+    substitutes a stub result when its required provider is unavailable.
     """
 
 

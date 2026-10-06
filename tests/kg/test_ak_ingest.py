@@ -173,6 +173,37 @@ async def test_source_ingest_image_without_runtime_raises_unsupported(
 
 
 @pytest.mark.asyncio
+async def test_source_ingest_audio_commits_transcript_and_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle = _init_bundle(tmp_path)
+    src = tmp_path / "voice.mp3"
+    src.write_bytes(b"ID3 test audio")
+    transcribe = AsyncMock(return_value={
+        "text": "Transcrição do áudio.", "provider": "groq", "model": "whisper-large-v3",
+    })
+    monkeypatch.setattr(ak_ingest, "audio_transcribe", transcribe)
+    result = await ak_ingest.source_ingest(bundle, str(src))
+    assert result["source_kind"] == "audio"
+    assert result["parsed_chars"] == len("Transcrição do áudio.")
+    assert "Transcrição do áudio." in ak_ingest.source_read(bundle, result["source_id"], chunk_index=0)["text"]
+    assert (bundle / "sources" / f"{result['source_id']}.mp3").read_bytes() == src.read_bytes()
+    transcribe.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_source_ingest_audio_failure_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bundle = _init_bundle(tmp_path)
+    src = tmp_path / "voice.mp3"
+    src.write_bytes(b"ID3 test audio")
+    monkeypatch.setattr(ak_ingest, "audio_transcribe", AsyncMock(side_effect=RuntimeError("Groq failed")))
+    with pytest.raises(RuntimeError, match="Groq failed"):
+        await ak_ingest.source_ingest(bundle, str(src))
+    assert list((bundle / "sources").iterdir()) == []
+    assert list((bundle / "notes").glob("*.md")) == []
+
+
+@pytest.mark.asyncio
 async def test_source_ingest_commit_failure_rolls_back_note_binary_and_log(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

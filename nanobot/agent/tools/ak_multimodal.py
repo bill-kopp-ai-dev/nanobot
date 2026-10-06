@@ -5,8 +5,7 @@ Both tools reuse the requesting turn's ``LLMRuntime`` via
 multimodal ``chat`` request when the active provider/model declares
 ``supports_modality("image") == True``; otherwise the tool returns
 ``unsupported_capability`` instead of substituting a different model.
-``audio_transcribe`` does the same for audio, with the F4 gap flagged
-explicitly (no provider currently declares audio input support).
+``audio_transcribe`` uses the configured Groq Whisper transcription service.
 """
 
 from __future__ import annotations
@@ -106,9 +105,9 @@ class AKAudioTranscribeTool(AKTool):
     @property
     def description(self) -> str:
         return (
-            "Transcribe audio using this turn's LLM runtime. Returns "
-            "unsupported_capability until the runtime declares audio input "
-            "support; replan F4 audio parity before relying on it."
+            "Transcribe audio in the AK bundle via nanobot's configured Groq "
+            "Whisper service. Sends audio to Groq; requires GROQ_API_KEY or "
+            "providers.groq.apiKey and transcription.provider=groq."
         )
 
     @classmethod
@@ -120,15 +119,11 @@ class AKAudioTranscribeTool(AKTool):
         return True
 
     async def execute(self, **kwargs: Any) -> str:
-        unavailable, runtime = _runtime_or_error()
-        if unavailable is not None:
-            return to_json(unavailable)
         try:
             result = await audio_transcribe(
                 self._root(),
                 kwargs["asset_path"],
-                language=kwargs.get("language", "pt"),
-                runtime=runtime,
+                language=kwargs.get("language"),
             )
             return to_json(result)
         except UnsupportedCapabilityError as exc:

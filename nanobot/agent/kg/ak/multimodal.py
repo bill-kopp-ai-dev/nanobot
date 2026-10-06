@@ -10,11 +10,9 @@ tools, so the wrappers here only know how to talk to ``LLMProvider``:
   ``runtime.provider.supports_modality("image", runtime.model)`` — if
   the active runtime cannot consume images, the tool returns
   ``unsupported_capability`` instead of substituting a different model.
-* ``audio_transcribe`` does the same for audio.  No provider in the
-  current ``LLMProvider`` hierarchy declares audio input support, so
-  this tool surfaces the gap as ``unsupported_capability`` until the
-  contract is extended; replanning before declaring F4 audio-parity
-  complete is explicitly the plan's instruction.
+* ``audio_transcribe`` uses nanobot's configured Groq Whisper speech-to-text
+  service, independently of the turn's chat model. This is an explicit
+  product decision; it never substitutes another transcription provider.
 
 Results are cached via ``ak.cache`` with a key that includes the
 provider, model and preset so a later turn served by a different
@@ -26,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -35,6 +34,12 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from nanobot.agent.kg.ak.cache import CacheStore, CacheUnavailableError, cache_key, file_etag
 from nanobot.agent.kg.ak.core import check_bundle_paths, resolve_asset_path
 from nanobot.agent.kg.ak.telemetry import track_op
+from nanobot.audio.transcription import (
+    EffectiveTranscriptionConfig,
+    resolve_transcription_config,
+    transcribe_audio_file,
+)
+from nanobot.config.loader import load_config
 from nanobot.providers.base import ProviderCallContext
 from nanobot.utils.llm_runtime import LLMRuntime
 
@@ -63,14 +68,6 @@ _IMAGE_MIMETYPE = {
     ".gif": "image/gif",
 }
 
-_AUDIO_MIMETYPE = {
-    ".wav": "audio/wav",
-    ".mp3": "audio/mpeg",
-    ".m4a": "audio/mp4",
-    ".ogg": "audio/ogg",
-    ".flac": "audio/flac",
-}
-
 
 class ImageDescription(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -97,10 +94,6 @@ def _image_mimetype(suffix: str) -> str:
     return _IMAGE_MIMETYPE.get(suffix.lower(), "application/octet-stream")
 
 
-def _audio_mimetype(suffix: str) -> str:
-    return _AUDIO_MIMETYPE.get(suffix.lower(), "application/octet-stream")
-
-
 def _runtime_metadata(runtime: LLMRuntime) -> dict[str, str | None]:
     return {
         "provider": runtime.provider.provider_name,
@@ -120,13 +113,6 @@ def _build_provider_context(runtime: LLMRuntime) -> ProviderCallContext:
 def _build_image_data_url(asset: Path) -> str:
     suffix = asset.suffix.lower()
     mime = _image_mimetype(suffix)
-    b64 = base64.b64encode(asset.read_bytes()).decode("ascii")
-    return f"data:{mime};base64,{b64}"
-
-
-def _build_audio_data_url(asset: Path) -> str:
-    suffix = asset.suffix.lower()
-    mime = _audio_mimetype(suffix)
     b64 = base64.b64encode(asset.read_bytes()).decode("ascii")
     return f"data:{mime};base64,{b64}"
 
@@ -273,52 +259,45 @@ async def audio_transcribe(
     root: Path,
     asset_path: str,
     *,
-    language: str = "pt",
-    runtime: LLMRuntime | None,
+    language: str | None = None,
+    runtime: LLMRuntime | None = None,
+    config: EffectiveTranscriptionConfig | None = None,
 ) -> dict[str, Any]:
-    """Transcribe audio using the requesting turn's runtime.
-
-    Currently the LLM chat interface has no provider that declares
-    audio input support, so this tool always raises
-    ``UnsupportedCapabilityError``.  The plan's F4 instruction is to
-    flag the gap explicitly rather than substitute a different model.
-    """
-    runtime = _require_runtime(runtime)
+    """Transcribe a bundle asset with the shared Groq Whisper service."""
+    del runtime  # Audio uses the configured STT service, not LLMProvider.chat.
     await asyncio.to_thread(check_bundle_paths, root, write=True)
     asset = await asyncio.to_thread(resolve_asset_path, root, asset_path)
     if asset.suffix.lower() not in SUPPORTED_AUDIO_SUFFIXES:
         raise ValueError(f"unsupported audio type: {asset.suffix!r}")
-    if not runtime.provider.supports_modality("audio", runtime.model):
+    settings = config or resolve_transcription_config(await asyncio.to_thread(load_config))
+    language = language or settings.language or "pt"
+    if re.fullmatch(r"[a-z]{2}", language) is None:
+        raise ValueError("language must be an ISO-639-1 code (e.g. pt)")
+    if not settings.enabled:
+        raise UnsupportedCapabilityError("audio transcription is disabled in transcription.enabled")
+    if settings.provider != "groq":
         raise UnsupportedCapabilityError(
-            f"runtime provider={runtime.provider.provider_name!r} model={runtime.model!r} "
-            "does not support audio input via LLMProvider.chat; replan F4 audio parity"
+            "AK audio transcription requires transcription.provider=groq"
         )
-    metadata = _runtime_metadata(runtime)
+    if not settings.configured:
+        raise UnsupportedCapabilityError("Groq transcription requires providers.groq.apiKey or GROQ_API_KEY")
+    size = await asyncio.to_thread(lambda: asset.stat().st_size)
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    if size > max_bytes:
+        raise ValueError(f"audio exceeds {max_bytes} byte transcription upload limit")
+    metadata = {"provider": settings.provider, "model": settings.model}
     with track_op(root, "audio_transcribe", asset_path=asset_path, language=language, **metadata) as ctx:
         ctx["cache_hit"] = False
-        response = await runtime.provider.chat_with_retry(
-            messages=[
-                {"role": "system", "content": "You are a speech transcription service."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"Transcreva este áudio em {language}."},
-                    {"type": "input_audio", "input_audio": {"data": await asyncio.to_thread(_build_audio_data_url, asset)}},
-                ]},
-            ],
-            model=runtime.model,
-            temperature=0.0,
-            max_tokens=runtime.generation.max_tokens,
-            provider_context=_build_provider_context(runtime),
+        selected = EffectiveTranscriptionConfig(
+            enabled=settings.enabled, provider=settings.provider, model=settings.model,
+            language=language, api_key=settings.api_key, api_base=settings.api_base,
+            max_duration_sec=settings.max_duration_sec, max_upload_mb=settings.max_upload_mb,
         )
-        if response.finish_reason in {"error", "refusal", "content_filter"}:
-            ctx["error_kind"] = response.error_kind or response.finish_reason
-            raise RuntimeError(
-                f"audio_transcribe: provider returned finish_reason={response.finish_reason!r}"
-            )
-        if response.has_tool_calls or not response.content:
-            raise RuntimeError("audio_transcribe: provider did not return transcript text")
-        ctx["cost_usd"] = 0.0001
-        return {"text": response.content.strip(), "language": language,
-                "duration_seconds": 0.0, "cached": False, **metadata}
+        text = await transcribe_audio_file(asset, selected)
+        if not text.strip():
+            ctx["error_kind"] = "provider_error"
+            raise RuntimeError("audio_transcribe: Groq returned no transcript; check the audio and provider logs")
+        return {"text": text.strip(), "language": language, "cached": False, **metadata}
 
 
 __all__ = [

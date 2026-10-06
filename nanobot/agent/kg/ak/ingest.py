@@ -4,8 +4,8 @@ Mirrors the legacy ``percival-acquire-knowledge/tools.py:tool_source_ingest``
 and ``:tool_source_read`` without transporting FastMCP or its
 dependencies.  Document parsing happens via the ``markitdown`` CLI
 subprocess wrapper in ``ak.parsers``; image and audio go through
-``ak.multimodal`` so vision/ASR run on the requesting turn's
-``LLMRuntime`` (no independent MiniMax/Groq client).
+``ak.multimodal``; vision uses the turn runtime and ASR uses nanobot's
+configured Groq Whisper transcription service.
 
 The Source note is committed atomically with its ``sources/<id>.<ext>``
 binary under an exclusive ``BundleLock`` so a parse failure cannot
@@ -41,7 +41,7 @@ from nanobot.agent.kg.ak.core import (
     read_note,
     write_source_note,
 )
-from nanobot.agent.kg.ak.multimodal import image_caption
+from nanobot.agent.kg.ak.multimodal import audio_transcribe, image_caption
 from nanobot.agent.kg.ak.parsers import detect_kind, parse_document
 from nanobot.agent.kg.ak.telemetry import track
 from nanobot.utils.llm_runtime import LLMRuntime
@@ -157,10 +157,14 @@ async def source_ingest(
                     provider=caption.get("provider"),
                     model=caption.get("model"),
                 )
-            else:  # audio: see multimodal.audio_transcribe — F4 gap
-                raise UnsupportedCapabilityError(
-                    "audio ingest via LLMProvider.chat is not supported in F4; "
-                    "replan F4 audio parity before enabling"
+            else:  # audio
+                transcript = await audio_transcribe(
+                    root, str(destination), runtime=runtime,
+                )
+                parsed_text = transcript["text"]
+                await _to_thread_complete(
+                    track, root, "source_ingest_audio", asset=str(destination),
+                    provider=transcript["provider"], model=transcript["model"],
                 )
 
             chunks = chunk_text(parsed_text)

@@ -32,7 +32,8 @@ class AKSourceIngestTool(AKTool):
     def description(self) -> str:
         return (
             "Ingest a file into the AK bundle: copy to sources/, parse, create a Source note. "
-            "Document parsing uses the markitdown CLI; images use this turn's LLM runtime."
+            "Document parsing uses the markitdown CLI; images use this turn's LLM runtime; "
+            "audio is sent to the configured Groq Whisper service."
         )
 
     async def execute(self, **kwargs: Any) -> str:

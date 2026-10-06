@@ -1,17 +1,17 @@
-"""F4 multimodal: image_caption and audio_transcribe consume the turn runtime.
+"""F4 multimodal: image_caption uses the turn runtime; audio uses Groq STT.
 
 The two tools must never substitute a different model — when the
 provider/model cannot consume the requested modality they raise
 ``UnsupportedCapabilityError`` (mapped to ``unsupported_capability``
 in the tool response).  Image captions flow through
 ``runtime.provider.chat_with_retry`` with a multimodal
-``image_url`` block.  Audio is currently a documented gap and the
-tests prove the runtime check fires.
+``image_url`` block. Audio calls nanobot's existing transcription service.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -23,6 +23,7 @@ from nanobot.agent.kg.ak.multimodal import (
     audio_transcribe,
     image_caption,
 )
+from nanobot.audio.transcription import EffectiveTranscriptionConfig
 from nanobot.providers.base import GenerationSettings, LLMProvider, LLMResponse
 from nanobot.providers.openai_compat_provider import OpenAICompatProvider
 from nanobot.utils.llm_runtime import LLMRuntime
@@ -173,23 +174,66 @@ async def test_image_caption_error_finish_reason_raises(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_audio_transcribe_returns_unsupported_for_any_current_runtime(tmp_path: Path) -> None:
+async def test_audio_transcribe_uses_groq_whisper_not_chat_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     bundle = tmp_path / ".acquired-knowledge"
     bundle.mkdir()
     audio = _write_audio(bundle)
     runtime = _vision_runtime()
-    with pytest.raises(UnsupportedCapabilityError) as exc:
-        await audio_transcribe(bundle, str(audio), runtime=runtime)
-    assert "audio" in str(exc.value)
+    settings = _groq_settings()
+    calls = []
+
+    async def fake_transcribe(path: Path, config: EffectiveTranscriptionConfig) -> str:
+        calls.append((path, config))
+        return "  Olá, mundo.  "
+
+    monkeypatch.setattr("nanobot.agent.kg.ak.multimodal.transcribe_audio_file", fake_transcribe)
+    result = await audio_transcribe(bundle, str(audio), language="pt", runtime=runtime, config=settings)
+    assert result == {"text": "Olá, mundo.", "language": "pt", "cached": False,
+                      "provider": "groq", "model": "whisper-large-v3"}
+    assert calls[0][0] == audio
+    assert calls[0][1].api_key == "gsk-test"
+    assert calls[0][1].language == "pt"
+    runtime.provider.chat_with_retry.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_audio_transcribe_rejects_missing_runtime(tmp_path: Path) -> None:
+async def test_audio_transcribe_rejects_missing_groq_credentials(tmp_path: Path) -> None:
     bundle = tmp_path / ".acquired-knowledge"
     bundle.mkdir()
     audio = _write_audio(bundle)
-    with pytest.raises(UnsupportedCapabilityError):
-        await audio_transcribe(bundle, str(audio), runtime=None)
+    with pytest.raises(UnsupportedCapabilityError, match="GROQ_API_KEY"):
+        await audio_transcribe(bundle, str(audio), config=_groq_settings(api_key=""))
+
+
+@pytest.mark.asyncio
+async def test_audio_transcribe_never_substitutes_other_stt_provider(tmp_path: Path) -> None:
+    bundle = tmp_path / ".acquired-knowledge"
+    bundle.mkdir()
+    audio = _write_audio(bundle)
+    with pytest.raises(UnsupportedCapabilityError, match="transcription.provider=groq"):
+        await audio_transcribe(bundle, str(audio), config=replace(_groq_settings(), provider="openai"))
+
+
+def _groq_settings(api_key: str = "gsk-test") -> EffectiveTranscriptionConfig:
+    return EffectiveTranscriptionConfig(
+        enabled=True, provider="groq", model="whisper-large-v3", language=None,
+        api_key=api_key, api_base="https://api.groq.com/openai/v1",
+        max_duration_sec=120, max_upload_mb=25,
+    )
+
+
+@pytest.mark.asyncio
+async def test_audio_transcribe_rejects_oversized_upload_before_network(tmp_path: Path) -> None:
+    bundle = tmp_path / ".acquired-knowledge"
+    bundle.mkdir()
+    audio = _write_audio(bundle)
+    with audio.open("r+b") as handle:
+        handle.truncate(1024 * 1024 + 1)
+    settings = _groq_settings()
+    with pytest.raises(ValueError, match="upload limit"):
+        await audio_transcribe(bundle, str(audio), config=replace(settings, max_upload_mb=1))
 
 
 def test_supports_modality_default_returns_false() -> None:
