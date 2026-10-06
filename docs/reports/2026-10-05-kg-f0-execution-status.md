@@ -758,7 +758,14 @@ fork), the realistic schedule to ship a tagged KG-capable version from this
 commit is:
 
 1. **B6/B7** — operator-supplied copies of real bundles → 1 day of cutover
-   rehearsal; **human-driven**, not on the agent critical path.
+   rehearsal; **human-driven**, not on the agent critical path. **Owner:
+   the operator** (decision 2026-10-06 — B6/B7 will be executed by the
+   operator personally: B6 produces an anonymised tarball (or authorises
+   the agent to copy and anonymise one) of a real bundle, B7 runs
+   `kg doctor --json`, `nanobot kg ak-migrate-lateral-links --apply`,
+   and the legacy-MCP rollback read on a copy, then decides the
+   `kg.mode="native"` cutover). The agent stays on standby for follow-up
+   scripts but does **not** own the rehearsal or the cutover.
 2. **B5** — provider/model decision for audio (F4) → 0.5 day of integration
    plus 0.5 day of regression; **decision-driven**, not on the agent
    critical path.
