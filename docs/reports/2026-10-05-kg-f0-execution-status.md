@@ -62,9 +62,11 @@ component call sites, not just the optional TS adapter parameter.
 
 1. The vendored core is packaged at SHA `ad047aa80a849bc4038daf6efcea63e954008be9`
    with license and declared dependencies. POSIX locking interoperates with
-   `flock` in a local test, and an `msvcrt` backend exists for Windows; its
-   actual cross-process behavior still requires a Windows runner. macOS was
-   not exercised separately. Cross-platform compatibility is not yet proven.
+   `flock` in a local test. The Percival release is **Linux-only** (operator
+   decision 2026-10-06, §B4): the `msvcrt` backend remains in the vendor for
+   Windows developers but is no longer exercised by CI, smoke scripts or
+   release gates; macOS support is removed from `docs/plans/kg-integration-plan.md`
+   and `.github/workflows/kg-platform.yml`.
 2. Register and compare 20 CM + 14 AK operational contracts, with workspace
    authorization at all read/write entry points and strict bundle selection
    before ID resolution. The current config default is `native`, but it does
@@ -123,12 +125,13 @@ packaging/static seam, not F7. Core vendoring was subsequently added below.
 The core is copied into `nanobot/agent/kg/vendor/okf_bundle_core/` with its MIT
 license, `SOURCE.json` containing upstream and vendor Python file hashes, and
 `PATCHES.md` identifying the two local patches: a package-relative frontmatter
-import and portable locking (`flock` on POSIX, exclusive byte-range locking on
-Windows). `tests/kg/test_bundle.py` verifies CAS writes, Git/layout isolation,
-frontmatter/path errors, POSIX lock interoperability and snapshot hashes.
-`markdown-it-py` and `networkx` are declared in `pyproject.toml`. Windows
-locking has **not** been run on Windows, and the vendor's larger original test
-suite has not been migrated; these are remaining platform/parity uncertainties.
+import and POSIX locking (`flock` on Linux, the only platform Percival
+supports). `tests/kg/test_bundle.py` verifies CAS writes, Git/layout isolation,
+frontmatter/path errors, POSIX lock interoperability and snapshot hashes;
+the `if os.name == "nt"` branch is documented as "vendor-only, not exercised".
+`markdown-it-py` and `networkx` are declared in `pyproject.toml`. The
+vendor's larger original test suite has not been migrated; this is the
+only remaining parity uncertainty on the supported surface.
 
 The Hatch hook now **rejects a vendor snapshot whose file hashes differ from
 `SOURCE.json`**, instead of silently updating its manifest, and rejects a SPA
@@ -150,9 +153,11 @@ were run on this state:
   and the SPA `index.html`, license and manifest.
 
 At this checkpoint, the next steps were a reproducible SPA snapshot, browser
-transport smoke, Windows locking, and a non-empty native registry before any
+transport smoke, POSIX lock smoke, and a non-empty native registry before any
 CM/AK MCP filtering. The browser smoke was subsequently executed below;
-F0 and deploy remain **not approved**.
+F0 and deploy remain **not approved**. (Windows locking was retired from
+the gate on 2026-10-06 when the operator declared Percival Linux-only —
+see §B4.)
 
 ## Continuation: local F0 work closed on Linux
 
@@ -191,9 +196,11 @@ and checks the vendor license against the source. Run with
 - SPA `bun run test`: **248 passed**; `bun run lint` and `bun run build`: passed.
 - `uv run --no-sync basedpyright nanobot` and `uv run --no-sync ruff check .`: passed.
 
-The platform gate cannot be closed locally: no macOS/Windows runner was used,
-so the Windows `msvcrt` backend remains experimental despite import/build
-checks on Linux. F0's active registry/mode gate also depends on registering
+The platform gate is closed by scope: the Percival release supports Linux
+only (operator decision 2026-10-06, §B4). The Windows `msvcrt` backend
+remains in the vendor for local development but is not exercised by CI
+or release gates; macOS support has been removed from the plan and the
+CI matrix. F0's active registry/mode gate also depends on registering
 real native tools first. Filtering existing CM/AK MCP servers now would
 silently remove working legacy capabilities while all 34 native replacements
 are absent; keep the filter pending until the registry is non-empty and
@@ -703,9 +710,11 @@ is carried from the preceding F9 step: runtime Python was not changed here.
 These artifacts verify the current **working tree**, not an independently
 cloned fork revision: JS, manifest and old-asset deletions are not committed.
 Re-run from a clean checkout of the eventual commit before release. This
-smoke does not validate real-bundle migration/rollback, native Windows/macOS,
-audio, an approved version/tag or public distribution. No commit, push, tag,
-publication or changes to legacy MCP repos were performed.
+smoke does not validate real-bundle migration/rollback, audio, an approved
+version/tag or public distribution. (Windows/macOS platform coverage is
+out of scope for the Percival release — operator decision 2026-10-06,
+§B4.) No commit, push, tag, publication or changes to legacy MCP repos
+were performed.
 
 ## F9 close-out: A1–A10 audit follow-through (2026-10-06)
 
@@ -720,8 +729,8 @@ ran against the uncommitted F9 working tree before this commit was created.
 | A1 — whitespace | `git diff --check` → **clean** |
 | A4 — gitignore | `.positronic/` added to `.gitignore`; `git check-ignore -v .positronic` confirms `gitignore:9:.positronic/` |
 | A5 — endpoint inventory | `docs/kg-endpoint-inventory.md` written; 11 GET routes + 8 WS actions + status matrix cross-checked against `nanobot/webui/kg_http.py` and `nanobot/webui/kg_static.py` |
-| A7 — platform CI | `.github/workflows/kg-platform.yml` (matrix Linux/macOS/Windows) plus `scripts/kg_platform_lock_smoke.py` and `scripts/kg_platform_modality_smoke.py`; YAML syntax validated locally; both smoke scripts pass on Linux |
-| A8 — release gate | `docs/releasing.md` item 10 (KG platform gate) added with explicit "matrix green on three runners" requirement for any KG-capable tag |
+| A7 — platform CI | `.github/workflows/kg-platform.yml` reduced to `ubuntu-latest` (Linux-only, per operator decision 2026-10-06) plus `scripts/kg_platform_lock_smoke.py` and `scripts/kg_platform_modality_smoke.py`; YAML syntax validated locally; both smoke scripts pass on Linux |
+| A8 — release gate | `docs/releasing.md` item 10 (KG platform gate) requires Linux-only smoke + KG focused tests green; the previous "matrix green on three runners" requirement is removed |
 | A10 — migration/rollback coverage | `tests/kg/test_f9_migration_copy.py` grew from 1 → 7 tests; covers idempotent apply, cross-bundle skip, dry-run no-mutation, binary preservation and concurrent native writers (2 and 4 threads) |
 
 ### Re-estimate (A6)
@@ -753,7 +762,13 @@ commit is:
 2. **B5** — provider/model decision for audio (F4) → 0.5 day of integration
    plus 0.5 day of regression; **decision-driven**, not on the agent
    critical path.
-3. **B4** — runner enablement for macOS/Windows → operational, not code.
+3. **B4** — Linux-only documented support → closed by operator decision
+   2026-10-06. `.github/workflows/kg-platform.yml`, `tests/kg/test_bundle.py`,
+   `docs/plans/kg-integration-plan.md` §2 item 7 and F0 bullet, `docs/kg-release-notes.md`
+   distribution/plataformas, `docs/kg-migration.md` install notes, and the F0
+   report (above) all reflect Linux-only. The `msvcrt` backend remains in the
+   vendor as a courtesy for local Windows development; it is not part of any
+   release gate.
 4. **B1/B2/B8/B9/B11/B12/B13** — release cutover, freeze, EOL,
    sync cadence, CI and release-note sign-off; **operator-driven**.
 

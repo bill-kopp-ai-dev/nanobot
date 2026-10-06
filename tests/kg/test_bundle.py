@@ -67,7 +67,7 @@ def test_vendored_core_errors_and_path_boundary(tmp_path: Path) -> None:
 
 def test_vendored_lock_remains_compatible_with_posix_flock(tmp_path: Path) -> None:
     if os.name == "nt":
-        pytest.skip("POSIX interoperation; Windows msvcrt requires a Windows runner")
+        pytest.skip("Percival KG ships Linux-only; msvcrt backend is vendored but not exercised by CI")
     import fcntl
 
     lock = BundleLock(tmp_path, COLLECTIVE_MEMORY, exclusive=True, timeout=0.1)

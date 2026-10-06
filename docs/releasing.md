@@ -40,15 +40,20 @@ uploading to PyPI, and deploying the documentation are separate operations.
     wheels with `twine check`, validate their RECORDs, tags and installed executable permissions,
     and test first launch with an empty cache and `NANOBOT_TUI_NO_DOWNLOAD=1`. The installed
     executable must come from `site-packages/nanobot/tui/bin/`, not the checkout or a cache.
-10. **KG platform gate** (Percival only): before tagging any KG-capable release, confirm that
-    `.github/workflows/kg-platform.yml` is green on Linux, macOS and Windows runners. The matrix
-    asserts (a) the bundle lock uses `fcntl` on POSIX and `msvcrt` on Windows, (b) a
-    cross-process writer blocks a concurrent reader for the expected budget, and (c) the chat
-    provider audio capability remains opt-in (`LLMProvider.supports_modality("audio", …)` is
-    `False` by default); AK audio instead uses the configured Groq Whisper STT service.
-    A red or skipped matrix is a release blocker for the KG feature
-    set, but does not block TUI/WebUI-only releases when KG has not changed. Record the matrix
-    run URL alongside the release notes for the KG candidate.
+10. **KG platform gate** (Percival only, Linux-only — operator decision
+    2026-10-06): before tagging any KG-capable release, confirm that
+    `.github/workflows/kg-platform.yml` is green on `ubuntu-latest`. The
+    Linux matrix asserts (a) the bundle lock uses `fcntl` and interoperates
+    with `flock`, (b) a cross-process writer blocks a concurrent reader
+    for the expected budget, and (c) the chat provider audio capability
+    remains opt-in (`LLMProvider.supports_modality("audio", …)` is `False`
+    by default); AK audio instead uses the configured Groq Whisper STT
+    service. A red or skipped workflow is a release blocker for the KG
+    feature set, but does not block TUI/WebUI-only releases when KG has
+    not changed. Record the workflow run URL alongside the release notes
+    for the KG candidate. Percival does **not** ship macOS/Windows KG
+    binaries; the `msvcrt` backend in `okf_bundle_core/lock.py` is
+    vendor-only for local Windows development.
 11. Merge the release-preparation PR only after its current checks and reviews pass. Confirm the
     merged source tree matches the tested candidate; if it does not, rebuild and recheck before
     tagging. Reconcile the final changelog and documentation source references. The tag must

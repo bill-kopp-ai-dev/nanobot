@@ -62,10 +62,11 @@ aumentá-lo. `diskcache`
 é cache opcional/lazy para multimodal; `markitdown` é CLI externo opcional
 para converter formatos documentais durante ingest (instale e valide o
 binário antes de usar esse path). `networkx`, `markdown-it-py` e as deps do
-core estão no pacote Python. O lock KG ainda usa `fcntl`: este gate só
-executou em Linux; Windows e macOS carecem de validação explícita antes de
-anúncio multiplataforma. A SPA em dev requer Bun; wheel/sdist incluem assets
-prebuilt quando a integridade do snapshot passa.
+core estão no pacote Python. O lock KG ainda usa `fcntl`; o Percival é
+**Linux-only** (decisão do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
+§B4). O backend `msvcrt` permanece no vendor para quem desenvolve em
+Windows, sem CI nem gate de release. A SPA em dev requer Bun; wheel/sdist
+incluem assets prebuilt quando a integridade do snapshot passa.
 
 ## Ensaio na cópia
 

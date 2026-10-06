@@ -29,9 +29,12 @@ de workspace. Reusar `graphify cluster-only` ou inferência própria alteraria o
 artefato servido e a seleção de provider do turno. O bundle Git sozinho não
 preserva `sources/` e todos os assets; a cópia integral é necessária.
 
-O lock do core ainda depende de `fcntl`; operação KG em Windows permanece sem
-gate de compatibilidade. Áudio retorna `unsupported_capability`; não declarar
-paridade multimodal nem publicar release com essa lacuna sem decisão explícita.
-Não mudar estado de repos legados (D5/D10) até validação de dados copiados e
-aprovação do operador. Consulte [migração](../kg-migration.md) e
-[release](../kg-release-notes.md).
+O lock do core ainda depende de `fcntl`; o Percival é **Linux-only** (decisão
+do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
+§B4). O backend `msvcrt` em `okf_bundle_core/lock.py` permanece no vendor
+para quem desenvolve em Windows, sem CI nem gate de release. Áudio AK usa
+o serviço de transcrição Groq Whisper (decisão D12 — ver B5 e
+`kg-migration.md`); publicar release KG exige validação de áudio com
+credencial e arquivo reais, ainda pendente. Não mudar estado de repos
+legados (D5/D10) até validação de dados copiados e aprovação do operador.
+Consulte [migração](../kg-migration.md) e [release](../kg-release-notes.md).

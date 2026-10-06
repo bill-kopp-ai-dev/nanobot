@@ -38,12 +38,6 @@ jobs:
           - os: ubuntu-latest
             python-version: '3.12'
             expected_lock: fcntl
-          - os: macos-latest
-            python-version: '3.12'
-            expected_lock: fcntl
-          - os: windows-latest
-            python-version: '3.12'
-            expected_lock: msvcrt
 
     steps:
       - uses: actions/checkout@v4

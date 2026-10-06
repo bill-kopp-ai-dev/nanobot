@@ -16,10 +16,13 @@
   arquivo à Groq, requer credencial/configuração explícita e não troca o
   modelo de chat do turno. A integração foi testada com HTTP simulado; falta
   prova com credencial e arquivo reais.
-- Distribuição/plataformas: core KG usa `fcntl` no Linux/macOS e `msvcrt`
-  no Windows. CI matrix em `.github/workflows/kg-platform.yml` ainda não foi
-  executado em runner macOS/Windows real (apenas local em Linux); manter a
-  ressalva até que `.github/workflows/kg-platform.yml` rode verde nos três.
+- Distribuição/plataformas: o Percival declara **Linux-only** (decisão
+  do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
+  §B4). O backend `msvcrt` continua no vendor do core para desenvolvedores
+  em Windows, mas CI (`kg-platform.yml`), `pytest` e os smokes de
+  plataforma executam **somente** em `ubuntu-latest`. macOS não é mais
+  prometido nem anunciado. Quem roda em outras plataformas o faz por conta
+  própria, sem SLA nem gate de release.
 
 ## Proveniência verificada em clone limpo do fork (A3)
 
