@@ -189,3 +189,9 @@ def test_agent_loop_from_config_exposes_cm_tools_without_external_llm(tmp_path: 
     assert {name for name in registry.tool_names if name.startswith("cm_")} >= {
         "cm_notes_read", "cm_notes_write", "cm_notes_search", "cm_note_history",
     }
+    assert {
+        "memory_link", "memory_batch_link", "memory_attach", "memory_forget", "memory_stats",
+        "asset_get_path", "graph_neighbors", "graph_shortest_path", "memory_set_protected",
+        "memory_set_lifecycle", "memory_flag_for_review", "memory_resolve_review",
+        "memory_storage_stats", "memory_repo_maintenance", "memory_aging_candidates",
+    } <= set(registry.tool_names)

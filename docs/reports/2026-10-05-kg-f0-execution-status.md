@@ -235,5 +235,42 @@ Evidence on 2026-10-05:
 - `uv run --no-sync ruff check .`: passed.
 
 This closes the F1 implementation and local code gates. It does not close the
-F0 cross-platform/distribution provenance gaps above, and does not begin F2's
-links, policy, statistics, storage, graph or forget operations.
+F0 cross-platform/distribution provenance gaps above.
+
+## F2: native CM links, policy, stats, storage, graph and forget
+
+Implemented the remaining 15 CM operational tools, bringing the native CM
+surface to 19 tools (the twentieth, `memory_enrich`, remains F3):
+
+- Links: `memory_link`, `memory_batch_link` (per-edge partial success), and
+  `memory_attach`; forward target references and the legacy parallel-array
+  batch form are supported.
+- Lifecycle/review: `memory_forget` archives with a Git commit and rollback;
+  `memory_set_protected`, `memory_set_lifecycle`,
+  `memory_flag_for_review`, and `memory_resolve_review` preserve P11 CAS,
+  protection, lifecycle and review semantics.
+- Read-only inspection: `memory_stats`, `asset_get_path`,
+  `graph_neighbors`, `graph_shortest_path`, `memory_storage_stats`, and
+  `memory_aging_candidates`.
+- `memory_repo_maintenance` defaults to dry-run. Actual Git GC resolves the CM
+  root with write authorization and holds the exclusive bundle lock.
+
+All tools are suppressed in `mcp` mode and registered in `native`/`both`.
+Filesystem paths are checked against bundle containment, and configured roots
+outside a restricted workspace are rejected for both read and write
+capabilities. Tool I/O runs outside the asyncio event loop.
+
+Evidence on 2026-10-05:
+
+- `uv run --no-sync pytest -q tests/kg -o addopts=''`: **24 passed, 2
+  skipped**. The F2 cases cover forward-reference and partial batch results,
+  archive-not-delete, safe asset resolution, P11 CAS/protection/review,
+  storage dry-run, lifecycle candidates, missing/present graph behavior,
+  registry mode and external-root denial.
+- Full `uv run --no-sync pytest -q`: **9129 passed, 49 skipped, 1 warning**
+  (332.41 seconds).
+- `uv run --no-sync basedpyright nanobot`: passed (0 errors).
+- `uv run --no-sync ruff check .`: passed.
+
+F2 is implemented and its local code gates pass. The full F0 release gate is
+still open; F3 (CM enrich) has not started.

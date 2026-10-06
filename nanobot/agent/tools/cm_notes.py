@@ -12,10 +12,11 @@ from nanobot.agent.tools.base import Tool, tool_parameters
 from nanobot.agent.tools.context import ToolContext
 from nanobot.config.kg import PercivalKgConfig
 
-_NOTE_ID = r"^\d{8}-\d{6}$"
+NOTE_ID_PATTERN = r"^\d{8}-\d{6}$"
+_NOTE_ID = NOTE_ID_PATTERN
 
 
-class _CMTool(Tool):
+class CMTool(Tool):
     _scopes = {"core"}
 
     def __init__(self, workspace: str, kg_config: PercivalKgConfig, restrict_to_workspace: bool):
@@ -28,7 +29,7 @@ class _CMTool(Tool):
         return ctx.kg_config is None or ctx.kg_config.mode in {"native", "both"}
 
     @classmethod
-    def create(cls, ctx: ToolContext) -> _CMTool:
+    def create(cls, ctx: ToolContext) -> CMTool:
         return cls(
             ctx.workspace,
             ctx.kg_config or PercivalKgConfig(),
@@ -51,7 +52,7 @@ class _CMTool(Tool):
     "required": ["id"],
     "additionalProperties": False,
 })
-class CMNotesReadTool(_CMTool):
+class CMNotesReadTool(CMTool):
     @property
     def name(self) -> str:
         return "cm_notes_read"
@@ -81,7 +82,7 @@ class CMNotesReadTool(_CMTool):
     "required": ["id", "body"],
     "additionalProperties": False,
 })
-class CMNotesWriteTool(_CMTool):
+class CMNotesWriteTool(CMTool):
     @property
     def name(self) -> str:
         return "cm_notes_write"
@@ -113,7 +114,7 @@ class CMNotesWriteTool(_CMTool):
     "required": ["query"],
     "additionalProperties": False,
 })
-class CMNotesSearchTool(_CMTool):
+class CMNotesSearchTool(CMTool):
     @property
     def name(self) -> str:
         return "cm_notes_search"
@@ -141,7 +142,7 @@ class CMNotesSearchTool(_CMTool):
     "required": ["note_id"],
     "additionalProperties": False,
 })
-class CMNoteHistoryTool(_CMTool):
+class CMNoteHistoryTool(CMTool):
     @property
     def name(self) -> str:
         return "cm_note_history"

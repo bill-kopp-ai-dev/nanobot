@@ -31,6 +31,11 @@ def _check_bundle_paths(root: Path, *, write: bool) -> None:
                 raise PathEscapeError(str(path))
 
 
+def check_bundle_paths(root: Path, *, write: bool = False) -> None:
+    """Public authorization check for other CM operations sharing this boundary."""
+    _check_bundle_paths(root, write=write)
+
+
 def _check_note_paths(root: Path, note_id: str) -> None:
     """Validate matching entries before the core can open a note or its body."""
     validate_id(note_id)
