@@ -532,3 +532,47 @@ Reverification after these changes: full Python `pytest -q` **9196 passed,
 **91 passed, 2 skipped**. SPA: **253 passed**, lint/build passed. The test
 suite still emits its existing happy-dom aborted iframe-fetch diagnostics;
 they do not fail the run. No real bundle or provider was used.
+
+## F7: packaged SPA and native D3 GraphView (2026-10-06)
+
+The SPA now reads `/graph` metadata and authenticated `/graph/data`, validates
+node-link `nodes`/`links`, and renders an SVG graph with `d3-force` capped at
+240 nodes and 600 links. Clicking a CM node opens `#/notes/:id`; AK
+ExtractedNote and Source nodes open `#/extracted-notes/:id` and
+`#/sources/:id`. A request generation guard discards obsolete CM responses
+after switching to AK; missing, empty and invalid graph data have visible
+states. The legacy export-HTML iframe, its HEAD probe, dev `graph.html`
+middleware and graphify URL doctor check were removed from the active
+client. Bundle selection remains available while data is loading. This is a
+bounded visualization, not a graph rebuild (F8).
+
+Hatch now verifies the old snapshot before replacing stale hashed assets,
+then checks every new asset against `SOURCE.json`. A source build with
+explicit `PERCIVAL_KG_SPA_SOURCE` and `PERCIVAL_FORCE_KG_SPA_BUILD=1`
+produced `dist/nanobot_ai-0.3.5.tar.gz`; a wheel built **from that sdist**
+without a SPA checkout produced `nanobot_ai-0.3.5-py3-none-any.whl`. A fresh
+Python 3.12 venv installed the wheel and dependencies; `importlib.resources`
+found WebUI and SPA, and all nine manifest assets matched their SHA-256
+hashes. The gateway served the same-origin shell/assets and restricts HTML
+fallback to SPA routes, leaving unknown assets/API as genuine 404 responses.
+A real Chromium test on the in-process gateway opened the WebUI and SPA,
+loaded the bundled graph for CM and AK, authenticated with the gateway key,
+followed an AK node to its hash route, and checked that secrets were not
+persisted. The browser test also passed with SPA assets taken from the clean
+wheel installation; only temporary bundles were used and no inference
+provider was invoked.
+
+Final gates: SPA `bun run test` **250 passed** (36 files), `bun run lint` and
+`bun run build` passed; Python `pytest -q` **9197 passed, 49 skipped, 1
+unrelated aiohttp deprecation warning** (346.58 s), `basedpyright nanobot` 0
+errors and `ruff check .` passed. After adding the optional wheel-asset
+override to the browser test, that test, Ruff and `git diff --check` were
+rerun successfully.
+
+`SOURCE.json` currently records SPA revision
+`2ac3c664e2bf821ad11775cd82fed68802cfa5e0` with **`dirty=true`**: the
+hash-checked binary snapshot is in the fork but the new SPA source changes
+have not been committed. A clean source checkout at that SHA would still
+produce the old UI; commit/review the source and rebuild/verify the snapshot
+before claiming source-reproducible provenance. The independent F0 platform
+and F4 audio gaps are unchanged.

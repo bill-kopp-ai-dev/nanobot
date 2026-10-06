@@ -12,6 +12,8 @@ from websockets.http11 import Response
 
 from nanobot.webui.http_utils import http_error, http_response
 
+_SPA_ROUTES = {"notes", "extracted", "extracted-notes", "sources", "graph", "search", "stats"}
+
 
 def kg_static_root() -> Path:
     return Path(__file__).resolve().parents[1] / "web" / "kg-interface"
@@ -35,7 +37,7 @@ async def serve_kg_static(path: str, *, root: Path, accepts_html: bool) -> Respo
     if not candidate.is_relative_to(root_resolved):
         return http_error(403, "Forbidden")
     if not candidate.is_file():
-        if accepts_html and not Path(relative).suffix:
+        if accepts_html and relative.split("/", 1)[0] in _SPA_ROUTES and not Path(relative).suffix:
             candidate = root_resolved / "index.html"
         if not candidate.is_file():
             return http_error(404, "KG asset not found")

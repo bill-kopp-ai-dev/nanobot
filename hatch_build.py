@@ -184,6 +184,11 @@ class WebUIBuildHook(BuildHookInterface):
 
         if skip and not index.is_file():
             raise RuntimeError("[kg-build] skip requested but prebuilt kg-interface/index.html is missing")
+        # Never replace files that no longer match the last reviewed snapshot.
+        # A refresh may remove hashed assets from that snapshot, but it must
+        # not silently discard unrelated files placed in the target directory.
+        if index.is_file():
+            self._verify_kg_interface(target)
         if source.joinpath("package.json").is_file() and not skip and (force or not index.is_file()):
             if shutil.which("bun") is None:
                 raise RuntimeError("[kg-build] bun is required to build the KG SPA source")
@@ -200,8 +205,8 @@ class WebUIBuildHook(BuildHookInterface):
                 if path.is_file() and path.name != "SOURCE.json"
             } if target.is_dir() else set()
             stale = existing_files - output_files - {"LICENSE"}
-            if stale:
-                raise RuntimeError(f"[kg-build] stale SPA snapshot assets: {', '.join(sorted(stale))}")
+            for name in stale:
+                (target / name).unlink()
             shutil.copytree(output, target, dirs_exist_ok=True)
             shutil.copy2(source / "LICENSE", target / "LICENSE")
             lock = source / "bun.lock"
@@ -236,6 +241,12 @@ class WebUIBuildHook(BuildHookInterface):
                 "<source> for the source build, or bundle prebuilt "
                 "nanobot/web/kg-interface/{index.html,LICENSE,SOURCE.json} in the sdist"
             )
+        self._verify_kg_interface(target)
+        self.app.display_info(f"[kg-build] SPA ready at {target}")
+
+    @staticmethod
+    def _verify_kg_interface(target: Path) -> None:
+        index = target / "index.html"
         manifest = json.loads((target / "SOURCE.json").read_text())
         if hashlib.sha256(index.read_bytes()).hexdigest() != manifest.get("index_sha256"):
             raise RuntimeError("[kg-build] SPA index.html differs from SOURCE.json; rebuild the snapshot")
@@ -245,4 +256,3 @@ class WebUIBuildHook(BuildHookInterface):
         }
         if current_assets != manifest.get("asset_sha256"):
             raise RuntimeError("[kg-build] SPA assets differ from SOURCE.json; review the snapshot")
-        self.app.display_info(f"[kg-build] SPA ready at {target}")

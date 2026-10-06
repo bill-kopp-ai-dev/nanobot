@@ -40,6 +40,9 @@ async def test_get_bearer_and_authenticated_ws_mutation(
     kg_dist = tmp_path / "kg-dist"
     kg_dist.mkdir()
     (kg_dist / "index.html").write_text("<!doctype html><title>KG</title>")
+    assets = kg_dist / "assets"
+    assets.mkdir()
+    (assets / "index-Abcdef12.js").write_text("export const ready = true;")
     monkeypatch.setattr("nanobot.webui.ws_http.kg_static_root", lambda: kg_dist)
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
@@ -92,6 +95,12 @@ async def test_get_bearer_and_authenticated_ws_mutation(
                 assert unknown.headers["content-type"].startswith("application/json")
                 assert (await client.get(origin + "/")).text.startswith("<!doctype html>")
                 assert "<title>KG</title>" in (await client.get(origin + "/kg-interface/")).text
+                route = await client.get(origin + "/kg-interface/notes/123", headers={"Accept": "text/html"})
+                assert route.status_code == 200 and "<title>KG</title>" in route.text
+                assert (await client.get(origin + "/kg-interface/unknown", headers={"Accept": "text/html"})).status_code == 404
+                asset = await client.get(origin + "/kg-interface/assets/index-Abcdef12.js")
+                assert asset.status_code == 200 and "javascript" in asset.headers["content-type"]
+                assert "immutable" in asset.headers["cache-control"]
                 assert (await client.get(origin + "/kg-interface/assets/missing.js")).status_code == 404
                 with pytest.raises(InvalidStatus) as denied:
                     async with connect(f'ws://127.0.0.1:{port}{bootstrap["ws_path"]}?client_id=anon'):
