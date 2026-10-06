@@ -52,6 +52,8 @@ dependencies = [
     "dulwich>=0.22.0,<1.0.0",
     "rapidfuzz>=3.14.6,<4.0.0",
     "pyyaml>=6.0,<7.0.0",
+    "markdown-it-py>=3.0.0,<5.0.0",
+    "networkx>=3.0,<4.0",
     "filelock>=3.25.2",
     "watchfiles>=1.1.1,<2.0.0",
     "packaging>=24.0",
@@ -140,12 +142,16 @@ include = [
     "nanobot/skills/**/*.sh",
     "nanobot/channels/*/webui/**/*",
     "nanobot/web/dist/**/*",
+    "nanobot/web/kg-interface/**/*",
+    "nanobot/agent/kg/vendor/**/*",
 ]
 # nanobot/web/dist/ is produced by `cd webui && bun run build` and is
 # git-ignored. List it as an artifact so hatch ships it in both wheel and
 # sdist even though VCS does not track it.
 artifacts = [
     "nanobot/web/dist/**/*",
+    "nanobot/web/kg-interface/**/*",
+    "nanobot/agent/kg/vendor/**/*",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -159,6 +165,8 @@ exclude = ["nanobot/channels/*/tests/**"]
 include = [
     "nanobot/",
     "nanobot/web/dist/",
+    "nanobot/web/kg-interface/",
+    "nanobot/agent/kg/vendor/",
     "hatch_build.py",
     "README.md",
     "LICENSE",
@@ -170,6 +178,7 @@ exclude = ["nanobot/channels/*/tests/**"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["nanobot/agent/kg/vendor/okf_bundle_core"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
@@ -177,7 +186,7 @@ ignore = ["E501"]
 
 [tool.basedpyright]
 include = ["nanobot"]
-exclude = ["**/tests"]
+exclude = ["**/tests", "nanobot/agent/kg/vendor/okf_bundle_core"]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
 

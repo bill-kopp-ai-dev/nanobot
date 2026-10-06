@@ -9,6 +9,27 @@ written source offer, and relinking instructions; those target-specific notices 
 
 ---
 
+## okf-bundle-core — vendored bundle logic (MIT)
+
+- **Source**: https://github.com/bill-kopp-ai-dev/okf-bundle-core
+- **Bundled**: `nanobot/agent/kg/vendor/okf_bundle_core/`
+- **License and provenance**: `nanobot/agent/kg/vendor/LICENSE.okf-bundle-core`,
+  `SOURCE.json` and `PATCHES.md`. `SOURCE.json` records upstream and patched
+  file hashes; POSIX locking remains compatible with the legacy core.
+
+---
+
+## Percival KG interface — browser assets (MIT)
+
+- **Source**: https://github.com/bill-kopp-ai-dev/spa
+- **Bundled**: `nanobot/web/kg-interface/` (built JavaScript, CSS, and assets)
+- **License and build provenance**: `nanobot/web/kg-interface/LICENSE` and
+  `nanobot/web/kg-interface/SOURCE.json` are included in both wheel and sdist.
+  The build manifest records the source revision, whether it had uncommitted
+  changes, and the hashes of the lockfile and entry HTML.
+
+---
+
 ## Tabler Icons — interface icons (MIT)
 
 - **Source**: https://github.com/tabler/tabler-icons

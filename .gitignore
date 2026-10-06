@@ -9,7 +9,8 @@
 
 # Claude / AI assistant artifacts
 docs/superpowers/
-docs/plans/
+docs/plans/*
+!docs/plans/kg-integration-plan.md
 
 # webui (monorepo frontend)
 webui/node_modules/

@@ -46,7 +46,7 @@ from nanobot.webui.file_preview import (
     file_reference_payload,
 )
 from nanobot.webui.gateway_tokens import GatewayTokenStore, token_response_payload
-from nanobot.webui.http_utils import JSONResponseMetrics
+from nanobot.webui.http_utils import JSONResponseMetrics, bearer_token
 from nanobot.webui.http_utils import accepts_gzip as _accepts_gzip
 from nanobot.webui.http_utils import (
     case_insensitive_header as _case_insensitive_header,
@@ -92,6 +92,8 @@ from nanobot.webui.http_utils import (
     safe_host_header as _safe_host_header,
 )
 from nanobot.webui.ingress_policy import WebUIIngressPolicy
+from nanobot.webui.kg_http import kg_http_probe
+from nanobot.webui.kg_static import kg_static_root, serve_kg_static
 from nanobot.webui.media_gateway import WebUIMediaGateway
 from nanobot.webui.native_folder_picker import (
     NativeFolderPickerError,
@@ -592,6 +594,27 @@ class GatewayHTTPHandler:
         request: WsRequest,
         got: str,
     ) -> Any | None:
+        if got == "/kg-interface/api" or got.startswith("/kg-interface/api/"):
+            proxy_authenticated = getattr(request, "_nanobot_trusted_proxy_authenticated", False)
+            # check_api_token normally also accepts ?token= for older WebUI
+            # routes; KG reads must never authorize credentials in URLs.
+            bearer_request = WsRequest(got, request.headers)
+            authenticated = "token" not in _parse_query(request.path) and bool(
+                proxy_authenticated or (
+                    bearer_token(request.headers) is not None
+                    and self.check_api_token(bearer_request)
+                )
+            )
+            return kg_http_probe(
+                got,
+                authenticated=authenticated,
+            )
+        if got == "/kg-interface" or got.startswith("/kg-interface/"):
+            return await serve_kg_static(
+                got,
+                root=kg_static_root(),
+                accepts_html="text/html" in _combined_list_header(request.headers, "Accept"),
+            )
         if got == "/api/remote-instances" or got.startswith("/api/remote-instances/"):
             return await self._dispatch_remote_instances(connection, request, got)
         # Token issue endpoint
