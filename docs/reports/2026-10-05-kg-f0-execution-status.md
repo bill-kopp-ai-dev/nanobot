@@ -569,10 +569,48 @@ errors and `ruff check .` passed. After adding the optional wheel-asset
 override to the browser test, that test, Ruff and `git diff --check` were
 rerun successfully.
 
-`SOURCE.json` currently records SPA revision
+At the F7 validation, `SOURCE.json` recorded SPA revision
 `2ac3c664e2bf821ad11775cd82fed68802cfa5e0` with **`dirty=true`**: the
-hash-checked binary snapshot is in the fork but the new SPA source changes
-have not been committed. A clean source checkout at that SHA would still
-produce the old UI; commit/review the source and rebuild/verify the snapshot
-before claiming source-reproducible provenance. The independent F0 platform
-and F4 audio gaps are unchanged.
+hash-checked binary snapshot was in the fork but the new SPA source changes
+had not yet been committed. Those changes were subsequently committed as
+`f607d6a`; the snapshot's clean-source provenance has **not** been revalidated
+against that commit. Rebuild/verify the snapshot from clean source before
+claiming source-reproducible provenance. The independent F0 platform and F4
+audio gaps are unchanged.
+
+## F8: native `nanobot kg` CLI (2026-10-06)
+
+The registered Typer group provides read-only `doctor --json` and `bundle path`,
+confirmed `bundle init` (GitStore and layout, refusing nonempty destinations,
+regular files, or invalid parents), atomic `graph rebuild` using the vendored
+deterministic builder, P11 structural candidate discovery with dry-run/apply
+and per-note CAS, and the one-shot AK lateral-link migration with
+dry-run/apply, cross-bundle/broken-target reporting, Git commit and rollback
+on failure. Parent/bundle `--bundle-root`, configured workspace, legacy env
+root precedence and restricted-workspace policy are exercised with temporary
+bundles. No model or legacy CLI is involved; community labeling and legacy
+`graphify cluster-only` artifacts are not provided by this command.
+
+A first review caught and fixed three defects before publishing the gate:
+
+- `migrate_lateral_links` crashed during dry-run on a single unreadable note
+  or a malformed sibling lookup. The scan tolerates `OSError` /
+  `UnicodeDecodeError` and only requires a present `notes/` directory from
+  the CM sibling — not a fully-initialized bundle.
+- `init_bundle` accepted the parent of a regular file as a bundle location
+  and only failed deep in `mkdir` with `Errno 20 Not a directory`. It now
+  rejects regular files, regular-file parents and non-empty destinations up
+  front with explicit messages.
+- `bootstrap_p11 --apply` collected candidates under read-only authorization
+  before validating write capability; the order was corrected.
+
+`tests/kg/test_cli_kg.py` passed **9 tests** via `CliRunner` (including JSON,
+exit codes, idempotence, env precedence, corrupt graph, init rejection of
+regular files, partial CM sibling + non-UTF-8 note in AK migration, root
+escape/symlink denial, and preservation of the previous graph on a failed
+rebuild). Full Python `pytest` passed **9206, 49 skipped, 1 existing aiohttp
+deprecation warning** (352.28 s), `basedpyright nanobot` 0 errors,
+`ruff check .` and `git diff --check` passed. The actual console entrypoint
+displayed `nanobot kg graph rebuild --help`. No real bundle, LLM provider,
+packaging rebuild or upgrade/rollback data-copy smoke was used for F8. F0
+distribution/platform and F4 audio remain independent open gates.

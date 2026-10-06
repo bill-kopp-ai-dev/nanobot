@@ -46,6 +46,7 @@ from nanobot.cli import terminal as cli_terminal  # noqa: E402
 from nanobot.cli.agent import agent  # noqa: E402
 from nanobot.cli.gateway import create_gateway_app  # noqa: E402
 from nanobot.cli.gateway_runtime import _run_gateway  # noqa: E402
+from nanobot.cli.kg import app as kg_app  # noqa: E402
 from nanobot.cli.log_control import _set_nanobot_logs  # noqa: E402
 from nanobot.cli.process_identity import set_cli_process_identity  # noqa: E402
 from nanobot.cli.provider import provider_app  # noqa: E402
@@ -101,6 +102,7 @@ console = Console()
 from nanobot.cli.remote import app as remote_app  # noqa: E402
 
 app.add_typer(remote_app, name="remote")
+app.add_typer(kg_app, name="kg")
 
 def version_callback(value: bool):
     if value:
