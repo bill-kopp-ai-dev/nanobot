@@ -50,6 +50,13 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def validate_note_id(note_id: str) -> str:
+    """Validate a canonical ID without ``$`` accepting a trailing newline."""
+    if re.fullmatch(r"[0-9]{8}-[0-9]{6}", note_id) is None:
+        raise ValueError(f"id {note_id!r} is not canonical YYYYMMDD-HHMMSS")
+    return note_id
+
+
 def _slug(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower())[:50].rstrip("-")
     return slug or "untitled"
@@ -86,6 +93,27 @@ def check_bundle_paths(root: Path, *, write: bool = False) -> None:
         for path in notes_dir.glob(f"*{ACQUIRED_KNOWLEDGE.notes_extension}"):
             if not path.resolve().is_relative_to(resolved_root):
                 raise PathEscapeError(str(path))
+
+
+def check_no_symlink_components(root: Path, path: Path) -> None:
+    """Reject symlinks at every bundle-relative component, including internal ones.
+
+    Containment alone is insufficient for destructive operations: an internal
+    symlink can redirect an archive or a note write into another bundle area.
+    """
+    resolved_root = root.resolve()
+    candidate = path if path.is_absolute() else resolved_root / path
+    try:
+        relative = candidate.relative_to(resolved_root)
+    except ValueError as exc:
+        raise PathEscapeError(str(path)) from exc
+    if ".." in relative.parts:
+        raise PathEscapeError(str(path))
+    current = resolved_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise PathEscapeError(str(current))
 
 
 def note_paths(root: Path) -> list[Path]:
@@ -324,6 +352,7 @@ __all__ = [
     "assert_asset_exists",
     "cache_stats",
     "check_bundle_paths",
+    "check_no_symlink_components",
     "ensure_within_bundle",
     "find_existing_source_by_sha256",
     "find_note_path",
@@ -341,4 +370,5 @@ __all__ = [
     "resolve_asset_path",
     "write_atomic",
     "write_source_note",
+    "validate_note_id",
 ]

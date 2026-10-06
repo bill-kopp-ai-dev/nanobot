@@ -400,3 +400,53 @@ optional `diskcache`. Final gates after review: `tests/kg` **80 passed,
 `basedpyright nanobot` **0 errors**; `ruff check .` passed; `git diff --check`
 clean. No live provider call was made. The previously noted F0 gaps remain
 open; F5 is not started.
+
+## F5: AK atomization, links, graph queries and archive (2026-10-06)
+
+Added six native AK tools (`ak_note_write_extracted`, `ak_note_link`,
+`ak_note_batch_link`, `ak_graph_neighbors`, `ak_graph_shortest_path`,
+`ak_source_forget`) for 14 AK tools total in native/both. The MCP-only mode
+still suppresses them. The services are reusable from the gateway in F6.
+
+Atomization uses an exclusive bundle lock and a single Git commit for the
+ExtractedNote, its Source's `chunks_atomized` update, and `log.md`. It supports
+optional Source `expected_content_hash` CAS, rejects out-of-range chunks,
+deduplicates `(source_id, chunk_index)` on repeated calls, and repairs a
+missing chunk flag on an existing extracted note. Rollback restores files and
+audit history if a commit fails. Each batch link is independently committed
+and returns per-edge applied/skipped/error. Forward refs must be canonical AK
+IDs; prefixed CM references are refused. D65 relation storage and precedence
+were checked against a built graph. Graph queries use exact IDs and validate
+the artifact's symlink boundary; graph rebuild remains a separate F8 task.
+Forget archives the Source note and its associated raw file under
+`_archive/sources/YYYYMM/`, leaving derived notes active; binary files are
+never staged in Git. A failed commit restores both paths and the audit log.
+Archive, note and source paths are checked against symlink escapes. No real
+bundle was mutated.
+
+**Verification:** `tests/kg` 90 passed, 2 skipped; `pytest -q` 9195 passed,
+49 skipped, 1 unrelated aiohttp deprecation warning (348.44 s);
+`basedpyright nanobot` 0 errors;
+`ruff check .` passed; `git diff --check` clean. F0 platform/distribution
+remains open; F4 audio parity remains unsupported; F6 has not started.
+
+### F5 review fixes (2026-10-06)
+
+The focused adversarial review found and fixed three issues:
+
+- Bundle containment alone allowed internal symlinks to redirect a graph
+  read, note mutation, or archive operation into a different bundle area.
+  F5 now rejects symlinks in the relevant path components, including links
+  that resolve inside the bundle.
+- The shared ID regex uses `$`, which can match before a terminal newline.
+  F5 services now require a full ASCII `YYYYMMDD-HHMMSS` match before using
+  IDs in note lookup, graph access, links or archive paths.
+- Atomization's dedupe scan propagated malformed YAML from any unrelated
+  note, blocking valid work. It now skips unreadable/malformed candidates
+  and only reuses a note whose filename ID agrees with its frontmatter ID.
+- Multiline `source_forget` reasons could add rows to the Markdown audit
+  table. The reason is now collapsed to one line before logging/committing.
+
+Regression tests cover internal symlink redirection, newline IDs, unrelated
+malformed notes, and multiline audit reasons. Re-ran all gates after these
+fixes. No real AK bundle was modified during the review.

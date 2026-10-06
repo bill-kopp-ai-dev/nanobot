@@ -1,4 +1,4 @@
-"""F4 registration: native AK tools are discovered by ToolLoader and obey mode."""
+"""Native AK tools are discovered by ToolLoader and obey mode."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ AK_NATIVE_NAMES = {
     "ak_source_ingest", "ak_source_read", "ak_source_list", "ak_source_search",
     "ak_source_stats", "ak_get_laterally_isolated_notes",
     "ak_image_caption", "ak_audio_transcribe",
+    "ak_note_write_extracted", "ak_note_link", "ak_note_batch_link",
+    "ak_graph_neighbors", "ak_graph_shortest_path", "ak_source_forget",
 }
 
 
@@ -34,7 +36,7 @@ def _ctx(workspace: Path, *, mode: str = "native",
     return ToolContext(config=ToolsConfig(), workspace=str(workspace), kg_config=cfg)
 
 
-def test_loader_registers_eight_ak_tools_in_native_mode(tmp_path: Path) -> None:
+def test_loader_registers_fourteen_ak_tools_in_native_mode(tmp_path: Path) -> None:
     ctx = _ctx(tmp_path, mode="native")
     registry = ToolRegistry()
     ToolLoader().load(ctx, registry)
