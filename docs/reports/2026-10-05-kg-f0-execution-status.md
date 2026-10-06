@@ -309,3 +309,94 @@ full Python suite: **9137 passed, 49 skipped, 1 warning** (330.78 seconds);
 was not made. The guarantee applies to native tools; `kg.mode=mcp` remains a
 legacy rollback path with its own inference client, and `both` exposes both.
 F0 platform/distribution gaps and later SPA/AK phases remain open.
+
+## F4: native AK ingest/read/multimodal
+
+Eight native tools were ported from `percival-acquire-knowledge` into
+`nanobot/agent/kg/ak/` plus three `ak_*.py` files under
+`nanobot/agent/tools/`. The bundle layer reuses the same vendor primitives
+as CM (`okf_bundle_core` GitStore / lock / frontmatter / path layout)
+and the tool layer follows the F1/F2 contract (`asyncio.to_thread` for
+filesystem-bound calls, `AKTool` base with `restrict_to_workspace`
+plumbing via `nanobot/agent/kg/roots.py`).
+
+Multimodal capability is now first-class on the LLM runtime: a new
+`LLMProvider.supports_modality(modality, model)` hook with a `False`
+default returns explicit `unsupported_capability` errors instead of a
+stubbed answer. The OpenAI-compatible, Anthropic, Bedrock and Codex
+backends declare `image` support; no backend currently declares `audio`
+input, so `ak_audio_transcribe` and image ingest of audio files surface
+the gap explicitly. `image_caption` sends a multimodal `chat` request
+through `runtime.provider.chat_with_retry` with the captured model and
+generation; the diskcache key is
+`kind:provider:model:preset:parser_version:etag`, so a turn served by a
+different runtime cannot reuse a stale caption. `diskcache` is now a
+dev dependency in `pyproject.toml [project.optional-dependencies].dev`.
+
+**Test evidence (2026-10-06):**
+
+| Suite | Result |
+| --- | --- |
+| `tests/kg/test_ak_core.py` | 11 passed (paths, id, mimetype, asset containment, symlink rejection) |
+| `tests/kg/test_ak_read.py` | 4 passed (source_list with partial atomisation, source_search, source_stats, get_laterally_isolated_notes grouping) |
+| `tests/kg/test_ak_multimodal.py` | 8 passed (image_caption via runtime, image rejection, finish_reason error, invalid_output, audio gap, runtime missing, default modality) |
+| `tests/kg/test_ak_ingest.py` | 7 passed (markitdown happy path, dedupe, unknown extension, parse rollback, image ingest via runtime, missing runtime) |
+| `tests/kg/test_ak_registration.py` | 8 passed (8 ak_ tools in native/both, suppressed in mcp, per-tool feature flags, structured tool errors) |
+| `tests/kg` overall | **85 passed, 2 skipped** |
+| `pytest` global | **9175 passed, 49 skipped, 1 warning** (315.99 s) |
+| `basedpyright nanobot` | 0 errors |
+| `ruff check .` | passed |
+| `git diff --check` | clean |
+
+A live provider call was not made. The audio capability gap is the
+only one the plan explicitly defers: while no backend supports audio
+input via `LLMProvider.chat`, `ak_audio_transcribe` returns
+`unsupported_capability` with a "replan F4 audio parity" message rather
+than substituting a different model. F5 (write/link/graph/forget) and
+F6 (gateway bridge + SPA contract) have not started.
+
+## F4 review: bugs and fixes (2026-10-06)
+
+Review found and corrected the following reachable issues in the initial
+F4 implementation:
+
+- **Workspace escape on ingestion:** `ak_source_ingest` accepted any
+  absolute input path even with `restrict_to_workspace=True`. The tool
+  now resolves paths against the active request workspace and applies
+  the workspace policy before reading the source.
+- **Symlink reads outside the AK bundle:** discovery operations checked
+  the `notes/` directory but not each Markdown entry. AK path checks now
+  validate each note and the critical `sources`, `.git`, `.gitignore`,
+  lock, `.cache` and `.telemetry` roots before read/write operations.
+- **Ingest audit/rollback:** the initial path committed the note before
+  appending `log.md`, so the audit entry was not in the same commit; the
+  rollback also did not retain the created note path. Ingest now appends
+  the log before committing both explicit paths together, and removes the
+  staged binary/note and restores the prior log if commit fails. A copy
+  whose hash differs from the pre-copy hash is rejected. Cancellation
+  waits for in-flight thread I/O and does not roll back files after a
+  successful commit.
+- **Model capability overclaim:** all models behind compatible protocols
+  were initially treated as vision-capable. Support is now restricted to
+  recognized image-input model families; unknown/text-only models return
+  `unsupported_capability` before sending an image.
+- **Optional-cache import and stale processing version:** `diskcache` was
+  imported at module load despite being described as optional. It is now
+  imported only by `get_cache`; tools remain importable and captioning
+  proceeds without persistent cache. The cache key now includes an explicit
+  `image-caption-v1` processor version, so prompt/schema changes can invalidate
+  old captions deliberately.
+- **Unbounded/invalid multimodal input/output:** image inputs are capped
+  at 20 MiB; filesystem/cache work is moved off the event loop; caption
+  JSON is validated against a bounded schema; malformed cache entries are
+  evicted, and invalid model output is reported as `invalid_output`.
+
+Regression coverage exercises workspace denial, external note symlink
+rejection, copy-race detection, note+log commit rollback, model-specific
+capability, cache identity across models, oversized images and absent
+optional `diskcache`. Final gates after review: `tests/kg` **80 passed,
+2 skipped**; full `pytest -q` **9185 passed, 49 skipped, 1 warning**
+(312.74 seconds);
+`basedpyright nanobot` **0 errors**; `ruff check .` passed; `git diff --check`
+clean. No live provider call was made. The previously noted F0 gaps remain
+open; F5 is not started.

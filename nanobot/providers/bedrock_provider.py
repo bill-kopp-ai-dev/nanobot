@@ -825,3 +825,16 @@ class BedrockProvider(LLMProvider):
 
     def get_default_model(self) -> str:
         return self.default_model
+
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        """Only Bedrock model families with documented image input are enabled."""
+        selected = (model or self.default_model).lower().rsplit("/", 1)[-1]
+        supports_image = selected.startswith((
+            "anthropic.claude-3",
+            "anthropic.claude-opus-4",
+            "anthropic.claude-sonnet-4",
+            "anthropic.claude-haiku-4",
+            "amazon.nova-",
+            "meta.llama4",
+        ))
+        return modality == "image" and supports_image

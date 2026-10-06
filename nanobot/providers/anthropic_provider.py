@@ -866,3 +866,14 @@ class AnthropicProvider(LLMProvider):
 
     def get_default_model(self) -> str:
         return self.default_model
+
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        """Claude 3+ models accept image blocks; audio is not declared."""
+        selected = (model or self.default_model).lower().rsplit("/", 1)[-1]
+        image_families = (
+            "claude-3",
+            "claude-opus-4",
+            "claude-sonnet-4",
+            "claude-haiku-4",
+        )
+        return modality == "image" and selected.startswith(image_families)

@@ -830,6 +830,20 @@ class LLMProvider(ABC):
         """Whether the provider enforces compaction_input_budget before generation."""
         return False
 
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        """Whether this provider/model can consume the given input modality natively.
+
+        ``modality`` is a free-form capability tag (for example ``"image"`` or
+        ``"audio"``).  The default is ``False`` so callers get an explicit
+        ``unsupported_capability`` error instead of a silent fallback.  Providers
+        with documented support override this to declare the modalities their
+        wire protocol can carry, and the same provider may answer differently
+        for different models (e.g. a text-only model served over the same
+        API).
+        """
+        del modality, model
+        return False
+
     @staticmethod
     def _sanitize_empty_content(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Sanitize message content: fix empty blocks, strip internal _meta fields.

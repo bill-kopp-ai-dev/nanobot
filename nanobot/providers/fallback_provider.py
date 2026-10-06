@@ -191,6 +191,9 @@ class FallbackProvider(LLMProvider):
     def supports_pre_request_compaction(self, model: str | None = None) -> bool:
         return self._primary.supports_pre_request_compaction(model)
 
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        return self._primary.supports_modality(modality, model)
+
     def _primary_call_context(
         self,
         provider_context: ProviderCallContext,

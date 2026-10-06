@@ -170,6 +170,26 @@ def _model_slug(model_name: str) -> str:
     return model_name.lower().rsplit("/", 1)[-1]
 
 
+def _supports_image_input(model_name: str | None) -> bool:
+    """Conservatively recognize model families with documented image input."""
+    slug = _model_slug(model_name or "")
+    if slug in _DEEPSEEK_MULTIMODAL_MODELS:
+        return True
+    prefixes = (
+        "gpt-4o", "gpt-4.1", "gpt-4.5", "gpt-5", "o1", "o3", "o4",
+        "claude-3", "claude-opus-4", "claude-sonnet-4", "claude-haiku-4",
+        "gemini-", "qwen-vl", "qwen2-vl",
+        "qwen2.5-vl", "qwen3-vl", "llama-4", "grok-2-vision", "grok-4",
+        "mimo-v2-omni",
+    )
+    return any(
+        slug.startswith(prefix)
+        if prefix.endswith("-")
+        else slug == prefix or slug.startswith((prefix + "-", prefix + "."))
+        for prefix in prefixes
+    )
+
+
 def _provider_prefix_key(name: str) -> str:
     return to_snake(name.replace("-", "_")).lower()
 
@@ -1195,6 +1215,10 @@ class OpenAICompatProvider(LLMProvider):
         if self._spec is not None and self._spec.name != "openai":
             return False
         return _is_direct_openai_base(self._effective_base)
+
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        """Declare only model families known to accept image input."""
+        return modality == "image" and _supports_image_input(model or self.default_model)
 
     def _responses_circuit_allows_probe(
         self,

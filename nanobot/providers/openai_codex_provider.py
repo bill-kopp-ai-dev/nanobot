@@ -432,6 +432,12 @@ class OpenAICodexProvider(LLMProvider):
     def supports_pre_request_compaction(self, model: str | None = None) -> bool:
         return self.supports_native_compaction(model)
 
+    def supports_modality(self, modality: str, model: str | None = None) -> bool:
+        """Codex image input is available for GPT-4o/4.1 and GPT-5 models."""
+        selected = _strip_model_prefix(model or self.default_model).lower()
+        supports_image = selected.startswith(("gpt-4o", "gpt-4.1", "gpt-5", "o1", "o3", "o4"))
+        return modality == "image" and supports_image
+
 
 def _strip_model_prefix(model: str) -> str:
     if model.startswith("openai-codex/") or model.startswith("openai_codex/"):

@@ -113,6 +113,9 @@ dev = [
     "python-socketio>=5.16.0,<6.0.0",
     "msgpack>=1.1.0,<2.0.0",
     "freezegun>=1.5,<2.0",
+    # AK multimodal cache: optional in production; required for the
+    # full F4 dev loop and for basedpyright to type-check the cache module.
+    "diskcache>=5.4.0,<6.0.0",
 ]
 
 [project.scripts]
