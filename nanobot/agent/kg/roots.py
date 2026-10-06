@@ -22,13 +22,14 @@ _ENV_ROOTS: dict[BundleKind, str] = {
 }
 
 
-def bundle_root(kind: BundleKind, config: PercivalKgConfig, workspace: Path) -> Path:
+def bundle_root(kind: BundleKind, config: PercivalKgConfig, workspace: Path,
+                *, use_request_context: bool = True) -> Path:
     """Resolve a root without searching the process CWD or parent directories.
 
     Legacy env overrides are intentional for migrated deployments. Call for
     every request so different WebUI workspaces never share a cached root.
     """
-    request = current_request_context()
+    request = current_request_context() if use_request_context else None
     active_workspace = (request.workspace if request and request.workspace else workspace).resolve()
     parent = os.environ.get(_ENV_ROOTS[kind]) or getattr(config, f"{kind}_root")
     candidate = Path(parent).expanduser() if parent else active_workspace

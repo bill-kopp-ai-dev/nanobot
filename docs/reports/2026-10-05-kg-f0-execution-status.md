@@ -450,3 +450,85 @@ The focused adversarial review found and fixed three issues:
 Regression tests cover internal symlink redirection, newline IDs, unrelated
 malformed notes, and multiline audit reasons. Re-ran all gates after these
 fixes. No real AK bundle was modified during the review.
+
+## F6: gateway bridge and SPA contract (2026-10-06)
+
+`nanobot/webui/kg_http.py` now owns a native KG bridge: authenticated HTTP
+reads under `/kg-interface/api/{memory|acquire}/`, typed allowlisted WebUI WS
+mutations via `webui_request`, explicit mode/root checks, and JSON errors.
+Read routes cover health, lists, reads, source/chunks, search, stats, CM
+history/storage, graph metadata and a new bounded (8 MiB) NetworkX node-link
+`/graph/data`. Actions cover CM/AK body CAS and CM archive, protected,
+lifecycle, review and storage maintenance. No inference action was exposed:
+the bridge never manufactures a provider/runtime. It calls CM/AK services,
+not Tool text results. No HTTP GET performs a write; unknown KG API paths
+return JSON 404. Bearer-in-URL does not authenticate. WS requires an issued
+WebUI-audience token; operations use the gateway's WebUI default workspace,
+not a browser-provided root/session path. Configured external bundle roots
+are denied when this scope restricts workspace access. F6 also hardened
+internal CM symlink handling for note/archive paths and single-line CM archive
+reasons (the new SPA route made these paths browser-accessible).
+
+The sibling `spa` source now connects `GatewayKgTransport` to `api.ts`, keeps
+the gateway key and issued tokens in memory, retries GET once on bearer
+expiry, and reports uncertain WS timeouts/disconnects rather than replaying a
+write. `KgClientProvider` prompts for a key when anonymous bootstrap cannot
+grant browser tokens. Vite dev proxies `/webui/bootstrap` and the KG API to
+`:8765`. `GraphDataSchema` validates graph payloads; the existing `GraphView`
+still uses the legacy export iframe until F7. The bundled SPA snapshot in
+`nanobot/web/kg-interface` has **not** been replaced; F7 owns reproducible
+snapshot/wheel and the D3 view. Cross-host trusted-proxy bootstrap without
+tokens is accepted for a same-origin WebSocket, but cross-origin WebSocket
+URLs and multi-workspace selection remain outside this client contract.
+
+**Evidence:** `tests/kg/test_gateway_f6.py` uses an in-process `websockets`
+listener, temporary CM/AK bundles and the real bootstrap/bearer/WS channels;
+checks 19 SPA GET contracts, eight WS action paths, CAS 409, anonymous GET
+401, anonymous WS 401, invalid ID 400, missing graph/note 404, external root
+and symlink 403, and JSON 404 rather than HTML fallback. SPA
+`gateway-api-contract.test.ts` validates the same call inventory through
+Zod and action mapping; `gateway-login.test.tsx` exercises in-memory key
+handoff. Python `pytest -q`: **9196 passed, 49 skipped, 1 unrelated aiohttp
+warning** (329.25 s); `basedpyright nanobot`: **0 errors**; `ruff check .`:
+passed; SPA `bun run test`: **253 passed**, `bun run lint` and `bun run build`:
+passed. `git diff --check` passed in both repos. No actual provider call or
+real user bundle mutation was made. The F0 packaging/platform gates and F4
+audio gap remain open; F7 is next for a browser/wheel smoke with the actual
+new SPA snapshot.
+
+A subsequent `tests/kg` run hit the minute boundary in the older
+`test_new_id_bumps_one_second_when_candidate_already_used`: it expected
+the next ID to have the same minute prefix, which is false at 12:59:59.
+The test now freezes the clock at 12:59:59 and asserts the actual 13:00:00
+collision result. The relevant gate passed after this test-only correction:
+**91 passed, 2 skipped**, with typecheck, lint and diff check passing again.
+The full Python suite above precedes only this deterministic test-fixture
+change; it is not presented as a rerun after that edit.
+
+### F6 review fixes (2026-10-06)
+
+Review against the routes the SPA can reach found and fixed:
+
+- CM and AK list/search could follow symlinks pointing to another path inside
+  the same bundle. Their shared note-path scans now reject internal symlinks;
+  gateway tests verify both list endpoints return 403.
+- An oversized graph was mapped through generic `ValueError` to HTTP 400.
+  Graph size violations now return HTTP 413 and have a listener test above 8
+  MiB; graph metadata remains available and missing/corrupt graph payloads are
+  distinct from data.
+- Body CAS conflicts had status 409 but only a generic error message, so the
+  SPA could not populate its three-way conflict resolver. The gateway now
+  returns the base hash, current body/hash on 409; the SPA converts the WS
+  error payload back into `ApiError.detail`, with regression coverage.
+- Trusted-proxy bootstrap intentionally omits bearer and WS tokens because
+  the proxy authenticates each request (and this bootstrap shape omits
+  `expires_in`). The SPA transport now accepts that explicit credential-less
+  bootstrap mode, caches it briefly and adds no fabricated token to GET or WS
+  requests. A partial bootstrap (only one token) still fails closed.
+
+Reverification after these changes: full Python `pytest -q` **9196 passed,
+49 skipped, 1 unrelated aiohttp deprecation warning** (328.82 s);
+`basedpyright nanobot` 0 errors; `ruff check .` passed. Focused KG tests:
+**91 passed, 2 skipped**. SPA: **253 passed**, lint/build passed. The test
+suite still emits its existing happy-dom aborted iframe-fetch diagnostics;
+they do not fail the run. No real bundle or provider was used.

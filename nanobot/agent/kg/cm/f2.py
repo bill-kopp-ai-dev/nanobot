@@ -150,11 +150,13 @@ def memory_attach(root: Path, note_id: str, asset_path: str, *, reason: str = "m
 def memory_forget(root: Path, note_id: str, reason: str) -> dict[str, Any]:
     core.check_bundle_paths(root, write=True)
     validate_id(note_id)
-    if not reason.strip():
-        raise ValueError("reason must not be blank")
+    if not reason.strip() or "\n" in reason or "\r" in reason:
+        raise ValueError("reason must be a nonblank single line")
     note = _read(root, note_id)
-    src = (root / str(note["path"])).resolve()
+    src = root / str(note["path"])
     archive = root / "_archive" / datetime.now(timezone.utc).strftime("%Y%m")
+    core.check_no_symlink_components(root, src)
+    core.check_no_symlink_components(root, archive)
     if not archive.resolve().is_relative_to(root.resolve()):
         raise PathEscapeError(str(archive))
     archive.mkdir(parents=True, exist_ok=True)

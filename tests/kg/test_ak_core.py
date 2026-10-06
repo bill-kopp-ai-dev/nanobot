@@ -84,8 +84,16 @@ def test_new_id_creates_unique_id_within_one_second_window(tmp_path: Path) -> No
     assert (datetime.now(timezone.utc) - parsed).total_seconds() < 5
 
 
-def test_new_id_bumps_one_second_when_candidate_already_used(tmp_path: Path) -> None:
-    """A second ingest within the same second must get a distinct id."""
+def test_new_id_bumps_one_second_when_candidate_already_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A collision at 12:59:59 must advance to 13:00:00, not reuse the id."""
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: timezone | None = None) -> datetime:
+            return datetime(2026, 10, 6, 12, 59, 59, tzinfo=tz)
+
+    monkeypatch.setattr(ak_core, "datetime", FixedDatetime)
     bundle = _init_bundle(tmp_path)
     from nanobot.agent.kg.ak.core import note_path
 
@@ -94,8 +102,8 @@ def test_new_id_bumps_one_second_when_candidate_already_used(tmp_path: Path) -> 
         "---\ntype: Source\nid: " + first + "\n---\nbody\n", encoding="utf-8",
     )
     second = ak_core.new_id(bundle)
-    assert second != first
-    assert second.startswith(first[:13])  # same YYYYMMDD-HH, +1 second on SS
+    assert first == "20261006-125959"
+    assert second == "20261006-130000"
 
 
 def test_resolve_asset_path_blocks_escape_via_symlink(tmp_path: Path) -> None:

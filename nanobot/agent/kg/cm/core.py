@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from nanobot.agent.kg.vendor.okf_bundle_core.errors import CASMismatchError
+from nanobot.agent.kg.vendor.okf_bundle_core.errors import CASMismatchError, ZettelError
+from nanobot.agent.kg.vendor.okf_bundle_core.frontmatter import split_frontmatter
 from nanobot.agent.kg.vendor.okf_bundle_core.gitstore import GitStore
 from nanobot.agent.kg.vendor.okf_bundle_core.paths import COLLECTIVE_MEMORY, PathEscapeError
 from nanobot.agent.kg.vendor.okf_bundle_core.schema import validate_id
@@ -19,6 +21,37 @@ MAX_SEARCH_RESULTS = 200
 MAX_HISTORY_ENTRIES = 1000
 
 
+def notes_list(root: Path, *, limit: int = 50) -> list[dict[str, Any]]:
+    if not 1 <= limit <= MAX_SEARCH_RESULTS:
+        raise ValueError("limit must be between 1 and 200")
+    _check_bundle_paths(root, write=False)
+    results: list[dict[str, Any]] = []
+    for path in sorted((root / COLLECTIVE_MEMORY.notes_dir).glob("*.md")):
+        if not path.resolve().is_relative_to(root.resolve()):
+            raise PathEscapeError(str(path))
+        match = re.match(r"^(\d{8}-\d{6})(?:-|$)", path.stem)
+        if match is None:
+            continue
+        try:
+            meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ZettelError):
+            continue
+        review = meta.get("review")
+        entries = cast(list[object], review) if isinstance(review, list) else []
+        pending = sum(1 for entry in entries if isinstance(entry, dict) and cast(dict[str, Any], entry).get("status") == "pending")
+        results.append({
+            "id": match.group(1), "path": path.relative_to(root).as_posix(),
+            "title": meta.get("title"), "type": meta.get("type"),
+            "tags": meta.get("tags") if isinstance(meta.get("tags"), list) else [],
+            "protected": bool(meta.get("protected", False)),
+            "lifecycle": meta.get("lifecycle") or "active",
+            "pending_review_count": pending,
+        })
+        if len(results) >= limit:
+            break
+    return results
+
+
 def _check_bundle_paths(root: Path, *, write: bool) -> None:
     """Refuse bundle-internal symlinks that would cross the authorized root."""
     resolved_root = root.resolve()
@@ -26,9 +59,26 @@ def _check_bundle_paths(root: Path, *, write: bool) -> None:
     if write:
         paths.extend((root / "log.md", root / ".git", root / COLLECTIVE_MEMORY.lock_file))
     for path in paths:
+        check_no_symlink_components(root, path)
         if path.exists() or path.is_symlink():
             if not path.resolve().is_relative_to(resolved_root):
                 raise PathEscapeError(str(path))
+    notes_dir = root / COLLECTIVE_MEMORY.notes_dir
+    if notes_dir.is_dir():
+        for path in notes_dir.glob(f"*{COLLECTIVE_MEMORY.notes_extension}"):
+            check_no_symlink_components(root, path)
+
+
+def check_no_symlink_components(root: Path, path: Path) -> None:
+    """Reject even internal redirection of a bundle operation."""
+    relative = path.relative_to(root)
+    current = root
+    for part in relative.parts:
+        if part == "..":
+            raise PathEscapeError(str(path))
+        current = current / part
+        if current.is_symlink():
+            raise PathEscapeError(str(current))
 
 
 def check_bundle_paths(root: Path, *, write: bool = False) -> None:
@@ -41,6 +91,7 @@ def _check_note_paths(root: Path, note_id: str) -> None:
     validate_id(note_id)
     notes_dir = root / COLLECTIVE_MEMORY.notes_dir
     for path in notes_dir.glob(f"{note_id}-*{COLLECTIVE_MEMORY.notes_extension}"):
+        check_no_symlink_components(root, path)
         if not path.resolve().is_relative_to(root.resolve()):
             raise PathEscapeError(str(path))
 
@@ -95,7 +146,8 @@ def notes_write(
     }
 
 
-def notes_search(root: Path, query: str, *, limit: int = 20) -> list[dict[str, Any]]:
+def notes_search(root: Path, query: str, *, limit: int = 20,
+                 kind: str | None = None) -> list[dict[str, Any]]:
     if not query.strip():
         raise ValueError("query must not be blank")
     if len(query) > MAX_SEARCH_QUERY_CHARS:
@@ -112,6 +164,13 @@ def notes_search(root: Path, query: str, *, limit: int = 20) -> list[dict[str, A
         if not path.resolve().is_relative_to(root.resolve()):
             raise PathEscapeError(str(path))
         text = path.read_text(encoding="utf-8")
+        if kind:
+            try:
+                frontmatter, _ = split_frontmatter(text)
+            except ZettelError:
+                continue
+            if frontmatter.get("type") != kind:
+                continue
         for line_no, line in enumerate(text.splitlines(), start=1):
             if needle in line.casefold():
                 parts = path.stem.split("-", 2)

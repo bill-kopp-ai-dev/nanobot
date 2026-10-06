@@ -92,7 +92,7 @@ from nanobot.webui.http_utils import (
     safe_host_header as _safe_host_header,
 )
 from nanobot.webui.ingress_policy import WebUIIngressPolicy
-from nanobot.webui.kg_http import kg_http_probe
+from nanobot.webui.kg_http import KgGatewayBridge
 from nanobot.webui.kg_static import kg_static_root, serve_kg_static
 from nanobot.webui.media_gateway import WebUIMediaGateway
 from nanobot.webui.native_folder_picker import (
@@ -396,6 +396,7 @@ class GatewayHTTPHandler:
         self.ingress = ingress
         self.workspaces = workspaces
         self.settings = settings
+        self.kg = KgGatewayBridge(settings, workspaces)
         from nanobot.webui.remote_instances import RemoteInstances
 
         self.remote_instances = RemoteInstances(
@@ -517,6 +518,8 @@ class GatewayHTTPHandler:
         payload: dict[str, Any],
     ) -> Response:
         """Run one explicitly allowlisted mutation for an authenticated WebUI socket."""
+        if action.startswith("kg."):
+            return await self.kg.mutate(action, payload)
         path = self._webui_mutation_path(action, payload)
         if isinstance(path, Response):
             return path
@@ -605,10 +608,7 @@ class GatewayHTTPHandler:
                     and self.check_api_token(bearer_request)
                 )
             )
-            return kg_http_probe(
-                got,
-                authenticated=authenticated,
-            )
+            return await self.kg.read(request.path, authenticated=authenticated)
         if got == "/kg-interface" or got.startswith("/kg-interface/"):
             return await serve_kg_static(
                 got,

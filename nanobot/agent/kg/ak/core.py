@@ -27,7 +27,12 @@ from nanobot.agent.kg.vendor.okf_bundle_core.paths import (
     assert_asset_exists,
 )
 from nanobot.agent.kg.vendor.okf_bundle_core.schema import ZettelFrontmatter
-from nanobot.agent.kg.vendor.okf_bundle_core.zettel import notes_read, write_atomic
+from nanobot.agent.kg.vendor.okf_bundle_core.zettel import (
+    WriteRequest,
+    notes_read,
+    notes_write,
+    write_atomic,
+)
 
 from .parsers import mimetype_from_suffix
 
@@ -125,6 +130,7 @@ def note_paths(root: Path) -> list[Path]:
     resolved_root = root.resolve()
     paths = sorted(notes_dir.glob(f"*{ACQUIRED_KNOWLEDGE.notes_extension}"))
     for path in paths:
+        check_no_symlink_components(root, path)
         if not path.resolve().is_relative_to(resolved_root):
             raise PathEscapeError(str(path))
     return paths
@@ -250,6 +256,25 @@ def read_note(root: Path, note_id: str) -> dict[str, Any]:
         "body_hash": note.body_hash,
         "backlinks": note.backlinks,
     }
+
+
+def write_note_body(root: Path, note_id: str, body: str, base_body_hash: str,
+                    reason: str) -> dict[str, Any]:
+    validate_note_id(note_id)
+    check_bundle_paths(root, write=True)
+    check_no_symlink_components(root, root / "notes")
+    for name in (".git", "log.md", ACQUIRED_KNOWLEDGE.lock_file):
+        check_no_symlink_components(root, root / name)
+    path = find_note_path(root, note_id)
+    if path is None:
+        raise FileNotFoundError(note_id)
+    check_no_symlink_components(root, path)
+    result = notes_write(root, ACQUIRED_KNOWLEDGE, WriteRequest(
+        id=note_id, body=body, expected_body_hash=base_body_hash, reason=reason,
+    ), gitstore=gitstore(root))
+    return {"id": result.id, "path": result.path.relative_to(root).as_posix(),
+            "content_hash": result.content_hash, "body_hash": result.body_hash,
+            "frontmatter": result.new_frontmatter.model_dump(mode="json", exclude_none=True)}
 
 
 def hash_file(path: Path, *, max_bytes: int | None = None) -> str:
