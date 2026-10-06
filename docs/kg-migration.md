@@ -5,13 +5,12 @@ upgrade/rollback de bundles reais. O pacote atual é `nanobot-ai` 0.3.5;
 `percival-ai` não foi publicado. Interface nativa no
 [`plano F9`](plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release).
 
-**Commit candidato:** o commit **"feat(kg): close F9 with platform CI,
-endpoint inventory and migration tests"** no `main` deste fork inclui a
-reconciliação do snapshot, as 12 skills KG, o CLI `nanobot kg`, o
-inventário de endpoints e a CI matrix de plataforma. A proveniência em
-checkout limpo está comprovada (ver
-[`docs/kg-release-notes.md`](kg-release-notes.md)); o que falta é o ensaio
-em cópia de bundle real (itens B6/B7 do plano de auditoria).
+**SHA candidato Percival:** a definir. A prova em checkout limpo no commit
+F9 histórico consta das [notas candidatas](kg-release-notes.md) e deverá
+ser repetida no candidato final. O operador fará pessoalmente B6/B7
+(ensaio com cópia de bundle real e decisão de cutover). CI e empacotamento
+Percival ainda precisam ser alinhados ao suporte Linux-only; ver
+[governança](percival-governance.md).
 
 ## Antes de tocar dados
 
@@ -120,8 +119,9 @@ e [`bill-kopp-ai-dev/percival-acquire-knowledge`](https://github.com/bill-kopp-a
 foram **congelados** em 2026-10-06 (D5/D10 — ver `docs/reports/2026-10-05-kg-f0-execution-status.md`):
 banner EOL em cada `README.md`, novo `MIGRATION.md` com mapeamento para as
 tools nativas e rollback via tag `legacy-final`. `mode="mcp"` continua
-suportado para rollback, mas não há mais commits upstream, PRs ou
-releases; a flag `Archive this repository` no GitHub ainda depende de
-`gh auth login`. Para usuários fora do Percival, a recomendação oficial
-é adotar a distribuição `nanobot-ai` e parar de instalar cópias novas
-dos MCPs legados.
+suportado para rollback, mas não há mais desenvolvimento, PRs ou
+releases nesses repos. O operador arquivará ambos no console web do
+GitHub (CM primeiro, AK em seguida); `gh auth login` não é necessário.
+Não instalar cópias novas dos MCPs legados. `nanobot-ai` não é release
+do Percival; aguardar definição do pacote próprio antes de recomendar
+upgrade público.

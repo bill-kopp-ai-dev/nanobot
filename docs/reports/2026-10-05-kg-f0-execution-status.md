@@ -776,13 +776,35 @@ commit is:
    report (above) all reflect Linux-only. The `msvcrt` backend remains in the
    vendor as a courtesy for local Windows development; it is not part of any
    release gate.
-4. **B1/B2/B8/B9/B11/B12/B13** — release cutover, freeze, EOL,
-   sync cadence, CI and release-note sign-off; **operator-driven**.
+4. **B1/B2/B8/B9** — commits/push e freeze/EOL concluídos em 2026-10-06;
+   arquivamento no GitHub ainda é ação humana pelo console web.
+5. **B10/B11/B12/B13** — decisões de governança confirmadas pelo operador
+   em 2026-10-06; ver [política Percival](../percival-governance.md).
+   Implementação do CI geral e empacotamento Linux-only e sign-off final
+   do SHA candidato ainda pendentes.
 
-The fork is therefore not blocked by agent-side work to issue a KG tag
-beyond this commit, the B6 rehearsal and the B5 audio decision. The
-2026-10-06 F9 snapshot reconciliation (above) and A3 clean-checkout
-provenance run close the agent-side gates.
+**Atualização posterior:** a reconciliação F9 e a prova A3 em checkout
+limpo não fecham os gates de release do Percival: o alinhamento do CI geral
+e do empacotamento Linux-only, a validação operacional de áudio e B6/B7
+continuam pendentes. Nenhuma tag KG está autorizada por este relatório.
+
+## B10–B13 — política do Percival (decisão posterior, 2026-10-06)
+
+Percival é independente do HKUDS/nanobot e continuará em repositório
+privado até as alterações planejadas e a validação; o operador criará
+repositório público separado após revisão de histórico, segredos, dados,
+licenças e proveniência. B10: PR upstream somente para correção genérica
+separável com aprovação de divulgação. B11: revisão mensal e extraordinária
+para correções urgentes; importação seletiva por branch/patch ou cherry-pick
+com proveniência e testes, merge amplo só como exceção justificada e sem
+rebase de `main` publicado. B12: CI do Percival é a fonte de verdade,
+reaproveitando checks úteis; o `ci.yml` ainda contém Windows e o
+empacotamento TUI herdado presume cinco plataformas — falta implementação
+Linux-only antes de fechar gate. B13: o agente prepara notas, changelog e
+limitações; operador aprova a versão final no SHA candidato antes de tag ou
+publicação. Procedimentos: [AGENTS](../../AGENTS.md),
+[governança](../percival-governance.md), [runbook](../../RUNBOOK-sync-upstream.md),
+[notas candidatas](../kg-release-notes.md).
 
 ## B5 — decisão e implementação de áudio AK (2026-10-06)
 
@@ -817,10 +839,9 @@ não foi repetida após essa alteração localizada.
 `percival-acquire-knowledge`. Os repos ficam disponíveis apenas para
 rollback; não há mais desenvolvimento, PRs nem novos deployments.
 
-**Status GitHub:** archive (bandeira padrão do GitHub, via `gh repo
-archive --yes` após login). Mantido público. As URLs continuam
-resolvendo para o último commit (`legacy-final`) e os `git clone` dos
-consumidores que pinam a tag continuam funcionando.
+**Status GitHub:** freeze/tag aplicados; arquivamento ainda é ação do
+operador via console web (decisão posterior abaixo). Não presumir que o
+estado público ou a flag de archive já foram verificados.
 
 **Data de corte e tag final:** `legacy-final` em cada repo, apontando para o
 último commit antes do banner EOL.
@@ -858,11 +879,8 @@ documental é binário, sem teste de equivalência. O congelamento **não
 afirma paridade funcional** — o que prova paridade são os gates A1–A10
 do fork Percival (`docs/kg-migration.md` e `docs/kg-endpoint-inventory.md`).
 
-**Próximas ações humanas:** arquivar os repos no GitHub (bandeira "Archive
-this repository") e arquivar a comunidade em
-`https://github.com/bill-kopp-ai-dev/percival-{collective-memory,acquire-knowledge}/settings`
-após `gh auth login`. Não foi feito nesta sessão porque `gh` não está
-logado (`gh auth status` retorna "not logged into any GitHub hosts").
+**Próxima ação humana:** arquivar os dois repos pela opção "Archive this
+repository" no console web do GitHub; não é necessário `gh auth login`.
 
 **Decisão do operador (2026-10-06, posterior ao freeze):** arquivar via
 **console web** do GitHub (Settings → General → Danger Zone → Archive

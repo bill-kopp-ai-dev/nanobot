@@ -1,48 +1,49 @@
-# RUNBOOK — sincronizar o fork Percival com HKUDS/nanobot
+# RUNBOOK — incorporar melhorias selecionadas do HKUDS/nanobot ao Percival
 
-**Revisão:** 2026-10-06. A política de 2026-08-01 (main como espelho do
-upstream, customização só em `feat/percival-branding` e submódulo
-`mcp-servers-percival`) foi substituída na prática: o fork atual integra
-customizações diretamente em `main`. Consultar `git status`, `git remote -v`
-e o histórico antes de planejar novo sync; não presumir caminhos de um
-monorepo antigo. Este documento não autoriza publicação.
+**Revisão:** 2026-10-06. Política B10/B11:
+[governança do Percival](docs/percival-governance.md). Percival não mantém
+`main` como espelho do upstream. Desenvolvimento permanece no repositório
+privado até o operador aprovar um repositório público separado. Este runbook
+não autoriza push, PR upstream nem publicação.
 
-## Preparar e medir impacto
+## Triagem mensal (e extraordinária para correções urgentes)
 
-1. Confira remotes e SHA de `origin/main`, `upstream/main` e checkout local.
-   Configure `upstream` para `https://github.com/HKUDS/nanobot.git` somente
-   se ainda não existir; não sobrescreva outro remote. Anote a faixa de
-   commits e o diff de arquivos entre os dois heads. Nunca faça merge sobre
-   a árvore suja: em especial preserve `.positronic/` e quaisquer assets SPA
-   deletados/alterados localmente; use checkout de trabalho separado.
-2. Revise mudanças upstream em CLI, KG, autenticação do gateway, build Hatch,
-   política de paths, `pyproject.toml`, WebUI/TUI e tests. Compare
-   `docs/plans/kg-integration-plan.md`,
-   [ADR KG](docs/Decisions/2026-10-06-native-kg-operations.md) e
-   [migração KG](docs/kg-migration.md). Registre conflitos de contrato e
-   gates afetados **antes** do merge.
-3. Faça fetch e ensaie merge em branch temporária baseada no `main` atual;
-   não rebase commits publicados nem use `-X theirs/ours` como substituto de
-   revisão de conflitos. Preserve novos comportamentos upstream e reaplique
-   deliberadamente as customizações Percival. Revalide a faixa completa.
+1. Confira `git status`, remotes, revisão do Percival e última revisão
+   upstream triada. O checkout atual tem somente `origin`; configure
+   `upstream` para `https://github.com/HKUDS/nanobot.git` se necessário,
+   sem sobrescrever remotes. Faça `fetch` e anote SHAs/tags; não presuma que
+   a versão upstream é compatível com a atual.
+2. Revise release notes, advisories e diferenças relevantes em CLI, gateway,
+   segurança, build, configuração, WebUI/TUI e testes. Compare contratos
+   específicos do Percival, especialmente KG, memória, SPA e MCP-in-Docker.
+   Registre para cada candidata: origem (SHA/release), licença, motivo,
+   decisão (importar/adiar/rejeitar), conflitos e gates afetados.
+3. Faça alterações apenas em branch/worktree de integração com árvore limpa,
+   preservando `.positronic/` e trabalho local. Prefira `cherry-pick` ou
+   patch de commits isolados, com adaptação explícita; não rebaseie `main`
+   publicado. Um merge amplo é exceção justificada por análise prévia de
+   conflitos, custo e revalidação completa.
 
 ```bash
 git status --short --branch
 git remote -v
+# Só se o remote ainda não existir:
+# git remote add upstream https://github.com/HKUDS/nanobot.git
 git fetch upstream
-git log --oneline HEAD..upstream/main
-git log --oneline upstream/main..HEAD
-git switch -c chore/preview-upstream-YYYYMMDD main
-git merge --no-commit --no-ff upstream/main
+git log --oneline -n 50 upstream/main  # Compare com o ultimo SHA triado registrado
+git switch -c chore/upstream-select-YYYYMMDD main
+# Revise cada commit antes de importar; exemplo para um commit escolhido:
+# git cherry-pick -x <sha-upstream>
 ```
 
-Se houver conflito, resolva com comparação por arquivo e teste; não crie
-commit/push sem solicitação específica. Se o merge não fizer sentido, pare o
-ensaio e replaneje. Ao retomar o trabalho no branch principal, leve apenas
-mudanças revisadas. Atualize o plano e o relatório de execução com SHAs,
-decisões e evidências.
+Se um commit não for separável, aplique a mudança por patch revisado,
+citando a origem. Se houver conflito de contrato, pare e decida como adaptar
+antes de continuar; não use `-X theirs/ours` como atalho. Integre em `main`
+após revisão e testes aplicáveis. PR para HKUDS só para correção genérica
+separável e com aprovação do operador para divulgar. Documente SHAs,
+diferenças de comportamento e evidência da revisão.
 
-## Verificação após o merge
+## Verificação após a importação
 
 - `uv run --no-sync pytest`, `uv run --no-sync basedpyright nanobot`,
   `uv run --no-sync ruff check .` (não rodar `ruff format`).
@@ -55,6 +56,8 @@ decisões e evidências.
   artefatos de fonte dirty como se fossem reprodutíveis.
 - Teste migração e rollback em cópias com writers isolados quando mudar schema
   ou core; confira o guia [KG](docs/kg-migration.md).
-- CI, contrato de TUI/WebUI e release upstream em
-  [`docs/releasing.md`](docs/releasing.md). Um merge validado em Linux não
-  prova Windows/macOS nem autoriza tag ou deploy.
+- CI do Percival, contrato de TUI/WebUI e release em
+  [`docs/releasing.md`](docs/releasing.md). Rode checks afetados na branch;
+  antes da tag, rode o gate completo no commit exato. O CI herdado ainda
+  contém jobs Windows e precisa ser reconciliado com a política Linux-only;
+  um sync validado localmente não autoriza tag ou deploy.

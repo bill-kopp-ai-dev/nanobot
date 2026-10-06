@@ -1,13 +1,17 @@
 # Percival KG — notas de release candidata (não publicada)
 
+**Rascunho para revisão do operador — sem sign-off, tag ou publicação.**
+Percival é independente, derivado do nanobot. Primeira versão pretendida:
+0.1.0; pacote e canal de distribuição ainda serão definidos. Ver
+[governança](percival-governance.md).
+
 - Distribuição existente: `nanobot-ai` 0.3.5; sem versão/tag KG aprovada.
 - Native: 20 CM + 14 AK, 12 skills descobertas, CLI `nanobot kg`, gateway
   autenticado + SPA React/D3 em `/kg-interface/`.
-- Commit candidato para a próxima release KG: o commit **"feat(kg): close
-  F9 with platform CI, endpoint inventory and migration tests"** no branch
-  `main` do fork (ver histórico do branch; o SHA exato muda a cada amend).
-  Ele inclui o snapshot SPA reconciliado com `f607d6a` (`dirty=false`) e a
-  deleção dos três assets antigos.
+- SHA candidato final: **a definir** após gates e revisão do operador; o
+  commit F9 histórico não é automaticamente o candidato à versão 0.1.0.
+  Verificar novamente o snapshot SPA e a exclusão dos assets obsoletos
+  no SHA exato escolhido.
 - Migração: seguir [guia](kg-migration.md); manter os MCPs instaláveis para
   rollback, backup **incluindo** `sources/` e `assets/` e ensaio em cópia.
 - Incompatibilidades: `cmEnrichModel`/`cmEnrichBaseUrl` rejeitados; enrich e
@@ -19,10 +23,10 @@
 - Distribuição/plataformas: o Percival declara **Linux-only** (decisão
   do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
   §B4). O backend `msvcrt` continua no vendor do core para desenvolvedores
-  em Windows, mas CI (`kg-platform.yml`), `pytest` e os smokes de
-  plataforma executam **somente** em `ubuntu-latest`. macOS não é mais
-  prometido nem anunciado. Quem roda em outras plataformas o faz por conta
-  própria, sem SLA nem gate de release.
+  em Windows, mas o gate KG (`kg-platform.yml`) executa **somente** em
+  `ubuntu-latest`. O CI geral ainda inclui Windows e requer ajuste. macOS
+  não é mais prometido nem anunciado. Quem roda em outras plataformas o
+  faz por conta própria, sem SLA nem gate de release.
 
 ## Proveniência verificada em clone limpo do fork (A3)
 
@@ -43,14 +47,28 @@ isolada em Python 3.12:
 - Testes `tests/kg` no clone limpo: 121 passed / 2 skipped (sem o teste de
   browser).
 - Smoke scripts (`scripts/kg_platform_lock_smoke.py` e
-  `scripts/kg_platform_modality_smoke.py`) passam no Linux; o matrix
-  macOS/Windows é o gate aberto até a primeira execução em runner real.
+  `scripts/kg_platform_modality_smoke.py`) passaram no Linux naquele clone;
+  a CI do commit candidato ainda precisa ser verificada. macOS/Windows
+  não são plataformas suportadas do Percival.
 
-Gate de publicação: seguir [checklist upstream](releasing.md) **mais**
+## Known limitations e gates abertos
+
+- B6/B7: ensaio de migração/rollback com bundles reais e decisão de cutover
+  `kg.mode="native"` são do operador; testes sintéticos não substituem isso.
+- Áudio Groq: HTTP simulado testado; falta amostra consentida e credencial
+  real para medir custo, latência e resultado.
+- CI geral ainda contém Windows; empacotamento TUI herdado presume cinco
+  plataformas. Ajustar ambos e validar artefatos Linux antes da release.
+- UI e memória customizadas e suporte MCP-in-Docker ainda têm trabalho
+  planejado; não anunciá-los como funcionalidades lançadas.
+- SHA candidato, destino de distribuição e sign-off final indefinidos.
+
+Gate de publicação: seguir [checklist Percival](releasing.md),
 [F9](plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release),
-smoke wheel/sdist isolado, comparação e rollback sobre **cópias de bundles
-reais**, CI por plataforma e validação operacional de áudio Groq. Após os gates,
-PyPI e status/EOL dos repos legados exigem autorização do operador.
+smoke de wheel/sdist isolado, ensaio em **cópias de bundles reais**,
+validação operacional do áudio e CI Linux no SHA candidato. O agente redige
+changelog, limitações e referências; o operador assina a versão final antes
+de tag, repositório público ou publicação.
 
 ## Repos legados congelados (2026-10-06)
 
@@ -60,6 +78,7 @@ banner EOL; ver
 [`docs/reports/2026-10-05-kg-f0-execution-status.md`](reports/2026-10-05-kg-f0-execution-status.md#b8b9--freeze-d5-e-eol-d10-dos-servidores-mcp-legados-2026-10-06)
 e o `MIGRATION.md` na raiz de cada repositório legado para o mapeamento de
 tools, migração de `config.json` e rollback via tag `legacy-final`. A flag
-`Archive this repository` no GitHub ainda depende de `gh auth login` (ação
-humana). Para usuários fora do Percival, a recomendação oficial é parar de
-instalar cópias novas dos MCPs legados e migrar para `nanobot-ai >= 0.3.5`.
+`Archive this repository` será aplicada pelo operador no console web do
+GitHub (CM primeiro, AK em seguida); não depende de `gh auth login`.
+Evitar novas instalações dos MCPs legados. `nanobot-ai` não é uma release
+do Percival; não recomendar upgrade público para pacote ainda não lançado.

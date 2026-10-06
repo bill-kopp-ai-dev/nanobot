@@ -436,7 +436,7 @@ O `mcp_presets_api.py` do WebUI continua funcional para outros servidores MCP (`
 
 **Risco 1 — Superfície de testes duplicada.** O `okf-bundle-core` tem 261 testes, CM tem 184, AK tem 213 — total de ~660 testes em três pacotes que, na nova arquitetura, são cobertos pelo `nanobot/kg/` nativo. **Mitigação:** rodar a suite nativa contra os mesmos fixtures (golden CM, golden AK em `okf_bundle_core/tests/fixtures/`), e portar gradualmente os tests específicos do CM/AK que cobrem regras de policy (P11, CAS avançado, batch_link) que o core não cobre. Tests do HTTP server MCP viram tests do `kg_router` (mesmo fixtures, mesmo `http` client).
 
-**Risco 2 — Distribuição do `okf-bundle-core`.** Se virar dep publicada no PyPI, ganha barreira de release (qualquer bugfix no core exige bump de versão + publicação). Se virar vendored, qualquer melhoria upstream precisa de cherry-pick. **Mitigação:** começar vendored (mais simples, menos partes móveis); avaliar publicação no PyPI se outros projetos (não-Percival) aparecerem consumindo. As decisões de `RUNBOOK-sync-upstream.md` já estabeleceram o precedente de absorver mudanças como merge de branch de feature.
+**Risco 2 — Distribuição do `okf-bundle-core`.** Se virar dep publicada no PyPI, ganha barreira de release (qualquer bugfix no core exige bump de versão + publicação). Se virar vendored, qualquer melhoria upstream precisa de cherry-pick. **Mitigação:** começar vendored (mais simples, menos partes móveis); avaliar publicação no PyPI se outros projetos (não-Percival) aparecerem consumindo. **Atualização 2026-10-06:** a política posterior em [`docs/percival-governance.md`](../percival-governance.md) e no `RUNBOOK-sync-upstream.md` prefere patches/cherry-picks selecionados; merge amplo é exceção.
 
 **Risco 3 — Autenticação/authz da SPA.** Cloudflare Access cobre a SPA atual no edge. Quando a SPA migra para dentro do gateway do nanobot, a auth precisa ser imposta pelo gateway. O WebUI do nanobot já tem autenticação por canal (loopback-only default), mas a SPA não passa pelo canal — ela é servida como estático. **Mitigação:** o gateway exige o mesmo cookie/auth do WebUI para `/kg-interface/api/*` (mesmo middleware `nanobot/security/network.py` + auth do WebSocket channel). O `/kg-interface/{rest}` (estático da SPA) só é exposto se a sessão WebUI está autenticada; caso contrário, devolve 401 com redirect para o WebUI.
 
@@ -493,7 +493,7 @@ Esta análise não roda nenhuma verificação (é só leitura). As verificaçõe
 - `webui/src/components/percival/PercivalSidebar.tsx` — link "Knowledge Graph" no sidebar (já existe; vira 100% funcional sem MCP).
 - `webui/src/lib/kg-interface.ts` — resolução de URL `/kg-interface/` (já relativa; funciona com gateway servindo a SPA).
 - `docs/Decisions/2026-10-05-merge-percival-branding.md` — decisão recente de branding que se alinha naturalmente com esta integração (o link KG já existe na Sidebar Percival).
-- `RUNBOOK-sync-upstream.md` — disciplina de merge com upstream `HKUDS/nanobot` (esta integração é uma camada a mais de customização cumulativa, segue a mesma política de branch `feat/*`).
+- `RUNBOOK-sync-upstream.md` — integração seletiva de melhorias do `HKUDS/nanobot` em branch do Percival (política atualizada 2026-10-06; merge amplo apenas excepcionalmente).
 
 ## 12. Recomendação operacional
 

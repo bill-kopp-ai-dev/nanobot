@@ -1,5 +1,15 @@
 # Contributing to nanobot
 
+> **Percival contributors:** this is an inherited HKUDS/nanobot guide. For
+> Percival, follow [AGENTS.md](AGENTS.md),
+> [project governance](docs/percival-governance.md) and the
+> [selective upstream intake runbook](RUNBOOK-sync-upstream.md) first.
+> In particular, do **not** fast-forward Percival `main` to HKUDS/nanobot
+> as suggested in "Starting Work" below, and do not run `ruff format`.
+> The maintainer list, public upstream PR route, installation URL and
+> multi-platform release process below belong to HKUDS/nanobot until
+> Percival-specific replacements are published.
+
 Thank you for being here.
 
 nanobot is built with a simple belief: good tools should feel calm, clear, and humane.
@@ -39,9 +49,11 @@ WebUI and remote-host interface changes must follow the
 [client/host compatibility review checklist](.agent/review-guide.md), including
 independent client/server upgrades, host isolation, and actionable update guidance.
 
-### Starting Work
+### Starting Work (HKUDS/nanobot upstream only; not Percival)
 
-Before making changes, sync your local checkout and create a topic branch.
+For the HKUDS/nanobot repository only, sync your local checkout and create
+a topic branch. In Percival, create a branch from its own `main` and use the
+[selective upstream runbook](RUNBOOK-sync-upstream.md) instead.
 
 ```bash
 git fetch upstream

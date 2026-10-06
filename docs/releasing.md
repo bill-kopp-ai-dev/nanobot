@@ -1,6 +1,13 @@
 # Release checklist
 
-Use this checklist with the [Release Packaging Contract](../CONTRIBUTING.md#release-packaging-contract).
+**Percival candidate:** read [governance](percival-governance.md) and
+[candidate KG release notes](kg-release-notes.md) first. This checklist
+retains inherited nanobot instructions for reference; references below to
+five platform wheels, macOS/Windows archives, HKUDS documentation and
+`nanobot-ai` publication do **not** constitute a Percival release recipe.
+Percival supports Linux only. Its TUI packaging and general CI still require
+reconciliation with that policy before a release gate can be declared closed.
+Use applicable checks with the inherited [Release Packaging Contract](../CONTRIBUTING.md#release-packaging-contract).
 Preparing a release does not publish it. Pushing a Git tag, publishing a GitHub Release,
 uploading to PyPI, and deploying the documentation are separate operations.
 
@@ -22,24 +29,21 @@ uploading to PyPI, and deploying the documentation are separate operations.
    hashes. Test installation in an isolated environment outside the source checkout, then
    test upgrading from the previous stable version using disposable configuration and sessions.
    Do not use a maintainer's live workspace for migration tests.
-7. Prepare the matching documentation PR in `Re-bin/nanobot-web`, following its
-   `MAINTAINING.md`. Review English and all nine translations, preserve Nightly and previous
-   releases, update the latest-version redirects, and run the complete site quality gate.
-   Pin source links to the checked candidate commit; confirm those source files match the
-   eventual tag before deploying. Never advertise an unpublished version as publicly available.
+7. Prepare Percival's own release documentation and source links pinned to
+   the checked candidate. The inherited `Re-bin/nanobot-web` process applies
+   to HKUDS/nanobot, not automatically to Percival. Never advertise an
+   unpublished version as publicly available.
 8. Review the pinned Bun/OpenTUI licenses, corresponding-source materials, and relinking
    instructions now, not after pushing the tag. Verify the exact upstream revisions are
    retrievable and the runtime versions match the lockfile and notices. Obtain the maintainer's
    commitment to honor `tui/SOURCE_OFFER.md` for its entire stated period; tests cannot grant it.
-9. Build all five native TUI targets using the same scripts as the publication workflow.
-    Include ad-hoc signatures for macOS before packaging. Verify every archive's checksum,
-    manifest, executable architecture, required notices/licenses, and embedded source contents.
-    Run platform-specific smoke tests where supported; record cross-compiled-only targets as
-    such and link exact-head CI evidence instead of claiming native execution everywhere.
-    Bundle these archives into the five platform wheels using the command below. Check all final
-    wheels with `twine check`, validate their RECORDs, tags and installed executable permissions,
-    and test first launch with an empty cache and `NANOBOT_TUI_NO_DOWNLOAD=1`. The installed
-    executable must come from `site-packages/nanobot/tui/bin/`, not the checkout or a cache.
+9. Define and verify the **Linux-only Percival** TUI/package artifact set
+   before release. The inherited five-platform packaging workflow below
+   must be adapted and tested; it is **not** a completed Percival gate.
+   For selected Linux targets, verify archive checksums, manifests, binary
+   architecture, notices/licenses, embedded source, wheel RECORDs/tags,
+   and first launch from the installed package with an empty cache and
+   `NANOBOT_TUI_NO_DOWNLOAD=1`. Record exact-head CI and artifact hashes.
 10. **KG platform gate** (Percival only, Linux-only — operator decision
     2026-10-06): before tagging any KG-capable release, confirm that
     `.github/workflows/kg-platform.yml` is green on `ubuntu-latest`. The
@@ -51,15 +55,24 @@ uploading to PyPI, and deploying the documentation are separate operations.
     service. A red or skipped workflow is a release blocker for the KG
     feature set, but does not block TUI/WebUI-only releases when KG has
     not changed. Record the workflow run URL alongside the release notes
-    for the KG candidate. Percival does **not** ship macOS/Windows KG
-    binaries; the `msvcrt` backend in `okf_bundle_core/lock.py` is
-    vendor-only for local Windows development.
-11. Merge the release-preparation PR only after its current checks and reviews pass. Confirm the
-    merged source tree matches the tested candidate; if it does not, rebuild and recheck before
-    tagging. Reconcile the final changelog and documentation source references. The tag must
-    point to this verified commit, not an unchecked later `main` tip.
+    for the KG candidate. Verify the full Percival Linux CI and packaging
+    gates as well; `ci.yml` still has Windows jobs and TUI release tooling
+    still assumes five targets. Neither issue is closed by `kg-platform.yml`.
+11. Have the operator sign off the final changelog, known limitations and
+    evidence on the exact candidate SHA before tagging or publication.
+    B6/B7 real-bundle rehearsal/cutover are operator-owned; do not claim
+    they passed based on synthetic tests. Merge the release-preparation PR
+    only after its current checks and reviews pass. Confirm the merged source
+    tree matches the tested candidate; if it does not, rebuild and recheck
+    before tagging. Reconcile the final changelog and documentation source
+    references. The tag must point to this verified commit, not an unchecked
+    later `main` tip.
 
-### TUI preflight without a release tag
+### Inherited nanobot TUI preflight (not yet Percival release instructions)
+
+The steps below are retained to identify which build and license checks
+must be adapted for selected Linux targets; do not treat the five-platform
+outputs as Percival artifacts.
 
 Use Bun 1.3.13 and a clean checkout. The local build and packaging scripts do not require a
 tag or GitHub Release. Run targets sequentially because native dependency preparation modifies
@@ -81,7 +94,7 @@ workflow uses pinned `rcodesign` on Linux. Keep the ten `.zip`/`.zip.sha256` out
 candidate-specific directory, alongside the Python build intermediates and provenance manifest.
 Do not include local configuration, instance backups, or test environments in upload selections.
 
-### Build the PyPI platform wheels
+### Inherited nanobot five-platform PyPI wheel build (not yet Percival)
 
 From the exact release checkout, after `uv build` and the native archive checks:
 
@@ -109,6 +122,12 @@ Keep an artifact manifest with the source commit, version, filenames, hashes, ch
 and any remaining release gates. Rebuild and recheck if the packaged source changes.
 
 ## Publish, with maintainer approval
+
+For Percival, publication is a **separate operator-authorized action** after
+the Linux-only artifact set, destination and version have been approved and
+verified. The commands and counts in the inherited sequence below describe
+nanobot-ai; do not run them to publish Percival as-is. Check the reviewed
+public repository history, credentials/data, licenses and provenance first.
 
 1. Confirm all pre-tag gates above are complete. Create and push exactly
    `vX.Y.Z`; do not move or reuse a published version tag.

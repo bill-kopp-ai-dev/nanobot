@@ -34,6 +34,14 @@
 
 # nanobot
 
+> **Percival development repository (private).** Percival is an independent
+> project derived from HKUDS/nanobot. The upstream installation instructions
+> and `nanobot-ai` badges below describe the inherited nanobot distribution,
+> not a published Percival package. Percival 0.1.0 is planned, with Linux-only
+> support; its public repository and distribution will follow implementation
+> and validation. See [project governance](docs/percival-governance.md) and
+> [candidate KG release notes](docs/kg-release-notes.md).
+
 🐈 **nanobot** is an ultra-lightweight, open-source, self-hosted personal AI agent framework written in Python. It runs in a WebUI, terminal, or chat apps and combines tools, long-term memory, MCP integrations, model routing, multi-agent delegation, scheduled automation, and an OpenAI-compatible API in a small, readable core.
 
 ## Start Here
