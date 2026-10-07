@@ -93,7 +93,7 @@ def test_vendor_manifest_identifies_patched_files() -> None:
     root = Path(__file__).resolve().parents[2] / "nanobot/agent/kg/vendor"
     manifest = json.loads((root / "SOURCE.json").read_text())
     assert manifest["revision"] == "ad047aa80a849bc4038daf6efcea63e954008be9"
-    assert set(manifest["patched_files"]) == {"frontmatter.py", "lock.py"}
+    assert set(manifest["patched_files"]) == {"frontmatter.py", "lock.py", "envelope.py", "zettel.py"}
     actual = {
         file.name: hashlib.sha256(file.read_bytes()).hexdigest()
         for file in (root / "okf_bundle_core").glob("*.py")

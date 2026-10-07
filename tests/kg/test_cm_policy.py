@@ -157,10 +157,10 @@ async def test_p11_cas_protection_lifecycle_and_review_transitions(tmp_path: Pat
         note_id=NOTE_A, kind="isolation_90d", resolution="acknowledge",
     ))
     assert reopened["status"] == "acknowledged"
-    with pytest.raises(CASMismatchError):
-        await tools["memory_set_protected"].execute(
-            note_id=NOTE_A, protected=False, expected_content_hash="0" * 64,
-        )
+    cas_mismatch = json.loads(await tools["memory_set_protected"].execute(
+        note_id=NOTE_A, protected=False, expected_content_hash="0" * 64,
+    ))
+    assert cas_mismatch["error_kind"] == "cas_mismatch"
     cold = json.loads(await tools["memory_set_lifecycle"].execute(
         note_id=NOTE_A, lifecycle="cold", force=True,
     ))
@@ -204,8 +204,8 @@ async def test_stats_storage_aging_and_graph_missing_then_queries(tmp_path: Path
     assert maintenance["dry_run"] is True and maintenance["backend"] is None
     candidates = json.loads(await tools["memory_aging_candidates"].execute(isolation_ttl_days=1))
     assert candidates["total"] >= 1
-    with pytest.raises(ZettelError):
-        await tools["graph_neighbors"].execute(note_id=NOTE_A)
+    no_graph = json.loads(await tools["graph_neighbors"].execute(note_id=NOTE_A))
+    assert no_graph["error_kind"] == "graph_query_missing"
 
     graph = tmp_path / ".collective-memory" / "graphify-out" / "graph.json"
     graph.parent.mkdir()

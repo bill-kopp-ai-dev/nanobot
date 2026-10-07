@@ -1,7 +1,9 @@
 {
   "patched_files": [
     "frontmatter.py",
-    "lock.py"
+    "lock.py",
+    "envelope.py",
+    "zettel.py"
   ],
   "revision": "ad047aa80a849bc4038daf6efcea63e954008be9",
   "source": "https://github.com/bill-kopp-ai-dev/okf-bundle-core",
@@ -22,7 +24,7 @@
   },
   "vendor_python_sha256": {
     "__init__.py": "4a05b2bb5bdee5d3948959897f80ffb88e30932982c9de315282888ff1ce02a1",
-    "envelope.py": "ce6bbf8bb8c3cf4615c6bf0e10a17f3c562c553b08de98c78ed317e9477ae606",
+    "envelope.py": "4504d2b5c31ac1b6746bd7f1eec86de73096f8d3c53337537a7c08877a88e00f",
     "errors.py": "52b7ac6496fb319a30debaf381105f68423d4e9f03a7256f0e7b0789f00df89e",
     "frontmatter.py": "df192f7a863c9bde59010ea8812a12ef4a0868bde5593ba28d149ee0660a53d5",
     "gitstore.py": "4e28e4536a371ef0fd690149ee2dc02dfef652bd9b708c0134fa55d40f953471",
@@ -33,6 +35,6 @@
     "schema.py": "3c3496e10c4333c257e30d6721c9b318f027698e41bdb2123bdf486a93568663",
     "storage.py": "e224080524e60c306be0936244f417ee65704e29fd890add20672cc11d4b0fc4",
     "validators.py": "bb5d742180bca7a51475f6ac04d22e393157dc256bf62e5987acf66eb5fa36b4",
-    "zettel.py": "c14839204fdd4226d2b36d4b1ded176591353e443b537925cac504a508c2ce62"
+    "zettel.py": "d78d76a9b771d92e8cef309311b6e510f4b2cef0925f24118f37c45015bd553d"
   }
 }

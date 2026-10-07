@@ -159,7 +159,7 @@ async def source_ingest(
                 )
             else:  # audio
                 transcript = await audio_transcribe(
-                    root, str(destination), runtime=runtime,
+                    root, str(destination),
                 )
                 parsed_text = transcript["text"]
                 await _to_thread_complete(

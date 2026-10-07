@@ -123,7 +123,13 @@ class UntrustedNote(BaseModel):
             # (``[a, b]`` em vez de ``- a\n- b``). Consistente com a
             # serialização canônica de ``serialize``. Fix
             # 2026-07-30 ocli-review-core.
-            raw_text = f"---\n{yaml.safe_dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)}---\n{body}"
+            # Prepend a newline so a body starting with ``---`` does not
+            # collide with the YAML closing marker and confuse
+            # ``split_frontmatter`` on the round-trip.
+            raw_text = (
+                f"---\n{yaml.safe_dump(fm, allow_unicode=True, sort_keys=False, default_flow_style=False)}"
+                f"---\n{body if body.startswith(chr(10)) else chr(10) + body}"
+            )
         return cls(
             source="mcp",
             raw_text=raw_text,

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 from nanobot.agent.kg.ak import UnsupportedCapabilityError, to_json
 from nanobot.agent.kg.ak.multimodal import (
     InvalidMultimodalOutputError,
@@ -83,7 +85,7 @@ class AKImageCaptionTool(AKTool):
         except InvalidMultimodalOutputError as exc:
             return to_json({"status": "error", "error_kind": "invalid_output",
                             "error": str(exc)})
-        except RuntimeError as exc:
+        except (httpx.HTTPError, RuntimeError) as exc:
             return to_json({"status": "error", "error_kind": "provider_error",
                             "error": str(exc)})
 

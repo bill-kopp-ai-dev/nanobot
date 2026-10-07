@@ -6,13 +6,26 @@ import asyncio
 from typing import Any, cast
 
 from nanobot.agent.kg.cm import f2
+from nanobot.agent.kg.vendor.okf_bundle_core.errors import CASMismatchError, ZettelError
+from nanobot.agent.kg.vendor.okf_bundle_core.lock import LockTimeout
 from nanobot.agent.tools.base import tool_parameters
 from nanobot.agent.tools.cm_notes import NOTE_ID_PATTERN, CMTool
 
 
 class _CMF2Tool(CMTool):
     async def _run(self, operation: Any, *args: Any, write: bool = False, **kwargs: Any) -> str:
-        return f2.core.to_json(await asyncio.to_thread(operation, self._root(write=write), *args, **kwargs))
+        try:
+            result = await asyncio.to_thread(operation, self._root(write=write), *args, **kwargs)
+        except LockTimeout as exc:
+            return f2.core.to_json({"status": "error", "error_kind": "lock_timeout",
+                                     "error": str(exc) or "bundle is locked"})
+        except CASMismatchError as exc:
+            return f2.core.to_json({"status": "error", "error_kind": "cas_mismatch",
+                                     "error": str(exc)})
+        except ZettelError as exc:
+            return f2.core.to_json({"status": "error", "error_kind": exc.code or "invalid_note",
+                                     "error": str(exc)})
+        return f2.core.to_json(result)
 
 
 @tool_parameters({"type": "object", "properties": {

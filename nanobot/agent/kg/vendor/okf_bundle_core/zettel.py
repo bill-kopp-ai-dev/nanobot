@@ -156,6 +156,12 @@ def _write_atomic(path: Path, text: str) -> None:
     ``notes_write``/``notes_delete`` continuam sob ``BundleLock`` —
     este fix é defense-in-depth para callers fora do lock (testes,
     scripts, importers).
+
+    Permissões: ``tempfile.mkstemp`` cria arquivos com ``0600``. Se o
+    arquivo destino já existe, copiamos o modo dele antes do
+    ``os.replace`` para preservar bits legíveis por outros processos
+    (ex.: nginx servindo o bundle); sem isso, cada escrita regrediria
+    silenciosamente para ``0600``.
     """
     fd, tmp = tempfile.mkstemp(
         prefix=f".{path.name}.",
@@ -173,6 +179,12 @@ def _write_atomic(path: Path, text: str) -> None:
         except FileNotFoundError:
             pass
         raise
+    if path.exists():
+        try:
+            shutil.copymode(path, tmp)
+        except OSError:
+            # Filesystem without mode bits (e.g. some Windows); skip silently.
+            pass
     try:
         os.replace(tmp, path)
     except Exception:

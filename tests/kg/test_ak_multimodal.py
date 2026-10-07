@@ -189,7 +189,7 @@ async def test_audio_transcribe_uses_groq_whisper_not_chat_runtime(
         return "  Olá, mundo.  "
 
     monkeypatch.setattr("nanobot.agent.kg.ak.multimodal.transcribe_audio_file", fake_transcribe)
-    result = await audio_transcribe(bundle, str(audio), language="pt", runtime=runtime, config=settings)
+    result = await audio_transcribe(bundle, str(audio), language="pt", config=settings)
     assert result == {"text": "Olá, mundo.", "language": "pt", "cached": False,
                       "provider": "groq", "model": "whisper-large-v3"}
     assert calls[0][0] == audio

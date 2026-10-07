@@ -62,9 +62,17 @@ def init_bundle(root: Path, kind: str) -> dict[str, str]:
         # ``mkdir`` without this guard.
         raise FileExistsError(f"parent is not a directory: {root.parent}")
     root.mkdir(parents=True, exist_ok=True)
-    for name in (layout.notes_dir, *layout.extra_dirs):
-        (root / name).mkdir(exist_ok=True)
-    GitStore(root, layout).ensure_repo()
+    # Hold the bundle lock for the whole init so two concurrent CLI invocations
+    # cannot both pass the ``any(root.iterdir())`` check and race on
+    # ``ensure_repo()``. The lock's own ``_open`` creates the lock file on
+    # demand, so it is safe to take before any bundle subdirectories exist.
+    lock = root / layout.lock_file
+    if lock.is_symlink():
+        raise PathEscapeError(str(lock))
+    with BundleLock(root, layout, exclusive=True):
+        for name in (layout.notes_dir, *layout.extra_dirs):
+            (root / name).mkdir(exist_ok=True)
+        GitStore(root, layout).ensure_repo()
     return {"bundle": kind, "path": str(root), "result": "initialized"}
 
 

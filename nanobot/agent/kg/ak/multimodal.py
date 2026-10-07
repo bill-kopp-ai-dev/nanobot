@@ -260,11 +260,9 @@ async def audio_transcribe(
     asset_path: str,
     *,
     language: str | None = None,
-    runtime: LLMRuntime | None = None,
     config: EffectiveTranscriptionConfig | None = None,
 ) -> dict[str, Any]:
     """Transcribe a bundle asset with the shared Groq Whisper service."""
-    del runtime  # Audio uses the configured STT service, not LLMProvider.chat.
     await asyncio.to_thread(check_bundle_paths, root, write=True)
     asset = await asyncio.to_thread(resolve_asset_path, root, asset_path)
     if asset.suffix.lower() not in SUPPORTED_AUDIO_SUFFIXES:

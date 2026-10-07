@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from nanobot.agent.kg.ak import ingest as ak_ingest
 from nanobot.agent.kg.ak import to_json
@@ -11,6 +12,20 @@ from nanobot.agent.tools.ak_read import AKTool
 from nanobot.agent.tools.base import tool_parameters
 from nanobot.agent.tools.context import current_request_context
 from nanobot.agent.tools.path_utils import resolve_workspace_path
+
+_T = TypeVar("_T")
+
+
+async def _to_thread_complete(function: Callable[..., _T], *args: Any, **kwargs: Any) -> _T:
+    """Run a blocking call in a worker thread; never abandon a running bundle transaction."""
+    task = asyncio.create_task(asyncio.to_thread(function, *args, **kwargs))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        try:
+            await task
+        finally:
+            raise
 
 
 @tool_parameters({
@@ -48,7 +63,8 @@ class AKSourceIngestTool(AKTool):
         )
         if not source_path.is_file():
             raise FileNotFoundError(source_path)
-        result = await ak_ingest.source_ingest(
+        result = await _to_thread_complete(
+            ak_ingest.source_ingest,
             self._root(write=True),
             str(source_path),
             title=kwargs.get("title"),

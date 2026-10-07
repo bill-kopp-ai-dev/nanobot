@@ -240,10 +240,6 @@ def find_existing_source_by_sha256(
 
 def read_note(root: Path, note_id: str) -> dict[str, Any]:
     check_bundle_paths(root)
-    for path in note_paths(root):
-        match = ID_PATTERN.match(path.stem)
-        if match and match.group(1) == note_id and not path.resolve().is_relative_to(root.resolve()):
-            raise PathEscapeError(str(path))
     note = notes_read(root, ACQUIRED_KNOWLEDGE, note_id, gitstore=gitstore(root))
     if not note.path.resolve().is_relative_to(root.resolve()):
         raise PathEscapeError(str(note.path))

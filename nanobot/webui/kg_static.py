@@ -25,9 +25,17 @@ async def serve_kg_static(path: str, *, root: Path, accepts_html: bool) -> Respo
         return http_error(404, "KG API route not found")
     if path != "/kg-interface" and not path.startswith("/kg-interface/"):
         return None
-    relative = unquote(path.removeprefix("/kg-interface").lstrip("/"))
+    raw_relative = path.removeprefix("/kg-interface").lstrip("/")
+    relative = unquote(raw_relative)
     if not relative:
         relative = "index.html"
+    # Defense in depth against request-smuggling classes: a reverse proxy that
+    # treats ``%2F`` literally while this server treats it as ``/`` would let a
+    # crafted URL reach a different asset than the proxy thinks. Reject any
+    # decoded form that introduced new ``/`` separators compared to the
+    # raw URL.
+    if relative.count("/") != raw_relative.count("/"):
+        return http_error(403, "Forbidden")
     if "\x00" in relative or "\\" in relative or any(
         part in {".", ".."} or part.startswith(".") for part in Path(relative).parts
     ):

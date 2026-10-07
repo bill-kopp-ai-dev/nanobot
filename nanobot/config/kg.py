@@ -32,6 +32,6 @@ class PercivalKgConfig(Base):
     cm_root: Path | None = None
     ak_root: Path | None = None
     cm_enrich_enabled: bool = True
-    cm_enrich_timeout_s: float = Field(default=45, gt=0)
+    cm_enrich_timeout_s: float = Field(default=45, gt=0, le=600)
     ak_image_caption_enabled: bool = True
     ak_audio_transcribe_enabled: bool = True

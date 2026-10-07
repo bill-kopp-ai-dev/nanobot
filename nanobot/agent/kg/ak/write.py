@@ -195,7 +195,7 @@ def note_link(root: Path, from_id: str, to_id: str, relation: str = "related") -
             )
             if not present:
                 entry = f"- {relation} :: [[{to_id}]]"
-                body = body.rstrip() + ("\n" if "## Links" in body else "\n\n## Links\n") + f"\n{entry}\n"
+                body = body.rstrip() + ("\n\n## Links\n\n" if "## Links" not in body else "\n") + entry + "\n"
         else:
             targets: Any = raw.get(relation) or []
             if not isinstance(targets, list):

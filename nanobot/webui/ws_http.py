@@ -601,8 +601,13 @@ class GatewayHTTPHandler:
             proxy_authenticated = getattr(request, "_nanobot_trusted_proxy_authenticated", False)
             # check_api_token normally also accepts ?token= for older WebUI
             # routes; KG reads must never authorize credentials in URLs.
+            # The presence of ?token= (case-insensitive, after URL-decoding) is
+            # always a 401 — even when a valid bearer is also present — so the
+            # policy cannot be bypassed by capitalisation variants like
+            # ``?TOKEN=``.
             bearer_request = WsRequest(got, request.headers)
-            authenticated = "token" not in _parse_query(request.path) and bool(
+            query_keys = {key.lower() for key in _parse_query(request.path)}
+            authenticated = "token" not in query_keys and bool(
                 proxy_authenticated or (
                     bearer_token(request.headers) is not None
                     and self.check_api_token(bearer_request)

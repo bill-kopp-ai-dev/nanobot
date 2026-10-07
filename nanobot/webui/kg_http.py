@@ -7,6 +7,7 @@ arbitrary tool name is accepted, and HTTP cannot carry mutation bodies here.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -88,20 +89,30 @@ def _error(status: int, code: str) -> Response:
     return http_json_response({"error": code}, status=status)
 
 
+_ZETTEL_ERROR_MAP: dict[str, tuple[int, str]] = {
+    "graph_query_missing": (404, "graph_query_missing"),
+    "graph_query_node_not_found": (404, "graph_query_node_not_found"),
+}
+
+
 def _failure(exc: Exception) -> Response:
     if isinstance(exc, GraphTooLargeError):
         return _error(413, "graph_too_large")
     if isinstance(exc, CASMismatchError):
         return _error(409, "cas_mismatch")
-    if isinstance(exc, (WorkspaceBoundaryError, PathEscapeError, PermissionError)):
+    if isinstance(exc, (WorkspaceBoundaryError, PathEscapeError)):
         return _error(403, "workspace_forbidden")
     if isinstance(exc, (FileNotFoundError, IndexError)):
         return _error(404, "not_found")
     if isinstance(exc, LockTimeout):
         return _error(503, "bundle_busy")
     if isinstance(exc, ZettelError):
-        return _error(404 if exc.code in {"graph_query_missing", "graph_query_node_not_found"} else 400,
-                      exc.code or "invalid_note")
+        if exc.code and exc.code in _ZETTEL_ERROR_MAP:
+            status, code = _ZETTEL_ERROR_MAP[exc.code]
+            return _error(status, code)
+        if exc.code:
+            logger.warning("Unknown ZettelError code: %r", exc.code)
+        return _error(400, "invalid_note")
     if isinstance(exc, (ValueError, ValidationError)):
         return _error(400, "invalid_request")
     logger.exception("KG gateway operation failed")
@@ -221,8 +232,11 @@ class KgGatewayBridge:
                     "first_chunk": {key: value for key, value in chunk.items() if key != "source_id"}}
         return None
 
-    async def mutate(self, action: str, payload: dict[str, Any]) -> Response:
-        if len(str(payload).encode("utf-8")) > _MAX_PAYLOAD_BYTES:
+    async def mutate(self, action: str, payload: dict[str, Any], *, authenticated: bool = True) -> Response:
+        if not authenticated:
+            return _error(401, "Unauthorized")
+        payload_size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        if payload_size > _MAX_PAYLOAD_BYTES:
             return _error(413, "payload_too_large")
         operation = ""
         kind: BundleKind | None = None
