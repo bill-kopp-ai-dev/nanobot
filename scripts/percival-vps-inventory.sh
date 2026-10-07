@@ -87,12 +87,11 @@ for sp in "${sensitive_paths[@]}"; do
 done
 sensitive_json+="]"
 
-# Submounts and bind targets that could re-expose the daemon control
-# plane from inside a /:/host mount.  The script lists bind mounts and
-# /run contents so the F0 report can compare them to the protected set.
-# Flattened to a single line for JSON embedding.
-submounts="$(awk '$2 ~ /^\/(run|proc|sys|var\/lib\/docker|host|root)/ {print $2, $3, $5}' /proc/self/mountinfo 2>/dev/null \
-  | sort -u | head -50 | tr '\n' ';' | sed 's/;$//' || true)"
+# All host submounts affect the effective coverage of bind-recursive=disabled,
+# not just Docker paths: /home may be a separate filesystem. findmnt exposes
+# actual mount targets; mountinfo field $2 is the *parent ID*, not the target.
+submounts="$(findmnt -rn -o TARGET,SOURCE,FSTYPE 2>/dev/null \
+  | awk '$1 != "/" {print}' | sort -u | tr '\n' ';' | sed 's/;$//' || true)"
 if [[ -z "${submounts}" ]]; then
   submounts="(no relevant submounts detected)"
 fi
@@ -140,5 +139,6 @@ printf '    "client/server versions verified individually: docker version --form
 printf '    "socket_gid is read from stat on the host socket; the broker Compose must use this numeric GID (not the docker group name).",\n'
 printf '    "candidate_percival_path is the F0 default; the operator may move it by exporting PERCIVAL_DATA_DIR before running the script.",\n'
 printf '    "PERCIVAL_SENSITIVE_PATHS accepts a colon-separated list; the broker mount policy must refuse to mount any of these (or their children) into a managed MCP container."\n'
-printf '  ]\n'
+printf '  ],\n'
+printf '  "inventory_at": "%s"\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 printf '}\n'

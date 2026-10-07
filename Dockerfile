@@ -26,6 +26,10 @@ RUN uv venv --seed "$VIRTUAL_ENV"
 # hook from hatch_build.py even for this metadata-only install.
 ARG NANOBOT_EXTRAS=
 COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md hatch_build.py ./
+# The build hook validates the reviewed KG core and SPA snapshots even during
+# the dependency-only install. They must exist before uv pip install . runs.
+COPY nanobot/agent/kg/vendor/ nanobot/agent/kg/vendor/
+COPY nanobot/web/kg-interface/ nanobot/web/kg-interface/
 RUN mkdir -p nanobot && touch nanobot/__init__.py && \
     if [ -n "$NANOBOT_EXTRAS" ]; then \
         NANOBOT_SKIP_WEBUI_BUILD=1 uv pip install \

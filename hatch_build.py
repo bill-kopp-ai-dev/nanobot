@@ -160,7 +160,7 @@ class WebUIBuildHook(BuildHookInterface):
             if digest != manifest["upstream_python_sha256"].get(name)
         )
         if (current_files != manifest.get("vendor_python_sha256")
-                or patched_files != manifest.get("patched_files")
+                or patched_files != sorted(manifest.get("patched_files", []))
                 or set(current_files) != set(manifest["upstream_python_sha256"])):
             raise RuntimeError(
                 "[kg-vendor] snapshot differs from SOURCE.json; review changes and "
