@@ -55,33 +55,37 @@ describe("resolveKgInterfaceUrl", () => {
     expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
   });
 
-  // PERCIVAL: regressão 2026-08-06 — em dev local o usuário abre a webui
-  // pelo gateway nanobot (http://127.0.0.1:8765), não pelo Vite direto em
-  // :5173 (o `dev-spa.sh` sobe apenas a SPA + adapters, e a webui é servida
-  // pelo bundle estático que o gateway entrega). Antes desta correção, o
-  // helper caía no caminho (3) e o botão abria
-  // `http://127.0.0.1:8765/kg-interface/` (404 no dev local — o gateway não
-  // sabe servir `/kg-interface/`; esse path só existe atrás do Caddy/Cloudflare
-  // em P10). Agora :8765 também aciona o atalho pra :5174.
-  it("detecta em runtime o gateway nanobot local (porta 8765) e aponta pra SPA dev (5174)", () => {
+  // PERCIVAL: regressão 2026-10-06 — após F0–F9 o gateway nativo serve
+  // `/kg-interface/` a partir de `nanobot/web/kg-interface/`, então abrir
+  // o gateway local na porta 8765 deve cair no default relativo
+  // `/kg-interface/` (mesmo origin = cookie de auth preservado, e o clique
+  // no ícone "brain" não cai em ERR_CONNECTION_REFUSED quando o usuário
+  // está rodando só o gateway). Antes desta correção, o helper
+  // redirecionava pra `http://localhost:5174/kg-interface/` e quebrava o
+  // caso "gateway-only".
+  //
+  // Para preservar o workflow dev-spa (gateway + Vite da SPA), o usuário
+  // define `VITE_KG_INTERFACE_URL=http://localhost:5174/kg-interface/`
+  // no `.env.development` ou via `dev-spa.sh`.
+  it("NÃO detecta como dev quando a webui está no gateway nanobot local (porta 8765) e cai no default relativo", () => {
     Object.defineProperty(window, "location", {
       value: { hostname: "127.0.0.1", port: "8765" },
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
+    expect(resolveKgInterfaceUrl()).toBe(DEFAULT_KG_INTERFACE_URL);
   });
 
-  it("detecta em runtime o gateway nanobot local via hostname localhost também", () => {
+  it("NÃO detecta como dev quando a webui está no gateway nanobot local via hostname localhost também", () => {
     Object.defineProperty(window, "location", {
       value: { hostname: "localhost", port: "8765" },
       writable: true,
       configurable: true,
     });
-    expect(resolveKgInterfaceUrl()).toBe("http://localhost:5174/kg-interface/");
+    expect(resolveKgInterfaceUrl()).toBe(DEFAULT_KG_INTERFACE_URL);
   });
 
-  it("NÃO detecta como dev quando a porta não é 5173 nem 8765 (ex: produção no mesmo origin)", () => {
+  it("NÃO detecta como dev quando a porta não é 5173 (ex: produção no mesmo origin)", () => {
     // Em produção o Caddy serve o caminho /kg-interface/ no MESMO origin
     // da webui (HTTPS em 443), então o default relativo é o que faz
     // sentido (mesmo origin = cookie de auth preservado).

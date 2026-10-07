@@ -9,36 +9,42 @@
 //      (Caddy/P10) define o origin público ou fica vazia para cair no (3).
 //
 //   2. **Runtime detection**: se a webui está sendo servida por um dev server
-//      local — ou diretamente pela Vite (porta 5173 —
-//      `webui/vite.config.ts:server.port`) OU pelo gateway nanobot local
-//      (porta 8765, que serve o bundle estático da webui em dev/prod) —,
+//      local (Vite direto, porta 5173 — `webui/vite.config.ts:server.port`),
 //      assume-se que o usuário também subiu a SPA kg-interface em outra
 //      porta (`5174` — `spa/vite.config.ts:server.port`), sob o path
-//      `/kg-interface/` (`spa/vite.config.ts:base`). Aponta direto
-//      para ela sem exigir env var.
+//      `/kg-interface/` (`spa/vite.config.ts:base`). Aponta direto para
+//      ela sem exigir env var.
 //
-//      Por que tratar 8765 também? Em dev local o caminho natural é abrir
-//      o gateway (`http://127.0.0.1:8765`) — não o Vite da webui em
-//      5173 (o `dev-spa.sh` sobe apenas a SPA + adapters, e a webui é
-//      servida pelo bundle estático que o gateway entrega). Sem isso,
-//      o `window.location.port === 8765` caía no caminho (3) e o botão
-//      abria `http://127.0.0.1:8765/kg-interface/`, que é 404 no dev
-//      local porque o gateway não sabe servir `/kg-interface/` (esse
-//      path só existe atrás do Caddy/Cloudflare em P10).
+//      Por que NÃO tratar 8765 também? Após a refatoração KG (F0–F9), o
+//      gateway nativo serve a SPA kg-interface em `/kg-interface/` no
+//      mesmo origin da webui (a partir de `nanobot/web/kg-interface/`).
+//      O atalho antigo (165fdf18, 2026-08-06) assumia que 8765 implicava
+//      `dev-spa.sh`, mas isso quebra o caso comum: rodar só o gateway
+//      sem o Vite da SPA — o clique no ícone "brain" abria
+//      `http://localhost:5174/kg-interface/` e resultava em
+//      `ERR_CONNECTION_REFUSED`. Agora 8765 cai no caminho (3) e o botão
+//      abre `/kg-interface/` no mesmo origin da webui, que o gateway
+//      serve nativamente.
+//
+//      Para o workflow dev-spa (gateway + Vite da SPA), o usuário pode
+//      definir `VITE_KG_INTERFACE_URL=http://localhost:5174/kg-interface/`
+//      no `.env.development` ou injetar via `dev-spa.sh`.
 //
 //   3. **Default relativo** `/kg-interface/`. Funciona em produção/P10
 //      porque o Caddy serve a SPA estática e os adapters CM/AK sob esse
 //      path no mesmo origin da webui (`/kg-interface/*` → SPA,
-//      `/kg-interface/api/*` → CM/AK).
+//      `/kg-interface/api/*` → CM/AK). Funciona também no gateway local
+//      após a refatoração KG (ver nota acima).
 //
 // `as const` mantém o literal "/kg-interface/" como tipo imutável e estreito.
 export const DEFAULT_KG_INTERFACE_URL = "/kg-interface/" as const;
 
-// PERCIVAL: portas dos dev servers da webui (vite.config.ts direto + gateway
-// nanobot local) e da SPA kg-interface (spa/vite.config.ts). Mantenha
-// alinhado com os `server.port` dos respectivos vite.config.ts e com o
-// `nanobot/channels/websocket/runtime.py:port` (default 8765).
-const WEBUI_DEV_PORTS = new Set(["5173", "8765"]);
+// PERCIVAL: porta do dev server direto da Vite da webui
+// (`webui/vite.config.ts:server.port`). Mantenha alinhado com o
+// `server.port` do vite.config.ts e com o
+// `nanobot/channels/websocket/runtime.py:port` (default 8765) — 8765
+// NÃO está aqui de propósito (ver bloco 2 do comentário).
+const WEBUI_DEV_PORTS = new Set(["5173"]);
 const SPA_DEV_PORT = "5174";
 
 // PERCIVAL (BUG-127 / ADR-H029): desde 2026-08-12 a SPA declara
@@ -65,14 +71,15 @@ export function resolveKgInterfaceUrl(): string {
   // 1) Build-time env var (substituída em build pela Vite).
   const envUrl = import.meta.env.VITE_KG_INTERFACE_URL;
   if (envUrl) return envUrl;
-  // 2) Runtime detection: webui servida por dev server local (Vite ou
-  //    gateway nanobot) → aponta pra SPA dev no mesmo host.
+  // 2) Runtime detection: webui servida pelo dev server Vite direto (5173)
+  //    → aponta pra SPA dev no mesmo host. 8765 (gateway nanobot local)
+  //    NÃO aciona este atalho — o gateway serve `/kg-interface/` nativamente.
   if (typeof window !== "undefined") {
     const { hostname, port } = window.location;
     if (LOCAL_HOSTNAMES.has(hostname) && WEBUI_DEV_PORTS.has(port)) {
       return `http://localhost:${SPA_DEV_PORT}${SPA_DEV_BASE}`;
     }
   }
-  // 3) Default relativo (produção / VPS / P10).
+  // 3) Default relativo (produção / VPS / P10 / gateway local após KG F0-F9).
   return DEFAULT_KG_INTERFACE_URL;
 }
