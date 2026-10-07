@@ -11,6 +11,7 @@ import shutil
 import urllib.parse
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Mapping
 from contextlib import AsyncExitStack, suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 import httpx
@@ -57,6 +58,7 @@ _WINDOWS_SHELL_LAUNCHERS: frozenset[str] = frozenset(("npx", "npm", "pnpm", "yar
 _SANITIZE_RE = re.compile(r"_+")
 _ReconnectCallback = Callable[[str, str, Tool], Awaitable[Tool | None]]
 MCPServerLoader = Callable[[], Mapping[str, "MCPServerConfig"]]
+ManagedServers = Mapping[str, tuple[Path, str]]
 MCPRuntimeStatus = Literal["connecting", "connected", "failed"]
 
 
@@ -617,6 +619,10 @@ class MCPToolWrapper(_MCPWrapperBase):
         # ``False`` stays ``None`` on the wire so the default payload is
         # unchanged for every server that has not opted in.
         self._strict: bool | None = True if strict_tools else None
+        self._managed_gate: Callable[[], bool] | None = None
+
+    def set_managed_gate(self, gate: Callable[[], bool]) -> None:
+        self._managed_gate = gate
 
     @property
     def name(self) -> str:
@@ -638,6 +644,8 @@ class MCPToolWrapper(_MCPWrapperBase):
         retried_transient = False
         refreshed_session = False
         while True:
+            if self._managed_gate is not None and not self._managed_gate():
+                return ToolResult.error("(Managed Docker MCP tool is unavailable or disabled)")
             try:
                 result = await asyncio.wait_for(
                     self._session.call_tool(self._original_name, arguments=kwargs),
@@ -1012,6 +1020,7 @@ async def connect_mcp_servers(
     registry: ToolRegistry,
     *,
     oauth_handlers: Mapping[str, MCPOAuthHandlers] | None = None,
+    managed: ManagedServers | None = None,
 ) -> dict[str, MCPConnection]:
     """Connect to configured MCP servers and register their tools, resources, prompts.
 
@@ -1028,6 +1037,11 @@ async def connect_mcp_servers(
         name: str, cfg: MCPServerConfig, server_stack: AsyncExitStack
     ) -> bool:
         try:
+            managed_spec = (managed or {}).get(name)
+            if managed_spec is not None:
+                config_path, server_id = managed_spec
+                if cfg.url != f"http://127.0.0.1:18081/mcp/{server_id}" or cfg.type != "streamableHttp":
+                    return False
             transport_type = cfg.type
             if not transport_type:
                 if cfg.command:
@@ -1040,7 +1054,7 @@ async def connect_mcp_servers(
                     logger.warning("MCP server '{}': no command or url configured, skipping", name)
                     return False
 
-            if transport_type in {"sse", "streamableHttp"}:
+            if transport_type in {"sse", "streamableHttp"} and managed_spec is None:
                 ok, error = validate_url_target(cfg.url)
                 if not ok:
                     logger.warning(
@@ -1120,16 +1134,29 @@ async def connect_mcp_servers(
                     sse_client(cfg.url, **sse_kwargs)
                 )
             elif transport_type == "streamableHttp":
-                if not await _probe_http_url(cfg.url):
+                if managed_spec is not None:
+                    try:
+                        _reader, writer = await asyncio.wait_for(
+                            asyncio.open_connection("127.0.0.1", 18081), timeout=3.0,
+                        )
+                        writer.close()
+                        await writer.wait_closed()
+                    except (OSError, asyncio.TimeoutError):
+                        return False
+                elif not await _probe_http_url(cfg.url):
                     logger.warning("MCP server '{}': {} unreachable, skipping", name, _redact_url(cfg.url))
                     return False
 
+                async def checked_managed_request(request: httpx.Request) -> None:
+                    if str(request.url) != cfg.url:
+                        raise httpx.RequestError("Managed MCP redirect blocked", request=request)
+
                 http_client_kwargs: dict[str, Any] = {
                     "headers": cfg.headers or None,
-                    "event_hooks": {"request": [_validate_mcp_request_url]},
-                    "follow_redirects": True,
+                    "event_hooks": {"request": [checked_managed_request if managed_spec is not None else _validate_mcp_request_url]},
+                    "follow_redirects": managed_spec is None,
                     "timeout": httpx.Timeout(30.0, connect=10.0),
-                    **_pinned_transport_kwargs(),
+                    **({"trust_env": False} if managed_spec is not None else _pinned_transport_kwargs()),
                 }
                 if oauth_auth is not None:
                     http_client_kwargs["auth"] = oauth_auth
@@ -1185,6 +1212,44 @@ async def connect_mcp_servers(
                     tool_timeout=cfg.tool_timeout,
                     strict_tools=cfg.strict_tools,
                 )
+                if managed_spec is not None:
+                    config_path, server_id = managed_spec
+                    from nanobot.config.loader import load_config
+
+                    initial_section = load_config(config_path).tools.mcp_docker
+                    expected = initial_section.servers.get(server_id)
+                    if expected is None or tool_def.name not in expected.tools:
+                        continue
+                    expected_source = expected.source.reference
+
+                    def permitted(
+                        raw_name: str = tool_def.name,
+                        source: str = expected_source,
+                    ) -> bool:
+                        try:
+                            section = load_config(config_path).tools.mcp_docker
+                            current = section.servers.get(server_id)
+                            return bool(
+                                current is not None
+                                and current.active
+                                and current.state == "running"
+                                and current.source.reference == source
+                                and raw_name in current.tools
+                                and raw_name not in current.tools_disabled
+                            )
+                        except Exception:
+                            return False
+
+                    wrapper.set_managed_gate(permitted)
+                if registry.get(wrapper.name) is not None:
+                    if managed_spec is not None:
+                        # Prefer the gated managed wrapper for a colliding
+                        # public name; a stale generic wrapper must never
+                        # bypass the server_id activation/disable checks.
+                        registry.unregister(wrapper.name)
+                    else:
+                        logger.warning("MCP tool name collision '{}'; refusing registration", wrapper.name)
+                        continue
                 registry.register(wrapper)
                 logger.debug("MCP: registered tool '{}' from server '{}'", wrapper.name, name)
                 registered_count += 1
@@ -1214,7 +1279,7 @@ async def connect_mcp_servers(
             # the operator intended to restrict capabilities — registering
             # unrestricted resource/prompt wrappers would violate that intent.
             # The default ["*"] (allow-all) means no restriction was intended.
-            register_extras = allow_all_tools
+            register_extras = allow_all_tools and managed_spec is None
             if register_extras:
                 try:
                     resources_result = await session.list_resources()
@@ -1357,11 +1422,41 @@ def session_extra(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
 
 def _configured_servers(config: Config) -> dict[str, MCPServerConfig]:
     from nanobot.agent.plugins import agent_plugin_mcp_servers
+    from nanobot.config.schema import MCPServerConfig
+    from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
 
-    return agent_plugin_mcp_servers(
+    servers = agent_plugin_mcp_servers(
         config.workspace_path,
         config.tools.mcp_servers,
     )
+    if config.runtime_data_dir is None:
+        return servers
+    try:
+        token = BrokerClient(config.runtime_data_dir / "mcp-docker" / "broker-token").token()
+    except BrokerUnavailableError:
+        return servers
+    for server_id, server in config.tools.mcp_docker.servers.items():
+        if not server.active or server.state != "running":
+            continue
+        name = f"percival_docker_{server_id}"
+        if name in servers:
+            logger.warning("Managed MCP '{}' collides with an existing server", name)
+            continue
+        servers[name] = MCPServerConfig(
+            type="streamableHttp", url=f"http://127.0.0.1:18081/mcp/{server_id}",
+            headers={"Authorization": f"Bearer {token}", "X-Percival-Revision": str(server.revision)},
+            enabled_tools=[raw for raw in server.tools if raw not in server.tools_disabled],
+        )
+    return servers
+
+
+def _managed_specs(servers: Mapping[str, MCPServerConfig], config_path: Path | None) -> dict[str, tuple[Path, str]]:
+    if config_path is None:
+        return {}
+    return {
+        name: (config_path, name.removeprefix("percival_docker_"))
+        for name in servers if name.startswith("percival_docker_")
+    }
 
 
 def _load_current_servers() -> dict[str, MCPServerConfig]:
@@ -1379,10 +1474,13 @@ class MCPProvider:
         registry: ToolRegistry,
         *,
         server_loader: MCPServerLoader | None = None,
+        managed_config_path: Path | None = None,
     ) -> None:
         self._servers = dict(servers)
         self._registry = registry
         self._server_loader = server_loader or _load_current_servers
+        self._managed_config_path = managed_config_path
+        self._managed_specs = _managed_specs(self._servers, managed_config_path)
         self._connections: dict[str, MCPConnection] = {}
         self._runtime_statuses: dict[str, MCPRuntimeStatus] = {}
         self._lock = asyncio.Lock()
@@ -1396,11 +1494,49 @@ class MCPProvider:
         *,
         server_loader: MCPServerLoader | None = None,
     ) -> MCPProvider:
+        path = config.runtime_data_dir / "config.json" if config.runtime_data_dir else None
         return cls(
             _configured_servers(config),
             registry,
             server_loader=server_loader,
+            managed_config_path=path,
         )
+
+    def _reconcile_managed(self, names: Iterable[str]) -> set[str]:
+        from nanobot.config.loader import load_config
+        from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+
+        path = self._managed_config_path
+        if path is None:
+            return set(names)
+        try:
+            config = load_config(path)
+        except Exception:
+            return {name for name in names if name not in self._managed_specs}
+        broker = BrokerClient(path.parent / "mcp-docker" / "broker-token")
+        available: set[str] = set()
+        for name in names:
+            spec = self._managed_specs.get(name)
+            if spec is None:
+                available.add(name)
+                continue
+            _path, server_id = spec
+            server = config.tools.mcp_docker.servers.get(server_id)
+            host = config.tools.mcp_docker.configurations.get(server_id)
+            if server is None or host is None or not server.active:
+                continue
+            try:
+                result = broker.action("reconcile", server_id, {
+                    "source": server.source.model_dump(mode="json"),
+                    "configuration": host.model_dump(mode="json"),
+                    "active": server.active,
+                    "tools_disabled": server.tools_disabled,
+                })
+            except BrokerUnavailableError:
+                continue
+            if result.get("running"):
+                available.add(name)
+        return available
 
     @property
     def configured_server_names(self) -> set[str]:
@@ -1469,9 +1605,17 @@ class MCPProvider:
             }
             if not missing_servers:
                 return
+            if self._managed_specs:
+                ready_names = await asyncio.to_thread(self._reconcile_managed, missing_servers)
+                missing_servers = {name: cfg for name, cfg in missing_servers.items() if name in ready_names}
+            if not missing_servers:
+                return
             self._set_runtime_status(missing_servers, "connecting")
             try:
-                connected = await connect_mcp_servers(missing_servers, self._registry)
+                if self._managed_specs:
+                    connected = await connect_mcp_servers(missing_servers, self._registry, managed=self._managed_specs)
+                else:
+                    connected = await connect_mcp_servers(missing_servers, self._registry)
                 if self._closing:
                     await _close_mcp_connections(connected)
                     return
@@ -1506,7 +1650,8 @@ class MCPProvider:
             if self._closing:
                 return self._closing_result()
             try:
-                next_servers = dict(self._server_loader())
+                next_servers = dict(await asyncio.to_thread(self._server_loader))
+                self._managed_specs = _managed_specs(next_servers, self._managed_config_path)
             except Exception as exc:
                 logger.warning("MCP hot reload could not read config: {}", exc)
                 return {
@@ -1556,11 +1701,19 @@ class MCPProvider:
                 - authorization_pending
             )
             to_connect = {name: next_servers[name] for name in to_connect_names}
+            if self._managed_specs and to_connect:
+                ready_names = await asyncio.to_thread(self._reconcile_managed, to_connect)
+                to_connect = {name: cfg for name, cfg in to_connect.items() if name in ready_names}
+            unavailable = set(to_connect_names) - set(to_connect)
+            self._set_runtime_status(unavailable, "failed")
             connected: dict[str, MCPConnection] = {}
             if to_connect:
                 self._set_runtime_status(to_connect, "connecting")
                 try:
-                    connected = await connect_mcp_servers(to_connect, self._registry)
+                    if self._managed_specs:
+                        connected = await connect_mcp_servers(to_connect, self._registry, managed=self._managed_specs)
+                    else:
+                        connected = await connect_mcp_servers(to_connect, self._registry)
                 except BaseException:
                     self._set_runtime_status(to_connect, "failed")
                     raise
@@ -1571,7 +1724,7 @@ class MCPProvider:
                 self._record_connection_result(to_connect, connected)
                 self._attach_reconnect_handlers(connected)
 
-            failed = sorted(set(to_connect) - set(connected))
+            failed = sorted(set(to_connect_names) - set(connected))
             unchanged = not removed and not added and not changed and not retry_missing
             ok = not failed
             if failed:
@@ -1672,10 +1825,17 @@ class MCPProvider:
             await self._close_server(server_name)
 
             self._set_runtime_status({server_name}, "connecting")
-            connected = await connect_mcp_servers(
-                {server_name: cfg},
-                self._registry,
-            )
+            if server_name in self._managed_specs:
+                ready = await asyncio.to_thread(self._reconcile_managed, {server_name})
+                if server_name not in ready:
+                    self._set_runtime_status({server_name}, "failed")
+                    return None
+            if self._managed_specs:
+                connected = await connect_mcp_servers(
+                    {server_name: cfg}, self._registry, managed=self._managed_specs,
+                )
+            else:
+                connected = await connect_mcp_servers({server_name: cfg}, self._registry)
             if self._closing:
                 await _close_mcp_connections(connected)
                 return None

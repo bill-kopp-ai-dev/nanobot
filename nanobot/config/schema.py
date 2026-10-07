@@ -8,6 +8,7 @@ from pydantic import AliasChoices, ConfigDict, Field, PrivateAttr, field_validat
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from nanobot.config.kg import PercivalKgConfig
+from nanobot.config.mcp_docker import McpDockerConfig
 from nanobot.config.timezone import detect_system_timezone
 from nanobot.config_base import Base
 from nanobot.cron.types import CronSchedule
@@ -419,7 +420,15 @@ class ToolsConfig(Base):
         ),
     )  # allow non-local WebUI clients to install optional packages and agent skills
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
+    mcp_docker: McpDockerConfig = Field(default_factory=McpDockerConfig)
     ssrf_whitelist: list[str] = Field(default_factory=list)  # CIDR ranges to exempt from SSRF blocking (e.g. ["100.64.0.0/10"] for Tailscale)
+
+    @field_validator("mcp_servers")
+    @classmethod
+    def reserve_managed_namespace(cls, value: dict[str, MCPServerConfig]) -> dict[str, MCPServerConfig]:
+        if any(name.startswith("percival_docker_") for name in value):
+            raise ValueError("mcpServers names beginning percival_docker_ are reserved")
+        return value
 
 
 class Config(BaseSettings):

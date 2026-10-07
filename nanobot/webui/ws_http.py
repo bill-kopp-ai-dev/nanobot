@@ -239,6 +239,14 @@ _WEBUI_MUTATION_PATHS = {
     "settings.mcp.oauth_start": "/api/settings/mcp-oauth/start",
     "settings.mcp.oauth_complete": "/api/settings/mcp-oauth/complete",
     "settings.mcp.oauth_cancel": "/api/settings/mcp-oauth/cancel",
+    **{
+        f"settings.mcp_docker.{action.replace('-', '_')}": f"/api/settings/mcp-docker/{action}"
+        for action in (
+            "install", "configure", "disable-tool", "enable-tool", "activate",
+            "deactivate", "update-image", "restart", "start", "stop", "exclude",
+            "operator-setup", "operator-rotate",
+        )
+    },
 }
 
 _WEBUI_CHANNEL_CONNECT_ACTIONS = {

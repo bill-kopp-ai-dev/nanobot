@@ -26,11 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - darwin-arm64
-          - darwin-x64
           - linux-arm64
           - linux-x64
-          - win32-x64
 
     steps:
       - uses: actions/checkout@v4
@@ -65,13 +62,6 @@ jobs:
         working-directory: tui
         run: bun run build -- ${{ matrix.target }}
 
-      - name: Ad-hoc sign macOS executable
-        if: startsWith(matrix.target, 'darwin-')
-        uses: indygreg/apple-code-sign-action@44d0985b7f4363198e80b6fea63ac3e9dd3e9957 # v1
-        with:
-          input_path: tui/dist/nanobot-tui-${{ matrix.target }}
-          rcodesign_version: 0.29.0
-
       - name: Build notices and release archive
         working-directory: tui
         env:
@@ -89,7 +79,6 @@ jobs:
         run: |
           gh release view "$TAG" >/dev/null
           asset="nanobot-tui-${TARGET}"
-          if [[ "$TARGET" == win32-* ]]; then asset="${asset}.exe"; fi
           gh release upload "$TAG" \
             "tui/dist/${asset}.zip" \
             "tui/dist/${asset}.zip.sha256" \

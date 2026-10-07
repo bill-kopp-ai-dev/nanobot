@@ -17,6 +17,9 @@ from nanobot.api.runtime import ApiRuntime, api_runtime_paths
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.registry import load_channel_plugin
 from nanobot.channels.validation import validate_channel_config
+from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+from nanobot.mcp_docker.operator import OperatorCredential
+from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.pairing import approve_code, deny_code, list_pending
 from nanobot.webui import settings_capabilities as capability_domain
 from nanobot.webui import settings_contracts as contracts
@@ -72,6 +75,11 @@ _WEBUI_MUTATION_REQUEST_ATTR = "_nanobot_webui_mutation_request"
 _CHANNEL_CONNECT_ACTIONS = frozenset({"start", "poll", "cancel"})
 _MCP_OAUTH_CALLBACK_URL_MAX_BYTES = 8 * 1024
 _MCP_RELOAD_TIMEOUT_SECONDS = 15.0
+_MCP_DOCKER_ACTIONS = frozenset({
+    "install", "configure", "disable-tool", "enable-tool", "activate",
+    "deactivate", "update-image", "restart", "start", "stop", "exclude",
+})
+_MCP_DOCKER_PREFIX = "/api/settings/mcp-docker/"
 _query_first = contracts.query_first
 
 
@@ -248,6 +256,11 @@ class WebUISettingsRouter:
         self._mcp_reload = mcp_reload
         self._mcp_oauth_redirect_uri = mcp_oauth_redirect_uri
         self._mcp_oauth = McpOAuthManager()
+        self._mcp_docker = DockerMcpService(
+            settings.config,
+            BrokerClient(settings.config.path.parent / "mcp-docker" / "broker-token"),
+        )
+        self._mcp_operator = OperatorCredential(settings.config.path.parent)
         self._restart_sections: set[str] = set()
         self._restart_baselines: dict[str, dict[str, Any]] = {}
         self._restart_changes: dict[str, str] = {}
@@ -287,6 +300,9 @@ class WebUISettingsRouter:
             return self._handle_mcp_oauth_complete(request)
         if path == "/api/settings/mcp-oauth/cancel":
             return await self._handle_mcp_oauth_cancel(request)
+
+        if path.startswith(_MCP_DOCKER_PREFIX):
+            return await self._handle_mcp_docker(connection, request, path)
 
         route = self._route(path)
         if route is None:
@@ -370,7 +386,68 @@ class WebUISettingsRouter:
 
     @staticmethod
     def is_mutation_path(path: str) -> bool:
+        if path.startswith(_MCP_DOCKER_PREFIX):
+            return path.removeprefix(_MCP_DOCKER_PREFIX) in (
+                _MCP_DOCKER_ACTIONS | {"operator-setup", "operator-rotate"}
+            )
         return path in _SETTINGS_MUTATION_PATHS or _channel_connect_route(path) is not None
+
+    async def _handle_mcp_docker(self, connection: Any, request: WsRequest, path: str) -> Response:
+        action = path.removeprefix(_MCP_DOCKER_PREFIX)
+        if action not in _MCP_DOCKER_ACTIONS | {"list", "operator-bootstrap", "operator-setup", "operator-rotate"}:
+            return self._error_response(404, "Not found")
+        if not self._authorized(request):
+            return self._unauthorized()
+        local = _is_local_browser_request(connection, request.headers)
+        if action == "operator-bootstrap":
+            if not local:
+                return self._error_response(403, "Local browser required")
+            return self._json_response({"configured": self._mcp_operator.exists()})
+        if action == "list":
+            return self._json_response(await asyncio.to_thread(self._mcp_docker.list))
+        if not getattr(request, _WEBUI_MUTATION_REQUEST_ATTR, False):
+            return self._error_response(405, "WebUI mutations require an authenticated WebSocket")
+        payload = _mutation_payload(request)
+        if payload is None:
+            return self._error_response(400, "Invalid action payload")
+        if not local and not self.settings.config.load().tools.mcp_docker.allow_remote_admin:
+            return self._error_response(403, "Remote administration disabled")
+        credential = payload.get("operator_admin")
+        if action == "operator-setup":
+            if not local:
+                return self._error_response(403, "Local browser required")
+            if self._mcp_operator.exists():
+                return self._error_response(409, "Operator credential already configured")
+            if not isinstance(credential, str):
+                return self._unauthorized()
+            try:
+                await asyncio.to_thread(self._mcp_operator.set_password, credential)
+            except (ValueError, PermissionError):
+                return self._error_response(409, "Operator setup failed")
+            return self._json_response({"configured": True})
+        if not isinstance(credential, str) or not await asyncio.to_thread(self._mcp_operator.verify, credential):
+            return self._unauthorized()
+        if action == "operator-rotate":
+            new_password = payload.get("new_password")
+            if not isinstance(new_password, str):
+                return self._error_response(400, "new_password is required")
+            try:
+                await asyncio.to_thread(self._mcp_operator.set_password, new_password, current_password=credential)
+            except (ValueError, PermissionError):
+                return self._error_response(400, "Invalid operator password")
+            return self._json_response({"configured": True})
+        try:
+            # Remove the operator password before entering the domain or audit.
+            result = await asyncio.to_thread(self._mcp_docker.act, action, {
+                key: value for key, value in payload.items() if key != "operator_admin"
+            })
+        except DomainError as exc:
+            return self._error_response(exc.status, str(exc))
+        except BrokerUnavailableError:
+            return self._error_response(503, "Docker MCP broker unavailable")
+        if self._mcp_reload is not None:
+            result["mcp_runtime"] = await self._reload_mcp_runtime()
+        return self._json_response(result)
 
     @staticmethod
     def _route(path: str) -> tuple[str, str] | None:

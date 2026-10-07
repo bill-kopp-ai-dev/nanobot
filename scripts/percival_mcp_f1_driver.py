@@ -254,7 +254,7 @@ def restore_checks() -> None:
         backups[server_id] = max(candidates, key=lambda path: int(path.name.rsplit("-", 1)[1]))
 
     def cli(backup_dir: Path, revision: int, *, apply: bool = False, success: bool = True) -> None:
-        args = ["nanobot", "mcp-docker", "restore", str(backup_dir),
+        args = ["nanobot", "mcp-docker", "restore-f1", str(backup_dir),
                 "--config", str(CONFIG), "--expected-revision", str(revision)]
         if apply:
             args.append("--apply")

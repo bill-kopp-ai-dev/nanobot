@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import threading
 from pathlib import Path
 from typing import Any, cast, overload
 
@@ -10,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 from pydantic_settings import SettingsError
 
 from nanobot.config.errors import ConfigIssue, ConfigLoadError, validation_issues
+from nanobot.config.mcp_docker import DockerEnvValue
 from nanobot.config.schema import (
     Config,
     _resolve_tool_config_refs,  # pyright: ignore[reportPrivateUsage]
@@ -19,6 +21,7 @@ from nanobot.utils.helpers import _write_text_atomic  # pyright: ignore[reportPr
 # Global variable to store current config path (for multi-instance support)
 _current_config_path: Path | None = None
 _schema_refs_ready = False
+_save_lock = threading.RLock()
 
 
 def _as_config_object(value: object) -> dict[str, Any] | None:
@@ -152,8 +155,33 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
         config_path: Optional path to save to. Uses default if not provided.
     """
     path = config_path or get_config_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    with _save_lock:
+        _save_config_locked(config, path)
 
+
+def _save_config_locked(config: Config, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Other settings domains may still hold a stale Config instance. Refuse
+    # their replacement of a newer Docker MCP section instead of silently
+    # losing an install/disable/exclude. The domain holds the WebUI writer lock
+    # across its read-modify-save transaction.
+    if path.exists():
+        with path.open(encoding="utf-8") as handle:
+            persisted: object = json.load(handle)
+        if isinstance(persisted, dict):
+            current_tools = cast(dict[str, object], persisted).get("tools")
+            if isinstance(current_tools, dict):
+                current_section = cast(dict[str, object], current_tools).get("mcpDocker")
+                if isinstance(current_section, dict):
+                    revision = cast(int, cast(dict[str, object], current_section).get("revision", 0))
+                    # Refuse only when the on-disk revision is ahead of the
+                    # caller's in-memory revision: that signals another writer
+                    # has already mutated the section. A persisted revision
+                    # equal to or behind the caller's revision is acceptable
+                    # because the domain transaction reads the disk, mutates
+                    # and increments the revision before persisting.
+                    if revision > config.tools.mcp_docker.revision:
+                        raise ValueError("mcpDocker CAS conflict: reload config before saving")
     data = config.model_dump(mode="json", by_alias=True)
     # OAuth credentials live in dedicated token stores. Persist only the
     # non-credential request settings consumed by these provider backends.
@@ -171,7 +199,7 @@ def save_config(config: Config, config_path: Path | None = None) -> None:
             data.setdefault("providers", {})[alias] = settings
 
     # Temp + replace so a crash mid-write cannot leave a truncated config.json.
-    _write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False))
+    _write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False), initial_mode=0o600)
 
 
 def merge_missing_defaults(existing: object, defaults: object) -> object:
@@ -249,6 +277,9 @@ def _resolve_in_place(obj: Any) -> Any:
         updates: dict[str, Any] = {}
         for name in type(obj).model_fields:
             old = getattr(obj, name)
+            # Broker references are resolved at spawn in the broker's own env.
+            if isinstance(obj, DockerEnvValue) and name == "value":
+                continue
             new = _resolve_in_place(old)
             if new is not old:
                 updates[name] = new
@@ -299,6 +330,8 @@ def _missing_env_issues(
     if isinstance(obj, BaseModel):
         issues: list[ConfigIssue] = []
         for name, field in type(obj).model_fields.items():
+            if isinstance(obj, DockerEnvValue) and name == "value":
+                continue
             alias = field.serialization_alias or field.alias or name
             part = alias
             issues.extend(_missing_env_issues(getattr(obj, name), (*path, part)))

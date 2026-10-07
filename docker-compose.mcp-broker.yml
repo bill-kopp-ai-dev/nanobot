@@ -1,0 +1,50 @@
+# Explicit opt-in overlay; requires an absolute host state path, socket GID and
+# a prepared broker token file (owner gateway UID 1000, dedicated token group,
+# mode 0640). Broker is the only service with Docker socket/CLI access.
+services:
+  nanobot-gateway:
+    volumes:
+      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+    environment:
+      PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
+
+  percival-mcp-broker:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-broker
+    image: percival-mcp-broker:f2
+    user: "65532:65532"
+    group_add:
+      - "${PERCIVAL_DOCKER_SOCKET_GID:?Set numeric Docker socket GID}"
+      - "${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}"
+    network_mode: service:nanobot-gateway
+    depends_on:
+      - nanobot-gateway
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,mode=0700
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /
+        target: /host-inventory
+        read_only: true
+      - type: bind
+        source: /proc/1/mountinfo
+        target: /run/host-mountinfo
+        read_only: true
+      - type: bind
+        source: ${PERCIVAL_BROKER_TOKEN_HOST_PATH:?Set absolute token file path}
+        target: /run/secrets/percival-broker-token
+        read_only: true
+    environment:
+      PERCIVAL_STATE_HOST_PATH: ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}
+      PERCIVAL_TOKEN_HOST_PATH: ${PERCIVAL_BROKER_TOKEN_HOST_PATH:?Set absolute token file path}
+      PERCIVAL_HOST_MOUNTINFO: /run/host-mountinfo
+      PERCIVAL_HOST_INVENTORY: /host-inventory
+      PERCIVAL_BROKER_TOKEN_FILE: /run/secrets/percival-broker-token

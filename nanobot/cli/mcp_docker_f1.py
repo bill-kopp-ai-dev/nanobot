@@ -20,8 +20,47 @@ import typer
 
 from nanobot.utils.helpers import _write_text_atomic  # pyright: ignore[reportPrivateUsage]
 
-app = typer.Typer(help="MCP Docker restoration (F1 disposable rehearsal only)")
+app = typer.Typer(help="MCP Docker operator administration and restoration")
 _ID = re.compile(r"[a-z][a-z0-9-]{0,39}\Z")
+
+
+@app.command("operator-init")
+def operator_init(
+    config: Path | None = typer.Option(None, "--config", help="Path to this instance's config.json"),
+) -> None:
+    """Create the instance-local operator credential (one-time setup)."""
+    from nanobot.config.loader import get_config_path
+    from nanobot.mcp_docker.operator import OperatorCredential
+
+    path = (config or get_config_path()).expanduser().resolve(strict=False)
+    password = typer.prompt("Operator password", hide_input=True, confirmation_prompt=True)
+    try:
+        OperatorCredential(path.parent).set_password(password)
+    except (PermissionError, ValueError) as exc:
+        typer.echo(f"Operator initialization refused: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo("Operator credential initialized")
+
+
+@app.command("operator-rotate")
+def operator_rotate(
+    config: Path | None = typer.Option(None, "--config", help="Path to this instance's config.json"),
+    recover: bool = typer.Option(False, "--recover", help="Local VPS recovery when old password is lost"),
+) -> None:
+    """Rotate the instance-local operator credential."""
+    from nanobot.config.loader import get_config_path
+    from nanobot.mcp_docker.operator import OperatorCredential
+
+    path = (config or get_config_path()).expanduser().resolve(strict=False)
+    credential = OperatorCredential(path.parent)
+    current = None if recover else typer.prompt("Current operator password", hide_input=True)
+    password = typer.prompt("New operator password", hide_input=True, confirmation_prompt=True)
+    try:
+        credential.set_password(password, current_password=current, recover=recover)
+    except (PermissionError, ValueError) as exc:
+        typer.echo(f"Operator rotation refused: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo("Operator credential rotated")
 
 
 def _object(value: object, label: str) -> dict[str, Any]:
@@ -64,8 +103,8 @@ def _broker(route: str, payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"broker {route} refused request (HTTP {exc.code})") from exc
 
 
-@app.command("restore")
-def restore(
+@app.command("restore-f1")
+def restore_f1(
     backup_dir: Path = typer.Argument(..., help="Direct child of config/mcp-docker/backups"),
     config: Path = typer.Option(..., "--config", help="F1 disposable config.json"),
     expected_revision: int = typer.Option(..., "--expected-revision", min=0),
@@ -133,5 +172,56 @@ def restore(
                 typer.echo(f"rollback failed: could not exclude {server_id}: {exclude_exc}", err=True)
             raise rollback_exc from None
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        typer.echo(f"restore refused: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+@app.command("restore")
+def restore(
+    backup_dir: Path = typer.Argument(..., help="Direct child of this instance's mcp-docker/backups"),
+    expected_revision: int = typer.Option(..., "--expected-revision", min=0),
+    config: Path | None = typer.Option(None, "--config", help="Instance config.json (defaults to active instance)"),
+    apply: bool = typer.Option(False, "--apply", help="Apply after preview and CAS validation"),
+) -> None:
+    """Preview or restore one excluded server using the gateway writer and broker."""
+    import hashlib
+
+    from nanobot.config.loader import get_config_path, load_config
+    from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+    from nanobot.mcp_docker.service import DockerMcpService, DomainError
+    from nanobot.webui.settings_services import WebUISettingsConfig
+
+    path = (config or get_config_path()).expanduser().resolve(strict=False)
+    service = DockerMcpService(
+        WebUISettingsConfig(path),
+        BrokerClient(path.parent / "mcp-docker" / "broker-token"),
+    )
+    try:
+        base = path.parent / "mcp-docker" / "backups"
+        if backup_dir.is_symlink() or backup_dir.resolve().parent != base.resolve():
+            raise ValueError("backup must be a direct child of the active instance backup directory")
+        manifest_path = backup_dir / "manifest.json"
+        if manifest_path.is_symlink() or not manifest_path.is_file():
+            raise ValueError("backup manifest missing")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(manifest, dict):
+            raise ValueError("backup manifest must be an object")
+        manifest_obj = cast(dict[str, Any], manifest)
+        checksum = manifest_obj.pop("sha256", None)
+        canonical = json.dumps(manifest_obj, sort_keys=True, separators=(",", ":")).encode()
+        if not isinstance(checksum, str) or checksum != hashlib.sha256(canonical).hexdigest():
+            raise ValueError("backup checksum mismatch")
+        current = load_config(path).tools.mcp_docker
+        if current.revision != expected_revision:
+            raise DomainError(409, "Docker MCP revision conflict")
+        server_id = manifest_obj.get("server_id")
+        if not isinstance(server_id, str) or server_id in current.servers:
+            raise DomainError(409, "restore refuses to overwrite an existing server")
+        typer.echo(f"restore preview: server_id={server_id} revision={expected_revision}->{expected_revision + 1}")
+        if not apply:
+            return
+        result = service.restore_backup(backup_dir, expected_revision)
+        typer.echo(f"restored {result['server']} at revision {result['revision']} ({result['state']})")
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, DomainError, BrokerUnavailableError) as exc:
         typer.echo(f"restore refused: {exc}", err=True)
         raise typer.Exit(1) from exc

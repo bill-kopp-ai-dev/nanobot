@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-from nanobot.agent.kg.vendor.okf_bundle_core.errors import CASMismatchError, ZettelError
 from nanobot.agent.kg.vendor.okf_bundle_core.gitstore import GitStore
 from nanobot.agent.tools.cm_notes import (
     CMNoteHistoryTool,
