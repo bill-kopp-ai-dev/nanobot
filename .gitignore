@@ -12,6 +12,7 @@
 docs/superpowers/
 docs/plans/*
 !docs/plans/kg-integration-plan.md
+!docs/plans/2026-10-06-mcp-docker-first-class-execution-plan.md
 
 # webui (monorepo frontend)
 webui/node_modules/
