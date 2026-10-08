@@ -381,7 +381,9 @@ describe("App layout", () => {
       }] },
     });
     render(<App />);
-    await screen.findByRole("textbox");
+    // The main ThreadShell is loaded lazily; on the first chat-route test the
+    // transformed chunk can exceed Testing Library's default 1s wait.
+    await screen.findByRole("textbox", {}, { timeout: 5_000 });
     if (supported) await screen.findByRole("button", { name: /Config check Running/ });
     else expect(screen.queryByText("Config check")).not.toBeInTheDocument();
     const reads = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("/subagents"));

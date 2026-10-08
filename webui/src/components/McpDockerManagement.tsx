@@ -86,12 +86,12 @@ export function McpDockerManagement({
   const [mountsRestricted, setMountsRestricted] = useState(false);
   const [mountsText, setMountsText] = useState("");
   const [envRows, setEnvRows] = useState<EnvRow[]>([{ name: "", kind: "plain", value: "" }]);
-  const editingRef = useRef(false);
   const selectedIdRef = useRef<string | null>(null);
   const [installConfirmId, setInstallConfirmId] = useState("");
   const [scopeConfirmId, setScopeConfirmId] = useState("");
   const [updateConfirmId, setUpdateConfirmId] = useState("");
   const [excludeConfirmId, setExcludeConfirmId] = useState("");
+  const [restoreConfirmId, setRestoreConfirmId] = useState<Record<string, string>>({});
   const [installReviewed, setInstallReviewed] = useState(false);
   const [configReviewed, setConfigReviewed] = useState(false);
   const [updateReviewed, setUpdateReviewed] = useState(false);
@@ -135,7 +135,6 @@ export function McpDockerManagement({
       setUpdateReviewed(false);
       setUpdateReference(selected?.source.reference ?? "");
       setUpdateType((selected?.source.type === "pinned-image" ? "pinned-image" : "local-image"));
-      editingRef.current = false;
     } else if (selectedRevisionRef.current !== incomingRevision) {
       selectedRevisionRef.current = incomingRevision;
       // Server config changed in the background (poll/admin mutex or concurrent edit).
@@ -148,7 +147,7 @@ export function McpDockerManagement({
     }
   }, [selectedId, selected]);
 
-  const enabled = operatorConfigured === true && operatorPassword.length > 0 && !busy;
+  const enabled = operatorConfigured === true && operatorPassword.length > 0 && !busy && snapshot.pendingTransitions.length === 0;
   const needsBroaderConfirm = useMemo(() => broaderMountAccess(
     selected?.configuration.mounts,
     mountsRestricted ? mountsText.split(/\r?\n/).map((path) => path.trim()).filter(Boolean) : null,
@@ -192,6 +191,7 @@ export function McpDockerManagement({
       setScopeConfirmId("");
       setUpdateConfirmId("");
       setExcludeConfirmId("");
+      setRestoreConfirmId({});
       setInstallReviewed(false);
       setConfigReviewed(false);
       setUpdateReviewed(false);
@@ -248,7 +248,7 @@ export function McpDockerManagement({
   const submitConfigure = async () => {
     if (!selected || !selectedId) return;
     const mounts = mountsRestricted ? mountsText.split(/\r?\n/).map((path) => path.trim()).filter(Boolean) : null;
-    const succeeded = await invoke("configure", {
+    await invoke("configure", {
       ...revisionPayload(selectedId, selected),
       configuration: {
         persistent: selected.configuration.persistent,
@@ -257,7 +257,6 @@ export function McpDockerManagement({
         env: envObject(envRows),
       },
     }, { success: t("mcpDocker.configureComplete", { defaultValue: "Host configuration saved; the broker restarted the server when needed." }) });
-    if (succeeded) editingRef.current = false;
   };
 
   const serverAction = (action: string, extra: Record<string, unknown> = {}, options: { success?: string } = {}) => {
@@ -332,6 +331,11 @@ export function McpDockerManagement({
         <p className="text-xs text-muted-foreground">{snapshot.allowRemoteAdmin ? t("mcpDocker.remoteAdminEnabled", { defaultValue: "Remote operator administration is enabled by host configuration." }) : t("mcpDocker.remoteAdminDisabled", { defaultValue: "Remote operator administration is disabled by default; enable it only in trusted host configuration." })}</p>
       </section>
 
+      {snapshot.pendingTransitions.length > 0 && <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+        <strong>Recovery is pending; management mutations are blocked until the broker can reconcile these transitions.</strong>
+        <ul className="mt-2 list-disc pl-5">{snapshot.pendingTransitions.map((transition) => <li key={transition.server_id}>{transition.server_id}{transition.action ? ` — ${transition.action}` : ""}</li>)}</ul>
+      </div>}
+
       {enabled && (
         <>
           <details className="rounded-xl border p-4">
@@ -354,6 +358,17 @@ export function McpDockerManagement({
               <Button disabled={busy || !installId.trim() || !installReference.trim() || !installReviewed || !installConfirmSatisfied} onClick={() => void submitInstall()}>{t("mcpDocker.install", { defaultValue: "Install and activate" })}</Button>
             </div>
           </details>
+
+          <section className="space-y-3 rounded-xl border p-4">
+            <h2 className="font-semibold">Restore an excluded server</h2>
+            <p className="text-sm text-muted-foreground">Restore checks the backup checksum, refuses to overwrite an existing server, and reconciles Docker before committing config.</p>
+            {snapshot.backups.map((backup) => <div key={backup.backupId} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <div><code>{backup.serverId}</code><p className="text-xs text-muted-foreground">{backup.backupId} · revision {backup.sourceRevision}</p></div>
+              <Label>Type the server ID to restore<Input value={restoreConfirmId[backup.backupId] ?? ""} onChange={(event) => setRestoreConfirmId((current) => ({ ...current, [backup.backupId]: event.target.value }))} /></Label>
+              <Button variant="outline" disabled={busy || Boolean(snapshot.servers[backup.serverId]) || restoreConfirmId[backup.backupId] !== backup.serverId} onClick={() => void invoke("restore", { backup_id: backup.backupId, expected_revision: snapshot.revision }, { success: "Server restored from backup and reconciled." })}>Restore</Button>
+            </div>)}
+            {!snapshot.backups.length && <p className="text-sm text-muted-foreground">No MCP Docker backups are available.</p>}
+          </section>
 
           {selected && selectedId && <section className="space-y-4 rounded-xl border p-4">
             <h2 className="font-semibold">{t("mcpDocker.manageServer", { defaultValue: "Manage {{server}}", server: selectedId })}</h2>

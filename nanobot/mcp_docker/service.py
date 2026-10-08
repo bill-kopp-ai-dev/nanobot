@@ -11,6 +11,7 @@ import hmac
 import json
 import os
 import re
+import tempfile
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,6 +62,7 @@ class DockerMcpService:
         self.root = config.path.parent / "mcp-docker"
 
     def list(self) -> dict[str, Any]:
+        pending_transitions = self.recover_pending()
         section = self.config.load().tools.mcp_docker
         servers: dict[str, Any] = {}
         for key, server in section.servers.items():
@@ -131,7 +133,194 @@ class DockerMcpService:
             "allowRemoteAdmin": section.allow_remote_admin,
             "servers": servers,
             "history": self._history(),
+            "pendingTransitions": pending_transitions,
+            "backups": self._backups(),
         }
+
+    def _backups(self) -> list[dict[str, Any]]:
+        backups = self.root / "backups"
+        try:
+            entries = sorted(backups.iterdir(), key=lambda item: item.name, reverse=True)
+        except FileNotFoundError:
+            return []
+        result: list[dict[str, Any]] = []
+        for entry in entries[:100]:
+            if entry.is_symlink() or not entry.is_dir() or not re.fullmatch(r"[A-Za-z0-9T:.Z_-]{1,128}", entry.name):
+                continue
+            manifest_path = entry / "manifest.json"
+            if manifest_path.is_symlink():
+                continue
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                continue
+            if not isinstance(manifest, dict):
+                continue
+            data = cast(dict[str, Any], manifest)
+            server_id = data.get("server_id")
+            revision = data.get("source_revision")
+            if isinstance(server_id, str) and SERVER_ID.fullmatch(server_id) and type(revision) is int and revision >= 0:
+                result.append({"backupId": entry.name, "serverId": server_id, "sourceRevision": revision})
+        return result
+
+    def _transition_path(self, server_id: str) -> Path:
+        return self.root / "transitions" / f"{server_id}.json"
+
+    def _has_pending_unresolved(self) -> bool:
+        """Return True if any transition journal is not in a terminal state.
+
+        Used inside the config lock to detect a journal left ``prepare`` by a
+        concurrent writer that started between the outside check and the
+        lock acquisition. Recovery is intentionally not attempted here; the
+        caller already had a chance to resolve prior pending journals and now
+        needs a fast conflict signal before mutating config.
+        """
+        directory = self.root / "transitions"
+        if not directory.exists():
+            return False
+        for path in directory.glob("*.json"):
+            try:
+                raw: object = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                return True
+            if not isinstance(raw, dict):
+                return True
+            state = cast(dict[str, Any], raw).get("state")
+            if not isinstance(state, str) or state not in {"committed", "failed"}:
+                return True
+        return False
+
+    def _write_transition(self, server_id: str, value: dict[str, Any]) -> None:
+        """Durably replace one private per-server recovery journal."""
+        directory = self.root / "transitions"
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(directory, 0o700)
+        path = self._transition_path(server_id)
+        fd, temporary = tempfile.mkstemp(prefix=f".{server_id}.", suffix=".tmp", dir=directory)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(value, handle, ensure_ascii=False, separators=(",", ":"))
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+            dir_fd = os.open(directory, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except Exception:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+            raise
+
+    def recover_pending(self) -> list[dict[str, Any]]:
+        """Reconcile interrupted intents against persisted config and Docker.
+
+        Config is the commit record: if its revision advanced, reconcile the
+        broker to that intent; otherwise restore the pre-operation snapshot.
+        Unverifiable transitions remain preparing and are surfaced to callers.
+        """
+        directory = self.root / "transitions"
+        if not directory.exists():
+            return []
+        pending: list[dict[str, Any]] = []
+        for path in sorted(directory.glob("*.json")):
+            try:
+                raw_journal: object = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(raw_journal, dict):
+                    pending.append({"server_id": path.stem if SERVER_ID.fullmatch(path.stem) else "unknown", "state": "preparing"})
+                    continue
+                journal = cast(dict[str, Any], raw_journal)
+                journal_state = journal.get("state")
+                if journal_state in {"committed", "failed"}:
+                    continue
+                if journal_state != "preparing":
+                    pending.append({"server_id": path.stem if SERVER_ID.fullmatch(path.stem) else "unknown", "state": "preparing"})
+                    continue
+                server_id_value = journal.get("server_id")
+                if not isinstance(server_id_value, str) or not SERVER_ID.fullmatch(server_id_value):
+                    pending.append({"server_id": "unknown", "state": "preparing"})
+                    continue
+                server_id = server_id_value
+                if path != self._transition_path(server_id):
+                    pending.append({"server_id": server_id, "state": "preparing"})
+                    continue
+                base_revision_value = journal.get("base_revision")
+                if type(base_revision_value) is not int or base_revision_value < 0:
+                    pending.append({"server_id": server_id, "state": "preparing"})
+                    continue
+                base_revision = base_revision_value
+                result = self.config.run_serialized(
+                    lambda _config_path: self._recover_transition(server_id, journal, base_revision)
+                )
+                if result is None:
+                    journal_action = journal.get("action")
+                    pending_entry: dict[str, Any] = {"server_id": server_id, "state": "preparing"}
+                    if isinstance(journal_action, str):
+                        pending_entry["action"] = journal_action
+                    pending.append(pending_entry)
+                else:
+                    journal.update(state="committed", recovery=result, recovered_at=datetime.now(UTC).isoformat())
+                    self._write_transition(server_id, journal)
+                    revision = self.config.load().tools.mcp_docker.revision
+                    action = journal.get("action")
+                    correlation_id = journal.get("correlation_id")
+                    if (isinstance(action, str) and action in {
+                        "install", "configure", "disable-tool", "enable-tool", "activate",
+                        "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
+                    } and isinstance(correlation_id, str) and re.fullmatch(r"[0-9a-f]{32}", correlation_id)):
+                        phase = "committed" if result.startswith("committed-") else "failed"
+                        self._audit(action, server_id, phase, revision, correlation_id)
+            except (OSError, ValueError, TypeError, KeyError, BrokerUnavailableError, BrokerError):
+                name = path.stem
+                if SERVER_ID.fullmatch(name):
+                    pending.append({"server_id": name, "state": "preparing"})
+        return pending
+
+    def _recover_transition(self, server_id: str, journal: dict[str, Any], base_revision: int) -> str | None:
+        """Apply persisted intent when committed, otherwise restore the snapshot."""
+        config = self.config.load()
+        section = config.tools.mcp_docker
+        if section.revision not in {base_revision, base_revision + 1}:
+            return None
+        server = section.servers.get(server_id)
+        if section.revision == base_revision + 1 and server is None:
+            # Exclude committed in config. Broker exclude is idempotent for an
+            # owned orphan container and does not remove volumes or images.
+            self.broker.action("exclude", server_id, {"expected_confirmation": server_id})
+            return "committed-exclude"
+        if section.revision == base_revision + 1 and server is not None:
+            host = section.configurations.get(server_id)
+            if host is None:
+                return None
+            self.broker.action("recover", server_id, {
+                "source": server.source.model_dump(mode="json"),
+                "configuration": host.model_dump(mode="json"),
+                "active": server.active,
+                "tools_disabled": server.tools_disabled,
+                "running": server.active and server.state != "stopped-persistent",
+            })
+            return "committed-config"
+        previous = journal.get("before")
+        if previous is None:
+            self.broker.action("exclude", server_id, {"expected_confirmation": server_id})
+            return "rolled-back-install"
+        if not isinstance(previous, dict):
+            return None
+        before = cast(dict[str, Any], previous)
+        old_server = DockerServer.model_validate(before.get("server"))
+        old_host = DockerHostConfig.model_validate(before.get("configuration"))
+        self.broker.action("recover", server_id, {
+            "source": old_server.source.model_dump(mode="json"),
+            "configuration": old_host.model_dump(mode="json"),
+            "active": old_server.active,
+            "tools_disabled": old_server.tools_disabled,
+            "running": old_server.active and old_server.state != "stopped-persistent",
+        })
+        return "rolled-back-to-config"
 
     def _history(self, limit: int = 50) -> list[dict[str, Any]]:
         """Read a bounded audit tail and expose only non-sensitive event fields."""
@@ -194,7 +383,6 @@ class DockerMcpService:
             "server": section.servers[server_id].model_dump(mode="json", by_alias=True),
             "configuration": section.configurations[server_id].model_dump(mode="json", by_alias=True),
         }
-        import hashlib
         manifest["sha256"] = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         path = folder / "manifest.json"
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -233,6 +421,9 @@ class DockerMcpService:
         expected = payload.get("expected_revision")
         if type(expected) is not int or expected < 0:
             raise DomainError(400, "expected_revision must be a nonnegative integer")
+        pending = self.recover_pending()
+        if pending:
+            raise DomainError(503, "an MCP Docker transition is unresolved; inspect the pending recovery state")
         correlation_id = uuid.uuid4().hex
 
         def transaction(path: Path) -> dict[str, Any]:
@@ -242,6 +433,12 @@ class DockerMcpService:
             section = config.tools.mcp_docker
             if section.revision != expected:
                 raise DomainError(409, "Docker MCP revision conflict")
+            # Re-check pending journals inside the lock: a writer may have left
+            # a fresh "preparing" journal between the outside recovery attempt
+            # and this lock acquisition. We must not stack a new transition on
+            # top of an in-flight one even if their targets are different.
+            if self._has_pending_unresolved():
+                raise DomainError(503, "an MCP Docker transition is unresolved; inspect the pending recovery state")
             current = section.servers.get(server_id)
             if (current is None) == (action != "install"):
                 raise DomainError(409, "server already exists" if current else "unknown server_id")
@@ -263,6 +460,22 @@ class DockerMcpService:
             if action in {"disable-tool", "enable-tool"} and (not isinstance(tool, str) or not tool):
                 raise DomainError(400, "tool must be a nonempty raw name")
             backup = self._backup(config, server_id) if action in {"update-image", "exclude"} else None
+            before = None if current is None else {
+                "server": current.model_dump(mode="json", by_alias=True),
+                "configuration": section.configurations[server_id].model_dump(mode="json", by_alias=True),
+            }
+            journal: dict[str, Any] = {
+                "schemaVersion": 1,
+                "server_id": server_id,
+                "action": action,
+                "state": "preparing",
+                "base_revision": section.revision,
+                "correlation_id": correlation_id,
+                "backup_path": str(backup) if backup else None,
+                "before": before,
+                "started_at": datetime.now(UTC).isoformat(),
+            }
+            self._write_transition(server_id, journal)
             self._audit(action, server_id, "started", section.revision, correlation_id)
             old_source = current.source.model_dump(mode="json") if current else None
             broker_succeeded = False
@@ -326,8 +539,21 @@ class DockerMcpService:
                     except Exception:
                         self._audit(action, server_id, "compensation-failed", section.revision, correlation_id)
                 self._audit(action, server_id, "failed", section.revision, correlation_id)
+                try:
+                    recovered = self._recover_transition(server_id, journal, section.revision)
+                except Exception:
+                    recovered = None
+                journal.update(
+                    state="failed" if recovered is not None else "preparing",
+                    recovery_error=None if recovered is not None else "compensation could not be verified",
+                    finished_at=datetime.now(UTC).isoformat() if recovered is not None else None,
+                )
+                self._write_transition(server_id, journal)
                 raise
             self._audit(action, server_id, "committed", section.revision, correlation_id)
+            journal.update(state="committed", committed_revision=section.revision,
+                           finished_at=datetime.now(UTC).isoformat())
+            self._write_transition(server_id, journal)
             return {"revision": section.revision, "server": server_id,
                     "state": section.servers[server_id].state if server_id in section.servers else "excluded",
                     "backup": str(backup) if backup else None}
@@ -336,6 +562,9 @@ class DockerMcpService:
 
     def restore_backup(self, backup_dir: Path, expected_revision: int) -> dict[str, Any]:
         """Restore one excluded server through the single-writer transaction."""
+        pending = self.recover_pending()
+        if pending:
+            raise DomainError(503, "an MCP Docker transition is unresolved; inspect the pending recovery state")
         base = self.root / "backups"
         if backup_dir.is_symlink() or backup_dir.resolve().parent != base.resolve():
             raise DomainError(400, "backup must be a direct child of the MCP Docker backup directory")
@@ -371,8 +600,24 @@ class DockerMcpService:
                 raise DomainError(400, "expected revision must be a nonnegative integer")
             if section.revision != expected_revision:
                 raise DomainError(409, "Docker MCP revision conflict")
+            # See the matching check in `act`; restore must honour the same
+            # in-flight journal invariant under the lock.
+            if self._has_pending_unresolved():
+                raise DomainError(503, "an MCP Docker transition is unresolved; inspect the pending recovery state")
             if server_id in section.servers:
                 raise DomainError(409, "restore refuses to overwrite an existing server")
+            journal: dict[str, Any] = {
+                "schemaVersion": 1,
+                "server_id": server_id,
+                "action": "restore",
+                "state": "preparing",
+                "base_revision": section.revision,
+                "correlation_id": correlation_id,
+                "backup_path": str(backup_dir),
+                "before": None,
+                "started_at": datetime.now(UTC).isoformat(),
+            }
+            self._write_transition(server_id, journal)
             self._audit("restore", server_id, "started", section.revision, correlation_id)
             server.revision += 1
             server.state = "installed" if not server.active else "starting"
@@ -399,8 +644,21 @@ class DockerMcpService:
                 except Exception:
                     self._audit("restore", server_id, "compensation-failed", section.revision, correlation_id)
                 self._audit("restore", server_id, "failed", section.revision, correlation_id)
+                try:
+                    recovered = self._recover_transition(server_id, journal, section.revision)
+                except Exception:
+                    recovered = None
+                journal.update(
+                    state="failed" if recovered is not None else "preparing",
+                    recovery_error=None if recovered is not None else "compensation could not be verified",
+                    finished_at=datetime.now(UTC).isoformat() if recovered is not None else None,
+                )
+                self._write_transition(server_id, journal)
                 raise
             self._audit("restore", server_id, "committed", section.revision, correlation_id)
+            journal.update(state="committed", committed_revision=section.revision,
+                           finished_at=datetime.now(UTC).isoformat())
+            self._write_transition(server_id, journal)
             return {"server": server_id, "revision": section.revision,
                     "state": server.state, "running": bool(result.get("running"))}
 

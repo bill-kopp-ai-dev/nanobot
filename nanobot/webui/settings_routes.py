@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import html
 import json
+import re
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 
@@ -77,7 +78,7 @@ _MCP_OAUTH_CALLBACK_URL_MAX_BYTES = 8 * 1024
 _MCP_RELOAD_TIMEOUT_SECONDS = 15.0
 _MCP_DOCKER_ACTIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
-    "deactivate", "update-image", "restart", "start", "stop", "exclude",
+    "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
 })
 _MCP_DOCKER_PREFIX = "/api/settings/mcp-docker/"
 _query_first = contracts.query_first
@@ -436,6 +437,26 @@ class WebUISettingsRouter:
             except (ValueError, PermissionError):
                 return self._error_response(400, "Invalid operator password")
             return self._json_response({"configured": True})
+        if action == "restore":
+            backup_id = payload.get("backup_id")
+            expected_revision = payload.get("expected_revision")
+            if not isinstance(backup_id, str) or not re.fullmatch(r"[A-Za-z0-9T:.Z_-]{1,128}", backup_id):
+                return self._error_response(400, "invalid backup_id")
+            if type(expected_revision) is not int or expected_revision < 0:
+                return self._error_response(400, "invalid expected_revision")
+            try:
+                result = await asyncio.to_thread(
+                    self._mcp_docker.restore_backup,
+                    self._mcp_docker.root / "backups" / backup_id,
+                    expected_revision,
+                )
+            except DomainError as exc:
+                return self._error_response(exc.status, str(exc))
+            except BrokerUnavailableError:
+                return self._error_response(503, "Docker MCP broker unavailable")
+            if self._mcp_reload is not None:
+                result["mcp_runtime"] = await self._reload_mcp_runtime()
+            return self._json_response(result)
         try:
             # Remove the operator password before entering the domain or audit.
             result = await asyncio.to_thread(self._mcp_docker.act, action, {

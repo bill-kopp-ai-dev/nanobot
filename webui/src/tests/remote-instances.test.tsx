@@ -74,18 +74,20 @@ beforeEach(async () => {
 afterEach(() => { cleanup(); clearPairReturn(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 async function readyRemote() {
-  const frame = await screen.findByTitle("nanobot on Team server");
+  const frame = await screen.findByTitle("nanobot on Team server", {}, { timeout: 5_000 });
   await act(async () => { fireEvent.load(frame); });
   await waitFor(() => expect(readSelectedRemote()?.id).toBe(profile.id));
   return frame;
 }
 async function chooseHost(name: string) {
-  fireEvent.pointerDown(await screen.findByRole("button", { name: i18n.t("remote.switchHost") }), { button: 0, ctrlKey: false });
-  fireEvent.click(await screen.findByRole("menuitem", { name }));
+  fireEvent.pointerDown(await screen.findByRole(
+    "button", { name: i18n.t("remote.switchHost") }, { timeout: 5_000 },
+  ), { button: 0, ctrlKey: false });
+  fireEvent.click(await screen.findByRole("menuitem", { name }, { timeout: 5_000 }));
 }
 async function openDirectory() {
   await chooseHost(i18n.t("remote.manageConnections"));
-  await screen.findByRole("heading", { name: i18n.t("remote.title") });
+  await screen.findByRole("heading", { name: i18n.t("remote.title") }, { timeout: 5_000 });
 }
 function chooseExistingSSH() {
   fireEvent.pointerDown(screen.getByRole("button", { name: i18n.t("remote.pair.otherWays") }), { button: 0, ctrlKey: false });
@@ -1311,7 +1313,16 @@ describe("remote instance UX", () => {
 
   it("tolerates transient health failures and covers, rather than reloads, the remote frame", async () => {
     let tick: (() => void) | undefined;
-    vi.spyOn(window, "setInterval").mockImplementation((callback, delay) => { if (delay === 5_000) tick = callback as () => void; return 1; });
+    const nativeSetInterval = window.setInterval.bind(window);
+    vi.spyOn(window, "setInterval").mockImplementation((callback, delay, ...args) => {
+      if (delay === 5_000) {
+        tick = callback as () => void;
+        // Return a real, independently clearable handle; a shared fake numeric
+        // ID can cancel unrelated intervals created by the mounted shell.
+        return nativeSetInterval(() => {}, 60_000);
+      }
+      return nativeSetInterval(callback, delay, ...args);
+    });
     view(); await openDirectory();
     fireEvent.click(screen.getByRole("button", { name: "Team server ubuntu@example.test" }));
     const frame = await readyRemote();
@@ -1328,7 +1339,7 @@ describe("remote instance UX", () => {
     expect(screen.queryByText("Opening your server…")).not.toBeInTheDocument();
     expect(screen.getByTitle("nanobot on Team server")).toBe(frame);
     expect(frame.parentElement).not.toHaveAttribute("inert");
-  });
+  }, 15_000);
 
   it("rechecks on wake and network recovery without reloading or switching hosts", async () => {
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");

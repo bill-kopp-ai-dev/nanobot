@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import sys
@@ -56,6 +57,7 @@ def main() -> None:
     assert shutil.which("docker") is None
     assert not Path("/var/run/docker.sock").exists()
     weather, osm = sys.argv[1:3]
+    weather_backup: Path | None = None
     for server_id, image, update, config, tool, args in (
         ("f2weather", os.environ["F2_WEATHER_ID"], os.environ["F2_WEATHER_OLD_ID"],
          {"persistent": True}, "weather_convert_time",
@@ -112,11 +114,35 @@ def main() -> None:
             assert exc.status == 400
         else:
             raise AssertionError("wrong exclusion confirmation accepted")
-        mutate("exclude", server_id, expected_confirmation=server_id)
+        excluded = mutate("exclude", server_id, expected_confirmation=server_id)
+        if server_id == "f2weather":
+            weather_backup = Path(excluded["backup"])
         assert server_id not in DOMAIN.list()["servers"]
-    assert len(list((ROOT / "mcp-docker/backups").iterdir())) == 6
+    assert weather_backup is not None
+    section = load_config(ROOT / "config.json").tools.mcp_docker
+    DOMAIN.restore_backup(weather_backup, section.revision)
+    section = load_config(ROOT / "config.json").tools.mcp_docker
+    restored = section.servers["f2weather"]
+    DOMAIN._write_transition("f2weather", {
+        "schemaVersion": 1,
+        "server_id": "f2weather",
+        "action": "restart",
+        "state": "preparing",
+        "base_revision": section.revision,
+        "correlation_id": "d" * 32,
+        "before": {
+            "server": restored.model_dump(mode="json", by_alias=True),
+            "configuration": section.configurations["f2weather"].model_dump(mode="json", by_alias=True),
+        },
+    })
+    DOMAIN.list()
+    transition = json.loads((ROOT / "mcp-docker/transitions/f2weather.json").read_text())
+    assert transition["state"] == "committed" and transition["recovery"] == "rolled-back-to-config"
+    assert DOMAIN.list()["servers"]["f2weather"]["dockerObservation"] == "running"
+    mutate("exclude", "f2weather", expected_confirmation="f2weather")
+    assert len(list((ROOT / "mcp-docker/backups").iterdir())) == 7
     assert "secret" not in (ROOT / "mcp-docker/audit.jsonl").read_text()
-    print("F2 smoke: two real MCP fixtures, eight families, stale-wrapper gate, backups and socket separation", flush=True)
+    print("F5 smoke: two real MCP fixtures, eight families, backup restore, interrupted-transition recovery and socket separation", flush=True)
 
 
 if __name__ == "__main__":

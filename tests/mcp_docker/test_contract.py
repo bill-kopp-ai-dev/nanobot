@@ -11,7 +11,11 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from nanobot.agent.tools.mcp import MCPToolWrapper, _configured_servers
+from nanobot.agent.tools.mcp import (
+    MCPToolWrapper,
+    _configured_servers,
+    _mcp_docker_transition_resolved,
+)
 from nanobot.config.loader import load_config, resolve_config_env_vars, save_config
 from nanobot.config.mcp_docker import (
     REDACTED_SECRET,
@@ -225,6 +229,102 @@ def test_list_reports_broker_rejection_when_observation_fails(tmp_path: Path) ->
     assert observed["tools"] == []
 
 
+def test_preparing_transition_is_reconciled_to_persisted_config(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(path), broker)
+    domain.act("install", payload(
+        "weather", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={"persistent": True},
+    ))
+    config = load_config(path)
+    section = config.tools.mcp_docker
+    server = section.servers["weather"]
+    host = section.configurations["weather"]
+    journal = {
+        "schemaVersion": 1,
+        "server_id": "weather",
+        "action": "configure",
+        "state": "preparing",
+        "base_revision": section.revision,
+        "correlation_id": "f" * 32,
+        "before": {
+            "server": server.model_dump(mode="json", by_alias=True),
+            "configuration": host.model_dump(mode="json", by_alias=True),
+        },
+    }
+    domain._write_transition("weather", journal)
+
+    result = domain.list()
+
+    transition = json.loads((tmp_path / "mcp-docker" / "transitions" / "weather.json").read_text())
+    assert transition["state"] == "committed"
+    assert transition["recovery"] == "rolled-back-to-config"
+    recovery_call = next(call for call in reversed(broker.calls) if call[0] == "recover")
+    assert recovery_call[2]["running"] is True
+    assert result["pendingTransitions"] == []
+    assert stat.S_IMODE((tmp_path / "mcp-docker" / "transitions" / "weather.json").stat().st_mode) == 0o600
+
+
+def test_unresolved_transition_blocks_further_mutations(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(path), broker)
+    domain.act("install", payload(
+        "weather", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={},
+    ))
+    broker.fail = True
+    domain._write_transition("weather", {
+        "schemaVersion": 1,
+        "server_id": "weather",
+        "action": "configure",
+        "state": "preparing",
+        "base_revision": 99,
+        "correlation_id": "e" * 32,
+        "before": None,
+    })
+
+    with pytest.raises(DomainError) as error:
+        domain.act("restart", payload("weather", 1, expected_server_revision=1))
+    assert error.value.status == 503
+
+
+def test_recovery_finishes_exclusion_after_config_commit(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(path), broker)
+    domain.act("install", payload(
+        "weather", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={},
+    ))
+    current = domain.config.load().tools.mcp_docker
+    domain.act("exclude", payload(
+        "weather", current.revision, expected_server_revision=current.servers["weather"].revision,
+        expected_confirmation="weather",
+    ))
+    revision = domain.config.load().tools.mcp_docker.revision
+    domain._write_transition("weather", {
+        "schemaVersion": 1,
+        "server_id": "weather",
+        "action": "exclude",
+        "state": "preparing",
+        "base_revision": revision - 1,
+        "correlation_id": "c" * 32,
+        "before": {"server": {}, "configuration": {}},
+    })
+
+    snapshot = domain.list()
+
+    journal = json.loads((tmp_path / "mcp-docker" / "transitions" / "weather.json").read_text())
+    assert journal["recovery"] == "committed-exclude"
+    assert snapshot["servers"] == {}
+    assert broker.calls[-1][0] == "exclude"
+
+
 def test_competing_writers_and_separate_operator_password(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
     stale = load_config(path)
@@ -317,7 +417,8 @@ def test_managed_wrapper_gate_rejects_disabled_tool_after_runtime_change(tmp_pat
         section = load_config(config_path).tools.mcp_docker
         current = section.servers.get(server_id)
         return bool(
-            current is not None
+            _mcp_docker_transition_resolved(config_path, server_id)
+            and current is not None
             and current.active
             and current.state == "running"
             and current.source.reference == source
@@ -337,6 +438,14 @@ def test_managed_wrapper_gate_rejects_disabled_tool_after_runtime_change(tmp_pat
         "ToolDef", (), {"name": "forecast", "description": "", "inputSchema": {"type": "object", "properties": {}}}
     )())
     wrapper.set_managed_gate(permitted)
+    assert "ok" in asyncio.run(wrapper.execute())
+
+    journal_path = path.parent / "mcp-docker" / "transitions" / f"{server_id}.json"
+    journal_path.parent.mkdir(parents=True)
+    journal_path.write_text(json.dumps({"server_id": server_id, "state": "preparing"}))
+    denied_pending = asyncio.run(wrapper.execute())
+    assert getattr(denied_pending, "is_error", False)
+    journal_path.write_text(json.dumps({"server_id": server_id, "state": "committed"}))
     assert "ok" in asyncio.run(wrapper.execute())
 
     # Disable the tool in config; the next call must be rejected without

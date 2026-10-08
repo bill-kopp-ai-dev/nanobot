@@ -743,6 +743,8 @@ export interface McpDockerSnapshot {
     revision: number;
     correlation_id: string;
   }>;
+  pendingTransitions: Array<{ server_id: string; state: string; action?: string }>;
+  backups: Array<{ backupId: string; serverId: string; sourceRevision: number }>;
 }
 
 export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot> {

@@ -243,7 +243,7 @@ _WEBUI_MUTATION_PATHS = {
         f"settings.mcp_docker.{action.replace('-', '_')}": f"/api/settings/mcp-docker/{action}"
         for action in (
             "install", "configure", "disable-tool", "enable-tool", "activate",
-            "deactivate", "update-image", "restart", "start", "stop", "exclude",
+            "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
             "operator-setup", "operator-rotate",
         )
     },

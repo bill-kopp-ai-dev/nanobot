@@ -71,7 +71,7 @@ class TestSocket {
 }
 
 async function startTemporaryChat(text: string) {
-  fireEvent.click(await screen.findByRole("button", { name: "Temporary chat" }));
+  fireEvent.click(await findShellButton("Temporary chat"));
   fireEvent.change(screen.getByLabelText("Message input"), { target: { value: text } });
   fireEvent.click(screen.getByRole("button", { name: "Send message" }));
   await waitFor(() => expect(window.location.hash).toMatch(/^#\/temporary\//));
@@ -94,6 +94,11 @@ async function startTemporaryChat(text: string) {
 async function selectTopic(name: string) {
   const sidebar = screen.getByRole("navigation", { name: "Sidebar navigation" });
   fireEvent.click(within(sidebar).getByRole("button", { name }));
+}
+
+function findShellButton(name: string) {
+  // App's first authenticated chat route includes a lazy ThreadShell import.
+  return screen.findByRole("button", { name }, { timeout: 5_000 });
 }
 
 describe("temporary chat navigation", () => {
@@ -156,7 +161,7 @@ describe("temporary chat navigation", () => {
     async (view) => {
       window.history.replaceState(null, "", `/#/${view}?chat=websocket%3Aregular`);
       render(<App />);
-      await screen.findByRole("button", { name: "Back to chat" });
+      await findShellButton("Back to chat");
       act(() => TestSocket.current.open());
       await waitFor(() => expect(window.location.hash).toBe(`#/${view}`));
       expect(window.history.state.nanobotReturnChat.key).toBe("websocket:regular");
@@ -168,16 +173,16 @@ describe("temporary chat navigation", () => {
 
   it("restores the return destination after refreshing a clean settings URL", async () => {
     const first = render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     await selectTopic("Regular topic");
     fireEvent.click(screen.getByRole("button", { name: "Settings", exact: true }));
-    await screen.findByRole("button", { name: "Back to chat" });
+    await findShellButton("Back to chat");
     expect(window.location.hash).toBe("#/settings");
     first.unmount();
     vi.mocked(fetch).mockClear();
     render(<App />);
-    await screen.findByRole("button", { name: "Back to chat" });
+    await findShellButton("Back to chat");
     act(() => TestSocket.current.open());
     expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes("/webui-thread"))).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: "Back to chat" }));
@@ -187,11 +192,11 @@ describe("temporary chat navigation", () => {
 
   it("returns from settings to the same temporary chat and keeps its live messages", async () => {
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Temporary navigation check");
     fireEvent.click(screen.getByRole("button", { name: "Settings", exact: true }));
-    await screen.findByRole("button", { name: "Back to chat" });
+    await findShellButton("Back to chat");
     expect(window.location.hash).toBe("#/settings");
     act(() => TestSocket.current.receive({ event: "message", chat_id: chatId, text: "Reply while in settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to chat" }));
@@ -207,7 +212,7 @@ describe("temporary chat navigation", () => {
       .mockResolvedValueOnce({ token: "old", api_token: "old", ws_path: "/", expires_in: 30 })
       .mockResolvedValue({ token: "renewed", api_token: "renewed", ws_path: "/", expires_in: 300 });
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     await selectTopic("Regular topic");
     fireEvent.click(await screen.findByRole("button", { name: "notes.txt" }));
@@ -235,7 +240,7 @@ describe("temporary chat navigation", () => {
       addEventListener: vi.fn(), removeEventListener: vi.fn(),
     }));
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     if (temporary) {
       const chatId = await startTemporaryChat("Show example files");
@@ -320,7 +325,7 @@ describe("temporary chat navigation", () => {
     Object.defineProperty(HTMLIFrameElement.prototype, "credentialless", { configurable: true, value: false });
     withFiles = true;
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     await startTemporaryChat("Synthetic separate session");
     await selectTopic("Regular topic");
@@ -365,7 +370,7 @@ describe("temporary chat navigation", () => {
   it("keeps the sidebar mounted across tabs, deduplicates repeated opens, and handles Escape below dialogs", async () => {
     withFiles = true;
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     await selectTopic("Regular topic");
     fireEvent.click(await screen.findByRole("button", { name: "notes.txt" }));
@@ -396,7 +401,7 @@ describe("temporary chat navigation", () => {
   it("forgets preview paths on temporary close and disconnect", async () => {
     const update = vi.spyOn(FilePreviewStore.prototype, "open");
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Show example files");
     act(() => TestSocket.current.receive({
@@ -416,7 +421,7 @@ describe("temporary chat navigation", () => {
 
   it("keeps messages when navigating to a regular workbench and back", async () => {
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Count from one to three");
 
@@ -435,7 +440,7 @@ describe("temporary chat navigation", () => {
     "preserves streamed output when the turn finishes %s",
     async (completion) => {
       render(<App />);
-      await screen.findByRole("button", { name: "Temporary chat" });
+      await findShellButton("Temporary chat");
       act(() => TestSocket.current.open());
       const chatId = await startTemporaryChat("Count from one to three");
       const socket = TestSocket.current;
@@ -473,7 +478,7 @@ describe("temporary chat navigation", () => {
       addEventListener: vi.fn(), removeEventListener: vi.fn(),
     }));
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     await startTemporaryChat("Count from one to three");
     await selectTopic("Second pane");
@@ -485,7 +490,7 @@ describe("temporary chat navigation", () => {
 
   it("retains deltas received just before switching away, before the next paint", async () => {
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Count from one to three");
     const turnId = TestSocket.current.sent.find((frame) => frame.type === "message")?.turn_id;
@@ -508,7 +513,7 @@ describe("temporary chat navigation", () => {
         addEventListener: vi.fn(), removeEventListener: vi.fn(),
       }));
       render(<App />);
-      await screen.findByRole("button", { name: "Temporary chat" });
+      await findShellButton("Temporary chat");
       act(() => TestSocket.current.open());
       const chatId = await startTemporaryChat("Count from one to three");
       const turnId = TestSocket.current.sent.find((frame) => frame.type === "message")?.turn_id;
@@ -535,7 +540,7 @@ describe("temporary chat navigation", () => {
   it("keeps multiple temporary chats isolated and releases the closed chat's cache", async () => {
     const deleteCache = vi.spyOn(ThreadMessageCache.prototype, "delete");
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const firstChatId = await startTemporaryChat("Count from one to three");
     const firstTurnId = TestSocket.current.sent.find((frame) => frame.type === "message")?.turn_id;
@@ -586,7 +591,7 @@ describe("temporary chat navigation", () => {
   it("still ends temporary chats and clears their cache on disconnect", async () => {
     const deleteCache = vi.spyOn(ThreadMessageCache.prototype, "delete");
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Count from one to three");
     await selectTopic("Regular topic");
@@ -604,7 +609,7 @@ describe("temporary chat navigation", () => {
 
   it("does not truncate a temporary reply that keeps streaming while away", async () => {
     render(<App />);
-    await screen.findByRole("button", { name: "Temporary chat" });
+    await findShellButton("Temporary chat");
     act(() => TestSocket.current.open());
     const chatId = await startTemporaryChat("Count from one to three");
     const turnId = TestSocket.current.sent.find((frame) => frame.type === "message")?.turn_id;

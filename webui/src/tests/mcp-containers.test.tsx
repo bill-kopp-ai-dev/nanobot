@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { McpContainersPage } from "@/components/McpContainersPage";
 import { ApiError, fetchMcpDockerOperatorBootstrap, fetchMcpDockerSnapshot } from "@/lib/api";
+import type { McpDockerSnapshot } from "@/lib/api";
 import type { NanobotClient } from "@/lib/nanobot-client";
 import { ClientProvider } from "@/providers/ClientProvider";
 
@@ -47,6 +48,8 @@ function snapshot() {
       },
     },
     history: [],
+    pendingTransitions: [],
+    backups: [],
   };
 }
 
@@ -83,6 +86,8 @@ describe("MCP container observability page", () => {
         revision: 2,
         correlation_id: "corr-1",
       }],
+      pendingTransitions: [],
+      backups: [],
     });
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: false });
     const client = clientStub();
@@ -111,6 +116,8 @@ describe("MCP container observability page", () => {
       allowRemoteAdmin: false,
       servers: {},
       history: [],
+      pendingTransitions: [],
+      backups: [],
     });
     const empty = render(
       <ClientProvider client={client} token="token">
@@ -173,7 +180,7 @@ describe("MCP container observability page", () => {
   it("sets up the separate operator password without requiring a prior password", async () => {
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: false });
     vi.mocked(fetchMcpDockerSnapshot).mockResolvedValue({
-      schemaVersion: 1, revision: 0, allowRemoteAdmin: false, servers: {}, history: [],
+      schemaVersion: 1, revision: 0, allowRemoteAdmin: false, servers: {}, history: [], pendingTransitions: [], backups: [],
     });
     const client = clientStub();
     render(
@@ -280,5 +287,35 @@ describe("MCP container observability page", () => {
       expect.any(Number),
     ));
     expect(await screen.findByText("Operator password rotated.")).toBeInTheDocument();
+  });
+
+  it("requires server ID confirmation before restoring a backup", async () => {
+    vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
+    const value = structuredClone(snapshot()) as McpDockerSnapshot;
+    value.backups = [{ backupId: "2026-10-07T18-00-00-weather-deadbeef", serverId: "weather-old", sourceRevision: 5 }];
+    vi.mocked(fetchMcpDockerSnapshot).mockResolvedValue(value);
+    const client = clientStub();
+    render(
+      <ClientProvider client={client} token="webui-token">
+        <McpContainersPage />
+      </ClientProvider>,
+    );
+
+    fireEvent.change(await screen.findByLabelText("Operator password"), { target: { value: "admin-secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock management" }));
+    const restore = screen.getByRole("button", { name: "Restore" });
+    expect(restore).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Type the server ID to restore"), { target: { value: "weather-old" } });
+    fireEvent.click(restore);
+
+    await waitFor(() => expect(client.requestMutation).toHaveBeenCalledWith(
+      "settings.mcp_docker.restore",
+      {
+        backup_id: "2026-10-07T18-00-00-weather-deadbeef",
+        expected_revision: 4,
+        operator_admin: "admin-secret",
+      },
+      expect.any(Number),
+    ));
   });
 });

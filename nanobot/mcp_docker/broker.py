@@ -26,7 +26,7 @@ from nanobot.mcp_docker.mount_policy import MountPolicy
 DOCKER = "/usr/bin/docker"
 PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
-                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "observe"})
+                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover", "observe"})
 MCP = frozenset({"initialize", "notifications/initialized", "tools/list", "tools/call"})
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
@@ -316,6 +316,7 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     fields = {"install": {"source", "configuration"}, "configure": {"configuration"},
               "update-image": {"source"}, "disable-tool": {"tool"}, "enable-tool": {"tool"},
               "reconcile": {"source", "configuration", "active", "tools_disabled"},
+              "recover": {"source", "configuration", "active", "tools_disabled", "running"},
               "exclude": {"expected_confirmation"}}
     if set(data) - fields.get(op, set()):
         raise BrokerError("unsupported broker action fields", 400)
@@ -333,13 +334,15 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
                 raise BrokerError("invalid image or configuration", 400) from exc
             server = ManagedServer(server_id, source, host)
             _STORE[server_id] = server
-        elif op == "reconcile":
+        elif op in {"reconcile", "recover"}:
             try:
                 source = DockerImageSource.model_validate(data["source"])
                 host = DockerHostConfig.model_validate(data["configuration"])
                 active = data["active"]
                 disabled = data["tools_disabled"]
-                if type(active) is not bool or not isinstance(disabled, list) or not all(isinstance(t, str) for t in cast(list[object], disabled)):
+                desired_running = data.get("running", active)
+                if (type(active) is not bool or type(desired_running) is not bool or
+                    not isinstance(disabled, list) or not all(isinstance(t, str) for t in cast(list[object], disabled))):
                     raise ValueError("invalid reconcile state")
             except (KeyError, ValidationError, ValueError) as exc:
                 raise BrokerError("invalid reconcile state", 400) from exc
@@ -349,7 +352,18 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
             else:
                 server.source, server.host = source, host
             server.active, server.disabled = active, set(cast(list[str], disabled))
+            if op == "recover":
+                _remove(server_id)
+                server.tools = []
+                if server.active and desired_running:
+                    _spawn(server)
+                    server.tools = _discover(server_id)
+                return {"running": _running(server_id), "tools": server.tools}
         elif server is None:
+            if op == "exclude":
+                if _inspect(server_id) is not None:
+                    _remove(server_id)
+                return {"running": False, "tools": []}
             raise BrokerError("unknown server_id", 404)
     assert server is not None
     with server.lock:

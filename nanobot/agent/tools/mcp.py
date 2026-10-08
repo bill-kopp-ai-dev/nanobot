@@ -1230,7 +1230,8 @@ async def connect_mcp_servers(
                             section = load_config(config_path).tools.mcp_docker
                             current = section.servers.get(server_id)
                             return bool(
-                                current is not None
+                                _mcp_docker_transition_resolved(config_path, server_id)
+                                and current is not None
                                 and current.active
                                 and current.state == "running"
                                 and current.source.reference == source
@@ -1436,7 +1437,9 @@ def _configured_servers(config: Config) -> dict[str, MCPServerConfig]:
     except BrokerUnavailableError:
         return servers
     for server_id, server in config.tools.mcp_docker.servers.items():
-        if not server.active or server.state != "running":
+        config_path = config.runtime_data_dir / "config.json"
+        if (not server.active or server.state != "running" or
+            not _mcp_docker_transition_resolved(config_path, server_id)):
             continue
         name = f"percival_docker_{server_id}"
         if name in servers:
@@ -1448,6 +1451,21 @@ def _configured_servers(config: Config) -> dict[str, MCPServerConfig]:
             enabled_tools=[raw for raw in server.tools if raw not in server.tools_disabled],
         )
     return servers
+
+
+def _mcp_docker_transition_resolved(config_path: Path, server_id: str) -> bool:
+    """Fail closed for MCP tools until a journaled Docker transition resolves."""
+    path = config_path.parent / "mcp-docker" / "transitions" / f"{server_id}.json"
+    try:
+        journal: object = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return True
+    except (OSError, ValueError, TypeError):
+        return False
+    if not isinstance(journal, dict):
+        return False
+    value = cast(dict[str, object], journal)
+    return value.get("server_id") == server_id and value.get("state") in {"committed", "failed"}
 
 
 def _managed_specs(servers: Mapping[str, MCPServerConfig], config_path: Path | None) -> dict[str, tuple[Path, str]]:
@@ -1521,6 +1539,8 @@ class MCPProvider:
                 available.add(name)
                 continue
             _path, server_id = spec
+            if not _mcp_docker_transition_resolved(path, server_id):
+                continue
             server = config.tools.mcp_docker.servers.get(server_id)
             host = config.tools.mcp_docker.configurations.get(server_id)
             if server is None or host is None or not server.active:

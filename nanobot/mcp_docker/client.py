@@ -13,7 +13,7 @@ from nanobot.config.mcp_docker import SERVER_ID
 
 _OPERATIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
-    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile",
+    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
     "observe",
 })
 

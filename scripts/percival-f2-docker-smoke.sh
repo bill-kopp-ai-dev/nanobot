@@ -87,4 +87,4 @@ docker cp "$ROOT/tests/mcp_docker/smoke_driver.py" "$GATEWAY:/tmp/percival_f2_sm
 docker exec --user 1000:1000 "$GATEWAY" python /tmp/percival_f2_smoke.py "$WEATHER" "$OSM"
 
 BROKER_ENGINE="$(docker exec "$BROKER" /usr/bin/docker version --format '{{.Client.Version}}/{{.Server.Version}}')"
-echo "F2 Docker smoke passed with broker Docker Client/Server $BROKER_ENGINE."
+echo "Docker MCP smoke passed with broker Docker Client/Server $BROKER_ENGINE."

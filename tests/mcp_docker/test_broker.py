@@ -32,6 +32,32 @@ def test_actions_check_readiness_and_exclusion_confirmation(monkeypatch: pytest.
     assert failure.value.status == 400
 
 
+def test_recovery_rebuilds_active_container_or_preserves_persistent_stop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "_STORE", {})
+    removals: list[str] = []
+    spawns: list[str] = []
+    monkeypatch.setattr(broker, "_inspect", lambda _server: None)
+    monkeypatch.setattr(broker, "_remove", lambda server_id: removals.append(server_id))
+    monkeypatch.setattr(broker, "_spawn", lambda server: spawns.append(server.server_id))
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+    source = {"type": "local-image", "reference": "sha256:" + "a" * 64}
+
+    stopped = broker.action("recover", "weather", {
+        "source": source, "configuration": {"persistent": True}, "active": True,
+        "tools_disabled": [], "running": False,
+    })
+    running = broker.action("recover", "osm", {
+        "source": source, "configuration": {}, "active": True,
+        "tools_disabled": [], "running": True,
+    })
+
+    assert stopped == {"running": False, "tools": []}
+    assert running == {"running": False, "tools": ["forecast"]}
+    assert removals == ["weather", "osm"]
+    assert spawns == ["osm"]
+
+
 def test_observe_is_read_only_and_reports_docker_and_mcp_separately(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
     source = {"type": "local-image", "reference": "sha256:" + "a" * 64}
