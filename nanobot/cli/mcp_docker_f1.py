@@ -184,8 +184,6 @@ def restore(
     apply: bool = typer.Option(False, "--apply", help="Apply after preview and CAS validation"),
 ) -> None:
     """Preview or restore one excluded server using the gateway writer and broker."""
-    import hashlib
-
     from nanobot.config.loader import get_config_path, load_config
     from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
     from nanobot.mcp_docker.service import DockerMcpService, DomainError
@@ -209,7 +207,7 @@ def restore(
         manifest_obj = cast(dict[str, Any], manifest)
         checksum = manifest_obj.pop("sha256", None)
         canonical = json.dumps(manifest_obj, sort_keys=True, separators=(",", ":")).encode()
-        if not isinstance(checksum, str) or checksum != hashlib.sha256(canonical).hexdigest():
+        if not isinstance(checksum, str) or not hmac.compare_digest(checksum, hashlib.sha256(canonical).hexdigest()):
             raise ValueError("backup checksum mismatch")
         current = load_config(path).tools.mcp_docker
         if current.revision != expected_revision:
