@@ -54,7 +54,13 @@ class DockerHostConfig(Base):
     # Full host file access is the default. A reduced set is explicit; the
     # broker still derives and verifies its mandatory covers for every spawn.
     mounts: list[str] | None = None
-    network: Literal["none"] = "none"
+    # ``none`` keeps the container off every Docker network (and the host's
+    # loopback, by inheritance); ``bridge`` enables the default bridge for
+    # servers that must reach external APIs (AgentMail, Open-Meteo, OSM,
+    # LLM providers). State and Docker data-root covers still apply, so the
+    # container cannot reach the gateway's mcp-docker state or the Docker
+    # daemon. The default stays ``none`` so a missing field is always safe.
+    network: Literal["none", "bridge"] = "none"
     env: dict[str, DockerEnvValue] = Field(default_factory=dict)
 
     @field_validator("mounts")

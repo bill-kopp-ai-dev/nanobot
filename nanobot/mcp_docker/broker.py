@@ -160,7 +160,8 @@ def _spawn(server: ManagedServer) -> None:
     reference = image_reference(server.source)
     args = ["run", "-d", "-i", "--pull=never", "--name", _name(server.server_id),
             "--label", f"percival.mcp-docker.server-id={server.server_id}",
-            "--network=none", "--cap-drop=ALL", "--security-opt=no-new-privileges",
+            f"--network={server.host.network}", "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
             *policy.docker_args(server.host.mounts)]
     for key, entry in sorted(server.host.env.items()):
         value = entry.value
@@ -177,7 +178,9 @@ def _spawn(server: ManagedServer) -> None:
     if container is None:
         raise BrokerError("container unavailable after spawn")
     host_config = container.get("HostConfig")
-    if not isinstance(host_config, dict) or cast(dict[str, object], host_config).get("NetworkMode") != "none":
+    expected_network = server.host.network
+    actual_network = cast(dict[str, object], host_config).get("NetworkMode") if isinstance(host_config, dict) else None
+    if actual_network != expected_network:
         raise BrokerError("container network policy mismatch")
     tmpfs = cast(dict[str, object], host_config).get("Tmpfs")
     plan = policy.docker_args(server.host.mounts)
