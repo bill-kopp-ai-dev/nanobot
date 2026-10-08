@@ -46,8 +46,36 @@ def test_observe_is_read_only_and_reports_docker_and_mcp_separately(monkeypatch:
         "dockerObservation": "running",
         "mcpConnectivity": "connected",
         "tools": ["forecast"],
+        "effectiveConfiguration": {"network": "unknown", "mounts": []},
     }
     assert calls == ["image"]
+
+
+def test_observe_reports_effective_mount_targets_without_host_source_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "image_reference", lambda _source: None)
+    monkeypatch.setattr(broker, "_inspect", lambda _server: {
+        "State": {"Running": True},
+        "HostConfig": {"NetworkMode": "none"},
+        "Mounts": [
+            {"Type": "bind", "Source": "/host/secrets", "Destination": "/host/srv/data", "RW": True},
+            {"Type": "tmpfs", "Source": "", "Destination": "/host/var/lib/docker", "RW": True},
+        ],
+    })
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+
+    result = broker.action("observe", "weather", {"source": {
+        "type": "local-image", "reference": "sha256:" + "a" * 64,
+    }})
+
+    assert result["effectiveConfiguration"] == {
+        "network": "none",
+        "mounts": [
+            {"type": "bind", "destination": "/host/srv/data", "readWrite": True},
+            {"type": "tmpfs", "destination": "/host/var/lib/docker", "readWrite": True},
+        ],
+    }
+    assert "/host/secrets" not in str(result)
 
 
 def test_observe_reports_missing_image_without_claiming_container_or_mcp_state(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,7 +132,8 @@ def test_observe_reports_disconnected_when_container_is_stopped(monkeypatch: pyt
     result = broker.action("observe", "weather", {"source": {
         "type": "local-image", "reference": "sha256:" + "a" * 64,
     }})
-    assert result == {"dockerObservation": "stopped", "mcpConnectivity": "disconnected", "tools": []}
+    assert result == {"dockerObservation": "stopped", "mcpConnectivity": "disconnected", "tools": [],
+                      "effectiveConfiguration": {"network": "unknown", "mounts": []}}
 
 
 def test_observe_reports_container_missing_when_inspect_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -130,4 +159,19 @@ def test_observe_reports_disconnected_when_discover_fails(monkeypatch: pytest.Mo
     result = broker.action("observe", "weather", {"source": {
         "type": "local-image", "reference": "sha256:" + "a" * 64,
     }})
-    assert result == {"dockerObservation": "running", "mcpConnectivity": "disconnected", "tools": []}
+    assert result == {"dockerObservation": "running", "mcpConnectivity": "disconnected", "tools": [],
+                      "effectiveConfiguration": {"network": "unknown", "mounts": []}}
+
+
+def test_observe_returns_network_and_mounts_even_when_inspect_minimal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Inspect output that lacks HostConfig/Mounts must not crash and must
+    report "unknown" instead of raising inside the broker."""
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "image_reference", lambda _source: None)
+    monkeypatch.setattr(broker, "_inspect", lambda _server: {"State": {"Running": True}})
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+
+    result = broker.action("observe", "weather", {"source": {
+        "type": "local-image", "reference": "sha256:" + "a" * 64,
+    }})
+    assert result["effectiveConfiguration"] == {"network": "unknown", "mounts": []}

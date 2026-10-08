@@ -20,6 +20,7 @@ from nanobot.config.mcp_docker import (
     McpDockerConfig,
 )
 from nanobot.config.schema import Config, MCPServerConfig
+from nanobot.mcp_docker import broker as broker_module
 from nanobot.mcp_docker.client import BrokerUnavailableError
 from nanobot.mcp_docker.operator import OperatorCredential
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
@@ -39,7 +40,13 @@ class FakeBroker:
         if self.fail:
             raise BrokerUnavailableError("offline")
         if operation == "observe":
-            return {"dockerObservation": "running", "mcpConnectivity": "connected", "tools": ["second"]}
+            return {
+                "dockerObservation": "running", "mcpConnectivity": "connected", "tools": ["second"],
+                "effectiveConfiguration": {
+                    "network": "none",
+                    "mounts": [{"type": "bind", "destination": "/host/srv/data", "readWrite": True}],
+                },
+            }
         return {"running": operation not in {"stop", "deactivate", "exclude"}, "tools": ["second"]}
 
 
@@ -76,6 +83,10 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
     assert "abcdefghijklm" not in json.dumps(read)
     assert read["servers"]["alpha"]["dockerObservation"] == "running"
     assert read["servers"]["alpha"]["mcpConnectivity"] == "connected"
+    assert read["servers"]["alpha"]["effectiveConfiguration"] == {
+        "network": "none",
+        "mounts": [{"type": "bind", "destination": "/host/srv/data", "readWrite": True}],
+    }
     assert read["servers"]["alpha"]["tools"] == ["second"]
     assert load_config(path).tools.mcp_docker.configurations["alpha"].env["TOKEN"].value == "abcdefghijklm"
     resolve_config_env_vars(load_config(path))  # broker reference is not resolved in the gateway
@@ -147,6 +158,71 @@ def test_eight_families_and_cas(tmp_path: Path) -> None:
     with pytest.raises(DomainError) as stale:
         domain.act("install", payload("weather", 0, source={"type": "local-image", "reference": IMAGE}, configuration={}))
     assert stale.value.status == 409
+
+
+def test_list_sanitizes_unknown_mount_types_and_unhashable_values(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    domain = DockerMcpService(WebUISettingsConfig(path), FakeBroker())
+
+    class WeirdBroker(FakeBroker):
+        def action(self, operation: str, server_id: str, data: dict) -> dict:
+            if operation != "observe":
+                return super().action(operation, server_id, data)
+            return {
+                "dockerObservation": "running",
+                "mcpConnectivity": "connected",
+                "tools": ["ok"],
+                "effectiveConfiguration": {
+                    "network": "bridge",
+                    "mounts": [
+                        {"type": "overlay", "destination": "/host/etc", "readWrite": False},
+                        {"type": "bind", "destination": "/host/secret", "readWrite": True},
+                        {"type": ["weird"], "destination": "/host/list", "readWrite": True},
+                        {"type": None, "destination": "/host/null", "readWrite": True},
+                        {"destination": "/host/missing-type", "readWrite": True},
+                        {"type": "bind", "destination": 12345, "readWrite": True},
+                        {"type": "bind", "destination": "/host/string-readwrite", "readWrite": "yes"},
+                    ],
+                },
+            }
+
+    domain = DockerMcpService(WebUISettingsConfig(path), WeirdBroker())
+    config = load_config(path)
+    config.tools.mcp_docker.servers["alpha"] = DockerServer(
+        server_id="alpha",
+        source={"type": "local-image", "reference": IMAGE},
+        state="running",
+    )
+    config.tools.mcp_docker.configurations["alpha"] = {}
+    save_config(config, path)
+
+    result = domain.list()
+    mounts = result["servers"]["alpha"]["effectiveConfiguration"]["mounts"]
+    assert mounts == [{"type": "bind", "destination": "/host/secret", "readWrite": True}]
+
+
+def test_list_reports_broker_rejection_when_observation_fails(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.servers["alpha"] = DockerServer(
+        server_id="alpha",
+        source={"type": "local-image", "reference": IMAGE},
+        state="running",
+    )
+    config.tools.mcp_docker.configurations["alpha"] = {}
+    save_config(config, path)
+
+    class BrokenBroker(FakeBroker):
+        def action(self, operation: str, server_id: str, data: dict) -> dict:
+            raise broker_module.BrokerError("container inspection unavailable", 503)
+
+    domain = DockerMcpService(WebUISettingsConfig(path), BrokenBroker())
+    result = domain.list()
+    observed = result["servers"]["alpha"]
+    assert observed["dockerObservation"] == "unknown"
+    assert observed["mcpConnectivity"] == "unknown"
+    assert observed["observationError"] == "Docker MCP broker rejected the observation request"
+    assert observed["tools"] == []
 
 
 def test_competing_writers_and_separate_operator_password(tmp_path: Path) -> None:

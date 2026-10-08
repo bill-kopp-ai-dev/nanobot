@@ -6,6 +6,7 @@ import { useClient } from "@/providers/ClientProvider";
 import { ApiError, fetchMcpDockerSnapshot, type McpDockerSnapshot } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { McpDockerManagement } from "@/components/McpDockerManagement";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -113,15 +114,16 @@ export function McpContainersPage() {
             <div className="h-36 animate-pulse rounded-lg bg-muted/40 motion-reduce:animate-none" />
           </div>
         ) : snapshot && entries.length === 0 ? (
-          <section className="rounded-xl border border-dashed p-8 text-center">
+          <div className="space-y-6"><section className="rounded-xl border border-dashed p-8 text-center">
             <Box aria-hidden="true" className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
             <h2 className="font-medium">{t("mcpDocker.emptyTitle", { defaultValue: "No Docker MCP servers" })}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("mcpDocker.emptyDescription", { defaultValue: "Installed Docker MCP servers will appear here." })}
             </p>
-          </section>
+          </section><McpDockerManagement snapshot={snapshot} selectedId={null} selected={undefined} refresh={refresh} /></div>
         ) : snapshot ? (
-          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(15rem,0.8fr)_minmax(0,1.5fr)]">
+          <div className="space-y-6">
+          {entries.length > 0 && <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(15rem,0.8fr)_minmax(0,1.5fr)]">
             <section aria-labelledby="mcp-server-list-title" className="min-w-0 rounded-xl border">
               <h2 id="mcp-server-list-title" className="border-b px-4 py-3 text-sm font-semibold">
                 {t("mcpDocker.servers", { defaultValue: "Servers" })} <span className="text-muted-foreground">({entries.length})</span>
@@ -174,6 +176,10 @@ export function McpContainersPage() {
                       <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.mounts", { defaultValue: "Mount reductions" })}</dt><dd className="break-words">{selected.configuration.mounts?.length ? selected.configuration.mounts.join(", ") : t("mcpDocker.defaultHostAccess", { defaultValue: "Default host file access with mandatory control-plane covers" })}</dd></div>
                       <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.environment", { defaultValue: "Environment metadata" })}</dt><dd>{Object.entries(selected.configuration.env).length === 0 ? t("mcpDocker.none", { defaultValue: "None" }) : Object.entries(selected.configuration.env).map(([name, entry]) => `${name} (${entry.kind === "secret" ? entry.maskHint ?? "••••" : entry.kind})`).join(", ")}</dd></div>
                     </dl>
+                    <div className="mt-4 border-t pt-3">
+                      <h4 className="text-xs font-semibold">{t("mcpDocker.effectiveConfiguration", { defaultValue: "Observed effective Docker configuration" })}</h4>
+                      {selected.effectiveConfiguration ? <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2"><div><dt className="text-muted-foreground">{t("mcpDocker.network", { defaultValue: "Network" })}</dt><dd>{selected.effectiveConfiguration.network}</dd></div><div className="sm:col-span-2"><dt className="text-muted-foreground">{t("mcpDocker.effectiveMounts", { defaultValue: "Actual mounts (target, type, access)" })}</dt><dd className="break-words">{selected.effectiveConfiguration.mounts.length ? selected.effectiveConfiguration.mounts.map((mount) => `${mount.destination} (${mount.type}, ${mount.readWrite ? "R/W" : "RO"})`).join(", ") : t("mcpDocker.none", { defaultValue: "None" })}</dd></div></dl> : <p className="mt-2 text-xs text-muted-foreground">{t("mcpDocker.effectiveUnknown", { defaultValue: "Effective Docker settings are unavailable until the broker can inspect the container." })}</p>}
+                    </div>
                   </div>
                   <div className="mt-5 border-t pt-4">
                     <h3 className="text-sm font-semibold">{t("mcpDocker.tools", { defaultValue: "Discovered tools" })}</h3>
@@ -196,6 +202,8 @@ export function McpContainersPage() {
                 </section>
               </section>
             )}
+          </div>}
+          <McpDockerManagement snapshot={snapshot} selectedId={selectedId} selected={selected} refresh={refresh} />
           </div>
         ) : null}
       </div>

@@ -26,6 +26,7 @@ from nanobot.config.mcp_docker import (
     DockerServer,
 )
 from nanobot.config.schema import Config
+from nanobot.mcp_docker.broker import BrokerError
 from nanobot.mcp_docker.client import BrokerUnavailableError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
@@ -74,9 +75,41 @@ class DockerMcpService:
                     "mcpConnectivity": "unknown",
                     "observationError": "Docker MCP broker unavailable",
                 }
+            except BrokerError:
+                observation = {
+                    "dockerObservation": "unknown",
+                    "mcpConnectivity": "unknown",
+                    "observationError": "Docker MCP broker rejected the observation request",
+                }
             docker_state = observation.get("dockerObservation")
             mcp_state = observation.get("mcpConnectivity")
             observed_tools = observation.get("tools")
+            raw_effective = observation.get("effectiveConfiguration")
+            effective: dict[str, Any] | None = None
+            if isinstance(raw_effective, dict):
+                effective_data = cast(dict[str, object], raw_effective)
+                raw_network = effective_data.get("network")
+                raw_mounts = effective_data.get("mounts")
+                mounts: list[dict[str, object]] = []
+                if isinstance(raw_mounts, list):
+                    for raw_mount in cast(list[object], raw_mounts):
+                        if not isinstance(raw_mount, dict):
+                            continue
+                        mount = cast(dict[str, Any], raw_mount)
+                        mount_type = mount.get("type")
+                        mount_destination = mount.get("destination")
+                        mount_read_write = mount.get("readWrite")
+                        if (isinstance(mount_type, str) and mount_type in {"bind", "volume", "tmpfs"} and
+                            isinstance(mount_destination, str) and
+                            type(mount_read_write) is bool):
+                            mounts.append({"type": mount_type,
+                                           "destination": mount_destination,
+                                           "readWrite": mount_read_write})
+                effective = {
+                    "network": raw_network if isinstance(raw_network, str) and
+                    re.fullmatch(r"[A-Za-z0-9_.:/-]{1,128}", raw_network) else "unknown",
+                    "mounts": mounts,
+                }
             servers[key] = {
                 **server.model_dump(mode="json", by_alias=True),
                 "configuration": _redact(section.configurations[key]),
@@ -88,7 +121,8 @@ class DockerMcpService:
                 } else "unknown",
                 "tools": [name for name in cast(list[object], observed_tools) if isinstance(name, str)]
                 if isinstance(observed_tools, list) else server.tools,
-                **({"observationError": "Docker MCP broker unavailable"}
+                **({"effectiveConfiguration": effective} if effective is not None else {}),
+                **({"observationError": observation["observationError"]}
                    if observation.get("observationError") else {}),
             }
         return {

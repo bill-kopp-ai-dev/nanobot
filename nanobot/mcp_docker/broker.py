@@ -256,15 +256,42 @@ def _observe(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     container = _inspect(server_id)
     if container is None:
         return {"dockerObservation": "container-missing", "mcpConnectivity": "unknown", "tools": []}
+    host_config: object = container.get("HostConfig")
+    raw_mounts: object = container.get("Mounts")
+    network_mode: object = (
+        cast(dict[str, object], host_config).get("NetworkMode")
+        if isinstance(host_config, dict) else None
+    )
+    effective_mounts: list[dict[str, object]] = []
+    if isinstance(raw_mounts, list):
+        for raw_mount in cast(list[object], raw_mounts):
+            if not isinstance(raw_mount, dict):
+                continue
+            mount = cast(dict[str, object], raw_mount)
+            mount_type = mount.get("Type")
+            destination = mount.get("Destination")
+            if isinstance(mount_type, str) and isinstance(destination, str):
+                effective_mounts.append({
+                    "type": mount_type,
+                    "destination": destination,
+                    "readWrite": mount.get("RW") is True,
+                })
+    effective: dict[str, object] = {
+        "network": network_mode if isinstance(network_mode, str) else "unknown",
+        "mounts": effective_mounts,
+    }
     state = container.get("State")
     running = isinstance(state, dict) and cast(dict[str, object], state).get("Running") is True
     if not running:
-        return {"dockerObservation": "stopped", "mcpConnectivity": "disconnected", "tools": []}
+        return {"dockerObservation": "stopped", "mcpConnectivity": "disconnected", "tools": [],
+                "effectiveConfiguration": effective}
     try:
         tools = _discover(server_id)
     except BrokerError:
-        return {"dockerObservation": "running", "mcpConnectivity": "disconnected", "tools": []}
-    return {"dockerObservation": "running", "mcpConnectivity": "connected", "tools": tools}
+        return {"dockerObservation": "running", "mcpConnectivity": "disconnected", "tools": [],
+                "effectiveConfiguration": effective}
+    return {"dockerObservation": "running", "mcpConnectivity": "connected", "tools": tools,
+            "effectiveConfiguration": effective}
 
 
 class ManagedServer:

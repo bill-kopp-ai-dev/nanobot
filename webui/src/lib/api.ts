@@ -53,6 +53,7 @@ import { isSubagentTask } from "./subagent-tasks";
 
 const API_READ_TIMEOUT_MS = 20_000;
 const API_MUTATION_TIMEOUT_MS = 20_000;
+const MCP_DOCKER_MUTATION_TIMEOUT_MS = 120_000;
 const PACKAGE_MUTATION_TIMEOUT_MS = 150_000;
 const SLASH_COMMAND_LIFECYCLES = new Set<SlashCommandLifecycle>([
   "side_channel",
@@ -721,8 +722,12 @@ export interface McpDockerSnapshot {
     tools: string[];
     toolsDisabled: string[];
     dockerObservation: string;
-    mcpConnectivity: string;
-    observationError?: string;
+      mcpConnectivity: string;
+      effectiveConfiguration?: {
+        network: string;
+        mounts: Array<{ type: string; destination: string; readWrite: boolean }>;
+      };
+      observationError?: string;
     configuration: {
       persistent: boolean;
       mounts?: string[] | null;
@@ -742,6 +747,25 @@ export interface McpDockerSnapshot {
 
 export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot> {
   return request<McpDockerSnapshot>("/api/settings/mcp-docker/list", token, undefined, API_READ_TIMEOUT_MS);
+}
+
+export async function fetchMcpDockerOperatorBootstrap(token: string): Promise<{ configured: boolean }> {
+  return request<{ configured: boolean }>(
+    "/api/settings/mcp-docker/operator-bootstrap", token, undefined, API_READ_TIMEOUT_MS,
+  );
+}
+
+export function mutateMcpDocker<T>(
+  transport: WebUIMutationTransport,
+  action: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  return mutation<T>(
+    transport,
+    `settings.mcp_docker.${action.replaceAll("-", "_")}`,
+    payload,
+    MCP_DOCKER_MUTATION_TIMEOUT_MS,
+  );
 }
 
 export async function fetchSettingsUsage(

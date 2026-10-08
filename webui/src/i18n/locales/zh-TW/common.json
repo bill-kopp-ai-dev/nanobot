@@ -1,7 +1,7 @@
 {
   "mcpDocker": {
     "title": "MCP 容器",
-    "description": "Docker 管理之 MCP 伺服器唯讀狀態。",
+    "description": "使用操作員授權檢視及管理 Docker MCP 伺服器。",
     "refresh": "重新整理",
     "retry": "重試",
     "loadError": "無法載入 Docker MCP 狀態，請再試一次。",
@@ -26,7 +26,19 @@
     "noTools": "目前沒有觀察到工具。",
     "history": "最近活動",
     "noHistory": "此伺服器沒有活動記錄。",
-    "openObservability": "檢視狀態與活動"
+    "openObservability": "檢視狀態與活動",
+    "typeToUpdate": "Type {{server}} to confirm this image update",
+    "localSetupOnly": "Initial setup requires a local browser. This password is separate from WebUI sign-in.", "adminStatusError": "Could not check operator credential status.", "remoteBootstrap": "Credential status is local-only. Enter the existing operator password if remote administration is enabled.", "adminUnauthorized": "Operator password was rejected. Re-enter it and retry.", "adminForbidden": "Remote administration is disabled or this action requires a local browser.", "conflict": "The server changed since this page was loaded. The latest state has been refreshed.", "brokerUnavailable": "Docker MCP broker is unavailable; no successful result was confirmed.", "actionError": "The operation could not be completed. Review the server state before retrying.", "operationComplete": "Operation completed. Showing the verified server state.", "installComplete": "Server installed; its current observed state is shown below.",
+    "configureComplete": "Host configuration saved; the broker restarted the server when needed.",
+    "restartComplete": "Server restarted; its current observed state is shown below.",
+    "activateComplete": "Server reactivated; tools are exposed again.",
+    "deactivateComplete": "Server deactivated; tools remain in the registry but are no longer exposed.",
+    "startComplete": "Persistent container started.",
+    "stopComplete": "Persistent container stopped.",
+    "updateImageComplete": "Image updated and tools redetected.",
+    "toolEnabled": "Tool re-enabled in the registry.",
+    "toolDisabled": "Tool disabled in the registry.",
+    "excludeComplete": "Server backed up and excluded; the image and volumes remain on disk.", "management": "MCP Docker management", "operatorTitle": "Operator authorization", "checkingAdmin": "Checking local operator setup…", "adminPassword": "Operator password", "unlock": "Unlock management", "newPassword": "New operator password", "rotatePassword": "Rotate password", "passwordRotated": "Operator password rotated.", "passwordMemoryOnly": "The password remains in page memory only and is cleared when the WebSocket disconnects or this page closes.", "passwordConfigured": "Operator password configured.", "setPassword": "Set operator password", "setupPassword": "Configure password", "remoteAdminEnabled": "Remote operator administration is enabled by host configuration.", "remoteAdminDisabled": "Remote operator administration is disabled by default; enable it only in trusted host configuration.", "installTitle": "Install a local image", "installWarning": "Installation uses broad host file access by default, with mandatory control-plane covers. Only an exact local image ID or local RepoDigest is accepted; no pull is performed.", "serverId": "Server ID", "imageKind": "Image identity", "imageReference": "Full image ID or RepoDigest", "persistentOptIn": "Enable persistent start/stop (opt-in)", "restrictMounts": "Use reduced host paths instead of the default broad file access", "mountPaths": "Allowed absolute host paths, one per line", "networkFixed": "Network access is fixed to none by the current broker contract. Protected Docker/state paths are always covered and cannot be re-enabled here.", "envTitle": "Environment variables", "addEnv": "Add variable", "envName": "Variable name", "envKind": "Variable kind", "envValue": "Variable value", "keepSecret": "Leave unchanged to keep secret", "removeEnv": "Remove variable", "secretPreserved": "Existing secret stays unchanged; its value is never shown.", "typeServerId": "Type the server ID to confirm this broad-access installation", "install": "Install and activate", "reviewInstall": "I reviewed the installation scope and configuration preview.", "manageServer": "Manage {{server}}", "restart": "Restart", "deactivate": "Deactivate", "activate": "Activate", "start": "Start", "stop": "Stop", "toolAccess": "Per-tool access", "enableTool": "Enable", "disableTool": "Disable", "noToolsToManage": "No discovered tools are available to manage.", "configureHost": "Configure host", "mountRisk": "Host file access is broad by default. Adding narrower paths reduces access; removing or widening reductions increases access. Protected control-plane covers are enforced by the broker.", "scopeIncrease": "This change increases host access; the server ID confirmation is required.", "scopeReduction": "This change does not increase host path access. Review explicitly before saving.", "before": "Before", "after": "After", "reviewedDiff": "I reviewed the configuration diff and secret values are redacted.", "saveConfiguration": "Save configuration", "updateImage": "Update image", "reviewUpdate": "I reviewed the new immutable image identity and rollback behavior.", "excludeServer": "Exclude server", "excludeWarning": "This creates a backup, revokes tools and removes only the managed container and registry entry. It does not delete the image or volumes.", "typeToExclude": "Type {{server}} to exclude this server", "exclude": "Back up and exclude", "effectiveConfiguration": "Observed effective Docker configuration", "effectiveMounts": "Actual mounts (target, type, access)", "effectiveUnknown": "Effective Docker settings are unavailable until the broker can inspect the container."
   },
   "remote": {
     "compatibility": {
