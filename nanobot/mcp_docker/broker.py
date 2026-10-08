@@ -26,7 +26,7 @@ from nanobot.mcp_docker.mount_policy import MountPolicy
 DOCKER = "/usr/bin/docker"
 PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
-                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile"})
+                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "observe"})
 MCP = frozenset({"initialize", "notifications/initialized", "tools/list", "tools/call"})
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
@@ -36,6 +36,13 @@ class BrokerError(Exception):
     def __init__(self, message: str, status: int = 409):
         self.status = status
         super().__init__(message)
+
+
+class ImageMissingError(BrokerError):
+    """The referenced image is not present in the local Docker image cache."""
+
+    def __init__(self) -> None:
+        super().__init__("image missing locally", 409)
 
 
 def docker(*args: str, timeout: int = 35) -> str:
@@ -106,7 +113,9 @@ def image_reference(source: DockerImageSource) -> str:
         raw = docker("image", "inspect", "--format",
                      "{{.Id}}|{{range .RepoDigests}}{{.}}|{{end}}", reference)
     except BrokerError as exc:
-        raise BrokerError("image missing locally", 409) from exc
+        if exc.status == 404:
+            raise ImageMissingError() from exc
+        raise
     parts = raw.split("|")
     if (not parts or (source.type == "local-image" and parts[0] != reference) or
         (source.type == "pinned-image" and reference not in parts[1:])):
@@ -234,6 +243,30 @@ def _discover(server_id: str) -> list[str]:
     return [str(cast(dict[str, object], item)["name"]) for item in cast(list[object], tools)]
 
 
+def _observe(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    """Read Docker and MCP state without changing the container or broker registry."""
+    try:
+        source = DockerImageSource.model_validate(data["source"])
+    except (KeyError, ValidationError) as exc:
+        raise BrokerError("invalid observation source", 400) from exc
+    try:
+        image_reference(source)
+    except ImageMissingError:
+        return {"dockerObservation": "image-missing", "mcpConnectivity": "unknown", "tools": []}
+    container = _inspect(server_id)
+    if container is None:
+        return {"dockerObservation": "container-missing", "mcpConnectivity": "unknown", "tools": []}
+    state = container.get("State")
+    running = isinstance(state, dict) and cast(dict[str, object], state).get("Running") is True
+    if not running:
+        return {"dockerObservation": "stopped", "mcpConnectivity": "disconnected", "tools": []}
+    try:
+        tools = _discover(server_id)
+    except BrokerError:
+        return {"dockerObservation": "running", "mcpConnectivity": "disconnected", "tools": []}
+    return {"dockerObservation": "running", "mcpConnectivity": "connected", "tools": tools}
+
+
 class ManagedServer:
     def __init__(self, server_id: str, source: DockerImageSource, host: DockerHostConfig) -> None:
         self.server_id = server_id
@@ -249,6 +282,10 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     if op not in ADMIN or not SERVER_ID.fullmatch(server_id):
         raise BrokerError("unsupported broker action", 400)
     ready()
+    if op == "observe":
+        if set(data) != {"source"}:
+            raise BrokerError("unsupported observation fields", 400)
+        return _observe(server_id, data)
     fields = {"install": {"source", "configuration"}, "configure": {"configuration"},
               "update-image": {"source"}, "disable-tool": {"tool"}, "enable-tool": {"tool"},
               "reconcile": {"source", "configuration", "active", "tools_disabled"},

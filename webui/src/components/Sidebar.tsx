@@ -7,6 +7,7 @@ import {
 import {
   Archive,
   Brain,
+  Box,
   CalendarClock,
   MessageCircle,
   PanelLeftClose,
@@ -65,12 +66,13 @@ interface SidebarProps {
   onNewChatInProject: (projectPath: string, projectName: string) => void;
   onOpenSettings: () => void;
   onOpenApps: () => void;
+  onOpenMcpContainers: () => void;
   onOpenSkills: () => void;
   onOpenAutomations: () => void;
   onOpenChannels: () => void;
   onSettingsIntent?: () => void;
   onOpenSearch: () => void;
-  activeUtility?: "apps" | "skills" | "automations" | "channels" | null;
+  activeUtility?: "apps" | "mcp-containers" | "skills" | "automations" | "channels" | null;
   onToggleArchived: () => void;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -219,6 +221,15 @@ export function Sidebar(props: SidebarProps) {
           active={props.activeUtility === "apps"}
           selectionRef={activeActionRef}
           icon={<Blocks className="h-4 w-4" />}
+        />
+        <SidebarActionButton
+          collapsed={collapsed}
+          label={t("mcpDocker.title", { defaultValue: "MCP containers" })}
+          onClick={props.onOpenMcpContainers}
+          onIntent={props.onSettingsIntent}
+          active={props.activeUtility === "mcp-containers"}
+          selectionRef={activeActionRef}
+          icon={<Box className="h-4 w-4" />}
         />
         <SidebarActionButton
           collapsed={collapsed}

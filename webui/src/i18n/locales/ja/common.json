@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "MCP コンテナ",
+    "description": "Docker 管理の MCP サーバーの読み取り専用ステータスです。",
+    "refresh": "更新",
+    "retry": "再試行",
+    "loadError": "Docker MCP の状態を読み込めませんでした。もう一度お試しください。",
+    "unauthorized": "Docker MCP の状態を表示する権限がありません。",
+    "emptyTitle": "Docker MCP サーバーはありません",
+    "emptyDescription": "インストール済みの Docker MCP サーバーがここに表示されます。",
+    "servers": "サーバー",
+    "active": "有効",
+    "inactive": "無効",
+    "dockerState": "Docker の状態",
+    "mcpState": "MCP 接続状態",
+    "intentState": "ゲートウェイの意図",
+    "image": "イメージ種別",
+    "hostMetadata": "ホスト設定メタデータ",
+    "network": "ネットワーク",
+    "persistence": "永続コンテナ",
+    "mounts": "マウント縮小設定",
+    "defaultHostAccess": "必須の制御プレーン保護を適用した、ホストファイルへの既定アクセス",
+    "environment": "環境変数メタデータ",
+    "none": "なし",
+    "tools": "検出されたツール",
+    "noTools": "現在、観測されたツールはありません。",
+    "history": "最近のアクティビティ",
+    "noHistory": "このサーバーのアクティビティはありません。",
+    "openObservability": "状態とアクティビティを表示"
+  },
   "remote": {
     "compatibility": {
       "title": "バージョンと互換性",

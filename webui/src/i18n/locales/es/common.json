@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "Contenedores MCP",
+    "description": "Estado de solo lectura de los servidores MCP administrados por Docker.",
+    "refresh": "Actualizar",
+    "retry": "Reintentar",
+    "loadError": "No se pudo cargar el estado de MCP Docker. Inténtalo de nuevo.",
+    "unauthorized": "No tienes autorización para ver el estado de MCP Docker.",
+    "emptyTitle": "No hay servidores MCP Docker",
+    "emptyDescription": "Los servidores MCP Docker instalados aparecerán aquí.",
+    "servers": "Servidores",
+    "active": "activo",
+    "inactive": "inactivo",
+    "dockerState": "Estado de Docker",
+    "mcpState": "Conectividad MCP",
+    "intentState": "Intención del gateway",
+    "image": "Tipo de imagen",
+    "hostMetadata": "Metadatos de configuración del host",
+    "network": "Red",
+    "persistence": "Contenedor persistente",
+    "mounts": "Reducciones de montaje",
+    "defaultHostAccess": "Acceso predeterminado a archivos del host con exclusiones obligatorias del plano de control",
+    "environment": "Metadatos del entorno",
+    "none": "Ninguno",
+    "tools": "Herramientas descubiertas",
+    "noTools": "No se observaron herramientas.",
+    "history": "Actividad reciente",
+    "noHistory": "No hay actividad registrada para este servidor.",
+    "openObservability": "Ver estado y actividad"
+  },
   "remote": {
     "compatibility": {
       "title": "Versión y compatibilidad",

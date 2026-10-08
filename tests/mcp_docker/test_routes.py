@@ -10,6 +10,7 @@ import pytest
 from websockets.datastructures import Headers
 
 from nanobot.config.loader import load_config, save_config
+from nanobot.config.mcp_docker import DockerServer
 from nanobot.webui.http_utils import http_json_response
 from nanobot.webui.settings_routes import WebUISettingsRouter
 from nanobot.webui.settings_services import WebUISettingsServices
@@ -81,3 +82,31 @@ async def test_mutations_require_webui_and_operator_auth_for_each_call(tmp_path:
     save_config(config, tmp_path / "config.json")
     # Remote auth now passes; malformed request is rejected at the domain boundary.
     assert (await settings.dispatch(remote, request("install", {"operator_admin": "new-password"}), install)).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_observational_list_is_webui_authenticated_and_fails_closed_when_broker_is_offline(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.servers["weather"] = DockerServer(
+        server_id="weather",
+        source={"type": "local-image", "reference": "sha256:" + "a" * 64},
+    )
+    config.tools.mcp_docker.configurations["weather"] = {
+        "env": {"API_TOKEN": {"kind": "secret", "value": "not-for-the-response"}},
+    }
+    save_config(config, path)
+    local = SimpleNamespace(remote_address=("127.0.0.1", 4567))
+    route = "/api/settings/mcp-docker/list"
+    settings = router(path)
+
+    response = await settings.dispatch(local, request("list"), route)
+    payload = json.loads(response.body)
+
+    assert response.status_code == 200
+    observed = payload["servers"]["weather"]
+    assert observed["dockerObservation"] == "unknown"
+    assert observed["mcpConnectivity"] == "unknown"
+    assert observed["observationError"] == "Docker MCP broker unavailable"
+    assert "not-for-the-response" not in response.body.decode()
+    assert (await router(path, authorized=False).dispatch(local, request("list"), route)).status_code == 401

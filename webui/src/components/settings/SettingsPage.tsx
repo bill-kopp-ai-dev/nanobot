@@ -512,6 +512,13 @@ export function SettingsPage({
       case "apps":
         return (
           <div className="settings-stack">
+            <a
+              href="#/mcp-containers"
+              className="flex items-center justify-between gap-3 rounded-lg border p-4 text-sm font-medium transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span>{t("mcpDocker.title", { defaultValue: "MCP containers" })}</span>
+              <span className="text-muted-foreground">{t("mcpDocker.openObservability", { defaultValue: "View status and activity" })} →</span>
+            </a>
             <AppsCatalogSettings
               setupName={mcpSetupName}
               onSetupOpened={() => setMcpSetupName(null)}

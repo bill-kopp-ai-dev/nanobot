@@ -38,6 +38,8 @@ class FakeBroker:
         self.calls.append((operation, server_id, data))
         if self.fail:
             raise BrokerUnavailableError("offline")
+        if operation == "observe":
+            return {"dockerObservation": "running", "mcpConnectivity": "connected", "tools": ["second"]}
         return {"running": operation not in {"stop", "deactivate", "exclude"}, "tools": ["second"]}
 
 
@@ -72,6 +74,9 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
     assert read["servers"]["alpha"]["configuration"]["env"]["TOKEN"]["value"] == REDACTED_SECRET
     assert read["servers"]["alpha"]["configuration"]["env"]["TOKEN"]["maskHint"] == "abcd••••jklm"
     assert "abcdefghijklm" not in json.dumps(read)
+    assert read["servers"]["alpha"]["dockerObservation"] == "running"
+    assert read["servers"]["alpha"]["mcpConnectivity"] == "connected"
+    assert read["servers"]["alpha"]["tools"] == ["second"]
     assert load_config(path).tools.mcp_docker.configurations["alpha"].env["TOKEN"].value == "abcdefghijklm"
     resolve_config_env_vars(load_config(path))  # broker reference is not resolved in the gateway
     with pytest.raises(DomainError) as invalid:

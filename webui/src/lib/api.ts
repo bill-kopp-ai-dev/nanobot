@@ -708,6 +708,42 @@ export async function fetchSettings(
   );
 }
 
+export interface McpDockerSnapshot {
+  schemaVersion: number;
+  revision: number;
+  allowRemoteAdmin: boolean;
+  servers: Record<string, {
+    serverId: string;
+    source: { type: string; reference: string };
+    revision: number;
+    active: boolean;
+    state: string;
+    tools: string[];
+    toolsDisabled: string[];
+    dockerObservation: string;
+    mcpConnectivity: string;
+    observationError?: string;
+    configuration: {
+      persistent: boolean;
+      mounts?: string[] | null;
+      network: string;
+      env: Record<string, { kind: string; value: string; maskHint?: string }>;
+    };
+  }>;
+  history: Array<{
+    at: string;
+    action: string;
+    server_id: string;
+    phase: string;
+    revision: number;
+    correlation_id: string;
+  }>;
+}
+
+export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot> {
+  return request<McpDockerSnapshot>("/api/settings/mcp-docker/list", token, undefined, API_READ_TIMEOUT_MS);
+}
+
 export async function fetchSettingsUsage(
   token: string,
   base: string = "",

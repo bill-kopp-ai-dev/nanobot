@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from pydantic import ValidationError
 
 from nanobot.config.mcp_docker import (
     REDACTED_SECRET,
+    SERVER_ID,
     DockerHostConfig,
     DockerImageSource,
     DockerServer,
@@ -59,17 +61,92 @@ class DockerMcpService:
 
     def list(self) -> dict[str, Any]:
         section = self.config.load().tools.mcp_docker
+        servers: dict[str, Any] = {}
+        for key, server in section.servers.items():
+            observation: dict[str, Any]
+            try:
+                observation = self.broker.action("observe", key, {
+                    "source": server.source.model_dump(mode="json"),
+                })
+            except BrokerUnavailableError:
+                observation = {
+                    "dockerObservation": "unknown",
+                    "mcpConnectivity": "unknown",
+                    "observationError": "Docker MCP broker unavailable",
+                }
+            docker_state = observation.get("dockerObservation")
+            mcp_state = observation.get("mcpConnectivity")
+            observed_tools = observation.get("tools")
+            servers[key] = {
+                **server.model_dump(mode="json", by_alias=True),
+                "configuration": _redact(section.configurations[key]),
+                "dockerObservation": docker_state if isinstance(docker_state, str) and docker_state in {
+                    "running", "stopped", "container-missing", "image-missing", "unknown",
+                } else "unknown",
+                "mcpConnectivity": mcp_state if isinstance(mcp_state, str) and mcp_state in {
+                    "connected", "disconnected", "unknown",
+                } else "unknown",
+                "tools": [name for name in cast(list[object], observed_tools) if isinstance(name, str)]
+                if isinstance(observed_tools, list) else server.tools,
+                **({"observationError": "Docker MCP broker unavailable"}
+                   if observation.get("observationError") else {}),
+            }
         return {
             "schemaVersion": section.schema_version,
             "revision": section.revision,
             "allowRemoteAdmin": section.allow_remote_admin,
-            "servers": {
-                key: {**server.model_dump(mode="json", by_alias=True),
-                      "configuration": _redact(section.configurations[key]),
-                      "dockerObservation": "unknown", "mcpConnectivity": "unknown"}
-                for key, server in section.servers.items()
-            },
+            "servers": servers,
+            "history": self._history(),
         }
+
+    def _history(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Read a bounded audit tail and expose only non-sensitive event fields."""
+        path = self.root / "audit.jsonl"
+        try:
+            with path.open("rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                size = handle.tell()
+                handle.seek(max(0, size - 256 * 1024))
+                raw_tail = handle.read().decode("utf-8", errors="replace")
+            lines = raw_tail.splitlines()[-limit:]
+        except FileNotFoundError:
+            return []
+        except OSError:
+            return []
+        actions = {
+            "install", "configure", "disable-tool", "enable-tool", "activate",
+            "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
+        }
+        phases = {"started", "committed", "failed", "compensation-failed"}
+        events: list[dict[str, Any]] = []
+        for line in lines:
+            try:
+                raw = json.loads(line)
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(raw, dict):
+                continue
+            raw_event = cast(dict[str, Any], raw)
+            at = raw_event.get("at")
+            action = raw_event.get("action")
+            server_id = raw_event.get("server_id")
+            phase = raw_event.get("phase")
+            revision = raw_event.get("revision")
+            correlation_id = raw_event.get("correlation_id")
+            if (not isinstance(at, str) or not isinstance(action, str) or action not in actions or
+                not isinstance(server_id, str) or not SERVER_ID.fullmatch(server_id) or
+                not isinstance(phase, str) or phase not in phases or
+                type(revision) is not int or revision < 0 or
+                not isinstance(correlation_id, str) or re.fullmatch(r"[0-9a-f]{32}", correlation_id) is None):
+                continue
+            try:
+                datetime.fromisoformat(at)
+            except ValueError:
+                continue
+            events.append({"at": at, "action": action, "server_id": server_id,
+                           "phase": phase, "revision": revision,
+                           "correlation_id": correlation_id})
+        return list(reversed(events))
 
     def _backup(self, config: Config, server_id: str) -> Path:
         section = config.tools.mcp_docker

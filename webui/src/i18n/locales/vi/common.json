@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "Container MCP",
+    "description": "Trạng thái chỉ đọc của các máy chủ MCP do Docker quản lý.",
+    "refresh": "Làm mới",
+    "retry": "Thử lại",
+    "loadError": "Không thể tải trạng thái Docker MCP. Vui lòng thử lại.",
+    "unauthorized": "Bạn không có quyền xem trạng thái Docker MCP.",
+    "emptyTitle": "Không có máy chủ Docker MCP",
+    "emptyDescription": "Các máy chủ Docker MCP đã cài đặt sẽ xuất hiện ở đây.",
+    "servers": "Máy chủ",
+    "active": "đang hoạt động",
+    "inactive": "không hoạt động",
+    "dockerState": "Trạng thái Docker",
+    "mcpState": "Kết nối MCP",
+    "intentState": "Ý định của gateway",
+    "image": "Loại ảnh",
+    "hostMetadata": "Siêu dữ liệu cấu hình máy chủ",
+    "network": "Mạng",
+    "persistence": "Container bền vững",
+    "mounts": "Giới hạn mount",
+    "defaultHostAccess": "Quyền truy cập tệp máy chủ mặc định với các vùng bảo vệ mặt phẳng điều khiển bắt buộc",
+    "environment": "Siêu dữ liệu môi trường",
+    "none": "Không có",
+    "tools": "Công cụ đã phát hiện",
+    "noTools": "Hiện chưa quan sát thấy công cụ nào.",
+    "history": "Hoạt động gần đây",
+    "noHistory": "Không có hoạt động nào được ghi lại cho máy chủ này.",
+    "openObservability": "Xem trạng thái và hoạt động"
+  },
   "remote": {
     "compatibility": {
       "title": "Phiên bản và tương thích",

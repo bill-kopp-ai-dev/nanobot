@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "Kontainer MCP",
+    "description": "Status hanya-baca untuk server MCP yang dikelola Docker.",
+    "refresh": "Segarkan",
+    "retry": "Coba lagi",
+    "loadError": "Status Docker MCP tidak dapat dimuat. Coba lagi.",
+    "unauthorized": "Anda tidak berwenang melihat status Docker MCP.",
+    "emptyTitle": "Tidak ada server Docker MCP",
+    "emptyDescription": "Server Docker MCP yang terpasang akan muncul di sini.",
+    "servers": "Server",
+    "active": "aktif",
+    "inactive": "nonaktif",
+    "dockerState": "Status Docker",
+    "mcpState": "Konektivitas MCP",
+    "intentState": "Intent gateway",
+    "image": "Jenis image",
+    "hostMetadata": "Metadata konfigurasi host",
+    "network": "Jaringan",
+    "persistence": "Kontainer persisten",
+    "mounts": "Pengurangan mount",
+    "defaultHostAccess": "Akses file host bawaan dengan cakupan kontrol-plane wajib",
+    "environment": "Metadata lingkungan",
+    "none": "Tidak ada",
+    "tools": "Tool yang ditemukan",
+    "noTools": "Belum ada tool yang teramati.",
+    "history": "Aktivitas terbaru",
+    "noHistory": "Tidak ada aktivitas yang tercatat untuk server ini.",
+    "openObservability": "Lihat status dan aktivitas"
+  },
   "remote": {
     "compatibility": {
       "title": "Versi dan kompatibilitas",

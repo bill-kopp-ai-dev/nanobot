@@ -139,7 +139,7 @@ const TOKEN_REFRESH_MIN_DELAY_MS = 5_000;
 const PAIRING_POLL_INTERVAL_MS = 5_000;
 const PAIRING_IDLE_POLL_INTERVAL_MS = 15_000;
 const PAIRING_DISMISS_SNOOZE_MS = 30_000;
-type ShellView = "chat" | "settings" | "apps" | "automations" | "skills" | "channels" | "remote";
+type ShellView = "chat" | "settings" | "apps" | "mcp-containers" | "automations" | "skills" | "channels" | "remote";
 type ShellRoute = {
   view: ShellView;
   activeKey: string | null;
@@ -154,6 +154,10 @@ const loadSettingsView = () => import("@/components/settings/SettingsView");
 const SettingsView = lazy(async () => {
   const module = await loadSettingsView();
   return { default: module.SettingsView };
+});
+const McpContainersPage = lazy(async () => {
+  const module = await import("@/components/McpContainersPage");
+  return { default: module.McpContainersPage };
 });
 const SessionSearchDialog = lazy(async () => {
   const module = await import("@/components/SessionSearchDialog");
@@ -283,6 +287,9 @@ function readShellRoute(): ShellRoute {
   if (path === "/apps") {
     return { view: "apps", activeKey, temporary, settingsSection: "apps" };
   }
+  if (path === "/mcp-containers") {
+    return { view: "mcp-containers", activeKey, temporary, settingsSection: "apps" };
+  }
   if (path === "/automations") {
     return { view: "automations", activeKey, temporary, settingsSection: "automations" };
   }
@@ -335,6 +342,7 @@ function shellRouteHash(route: ShellRoute): string {
       ? `#/chat/${encodeURIComponent(route.activeKey)}`
       : "#/new";
   }
+  if (route.view === "mcp-containers") return "#/mcp-containers";
   const params = new URLSearchParams();
   if (route.view === "settings" && route.settingsSection !== "overview") {
     params.set("section", route.settingsSection);
@@ -2157,6 +2165,12 @@ function Shell({
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
+  const onOpenMcpContainers = useCallback(() => {
+    setSessionSearchOpen(false);
+    navigate({ view: "mcp-containers", activeKey, settingsSection: "apps" });
+    setMobileSidebarOpen(false);
+  }, [activeKey, navigate]);
+
   const onOpenAutomations = useCallback(() => {
     setSessionSearchOpen(false);
     navigate({ view: "automations", activeKey, settingsSection: "automations" });
@@ -2690,6 +2704,12 @@ function Shell({
       });
       return;
     }
+    if (view === "mcp-containers") {
+      document.title = t("app.documentTitle.chat", {
+        title: t("mcpDocker.title", { defaultValue: "MCP containers" }),
+      });
+      return;
+    }
     if (view === "automations") {
       document.title = t("app.documentTitle.chat", {
         title: t("settings.nav.automations", { defaultValue: "Automations" }),
@@ -2763,12 +2783,13 @@ function Shell({
     onNewChatInProject,
     onOpenSettings,
     onOpenApps,
+    onOpenMcpContainers,
     onOpenAutomations,
     onOpenChannels,
     onOpenSkills,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: !managingConnections && (view === "apps" || view === "automations" || view === "skills" || view === "channels") ? view : null,
+    activeUtility: !managingConnections && (view === "apps" || view === "mcp-containers" || view === "automations" || view === "skills" || view === "channels") ? view : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,
@@ -3079,7 +3100,9 @@ function Shell({
                   mainNavigationExpanded={showMainSidebar && hostSidebarOpen}
                   hostChromeInset={showHostChrome}
                   onBackToChat={onBackToChat}
-                /> : <Suspense fallback={<SurfaceLoadingFallback />}>
+                /> : view === "mcp-containers" ? <Suspense fallback={<SurfaceLoadingFallback />}>
+                  <McpContainersPage />
+                </Suspense> : <Suspense fallback={<SurfaceLoadingFallback />}>
                   <SettingsView
                     registerExitGuard={registerSettingsExitGuard}
                     theme={theme}

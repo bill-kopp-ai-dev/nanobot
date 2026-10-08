@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "MCP 容器",
+    "description": "Docker 管理的 MCP 服务器只读状态。",
+    "refresh": "刷新",
+    "retry": "重试",
+    "loadError": "无法加载 Docker MCP 状态，请重试。",
+    "unauthorized": "您没有查看 Docker MCP 状态的权限。",
+    "emptyTitle": "没有 Docker MCP 服务器",
+    "emptyDescription": "已安装的 Docker MCP 服务器会显示在这里。",
+    "servers": "服务器",
+    "active": "已启用",
+    "inactive": "已停用",
+    "dockerState": "Docker 状态",
+    "mcpState": "MCP 连接状态",
+    "intentState": "网关意图",
+    "image": "镜像类型",
+    "hostMetadata": "主机配置元数据",
+    "network": "网络",
+    "persistence": "持久容器",
+    "mounts": "挂载范围缩减",
+    "defaultHostAccess": "默认主机文件访问，并应用强制控制平面覆盖",
+    "environment": "环境元数据",
+    "none": "无",
+    "tools": "已发现的工具",
+    "noTools": "当前未观察到工具。",
+    "history": "近期活动",
+    "noHistory": "此服务器暂无活动记录。",
+    "openObservability": "查看状态和活动"
+  },
   "remote": {
     "compatibility": {
       "title": "版本与兼容性",

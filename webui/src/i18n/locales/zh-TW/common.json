@@ -1,4 +1,33 @@
 {
+  "mcpDocker": {
+    "title": "MCP 容器",
+    "description": "Docker 管理之 MCP 伺服器唯讀狀態。",
+    "refresh": "重新整理",
+    "retry": "重試",
+    "loadError": "無法載入 Docker MCP 狀態，請再試一次。",
+    "unauthorized": "您沒有檢視 Docker MCP 狀態的權限。",
+    "emptyTitle": "沒有 Docker MCP 伺服器",
+    "emptyDescription": "已安裝的 Docker MCP 伺服器會顯示於此。",
+    "servers": "伺服器",
+    "active": "已啟用",
+    "inactive": "已停用",
+    "dockerState": "Docker 狀態",
+    "mcpState": "MCP 連線狀態",
+    "intentState": "閘道意圖",
+    "image": "映像類型",
+    "hostMetadata": "主機設定中繼資料",
+    "network": "網路",
+    "persistence": "持久容器",
+    "mounts": "掛載範圍縮減",
+    "defaultHostAccess": "預設主機檔案存取，並套用必要的控制平面遮罩",
+    "environment": "環境中繼資料",
+    "none": "無",
+    "tools": "已探索工具",
+    "noTools": "目前沒有觀察到工具。",
+    "history": "最近活動",
+    "noHistory": "此伺服器沒有活動記錄。",
+    "openObservability": "檢視狀態與活動"
+  },
   "remote": {
     "compatibility": {
       "title": "版本與相容性",
