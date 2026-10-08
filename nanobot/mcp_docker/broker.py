@@ -27,7 +27,7 @@ DOCKER = "/usr/bin/docker"
 PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
                    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
-                   "hydrate", "status", "observe"})
+                   "hydrate", "status", "observe", "health"})
 MCP = frozenset({"initialize", "notifications/initialized", "tools/list", "tools/call"})
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
@@ -348,6 +348,10 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
         with _LOCK:
             return {"registered": server_id in _STORE}
     ready()
+    if op == "health":
+        if data:
+            raise BrokerError("unsupported broker health fields", 400)
+        return {"ready": True}
     if op == "observe":
         if set(data) != {"source"}:
             raise BrokerError("unsupported observation fields", 400)

@@ -16,15 +16,35 @@ Docker Engine version, and maintenance window.
 - Prepare the broker token as an independent file readable only by the gateway
   owner and the dedicated broker token group (`0640`); do not put it in a
   container environment, shell history, or migration report.
+- Use one numeric `PERCIVAL_BROKER_TOKEN_GID` on the gateway, the broker's
+  `group_add`, and the token file. A host-launched `nanobot-webui` does **not**
+  start the broker: with a group-readable token and no GID override, its client
+  expects GID 65532 and will reject a different group before HTTP. Do not
+  run a host gateway concurrently with the Compose pair on the same state.
+  The gateway entrypoint restores the configured token GID after normalizing
+  state ownership; check the on-disk GID again after every gateway recreation.
+- Ensure the host Docker daemon starts at boot, not only on socket demand:
+  verify `systemctl is-enabled docker.service`. If policy allows, enable the
+  service before relying on container restart policies:
+
+  ```sh
+  sudo systemctl enable docker.service
+  ```
+
+  `docker.socket` being enabled alone may leave the daemon stopped until a
+  client connects, so containers with `restart: unless-stopped` would not
+  recover autonomously.
 - Confirm the target `$HOME/.percival` does not exist. Never merge two live
   state trees automatically.
 
 ## Copy and cutover
 
-1. Stop the current stack without removing volumes:
+1. Stop any host-launched gateway/WebUI in the agreed maintenance window and
+   verify its ports are free. Stop the current Compose stack without removing
+   volumes (if running):
 
    ```sh
-   docker compose -f docker-compose.yml down
+   docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml down
    ```
 
 2. Make a protected archive on the same host or an approved backup target,
@@ -64,8 +84,10 @@ Docker Engine version, and maintenance window.
 5. Recreate the gateway and sidecar, then verify readiness and state:
 
    ```sh
+   docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml build nanobot-gateway percival-mcp-broker
    docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml up -d --force-recreate nanobot-gateway percival-mcp-broker
    docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml ps
+   docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml exec -T --user 1000:1000 nanobot-gateway nanobot mcp-docker doctor --config /home/nanobot/.nanobot/config.json
    ```
 
    In the authenticated UI/CLI, verify the expected config revision, server
@@ -74,11 +96,30 @@ Docker Engine version, and maintenance window.
    after a gateway recreation and that protected mounts/network are observed.
    Record redacted output only.
 
+   `doctor` checks token, authenticated broker transport, Docker Engine and
+   protected-host policy without starting containers. If it fails, fix the
+   reported dependency before attempting reconciliation. A broker health check
+   runs independently in the sidecar; a gateway HTTP response alone does not
+   prove MCP Docker readiness. Restart/recreate the sidecar **after** replacing
+   the gateway container: `network_mode: service:nanobot-gateway` ties its
+   loopback to that gateway's network namespace. `restart: unless-stopped`
+   resumes a running stack after reboot, but does not start a stack deliberately
+   removed with `docker compose down`.
+
+   After an outage, compare persisted registry and pending journals with the
+   actual Docker containers; only the managed runtime's typed reconciliation
+   should recreate active missing containers. Do not treat stored `running`
+   intent or saved tools as proof of availability. Verify inactive and
+   `stopped-persistent` servers remain stopped, and verify each active server
+   separately through Docker observation and MCP tools/list. A missing local
+   image or unresolved broker environment reference requires explicit review.
+
 ## Rollback
 
 If any comparison, permission, health or functional check fails, stop the new
-stack without `-v`, set `PERCIVAL_STATE_HOST_PATH=$HOME/.nanobot`, and recreate
-the original gateway/sidecar. Recheck config revision and audit, then keep both
+stack with both Compose files and without `-v`, set
+`PERCIVAL_STATE_HOST_PATH=$HOME/.nanobot`, and recreate the original
+gateway/sidecar. Recheck config revision and audit, then keep both
 the archive and `.percival` copy untouched for diagnosis. Do not delete
 `~/.nanobot`, the archive, or Docker volumes as part of rollback. A rollback
 after state has changed in `.percival` requires a deliberate reconciliation of
@@ -107,9 +148,12 @@ image.
 
 ## Evidence still required to close deployment readiness
 
-Local tests, Compose rendering, and disposable Engine smoke are not the F5 VPS
-gate. Attach the real inventory and record the actual Client/Server 27.x stack,
-GID/mount verification, state migration and rollback rehearsal, gateway/sidecar
+Rehearse a clean boot, broker restart, gateway+sidecar recreation, and token
+GID mismatch; capture `doctor`, Compose health, actual observation and tools
+after each transition. Local tests, Compose rendering, and disposable Engine
+smoke are not the F5 VPS gate. Attach the real inventory and record the actual
+Client/Server 27.x stack, GID/mount verification, state migration and rollback
+rehearsal, gateway/sidecar
 recreation, both MCP fixtures, all operation families, direct-daemon negative
 tests, indirect-risk statement, and an explicit operator acceptance on the
 candidate SHA. Until those checks are performed, deployment readiness remains

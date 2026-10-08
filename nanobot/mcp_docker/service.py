@@ -55,6 +55,25 @@ def _redact(host: DockerHostConfig) -> dict[str, Any]:
     return result
 
 
+def broker_problem(exc: BrokerUnavailableError | BrokerRejectedError | BrokerError) -> dict[str, str]:
+    """Bounded, non-sensitive diagnostics shared by list and operator preflight."""
+    if isinstance(exc, BrokerUnavailableError):
+        messages = {
+            "token-missing": "Broker token is missing from this gateway instance.",
+            "token-invalid": "Broker token is invalid.",
+            "token-permissions": "Broker token owner, group or mode does not match this gateway.",
+            "token-unreadable": "Broker token cannot be read by this gateway.",
+            "transport": "Docker MCP broker is not reachable from this gateway.",
+            "broker-error": "Docker MCP broker is not ready; inspect its health and Docker access.",
+            "invalid-response": "Docker MCP broker returned an invalid response.",
+        }
+        return {"reason": exc.reason if exc.reason in messages else "unavailable",
+                "message": messages.get(exc.reason, "Docker MCP broker unavailable.")}
+    if isinstance(exc, BrokerRejectedError) and exc.status_code == 401:
+        return {"reason": "authentication", "message": "Docker MCP broker rejected this gateway's token."}
+    return {"reason": "rejected", "message": "Docker MCP broker rejected the observation request."}
+
+
 class DockerMcpService:
     def __init__(self, config: WebUISettingsConfig, broker: Broker) -> None:
         self.config = config
@@ -64,31 +83,32 @@ class DockerMcpService:
     def list(self) -> dict[str, Any]:
         pending_transitions = self.recover_pending()
         section = self.config.load().tools.mcp_docker
+        try:
+            health = self.broker.action("health", "broker", {})
+            if health.get("ready") is not True:
+                raise BrokerUnavailableError("broker health response invalid", reason="invalid-response")
+            broker_status: dict[str, str] = {"status": "ready"}
+        except (BrokerUnavailableError, BrokerRejectedError, BrokerError) as exc:
+            broker_status = {"status": "unavailable", **broker_problem(exc)}
         servers: dict[str, Any] = {}
         for key, server in section.servers.items():
             observation: dict[str, Any]
-            try:
-                observation = self.broker.action("observe", key, {
-                    "source": server.source.model_dump(mode="json"),
-                })
-            except BrokerUnavailableError:
+            if broker_status["status"] != "ready":
                 observation = {
                     "dockerObservation": "unknown",
                     "mcpConnectivity": "unknown",
-                    "observationError": "Docker MCP broker unavailable",
                 }
-            except BrokerRejectedError:
-                observation = {
-                    "dockerObservation": "unknown",
-                    "mcpConnectivity": "unknown",
-                    "observationError": "Docker MCP broker rejected the observation request",
-                }
-            except BrokerError:
-                observation = {
-                    "dockerObservation": "unknown",
-                    "mcpConnectivity": "unknown",
-                    "observationError": "Docker MCP broker rejected the observation request",
-                }
+            else:
+                try:
+                    observation = self.broker.action("observe", key, {
+                        "source": server.source.model_dump(mode="json"),
+                    })
+                except (BrokerUnavailableError, BrokerRejectedError, BrokerError) as exc:
+                    observation = {
+                        "dockerObservation": "unknown",
+                        "mcpConnectivity": "unknown",
+                        "observationError": broker_problem(exc)["message"],
+                    }
             docker_state = observation.get("dockerObservation")
             mcp_state = observation.get("mcpConnectivity")
             observed_tools = observation.get("tools")
@@ -137,6 +157,7 @@ class DockerMcpService:
             "schemaVersion": section.schema_version,
             "revision": section.revision,
             "allowRemoteAdmin": section.allow_remote_admin,
+            "brokerStatus": broker_status,
             "servers": servers,
             "history": self._history(),
             "pendingTransitions": pending_transitions,

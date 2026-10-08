@@ -1,8 +1,4 @@
-"""F1-only offline restore rehearsal for disposable MCP Docker state.
-
-The production service and its single writer belong to F2. This CLI refuses
-non-disposable state and never reads or writes the operator's real config.
-"""
+"""MCP Docker operator CLI: disposable F1 rehearsal and production admin/restore."""
 
 from __future__ import annotations
 
@@ -61,6 +57,26 @@ def operator_rotate(
         typer.echo(f"Operator rotation refused: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo("Operator credential rotated")
+
+
+@app.command("doctor")
+def doctor(
+    config: Path | None = typer.Option(None, "--config", help="Path to this instance's config.json"),
+) -> None:
+    """Check gateway-to-broker authentication and host/Docker readiness without mutation."""
+    from nanobot.config.loader import get_config_path
+    from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
+    from nanobot.mcp_docker.service import broker_problem
+
+    path = (config or get_config_path()).expanduser().resolve(strict=False)
+    try:
+        result = BrokerClient(path.parent / "mcp-docker" / "broker-token").action("health", "broker", {})
+        if result.get("ready") is not True:
+            raise BrokerUnavailableError("invalid broker health response", reason="invalid-response")
+    except (BrokerUnavailableError, BrokerRejectedError) as exc:
+        typer.echo(broker_problem(exc)["message"], err=True)
+        raise typer.Exit(1) from exc
+    typer.echo("MCP Docker broker ready (token, transport and Docker host policy verified)")
 
 
 def _object(value: object, label: str) -> dict[str, Any]:

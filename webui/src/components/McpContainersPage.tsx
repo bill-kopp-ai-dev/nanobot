@@ -107,6 +107,13 @@ export function McpContainersPage() {
           </div>
         )}
 
+        {snapshot?.brokerStatus?.status === "unavailable" && !error && (
+          <div role="status" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-300">
+            <CircleAlert aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+            <div><strong>{t("mcpDocker.brokerUnavailableTitle", { defaultValue: "MCP Docker broker unavailable" })}</strong><p className="mt-1">{snapshot.brokerStatus.message}</p><p className="mt-1">{t("mcpDocker.savedIntentOnly", { defaultValue: "Server intent and saved tools below are not proof that containers are running. Check the gateway–broker deployment before reconciling servers." })}</p></div>
+          </div>
+        )}
+
         {loading && !snapshot ? (
           <div role="status" aria-busy="true" className="space-y-3">
             <span className="sr-only">{t("settings.status.loading", { defaultValue: "Loading" })}</span>

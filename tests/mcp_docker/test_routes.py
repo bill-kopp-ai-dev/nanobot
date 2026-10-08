@@ -151,6 +151,10 @@ async def test_observational_list_is_webui_authenticated_and_fails_closed_when_b
     observed = payload["servers"]["weather"]
     assert observed["dockerObservation"] == "unknown"
     assert observed["mcpConnectivity"] == "unknown"
-    assert observed["observationError"] == "Docker MCP broker unavailable"
+    assert payload["brokerStatus"] == {
+        "status": "unavailable", "reason": "token-missing",
+        "message": "Broker token is missing from this gateway instance.",
+    }
+    assert "observationError" not in observed
     assert "not-for-the-response" not in response.body.decode()
     assert (await router(path, authorized=False).dispatch(local, request("list"), route)).status_code == 401

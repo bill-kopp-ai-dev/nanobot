@@ -11,11 +11,14 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from nanobot.agent.tools import mcp as mcp_module
 from nanobot.agent.tools.mcp import (
+    MCPProvider,
     MCPToolWrapper,
     _configured_servers,
     _mcp_docker_transition_resolved,
 )
+from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.config.loader import load_config, resolve_config_env_vars, save_config
 from nanobot.config.mcp_docker import (
     REDACTED_SECRET,
@@ -25,7 +28,7 @@ from nanobot.config.mcp_docker import (
 )
 from nanobot.config.schema import Config, MCPServerConfig
 from nanobot.mcp_docker import broker as broker_module
-from nanobot.mcp_docker.client import BrokerRejectedError, BrokerUnavailableError
+from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
 from nanobot.mcp_docker.operator import OperatorCredential
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.webui.settings_services import WebUISettingsConfig
@@ -43,6 +46,8 @@ class FakeBroker:
         self.calls.append((operation, server_id, data))
         if self.fail:
             raise BrokerUnavailableError("offline")
+        if operation == "health":
+            return {"ready": True}
         if operation == "status":
             return {"registered": True}
         if operation == "hydrate":
@@ -260,6 +265,8 @@ def test_list_reports_broker_rejection_when_observation_fails(tmp_path: Path) ->
 
     class BrokenBroker(FakeBroker):
         def action(self, operation: str, server_id: str, data: dict) -> dict:
+            if operation == "health":
+                return super().action(operation, server_id, data)
             raise broker_module.BrokerError("container inspection unavailable", 503)
 
     domain = DockerMcpService(WebUISettingsConfig(path), BrokenBroker())
@@ -267,8 +274,60 @@ def test_list_reports_broker_rejection_when_observation_fails(tmp_path: Path) ->
     observed = result["servers"]["alpha"]
     assert observed["dockerObservation"] == "unknown"
     assert observed["mcpConnectivity"] == "unknown"
-    assert observed["observationError"] == "Docker MCP broker rejected the observation request"
+    assert observed["observationError"] == "Docker MCP broker rejected the observation request."
     assert observed["tools"] == []
+
+
+def test_broker_health_is_visible_with_empty_registry_and_not_used_to_spawn(tmp_path: Path) -> None:
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(tmp_path / "config.json"), broker)
+    result = domain.list()
+    assert result["brokerStatus"] == {"status": "ready"}
+    assert broker.calls == [("health", "broker", {})]
+
+
+@pytest.mark.asyncio
+async def test_managed_server_is_loaded_when_token_returns_after_gateway_start(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.servers["weather"] = DockerServer(
+        server_id="weather", source={"type": "local-image", "reference": IMAGE},
+        state="running", tools=["forecast"],
+    )
+    config.tools.mcp_docker.configurations["weather"] = {}
+    save_config(config, path)
+    token_available = False
+    reconciled: list[str] = []
+
+    def token(_client: BrokerClient) -> str:
+        if not token_available:
+            raise BrokerUnavailableError("token unavailable", reason="token-missing")
+        return "t" * 64
+
+    def action(_client: BrokerClient, operation: str, server_id: str, _data: dict) -> dict:
+        if operation == "reconcile":
+            reconciled.append(server_id)
+            return {"running": True, "tools": ["forecast"]}
+        raise AssertionError(operation)
+
+    async def no_connection(_servers: object, _registry: object, **_kwargs: object) -> dict:
+        return {}
+
+    monkeypatch.setattr(BrokerClient, "token", token)
+    monkeypatch.setattr(BrokerClient, "action", action)
+    monkeypatch.setattr(mcp_module, "connect_mcp_servers", no_connection)
+    provider = MCPProvider.from_config(load_config(path), ToolRegistry(),
+                                       server_loader=lambda: _configured_servers(load_config(path)))
+    assert provider.configured_server_names == set()
+    await provider.connect()
+    assert reconciled == []
+
+    token_available = True
+    await provider.connect()
+    assert provider.configured_server_names == {"percival_docker_weather"}
+    assert reconciled == ["weather"]
 
 
 def test_preparing_transition_is_reconciled_to_persisted_config(tmp_path: Path) -> None:
@@ -402,7 +461,7 @@ def test_recovery_finishes_exclusion_after_config_commit(tmp_path: Path) -> None
     journal = json.loads((tmp_path / "mcp-docker" / "transitions" / "weather.json").read_text())
     assert journal["recovery"] == "committed-exclude"
     assert snapshot["servers"] == {}
-    assert broker.calls[-1][0] == "exclude"
+    assert [call[0] for call in broker.calls[-2:]] == ["exclude", "health"]
 
 
 def test_competing_writers_and_separate_operator_password(tmp_path: Path) -> None:

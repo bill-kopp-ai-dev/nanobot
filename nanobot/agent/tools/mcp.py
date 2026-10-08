@@ -1598,6 +1598,31 @@ class MCPProvider:
 
     async def connect(self) -> None:
         """Connect configured servers that are not currently live."""
+        # A missing/invalid broker token at startup omits managed definitions
+        # entirely. Readiness checks must discover them once the deployment is
+        # repaired; otherwise only a gateway restart or unrelated config edit
+        # could recover those tools. reload() owns reconciliation and the MCP
+        # connection lifecycle, outside this lock.
+        if self._managed_config_path is not None and not self._managed_specs:
+            from nanobot.config.errors import ConfigLoadError
+            from nanobot.config.loader import load_config
+            from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+
+            path = self._managed_config_path
+            try:
+                BrokerClient(path.parent / "mcp-docker" / "broker-token").token()
+            except BrokerUnavailableError:
+                pass
+            else:
+                try:
+                    config = await asyncio.to_thread(load_config, path)
+                except ConfigLoadError:
+                    pass
+                else:
+                    if any(server.active and server.state == "running"
+                           for server in config.tools.mcp_docker.servers.values()):
+                        await self.reload()
+                        return  # reload already attempted the newly available servers
         async with self._lock:
             if self._closing:
                 return

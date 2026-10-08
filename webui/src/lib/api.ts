@@ -713,6 +713,7 @@ export interface McpDockerSnapshot {
   schemaVersion: number;
   revision: number;
   allowRemoteAdmin: boolean;
+  brokerStatus?: { status: "ready" | "unavailable"; reason?: string; message?: string };
   servers: Record<string, {
     serverId: string;
     source: { type: string; reference: string };

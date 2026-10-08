@@ -30,6 +30,21 @@ fi
 # exit rather than run the agent as root.
 if [ "$(id -u)" = "0" ]; then
     chown -R nanobot:nanobot "$dir" 2>/dev/null || echo "[entrypoint] warning: chown $dir failed"
+    # A shared 0640 broker token must retain its dedicated group. The general
+    # state ownership fix above would otherwise reset it to nanobot's primary
+    # GID on every gateway restart, breaking the broker and token preflight.
+    if [ -n "${PERCIVAL_BROKER_TOKEN_GID:-}" ] && [ -e "$dir/mcp-docker/broker-token" ]; then
+        case "$PERCIVAL_BROKER_TOKEN_GID" in
+            *[!0-9]*|'')
+                echo "[entrypoint] invalid broker token GID" >&2
+                exit 1
+                ;;
+        esac
+        if ! chown "nanobot:$PERCIVAL_BROKER_TOKEN_GID" "$dir/mcp-docker/broker-token"; then
+            echo "[entrypoint] cannot preserve broker token group" >&2
+            exit 1
+        fi
+    fi
     if setpriv --reuid=nanobot --regid=nanobot --init-groups true 2>/dev/null; then
         echo "[entrypoint] dropping privileges to nanobot via setpriv"
         exec setpriv --reuid=nanobot --regid=nanobot --init-groups nanobot "$@"

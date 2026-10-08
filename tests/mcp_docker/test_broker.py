@@ -32,6 +32,15 @@ def test_actions_check_readiness_and_exclusion_confirmation(monkeypatch: pytest.
     assert failure.value.status == 400
 
 
+def test_authenticated_health_only_checks_broker_readiness(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(broker, "ready", lambda: calls.append("ready"))
+    monkeypatch.setattr(broker, "_STORE", {})
+    assert broker.action("health", "broker", {}) == {"ready": True}
+    assert calls == ["ready"]
+    assert broker._STORE == {}
+
+
 def test_recovery_rebuilds_active_container_or_preserves_persistent_stop(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(broker, "ready", lambda: object())
     monkeypatch.setattr(broker, "_STORE", {})

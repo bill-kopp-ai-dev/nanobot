@@ -137,6 +137,28 @@ describe("MCP container observability page", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
+  it("shows a common broker failure without presenting saved tools as live", async () => {
+    vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: false });
+    vi.mocked(fetchMcpDockerSnapshot).mockResolvedValueOnce({
+      ...snapshot(),
+      brokerStatus: {
+        status: "unavailable", reason: "token-permissions",
+        message: "Broker token owner, group or mode does not match this gateway.",
+      },
+      servers: {
+        weather: {
+          ...snapshot().servers.weather,
+          dockerObservation: "unknown", mcpConnectivity: "unknown",
+        },
+      },
+    });
+    render(<ClientProvider client={clientStub()} token="token"><McpContainersPage /></ClientProvider>);
+    expect(await screen.findByText("MCP Docker broker unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/token owner, group or mode/i)).toBeInTheDocument();
+    expect(screen.getByText(/saved tools below are not proof/i)).toBeInTheDocument();
+    expect(screen.getAllByText("unknown")).toHaveLength(4);
+  });
+
   it("distinguishes 401 unauthorized from generic read errors", async () => {
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: false });
     const client = clientStub();

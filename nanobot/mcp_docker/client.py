@@ -14,12 +14,14 @@ from nanobot.config.mcp_docker import SERVER_ID
 _OPERATIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
     "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
-    "hydrate", "status", "observe",
+    "hydrate", "status", "observe", "health",
 })
 
 
 class BrokerUnavailableError(Exception):
-    pass
+    def __init__(self, message: str, *, reason: str = "unavailable") -> None:
+        self.reason = reason
+        super().__init__(message)
 
 
 class BrokerRejectedError(Exception):
@@ -53,7 +55,7 @@ class BrokerClient:
             with opener.open(request, timeout=30) as response:
                 response_payload: object = json.load(response)
             if not isinstance(response_payload, dict):
-                raise BrokerUnavailableError("invalid broker response")
+                raise BrokerUnavailableError("invalid broker response", reason="invalid-response")
             return cast(dict[str, Any], response_payload)
         except urllib.error.HTTPError as exc:
             message = "request rejected"
@@ -68,9 +70,9 @@ class BrokerClient:
             detail = f"broker rejected {operation} (HTTP {exc.code}): {message}"
             if 400 <= exc.code < 500:
                 raise BrokerRejectedError(exc.code, detail) from exc
-            raise BrokerUnavailableError(detail) from exc
+            raise BrokerUnavailableError(detail, reason="broker-error") from exc
         except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
-            raise BrokerUnavailableError("broker is unavailable") from exc
+            raise BrokerUnavailableError("broker is unavailable", reason="transport") from exc
 
     def token(self) -> str:
         """Read the current rotatable token from a private instance file."""
@@ -81,10 +83,14 @@ class BrokerClient:
             # configured dedicated group. Refuse group-write, others-rwx and
             # any path the gateway group is not meant to access.
             group = int(os.environ.get("PERCIVAL_BROKER_TOKEN_GID", "65532"))
-            if (len(token) < 32 or stat.st_mode & 0o027 or
+            if len(token) < 32:
+                raise BrokerUnavailableError("broker token is too short", reason="token-invalid")
+            if (not stat.st_mode & 0o400 or stat.st_mode & 0o027 or
                 (stat.st_mode & 0o040 and stat.st_gid != group) or
                 stat.st_uid not in {os.getuid(), 0}):
-                raise BrokerUnavailableError("broker token is missing or not private")
+                raise BrokerUnavailableError("broker token owner, group or mode is invalid", reason="token-permissions")
+        except FileNotFoundError as exc:
+            raise BrokerUnavailableError("broker token is missing", reason="token-missing") from exc
         except (OSError, ValueError) as exc:
-            raise BrokerUnavailableError("broker token is unavailable") from exc
+            raise BrokerUnavailableError("broker token is unreadable", reason="token-unreadable") from exc
         return token

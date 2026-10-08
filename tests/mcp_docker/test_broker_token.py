@@ -9,7 +9,9 @@ import urllib.error
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from nanobot.cli.mcp_docker_f1 import app
 from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
 
 
@@ -60,6 +62,49 @@ def test_broker_client_rejects_short_or_missing_token(tmp_path: Path) -> None:
     client = BrokerClient(token_path)
     with pytest.raises(BrokerUnavailableError):
         client.token()
+
+
+def test_group_mismatch_is_reported_before_network_attempt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    token_path = tmp_path / "broker-token"
+    _write_token(token_path, mode=0o640)
+    monkeypatch.setenv("PERCIVAL_BROKER_TOKEN_GID", str(os.getgid() + 1))
+    monkeypatch.setattr("urllib.request.build_opener", lambda *_args: pytest.fail("network contacted"))
+    with pytest.raises(BrokerUnavailableError) as failure:
+        BrokerClient(token_path).action("health", "broker", {})
+    assert failure.value.reason == "token-permissions"
+
+
+def test_missing_broker_is_transport_failure_after_valid_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    token_path = tmp_path / "broker-token"
+    _write_token(token_path, mode=0o600)
+
+    class OfflineOpener:
+        def open(self, *_args: object, **_kwargs: object) -> object:
+            raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda *_args: OfflineOpener())
+    with pytest.raises(BrokerUnavailableError) as failure:
+        BrokerClient(token_path).action("health", "broker", {})
+    assert failure.value.reason == "transport"
+    assert "connection refused" not in str(failure.value)
+
+
+def test_doctor_probes_health_without_modifying_instance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "config.json"
+    token_path = tmp_path / "mcp-docker" / "broker-token"
+    _write_token(token_path, mode=0o600)
+    calls: list[tuple[str, str, dict]] = []
+
+    def health(_client: BrokerClient, operation: str, server_id: str, data: dict) -> dict:
+        calls.append((operation, server_id, data))
+        return {"ready": True}
+
+    monkeypatch.setattr(BrokerClient, "action", health)
+    result = CliRunner().invoke(app, ["doctor", "--config", str(config_path)])
+    assert result.exit_code == 0
+    assert "broker ready" in result.output
+    assert calls == [("health", "broker", {})]
+    assert not config_path.exists()
 
 
 @pytest.mark.parametrize(
