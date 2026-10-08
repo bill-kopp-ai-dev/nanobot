@@ -20,6 +20,7 @@ webui/node_modules/
 webui/dist/
 webui/coverage/
 webui/.vite/
+.vite/
 tui/node_modules/
 tui/dist/
 *.tsbuildinfo
