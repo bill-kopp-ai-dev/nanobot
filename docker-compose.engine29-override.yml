@@ -1,0 +1,9 @@
+# Disposable local override: relax the broker Engine 27.x check to accept
+# Engine 29.x on this host. NEVER use in a real deploy. Delete this file
+# (or stop referencing it) before claiming Engine 27 compatibility or
+# before deploying to a VPS with the reviewed image.
+services:
+  percival-mcp-broker:
+    image: percival-mcp-broker:local
+    environment:
+      PERCIVAL_DISPOSABLE_ENGINE29: "1"
