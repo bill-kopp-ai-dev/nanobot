@@ -744,7 +744,7 @@ export interface McpDockerSnapshot {
     correlation_id: string;
   }>;
   pendingTransitions: Array<{ server_id: string; state: string; action?: string }>;
-  backups: Array<{ backupId: string; serverId: string; sourceRevision: number }>;
+  backups: Array<{ backupId: string; serverId: string; sourceRevision: number; action?: "exclude" | "update-image" }>;
 }
 
 export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot> {

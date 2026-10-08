@@ -28,7 +28,7 @@ from nanobot.config.mcp_docker import (
 )
 from nanobot.config.schema import Config
 from nanobot.mcp_docker.broker import BrokerError
-from nanobot.mcp_docker.client import BrokerUnavailableError
+from nanobot.mcp_docker.client import BrokerRejectedError, BrokerUnavailableError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
 
@@ -76,6 +76,12 @@ class DockerMcpService:
                     "dockerObservation": "unknown",
                     "mcpConnectivity": "unknown",
                     "observationError": "Docker MCP broker unavailable",
+                }
+            except BrokerRejectedError:
+                observation = {
+                    "dockerObservation": "unknown",
+                    "mcpConnectivity": "unknown",
+                    "observationError": "Docker MCP broker rejected the observation request",
                 }
             except BrokerError:
                 observation = {
@@ -160,7 +166,11 @@ class DockerMcpService:
             server_id = data.get("server_id")
             revision = data.get("source_revision")
             if isinstance(server_id, str) and SERVER_ID.fullmatch(server_id) and type(revision) is int and revision >= 0:
-                result.append({"backupId": entry.name, "serverId": server_id, "sourceRevision": revision})
+                backup = {"backupId": entry.name, "serverId": server_id, "sourceRevision": revision}
+                action = data.get("action")
+                if isinstance(action, str) and action in {"update-image", "exclude"}:
+                    backup["action"] = action
+                result.append(backup)
         return result
 
     def _transition_path(self, server_id: str) -> Path:
@@ -274,7 +284,8 @@ class DockerMcpService:
                     } and isinstance(correlation_id, str) and re.fullmatch(r"[0-9a-f]{32}", correlation_id)):
                         phase = "committed" if result.startswith("committed-") else "failed"
                         self._audit(action, server_id, phase, revision, correlation_id)
-            except (OSError, ValueError, TypeError, KeyError, BrokerUnavailableError, BrokerError):
+            except (OSError, ValueError, TypeError, KeyError, BrokerRejectedError,
+                    BrokerUnavailableError, BrokerError):
                 name = path.stem
                 if SERVER_ID.fullmatch(name):
                     pending.append({"server_id": name, "state": "preparing"})
@@ -371,13 +382,14 @@ class DockerMcpService:
                            "correlation_id": correlation_id})
         return list(reversed(events))
 
-    def _backup(self, config: Config, server_id: str) -> Path:
+    def _backup(self, config: Config, server_id: str, action: str) -> Path:
         section = config.tools.mcp_docker
         stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
         folder = self.root / "backups" / f"{stamp}-{server_id}-{uuid.uuid4().hex}"
         folder.mkdir(parents=True, mode=0o700)
         manifest = {
             "schemaVersion": 1,
+            "action": action,
             "server_id": server_id,
             "source_revision": section.revision,
             "server": section.servers[server_id].model_dump(mode="json", by_alias=True),
@@ -442,8 +454,12 @@ class DockerMcpService:
             current = section.servers.get(server_id)
             if (current is None) == (action != "install"):
                 raise DomainError(409, "server already exists" if current else "unknown server_id")
-            if current is not None and payload.get("expected_server_revision") != current.revision:
-                raise DomainError(409, "server revision conflict")
+            if current is not None:
+                expected_server_revision = payload.get("expected_server_revision")
+                if type(expected_server_revision) is not int or expected_server_revision < 0:
+                    raise DomainError(400, "expected_server_revision must be a nonnegative integer")
+                if expected_server_revision != current.revision:
+                    raise DomainError(409, "server revision conflict")
             if action == "exclude" and payload.get("expected_confirmation") != server_id:
                 raise DomainError(400, "confirmation must equal server_id")
             if action in {"start", "stop"} and (not section.configurations[server_id].persistent or not current or not current.active):
@@ -459,7 +475,7 @@ class DockerMcpService:
             tool = payload.get("tool")
             if action in {"disable-tool", "enable-tool"} and (not isinstance(tool, str) or not tool):
                 raise DomainError(400, "tool must be a nonempty raw name")
-            backup = self._backup(config, server_id) if action in {"update-image", "exclude"} else None
+            backup = self._backup(config, server_id, action) if action in {"update-image", "exclude"} else None
             before = None if current is None else {
                 "server": current.model_dump(mode="json", by_alias=True),
                 "configuration": section.configurations[server_id].model_dump(mode="json", by_alias=True),
@@ -480,14 +496,36 @@ class DockerMcpService:
             old_source = current.source.model_dump(mode="json") if current else None
             broker_succeeded = False
             try:
-                # The broker receives only typed actions and host configuration;
-                # it validates the effective Docker access before starting.
-                result = self.broker.action(action, server_id, {
+                managed_state = None
+                if current is not None and action != "exclude":
+                    managed_host = section.configurations[server_id]
+                    managed_state = {
+                        "source": current.source.model_dump(mode="json"),
+                        "configuration": managed_host.model_dump(mode="json", by_alias=True),
+                        "active": current.active,
+                        "tools_disabled": list(current.tools_disabled),
+                        "tools": list(current.tools),
+                    }
+                broker_payload = {
                     **({"source": source.model_dump(mode="json")} if source else {}),
                     **({"configuration": host.model_dump(mode="json")} if host else {}),
                     **({"tool": tool} if action in {"disable-tool", "enable-tool"} else {}),
                     **({"expected_confirmation": server_id} if action == "exclude" else {}),
-                })
+                }
+                if managed_state is not None:
+                    status = self.broker.action("status", server_id, {})
+                    if status.get("registered") is not True:
+                        self.broker.action("hydrate", server_id, managed_state)
+                # The broker receives only typed actions and configuration when
+                # its volatile registry must be rehydrated after process restart.
+                try:
+                    result = self.broker.action(action, server_id, broker_payload)
+                except BrokerRejectedError as exc:
+                    if managed_state is None or exc.status_code != 404:
+                        raise
+                    # The broker may restart between the status probe and action.
+                    self.broker.action("hydrate", server_id, managed_state)
+                    result = self.broker.action(action, server_id, broker_payload)
                 broker_succeeded = True
                 if action == "install":
                     assert source is not None and host is not None
@@ -560,7 +598,12 @@ class DockerMcpService:
 
         return self.config.run_serialized(transaction)
 
-    def restore_backup(self, backup_dir: Path, expected_revision: int) -> dict[str, Any]:
+    def restore_backup(
+        self,
+        backup_dir: Path,
+        expected_revision: int,
+        expected_confirmation: str,
+    ) -> dict[str, Any]:
         """Restore one excluded server through the single-writer transaction."""
         pending = self.recover_pending()
         if pending:
@@ -589,6 +632,8 @@ class DockerMcpService:
                 raise ValueError("server ID mismatch")
         except (OSError, ValueError, TypeError, ValidationError) as exc:
             raise DomainError(400, "invalid or tampered MCP Docker backup") from exc
+        if expected_confirmation != server_id:
+            raise DomainError(400, "confirmation must equal server_id")
         correlation_id = uuid.uuid4().hex
 
         def transaction(path: Path) -> dict[str, Any]:

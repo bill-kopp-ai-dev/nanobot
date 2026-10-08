@@ -26,7 +26,8 @@ from nanobot.mcp_docker.mount_policy import MountPolicy
 DOCKER = "/usr/bin/docker"
 PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
-                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover", "observe"})
+                   "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
+                   "hydrate", "status", "observe"})
 MCP = frozenset({"initialize", "notifications/initialized", "tools/list", "tools/call"})
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
@@ -308,9 +309,44 @@ class ManagedServer:
         self.lock = threading.RLock()
 
 
+def _managed_server_from_state(server_id: str, state: object) -> ManagedServer:
+    if not isinstance(state, dict):
+        raise BrokerError("invalid managed state", 400)
+    values = cast(dict[str, Any], state)
+    if set(values) != {"source", "configuration", "active", "tools_disabled", "tools"}:
+        raise BrokerError("invalid managed state", 400)
+    try:
+        source = DockerImageSource.model_validate(values["source"])
+        host = DockerHostConfig.model_validate(values["configuration"])
+        active = values["active"]
+        disabled = values["tools_disabled"]
+        tools = values["tools"]
+        if (type(active) is not bool or not isinstance(disabled, list) or
+            not all(isinstance(name, str) for name in cast(list[object], disabled)) or
+            not isinstance(tools, list) or
+            not all(isinstance(name, str) for name in cast(list[object], tools))):
+            raise ValueError("invalid managed state")
+        disabled_names = cast(list[str], disabled)
+        tool_names = cast(list[str], tools)
+        if not set(disabled_names).issubset(tool_names):
+            raise ValueError("disabled tools must be discovered tools")
+    except (KeyError, ValidationError, ValueError) as exc:
+        raise BrokerError("invalid managed state", 400) from exc
+    server = ManagedServer(server_id, source, host)
+    server.active = active
+    server.disabled = set(disabled_names)
+    server.tools = tool_names
+    return server
+
+
 def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     if op not in ADMIN or not SERVER_ID.fullmatch(server_id):
         raise BrokerError("unsupported broker action", 400)
+    if op == "status":
+        if data:
+            raise BrokerError("unsupported broker status fields", 400)
+        with _LOCK:
+            return {"registered": server_id in _STORE}
     ready()
     if op == "observe":
         if set(data) != {"source"}:
@@ -320,6 +356,7 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
               "update-image": {"source"}, "disable-tool": {"tool"}, "enable-tool": {"tool"},
               "reconcile": {"source", "configuration", "active", "tools_disabled"},
               "recover": {"source", "configuration", "active", "tools_disabled", "running"},
+              "hydrate": {"source", "configuration", "active", "tools_disabled", "tools"},
               "exclude": {"expected_confirmation"}}
     if set(data) - fields.get(op, set()):
         raise BrokerError("unsupported broker action fields", 400)
@@ -337,6 +374,12 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
                 raise BrokerError("invalid image or configuration", 400) from exc
             server = ManagedServer(server_id, source, host)
             _STORE[server_id] = server
+        elif op == "hydrate":
+            hydrated = _managed_server_from_state(server_id, data)
+            if server is None:
+                server = hydrated
+                _STORE[server_id] = server
+            return {"registered": True}
         elif op in {"reconcile", "recover"}:
             try:
                 source = DockerImageSource.model_validate(data["source"])

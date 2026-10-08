@@ -14,12 +14,20 @@ from nanobot.config.mcp_docker import SERVER_ID
 _OPERATIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
     "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
-    "observe",
+    "hydrate", "status", "observe",
 })
 
 
 class BrokerUnavailableError(Exception):
     pass
+
+
+class BrokerRejectedError(Exception):
+    """The broker responded but rejected a validly transported request."""
+
+    def __init__(self, status_code: int, message: str) -> None:
+        self.status_code = status_code
+        super().__init__(message)
 
 
 class BrokerClient:
@@ -57,7 +65,10 @@ class BrokerClient:
                         message = cast(str, error_mapping["error"])
             except (ValueError, OSError):
                 pass
-            raise BrokerUnavailableError(f"broker rejected {operation} (HTTP {exc.code}): {message}") from exc
+            detail = f"broker rejected {operation} (HTTP {exc.code}): {message}"
+            if 400 <= exc.code < 500:
+                raise BrokerRejectedError(exc.code, detail) from exc
+            raise BrokerUnavailableError(detail) from exc
         except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
             raise BrokerUnavailableError("broker is unavailable") from exc
 

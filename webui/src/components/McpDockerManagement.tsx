@@ -75,6 +75,7 @@ export function McpDockerManagement({
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [restartRequired, setRestartRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [installId, setInstallId] = useState("");
   const [installType, setInstallType] = useState<"local-image" | "pinned-image">("local-image");
@@ -159,6 +160,7 @@ export function McpDockerManagement({
       if (reason.status === 403) return t("mcpDocker.adminForbidden", { defaultValue: "Remote administration is disabled or this action requires a local browser." });
       if (reason.status === 409) return t("mcpDocker.conflict", { defaultValue: "The server changed since this page was loaded. The latest state has been refreshed." });
       if (reason.status === 503) return t("mcpDocker.brokerUnavailable", { defaultValue: "Docker MCP broker is unavailable; no successful result was confirmed." });
+      if (reason.status === 502) return t("mcpDocker.actionError", { defaultValue: "The MCP Docker broker rejected the operation. Review the current server state before retrying." });
     }
     return t("mcpDocker.actionError", { defaultValue: "The operation could not be completed. Review the server state before retrying." });
   }, [t]);
@@ -173,11 +175,13 @@ export function McpDockerManagement({
     setBusy(true);
     setError(null);
     setMessage(null);
+    setRestartRequired(false);
     try {
-      await mutateMcpDocker(client, action, {
+      const result = await mutateMcpDocker<{ mcp_runtime?: { requires_restart?: boolean } }>(client, action, {
         ...payload,
         operator_admin: options.setup ? setupPassword : operatorPassword,
       });
+      const needsRuntimeRestart = result.mcp_runtime?.requires_restart === true;
       if (submittedSetup) {
         setOperatorPassword(setupPassword);
         setSetupPassword("");
@@ -195,11 +199,14 @@ export function McpDockerManagement({
       setInstallReviewed(false);
       setConfigReviewed(false);
       setUpdateReviewed(false);
-      setMessage(options.success ?? t("mcpDocker.operationComplete", { defaultValue: "Operation completed. Showing the verified server state." }));
+      setRestartRequired(needsRuntimeRestart);
+      setMessage(needsRuntimeRestart
+        ? `${options.success ?? t("mcpDocker.operationComplete", { defaultValue: "Operation completed." })} ${t("settings.status.savedRestartApply", { defaultValue: "Restart Percival to apply the change." })}`
+        : options.success ?? t("mcpDocker.operationComplete", { defaultValue: "Operation completed. Showing the verified server state." }));
       await refresh(true);
       return true;
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 409) await refresh(true);
+      if (reason instanceof ApiError && [409, 502, 503].includes(reason.status)) await refresh(true);
       if (submittedSetup) {
         setSetupPassword("");
         if (reason instanceof ApiError && reason.status === 409) setOperatorConfigured(true);
@@ -253,7 +260,7 @@ export function McpDockerManagement({
       configuration: {
         persistent: selected.configuration.persistent,
         mounts,
-        network: "none",
+        network: selected.configuration.network,
         env: envObject(envRows),
       },
     }, { success: t("mcpDocker.configureComplete", { defaultValue: "Host configuration saved; the broker restarted the server when needed." }) });
@@ -270,7 +277,7 @@ export function McpDockerManagement({
   const configPreview = safeConfigPreview({
     persistent: selected?.configuration.persistent ?? false,
     mounts: mountsRestricted ? mountsText.split(/\r?\n/).map((path) => path.trim()).filter(Boolean) : null,
-    network: "none",
+    network: selected?.configuration.network ?? "none",
     env: envObject(displayedEnv),
   });
   const installPreviewEnv = installEnvRows.map((row) => ({ ...row, value: row.kind === "secret" ? "•••• (redacted)" : row.value }));
@@ -305,7 +312,7 @@ export function McpDockerManagement({
 
   return (
     <section className="space-y-5" aria-label={t("mcpDocker.management", { defaultValue: "MCP Docker management" })}>
-      {(error || message) && <div role={error ? "alert" : "status"} className={cn("rounded-lg border p-3 text-sm", error ? "border-destructive/40 bg-destructive/5" : "border-emerald-500/40 bg-emerald-500/5")}>{error ?? message}</div>}
+      {(error || message) && <div role={error ? "alert" : "status"} className={cn("rounded-lg border p-3 text-sm", error ? "border-destructive/40 bg-destructive/5" : restartRequired ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300" : "border-emerald-500/40 bg-emerald-500/5")}>{error ?? message}</div>}
 
       <section className="space-y-3 rounded-xl border p-4">
         <h2 className="font-semibold">{t("mcpDocker.operatorTitle", { defaultValue: "Operator authorization" })}</h2>
@@ -363,9 +370,9 @@ export function McpDockerManagement({
             <h2 className="font-semibold">Restore an excluded server</h2>
             <p className="text-sm text-muted-foreground">Restore checks the backup checksum, refuses to overwrite an existing server, and reconciles Docker before committing config.</p>
             {snapshot.backups.map((backup) => <div key={backup.backupId} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-              <div><code>{backup.serverId}</code><p className="text-xs text-muted-foreground">{backup.backupId} · revision {backup.sourceRevision}</p></div>
+              <div><code>{backup.serverId}</code><p className="text-xs text-muted-foreground">{backup.backupId} · revision {backup.sourceRevision}{backup.action ? ` · before ${backup.action}` : " · legacy backup (origin not recorded)"}</p></div>
               <Label>Type the server ID to restore<Input value={restoreConfirmId[backup.backupId] ?? ""} onChange={(event) => setRestoreConfirmId((current) => ({ ...current, [backup.backupId]: event.target.value }))} /></Label>
-              <Button variant="outline" disabled={busy || Boolean(snapshot.servers[backup.serverId]) || restoreConfirmId[backup.backupId] !== backup.serverId} onClick={() => void invoke("restore", { backup_id: backup.backupId, expected_revision: snapshot.revision }, { success: "Server restored from backup and reconciled." })}>Restore</Button>
+              <Button variant="outline" disabled={busy || Boolean(snapshot.servers[backup.serverId]) || restoreConfirmId[backup.backupId] !== backup.serverId} onClick={() => void invoke("restore", { backup_id: backup.backupId, expected_revision: snapshot.revision, expected_confirmation: restoreConfirmId[backup.backupId] }, { success: "Server restored from backup and reconciled." })}>Restore</Button>
             </div>)}
             {!snapshot.backups.length && <p className="text-sm text-muted-foreground">No MCP Docker backups are available.</p>}
           </section>
@@ -389,7 +396,6 @@ export function McpDockerManagement({
               <p className="text-sm text-muted-foreground">{t("mcpDocker.mountRisk", { defaultValue: "Host file access is broad by default. Adding narrower paths reduces access; removing or widening reductions increases access. Protected control-plane covers are enforced by the broker." })}</p>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mountsRestricted} onChange={(event) => setMountsRestricted(event.target.checked)} />{t("mcpDocker.restrictMounts", { defaultValue: "Use reduced host paths instead of the default broad file access" })}</label>
               {mountsRestricted && <Label>{t("mcpDocker.mountPaths", { defaultValue: "Allowed absolute host paths, one per line" })}<Textarea value={mountsText} onChange={(event) => setMountsText(event.target.value)} /></Label>}
-              <p className="text-xs text-muted-foreground">{t("mcpDocker.networkFixed", { defaultValue: "Network access is fixed to none by the current broker contract. Protected Docker/state paths are always covered and cannot be re-enabled here." })}</p>
               {envEditor(envRows, setEnvRows)}
               <div className={cn("rounded-md border p-3", needsBroaderConfirm ? "border-destructive/40 bg-destructive/5" : "border-emerald-500/40 bg-emerald-500/5")}>
                 <p className="mb-2 text-xs font-semibold">{needsBroaderConfirm ? t("mcpDocker.scopeIncrease", { defaultValue: "This change increases host access; the server ID confirmation is required." }) : t("mcpDocker.scopeReduction", { defaultValue: "This change does not increase host path access. Review explicitly before saving." })}</p>

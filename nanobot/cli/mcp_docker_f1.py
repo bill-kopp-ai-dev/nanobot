@@ -185,7 +185,7 @@ def restore(
 ) -> None:
     """Preview or restore one excluded server using the gateway writer and broker."""
     from nanobot.config.loader import get_config_path, load_config
-    from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+    from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
     from nanobot.mcp_docker.service import DockerMcpService, DomainError
     from nanobot.webui.settings_services import WebUISettingsConfig
 
@@ -218,8 +218,9 @@ def restore(
         typer.echo(f"restore preview: server_id={server_id} revision={expected_revision}->{expected_revision + 1}")
         if not apply:
             return
-        result = service.restore_backup(backup_dir, expected_revision)
+        result = service.restore_backup(backup_dir, expected_revision, server_id)
         typer.echo(f"restored {result['server']} at revision {result['revision']} ({result['state']})")
-    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, DomainError, BrokerUnavailableError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, DomainError,
+            BrokerRejectedError, BrokerUnavailableError) as exc:
         typer.echo(f"restore refused: {exc}", err=True)
         raise typer.Exit(1) from exc

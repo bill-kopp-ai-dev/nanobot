@@ -11,6 +11,7 @@ from websockets.datastructures import Headers
 
 from nanobot.config.loader import load_config, save_config
 from nanobot.config.mcp_docker import DockerServer
+from nanobot.mcp_docker.client import BrokerRejectedError
 from nanobot.webui.http_utils import http_json_response
 from nanobot.webui.settings_routes import WebUISettingsRouter
 from nanobot.webui.settings_services import WebUISettingsServices
@@ -82,6 +83,49 @@ async def test_mutations_require_webui_and_operator_auth_for_each_call(tmp_path:
     save_config(config, tmp_path / "config.json")
     # Remote auth now passes; malformed request is rejected at the domain boundary.
     assert (await settings.dispatch(remote, request("install", {"operator_admin": "new-password"}), install)).status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_restore_requires_server_confirmation_and_maps_broker_rejection(tmp_path: Path) -> None:
+    settings = router(tmp_path / "config.json")
+    local = SimpleNamespace(remote_address=("127.0.0.1", 4567))
+    setup_path = "/api/settings/mcp-docker/operator-setup"
+    setup = await settings.dispatch(local, request("operator-setup", {"operator_admin": "correct"}), setup_path)
+    assert setup.status_code == 200
+
+    restore_path = "/api/settings/mcp-docker/restore"
+    missing_confirmation = await settings.dispatch(local, request("restore", {
+        "operator_admin": "correct",
+        "backup_id": "2026-10-08T12-00-00-weather-abc123",
+        "expected_revision": 0,
+    }), restore_path)
+    assert missing_confirmation.status_code == 400
+
+    def reject_restore(_backup_dir: Path, _revision: int, _confirmation: str) -> dict:
+        raise BrokerRejectedError(400, "broker rejected reconcile")
+
+    settings._mcp_docker.restore_backup = reject_restore
+    rejected = await settings.dispatch(local, request("restore", {
+        "operator_admin": "correct",
+        "backup_id": "2026-10-08T12-00-00-weather-abc123",
+        "expected_revision": 0,
+        "expected_confirmation": "weather",
+    }), restore_path)
+    assert rejected.status_code == 502
+    assert json.loads(rejected.body) == {"error": "Docker MCP broker rejected the restore operation"}
+
+    settings._mcp_docker.restore_backup = lambda _backup_dir, _revision, _confirmation: {
+        "server": "weather",
+        "state": "running",
+    }
+    restored = await settings.dispatch(local, request("restore", {
+        "operator_admin": "correct",
+        "backup_id": "2026-10-08T12-00-00-weather-abc123",
+        "expected_revision": 0,
+        "expected_confirmation": "weather",
+    }), restore_path)
+    assert restored.status_code == 200
+    assert json.loads(restored.body)["mcp_runtime"]["requires_restart"] is True
 
 
 @pytest.mark.asyncio

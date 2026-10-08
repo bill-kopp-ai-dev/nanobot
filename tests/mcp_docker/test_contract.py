@@ -25,7 +25,7 @@ from nanobot.config.mcp_docker import (
 )
 from nanobot.config.schema import Config, MCPServerConfig
 from nanobot.mcp_docker import broker as broker_module
-from nanobot.mcp_docker.client import BrokerUnavailableError
+from nanobot.mcp_docker.client import BrokerRejectedError, BrokerUnavailableError
 from nanobot.mcp_docker.operator import OperatorCredential
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.webui.settings_services import WebUISettingsConfig
@@ -43,6 +43,10 @@ class FakeBroker:
         self.calls.append((operation, server_id, data))
         if self.fail:
             raise BrokerUnavailableError("offline")
+        if operation == "status":
+            return {"registered": True}
+        if operation == "hydrate":
+            return {"registered": True}
         if operation == "observe":
             return {
                 "dockerObservation": "running", "mcpConnectivity": "connected", "tools": ["second"],
@@ -81,6 +85,9 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
     result = domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE}, configuration=host))
     assert result["revision"] == 1
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    with pytest.raises(DomainError) as bool_revision:
+        domain.act("configure", payload("alpha", 1, expected_server_revision=False, configuration={}))
+    assert bool_revision.value.status == 400
     read = domain.list()
     assert read["servers"]["alpha"]["configuration"]["env"]["TOKEN"]["value"] == REDACTED_SECRET
     assert read["servers"]["alpha"]["configuration"]["env"]["TOKEN"]["maskHint"] == "abcd••••jklm"
@@ -135,6 +142,8 @@ def test_eight_families_and_cas(tmp_path: Path) -> None:
 
     act("install", source={"type": "local-image", "reference": IMAGE}, configuration={"persistent": True})
     act("disable-tool", tool="first")
+    assert broker.calls[-2][0] == "status"
+    assert broker.calls[-1][0] == "disable-tool"
     assert domain.config.load().tools.mcp_docker.servers["weather"].tools_disabled == ["first"]
     act("update-image", source={"type": "local-image", "reference": NEXT_IMAGE})
     assert domain.config.load().tools.mcp_docker.servers["weather"].tools_disabled == []
@@ -153,15 +162,48 @@ def test_eight_families_and_cas(tmp_path: Path) -> None:
     backup_dir = act("exclude", expected_confirmation="weather")["backup"]
     assert domain.list()["servers"] == {}
     assert len(list((tmp_path / "mcp-docker" / "backups").iterdir())) == 2
-    restored = domain.restore_backup(Path(str(backup_dir)), revision)
+    backup_actions = {item["action"] for item in domain.list()["backups"]}
+    assert backup_actions == {"update-image", "exclude"}
+    with pytest.raises(DomainError, match="confirmation must equal server_id"):
+        domain.restore_backup(Path(str(backup_dir)), revision, "not-weather")
+    restored = domain.restore_backup(Path(str(backup_dir)), revision, "weather")
     assert restored["state"] == "running"
     assert domain.list()["servers"]["weather"]["source"]["reference"] == NEXT_IMAGE
     with pytest.raises(DomainError) as overwrite:
-        domain.restore_backup(Path(str(backup_dir)), revision + 1)
+        domain.restore_backup(Path(str(backup_dir)), revision + 1, "weather")
     assert overwrite.value.status == 409
     with pytest.raises(DomainError) as stale:
         domain.act("install", payload("weather", 0, source={"type": "local-image", "reference": IMAGE}, configuration={}))
     assert stale.value.status == 409
+
+
+def test_domain_rehydrates_broker_registry_only_when_process_state_is_missing(tmp_path: Path) -> None:
+    class RestartedBroker(FakeBroker):
+        def action(self, operation: str, server_id: str, data: dict) -> dict:
+            if operation == "status":
+                self.calls.append((operation, server_id, data))
+                return {"registered": False}
+            return super().action(operation, server_id, data)
+
+    broker = RestartedBroker()
+    domain = DockerMcpService(WebUISettingsConfig(tmp_path / "config.json"), broker)
+    domain.act("install", payload(
+        "weather", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={"persistent": True, "network": "bridge"},
+    ))
+    current = domain.config.load().tools.mcp_docker
+    domain.act("disable-tool", payload(
+        "weather", current.revision,
+        expected_server_revision=current.servers["weather"].revision,
+        tool="second",
+    ))
+
+    assert [call[0] for call in broker.calls[-3:]] == ["status", "hydrate", "disable-tool"]
+    hydrate = broker.calls[-2][2]
+    assert hydrate["source"]["reference"] == IMAGE
+    assert hydrate["configuration"]["network"] == "bridge"
+    assert hydrate["tools"] == ["second"]
 
 
 def test_list_sanitizes_unknown_mount_types_and_unhashable_values(tmp_path: Path) -> None:
@@ -290,6 +332,44 @@ def test_unresolved_transition_blocks_further_mutations(tmp_path: Path) -> None:
     with pytest.raises(DomainError) as error:
         domain.act("restart", payload("weather", 1, expected_server_revision=1))
     assert error.value.status == 503
+
+
+def test_broker_rejection_during_transition_recovery_is_surfaced_as_pending(tmp_path: Path) -> None:
+    class RejectingRecoveryBroker(FakeBroker):
+        def action(self, operation: str, server_id: str, data: dict) -> dict:
+            if operation == "recover":
+                raise BrokerRejectedError(400, "invalid broker state")
+            return super().action(operation, server_id, data)
+
+    path = tmp_path / "config.json"
+    broker = RejectingRecoveryBroker()
+    domain = DockerMcpService(WebUISettingsConfig(path), broker)
+    domain.act("install", payload(
+        "weather", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={},
+    ))
+    section = domain.config.load().tools.mcp_docker
+    server = section.servers["weather"]
+    host = section.configurations["weather"]
+    domain._write_transition("weather", {
+        "schemaVersion": 1,
+        "server_id": "weather",
+        "action": "configure",
+        "state": "preparing",
+        "base_revision": section.revision,
+        "correlation_id": "a" * 32,
+        "before": {
+            "server": server.model_dump(mode="json", by_alias=True),
+            "configuration": host.model_dump(mode="json", by_alias=True),
+        },
+    })
+
+    pending = domain.recover_pending()
+
+    assert pending == [{"server_id": "weather", "state": "preparing"}]
+    transition = json.loads((tmp_path / "mcp-docker" / "transitions" / "weather.json").read_text())
+    assert transition["state"] == "preparing"
 
 
 def test_recovery_finishes_exclusion_after_config_commit(tmp_path: Path) -> None:

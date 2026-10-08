@@ -120,7 +120,7 @@ def main() -> None:
         assert server_id not in DOMAIN.list()["servers"]
     assert weather_backup is not None
     section = load_config(ROOT / "config.json").tools.mcp_docker
-    DOMAIN.restore_backup(weather_backup, section.revision)
+    DOMAIN.restore_backup(weather_backup, section.revision, "f2weather")
     section = load_config(ROOT / "config.json").tools.mcp_docker
     restored = section.servers["f2weather"]
     DOMAIN._write_transition("f2weather", {

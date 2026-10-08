@@ -18,7 +18,7 @@ from nanobot.api.runtime import ApiRuntime, api_runtime_paths
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.registry import load_channel_plugin
 from nanobot.channels.validation import validate_channel_config
-from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
 from nanobot.mcp_docker.operator import OperatorCredential
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.pairing import approve_code, deny_code, list_pending
@@ -440,22 +440,27 @@ class WebUISettingsRouter:
         if action == "restore":
             backup_id = payload.get("backup_id")
             expected_revision = payload.get("expected_revision")
+            expected_confirmation = payload.get("expected_confirmation")
             if not isinstance(backup_id, str) or not re.fullmatch(r"[A-Za-z0-9T:.Z_-]{1,128}", backup_id):
                 return self._error_response(400, "invalid backup_id")
             if type(expected_revision) is not int or expected_revision < 0:
                 return self._error_response(400, "invalid expected_revision")
+            if not isinstance(expected_confirmation, str):
+                return self._error_response(400, "expected_confirmation is required")
             try:
                 result = await asyncio.to_thread(
                     self._mcp_docker.restore_backup,
                     self._mcp_docker.root / "backups" / backup_id,
                     expected_revision,
+                    expected_confirmation,
                 )
             except DomainError as exc:
                 return self._error_response(exc.status, str(exc))
+            except BrokerRejectedError:
+                return self._error_response(502, "Docker MCP broker rejected the restore operation")
             except BrokerUnavailableError:
                 return self._error_response(503, "Docker MCP broker unavailable")
-            if self._mcp_reload is not None:
-                result["mcp_runtime"] = await self._reload_mcp_runtime()
+            result["mcp_runtime"] = await self._reload_mcp_runtime()
             return self._json_response(result)
         try:
             # Remove the operator password before entering the domain or audit.
@@ -464,10 +469,11 @@ class WebUISettingsRouter:
             })
         except DomainError as exc:
             return self._error_response(exc.status, str(exc))
+        except BrokerRejectedError:
+            return self._error_response(502, "Docker MCP broker rejected the operation")
         except BrokerUnavailableError:
             return self._error_response(503, "Docker MCP broker unavailable")
-        if self._mcp_reload is not None:
-            result["mcp_runtime"] = await self._reload_mcp_runtime()
+        result["mcp_runtime"] = await self._reload_mcp_runtime()
         return self._json_response(result)
 
     @staticmethod

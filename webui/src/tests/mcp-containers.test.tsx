@@ -203,6 +203,7 @@ describe("MCP container observability page", () => {
   it("round-trips a redacted secret sentinel without displaying or replacing the value", async () => {
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
     const value = structuredClone(snapshot());
+    value.servers.weather.configuration.network = "bridge";
     value.servers.weather.configuration.env = {
       API_TOKEN: { kind: "secret", value: "_REDACTED_MCP_ENV_SECRET", maskHint: "abcd••••wxyz" },
     };
@@ -224,6 +225,7 @@ describe("MCP container observability page", () => {
       expect.objectContaining({
         operator_admin: "admin-secret",
         configuration: expect.objectContaining({
+          network: "bridge",
           env: { API_TOKEN: { kind: "secret", value: "_REDACTED_MCP_ENV_SECRET" } },
         }),
       }),
@@ -292,7 +294,7 @@ describe("MCP container observability page", () => {
   it("requires server ID confirmation before restoring a backup", async () => {
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
     const value = structuredClone(snapshot()) as McpDockerSnapshot;
-    value.backups = [{ backupId: "2026-10-07T18-00-00-weather-deadbeef", serverId: "weather-old", sourceRevision: 5 }];
+    value.backups = [{ backupId: "2026-10-07T18-00-00-weather-deadbeef", serverId: "weather-old", sourceRevision: 5, action: "exclude" }];
     vi.mocked(fetchMcpDockerSnapshot).mockResolvedValue(value);
     const client = clientStub();
     render(
@@ -303,9 +305,14 @@ describe("MCP container observability page", () => {
 
     fireEvent.change(await screen.findByLabelText("Operator password"), { target: { value: "admin-secret" } });
     fireEvent.click(screen.getByRole("button", { name: "Unlock management" }));
+    expect(screen.getByText(/before exclude/)).toBeInTheDocument();
     const restore = screen.getByRole("button", { name: "Restore" });
     expect(restore).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Type the server ID to restore"), { target: { value: "weather-old" } });
+    vi.mocked(client.requestMutation).mockResolvedValueOnce({
+      server: "weather-old",
+      mcp_runtime: { ok: false, requires_restart: true },
+    });
     fireEvent.click(restore);
 
     await waitFor(() => expect(client.requestMutation).toHaveBeenCalledWith(
@@ -313,9 +320,11 @@ describe("MCP container observability page", () => {
       {
         backup_id: "2026-10-07T18-00-00-weather-deadbeef",
         expected_revision: 4,
+        expected_confirmation: "weather-old",
         operator_admin: "admin-secret",
       },
       expect.any(Number),
     ));
+    expect(await screen.findByText(/Server restored from backup and reconciled\. Saved\. Restart to apply changes\./i)).toBeInTheDocument();
   });
 });

@@ -1522,7 +1522,11 @@ class MCPProvider:
 
     def _reconcile_managed(self, names: Iterable[str]) -> set[str]:
         from nanobot.config.loader import load_config
-        from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+        from nanobot.mcp_docker.client import (
+            BrokerClient,
+            BrokerRejectedError,
+            BrokerUnavailableError,
+        )
 
         path = self._managed_config_path
         if path is None:
@@ -1552,7 +1556,7 @@ class MCPProvider:
                     "active": server.active,
                     "tools_disabled": server.tools_disabled,
                 })
-            except BrokerUnavailableError:
+            except (BrokerRejectedError, BrokerUnavailableError):
                 continue
             if result.get("running"):
                 available.add(name)

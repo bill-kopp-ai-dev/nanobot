@@ -58,6 +58,41 @@ def test_recovery_rebuilds_active_container_or_preserves_persistent_stop(monkeyp
     assert spawns == ["osm"]
 
 
+def test_start_rehydrates_broker_state_after_process_restart(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "_STORE", {})
+    running = False
+    docker_calls: list[tuple[str, ...]] = []
+
+    monkeypatch.setattr(broker, "_inspect", lambda _server: {"State": {"Running": running}})
+    monkeypatch.setattr(broker, "_running", lambda _server: running)
+
+    def docker(*args: str) -> str:
+        nonlocal running
+        docker_calls.append(args)
+        if args[:2] == ("start", "percival-mcp-weather"):
+            running = True
+        return ""
+
+    monkeypatch.setattr(broker, "docker", docker)
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+    state = {
+        "source": {"type": "local-image", "reference": "sha256:" + "a" * 64},
+        "configuration": {"persistent": True},
+        "active": True,
+        "tools_disabled": [],
+        "tools": ["forecast"],
+    }
+    assert broker.action("status", "weather", {}) == {"registered": False}
+    broker.action("hydrate", "weather", state)
+    assert broker.action("status", "weather", {}) == {"registered": True}
+    result = broker.action("start", "weather", {})
+
+    assert result == {"running": True, "tools": ["forecast"]}
+    assert docker_calls == [("start", "percival-mcp-weather")]
+    assert broker._STORE["weather"].host.persistent is True
+
+
 def test_observe_is_read_only_and_reports_docker_and_mcp_separately(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
     source = {"type": "local-image", "reference": "sha256:" + "a" * 64}
