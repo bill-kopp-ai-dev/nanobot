@@ -33,12 +33,13 @@
    Exposição externa requer opt-in e configuração explícita de autenticação,
    proxy/TLS e firewall. Não remover autenticação para evitar restart loops.
 7. **Labels de container:** manter `percival.mcp-docker.server-id` por
-   compatibilidade e adicionar labels de owner, manager e instance ID. Os
-   managers devem aplicar seus próprios labels; o broker não altera containers
+   compatibilidade e adicionar `percival.mcp-docker.owner`,
+   `percival.mcp-docker.managed-by` e `percival.mcp-docker.instance-id`. Os
+   managers aplicam seus próprios labels; o broker não altera containers
    Positronic. Valores distinguem owner (`percival`/`positronic`) e manager
-   (`percival-broker`/gestor Positronic). Semântica de persistência do
-   `instance-id` e os nomes finais das novas chaves serão fixados em F2 junto ao
-   modelo de instância, antes de implementação incompatível.
+   (`percival-broker`/gestor Positronic). F2 fixa a identidade de uma
+   encarnação Docker: cada novo container recebe UUID v4; recreate/restart
+   gera outro ID, enquanto o `server-id` permanece estável.
 
 ## Consequências e limites
 

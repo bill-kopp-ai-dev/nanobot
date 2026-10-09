@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
 from nanobot.mcp_docker import broker
@@ -340,6 +342,12 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     # precedes network so a misbehaving image cannot rebind the network.
     label_index = run_args.index("percival.mcp-docker.server-id=agentmail")
     assert run_args[label_index - 1] == "--label"
+    assert "percival.mcp-docker.owner=percival" in run_args
+    assert "percival.mcp-docker.managed-by=percival-broker" in run_args
+    instance_index = next(i for i, value in enumerate(run_args) if value.startswith("percival.mcp-docker.instance-id="))
+    assert run_args[instance_index - 1] == "--label"
+    instance_id = run_args[instance_index].split("=", 1)[1]
+    assert str(uuid.UUID(instance_id)) == instance_id
     assert label_index < network_index
     assert "--cap-drop=ALL" in run_args
     assert "--security-opt=no-new-privileges" in run_args

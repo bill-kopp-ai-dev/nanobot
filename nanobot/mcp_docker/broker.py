@@ -15,6 +15,7 @@ import re
 import select
 import subprocess
 import threading
+import uuid
 from pathlib import Path
 from typing import Any, cast
 
@@ -159,8 +160,12 @@ def _remove(server_id: str) -> None:
 def _spawn(server: ManagedServer) -> None:
     policy = ready()  # re-read host mounts/data-root before every new container
     reference = image_reference(server.source)
+    instance_id = str(uuid.uuid4())
     args = ["run", "-d", "-i", "--pull=never", "--name", _name(server.server_id),
             "--label", f"percival.mcp-docker.server-id={server.server_id}",
+            "--label", "percival.mcp-docker.owner=percival",
+            "--label", "percival.mcp-docker.managed-by=percival-broker",
+            "--label", f"percival.mcp-docker.instance-id={instance_id}",
             f"--network={server.host.network}", "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
             *policy.docker_args(server.host.mounts)]

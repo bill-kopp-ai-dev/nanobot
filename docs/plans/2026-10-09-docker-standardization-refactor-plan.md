@@ -1,6 +1,6 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.4 (F0 e F1 concluídos; F2 é a próxima fase).
+- **Revisão:** 2026-10-09 / v0.5 (F0/F1 concluídos; F2 em implementação).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -152,7 +152,30 @@ consumidores históricos não foram alterados. O cutover permanece em F6.
 - Acrescentar container labels que identifiquem origem/owner/gestor e instância nos containers criados pelo broker. Não usar nomes aleatórios como única forma de gestão; não adicionar `container_name` global fixo que impeça duas instâncias.
 - Criar comando/script read-only de inventário que mostre tag, ID, RepoDigest, labels, data/arch, owners, container names, healthcheck, ports e referências de Compose/config; redigir variáveis/env/secrets.
 
+**Contrato F2 fixado para implementação:** `percival.mcp-docker.owner` é
+`percival`; `percival.mcp-docker.managed-by` é `percival-broker`; o
+`percival.mcp-docker.server-id` existente segue compatível; e
+`percival.mcp-docker.instance-id` é UUID v4 novo para cada encarnação de
+container (um recreate gera novo ID). A captura de inventário seleciona campos
+de Docker sem consultar `Config.Env`, filtra labels relevantes e redige mounts
+de `.env`/secrets. O build canônico é `python scripts/percival-docker-build.py`
+no checkout Percival: extrai a versão de `pyproject.toml`, revisão do Git, exige
+versão SemVer não-placeholder e constrói localmente `linux/amd64` com tag
+`percival-<service>:<version>-<shortsha>`; `--dev-alias` atualiza `:dev` só a
+pedido. `--worktree-candidate` cria tag com sufixo explícito e hash do diff para
+validação local, sem representar release nem atualizar `:dev`.
+
 **Gate F2:** os seis builds canônicos apresentam labels coincidentes com versão/revisão da fonte; configuração broker continua pinada por identidade; inventário distingue instâncias mesmo quando compartilham image ID. Nenhuma tag externa é publicada.
+
+**Execução local 2026-10-09 — implementação validada, gate aberto:** contrato OCI
+dos seis MCPs, build local source-derived, labels broker-managed e inventário
+read-only foram implementados. Os seis candidatos `linux/amd64` foram
+construídos/inspecionados; todos identificam o diff tracked local em tag e
+label explícitos. O relatório
+[`F2 identity/inventory`](../reports/2026-10-09-f2-docker-identity-inventory.md)
+registra IDs, hashes, verificações e limites. Ainda faltam builds canônicos em
+checkouts limpos após revisão/integração das alterações tracked; por isso F2 não
+está marcada concluída. Não houve mutação dos consumers, cutover ou cleanup.
 
 ### F3 — Reprodutibilidade, contextos e postura base
 
