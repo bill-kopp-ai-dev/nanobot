@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-09T16:45:00Z",
+  "platform": "linux/amd64",
+  "worktreeCandidates": true,
+  "builds": [
+    {
+      "service": "notes-mcp",
+      "tag": "percival-notes-mcp:0.1.5-4159b92-f3-f39de5c11f9a",
+      "sourceRevision": "4159b9217d53e3db7e247c8b291f5a1eb76d15a4",
+      "sourceDiffSha256": "f39de5c11f9abc5b3c9dc2f2c8d41fb3e2ef054a43c59819a5f6d6769e82f285",
+      "imageId": "sha256:9307839f2e47ebfa0b839867daef39e6a1ba73e74b5c928f2085efe28b91cfdc",
+      "repoDigest": "percival-notes-mcp@sha256:9307839f2e47ebfa0b839867daef39e6a1ba73e74b5c928f2085efe28b91cfdc",
+      "sizeBytes": 55668410,
+      "contextTransfer": "193B",
+      "baseImages": [
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d",
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+      ],
+      "lockHashes": {
+        "uv.lock": "48719d8832d61274913011f323141240f1edd7464f37357e0c0e4649dda06c3e",
+        "uv-bootstrap-requirements.lock": "ac7070192b8af2250135c26da329ad20da98d1e685940c5f581371bb4c063e09"
+      },
+      "buildArgs": {
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "0.1.5",
+        "GIT_SHA": "4159b9217d53e3db7e247c8b291f5a1eb76d15a4"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 189,
+        "sha256": "c7fe628ac6477c95acdf7316a72714ca624f96a9a555264716f0229f93774f41",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-notes-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 3,
+        "high": 64,
+        "medium": 127,
+        "low": 107,
+        "unknown": 4,
+        "sha256": "69231ede789af656a457c42c9305d6be8a2a1a35f85d05a71978021cfd408903",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/notes-f3.json"
+      }
+    },
+    {
+      "service": "agentmail-mcp",
+      "tag": "percival-agentmail-mcp:0.4.0-e13a70c-f3-43ce477bc594",
+      "sourceRevision": "e13a70ce5022c8d535c51962f7b899f0c3da90e8",
+      "sourceDiffSha256": "43ce477bc59476a3861d794622feb7ae69665b2c7a3d4607c6c89f5aefc5e098",
+      "imageId": "sha256:a529b01bbc8c1d1e8ed04ba976be1f9a9e286ce5b700e450e7a6124a49db848b",
+      "repoDigest": "percival-agentmail-mcp@sha256:a529b01bbc8c1d1e8ed04ba976be1f9a9e286ce5b700e450e7a6124a49db848b",
+      "sizeBytes": 66045718,
+      "contextTransfer": "2.65kB",
+      "baseImages": [
+        "ghcr.io/astral-sh/uv:0.5.11-python3.12-bookworm-slim@sha256:cc9311ae7d42ccb51f6ac10c8ab8526de8a3f484b36349fd87af8e5ced7079c0",
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+      ],
+      "lockHashes": {
+        "uv.lock": "ecafea26ca1e074dedba02fb52138b2f16ad436dac9f8b0567898fa97384ca7a"
+      },
+      "buildArgs": {
+        "PYTHON_VERSION": "3.12",
+        "UV_VERSION": "0.5.11",
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "0.4.0",
+        "GIT_SHA": "e13a70ce5022c8d535c51962f7b899f0c3da90e8"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 193,
+        "sha256": "9ecdf318d41fd6bfa3b53f6769244360a130a176f2763d9289c923936786f598",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-agentmail-mcp-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 3,
+        "high": 61,
+        "medium": 129,
+        "low": 102,
+        "unknown": 4,
+        "sha256": "03cf6eabd1c50fc428259323d7ffa3fb12475d58137ad4213a6eb7e85bd92665",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/agentmail-mcp-f3.json"
+      }
+    },
+    {
+      "service": "weather-mcp",
+      "tag": "percival-weather-mcp:0.9.0-b90596d-f3-93209d3e2b4f",
+      "sourceRevision": "b90596d8e61353e42e467c12605fbf770b8d9692",
+      "sourceDiffSha256": "93209d3e2b4fa9eb372390d41e7608da982005868c45305ba9a6b70721943b28",
+      "imageId": "sha256:5d4880287e2bde8ea57e39e621e36ed70654a332e95e478061578ea66a797338",
+      "repoDigest": "percival-weather-mcp@sha256:5d4880287e2bde8ea57e39e621e36ed70654a332e95e478061578ea66a797338",
+      "sizeBytes": 53631719,
+      "contextTransfer": "4.63kB",
+      "baseImages": [
+        "ghcr.io/astral-sh/uv:0.5.7-python3.12-bookworm-slim@sha256:399c01ff93ddcced563dd42642a1b1b6814128e730c7cb4eac74021403dbe62e",
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+      ],
+      "lockHashes": {
+        "uv.lock": "bcbda4dff1b7c36c750523d9701b64d94d90e5a84df9be22cc5b05c5bb0b4c09"
+      },
+      "buildArgs": {
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "0.9.0",
+        "GIT_SHA": "b90596d8e61353e42e467c12605fbf770b8d9692"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 189,
+        "sha256": "961210cc356fbbbbe18f154a416ba74c876bf70c82f1d06ddee4aa46e2708fd5",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-weather-mcp-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 4,
+        "high": 64,
+        "medium": 127,
+        "low": 107,
+        "unknown": 4,
+        "sha256": "9c9b58343396e71a870bdfc976bbcb0ee3015601671a761663b4554eae014091",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/weather-mcp-f3.json"
+      }
+    },
+    {
+      "service": "khan-calendar",
+      "tag": "percival-khan-calendar:0.4.0-d486bca-f3-116a9eb82017",
+      "sourceRevision": "d486bca03bd85fa9dd94187d3d7382d20e8f7f2d",
+      "sourceDiffSha256": "116a9eb82017f1a5a29b1920ed7a4f7db561d86d98d65bc8d62a4521b6a917ad",
+      "imageId": "sha256:05628172438e52a92ebc2895d1f28281e1219b9c73ef07f85f14a0aba484cee4",
+      "repoDigest": "percival-khan-calendar@sha256:05628172438e52a92ebc2895d1f28281e1219b9c73ef07f85f14a0aba484cee4",
+      "sizeBytes": 78575819,
+      "contextTransfer": "3.94kB",
+      "baseImages": [
+        "ghcr.io/astral-sh/uv:0.5.11-python3.12-bookworm-slim@sha256:cc9311ae7d42ccb51f6ac10c8ab8526de8a3f484b36349fd87af8e5ced7079c0",
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+      ],
+      "lockHashes": {
+        "uv.lock": "7bc9855c234794afb69a222613e7ce0fd387a7234c0c8d4f12644e38f5c74f99"
+      },
+      "buildArgs": {
+        "PYTHON_VERSION": "3.12",
+        "UV_VERSION": "0.5.11",
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "0.4.0",
+        "GIT_SHA": "d486bca03bd85fa9dd94187d3d7382d20e8f7f2d"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 236,
+        "sha256": "632496cb8032583172bfee7142fc7f9f2f03a4b395db5fa9c999dce0d1b9ca6e",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-khan-calendar-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 3,
+        "high": 61,
+        "medium": 129,
+        "low": 102,
+        "unknown": 4,
+        "sha256": "a689cd795853fd9ef96da985703bf16a72a748a8689705508bb1da7a4e6ee809",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/khan-calendar-f3.json"
+      }
+    },
+    {
+      "service": "osm",
+      "tag": "percival-osm:0.5.0-2dba52b-f3-2cbf9783916d",
+      "sourceRevision": "2dba52b15e70846bba0c8051872edc7fb9e43d35",
+      "sourceDiffSha256": "2cbf9783916d73c960c12239ba53f3d30cebe87f5917ffcc6b71fc4066604d87",
+      "imageId": "sha256:867c5f0d61efcdf08a6791c0aa4947dfd835d97c19ad8741c7dd70c0c4502d79",
+      "repoDigest": "percival-osm@sha256:867c5f0d61efcdf08a6791c0aa4947dfd835d97c19ad8741c7dd70c0c4502d79",
+      "sizeBytes": 60385822,
+      "contextTransfer": "968B",
+      "baseImages": [
+        "ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:5d275ca5f0da33c3368ac8fbb85fafabad023b3b8a7cff39a94ac0baecfd9a50",
+        "python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+      ],
+      "lockHashes": {
+        "uv.lock": "9129778f6311c1c0155c12b0ee84a42324240fbb0fd3375d2b82df2a6a84a5a7"
+      },
+      "buildArgs": {
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "0.5.0",
+        "GIT_SHA": "2dba52b15e70846bba0c8051872edc7fb9e43d35"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 212,
+        "sha256": "9293fa4963a55e18504dc68421c6517ba9c751d7e3bcf325fc1f6480613a29a9",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-osm-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 5,
+        "high": 83,
+        "medium": 164,
+        "low": 135,
+        "unknown": 4,
+        "sha256": "b379b86dcc102c464f473726f208047209fce50cff6c71208fec43e2ae30832c",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/osm-f3.json"
+      }
+    },
+    {
+      "service": "deep-research",
+      "tag": "percival-deep-research:3.0.1-4dd8e35-f3-268af5d09df2",
+      "sourceRevision": "4dd8e35689a93c56393a5538ec98de41f04fae67",
+      "sourceDiffSha256": "268af5d09df277732c4338c6f37384bc20df152ec542c7c774e6dc46f1afd07e",
+      "imageId": "sha256:b0e837ac982160c52cb79310700d50b38864d3c8fd78230ef93b90ff2dbdba4e",
+      "repoDigest": "percival-deep-research@sha256:b0e837ac982160c52cb79310700d50b38864d3c8fd78230ef93b90ff2dbdba4e",
+      "sizeBytes": 317795934,
+      "contextTransfer": "6.85kB",
+      "baseImages": [
+        "ghcr.io/astral-sh/uv:python3.11-bookworm-slim@sha256:f6bb96a2e3c5abe90eb9835a7f543067434d1d2d99d670315a9e826ba5f6fed9",
+        "python:3.11-slim-bookworm@sha256:8a00ecb83ed9d0864dfd102a1bdb2067fda907ceb30bb86d09da9ee558b19590"
+      ],
+      "lockHashes": {
+        "uv.lock": "6bd3da43bd2eac5f022f32c11a22dc5cca6ebc761dafb53497646c9c6e73b910"
+      },
+      "buildArgs": {
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "VERSION": "3.0.1",
+        "GIT_SHA": "4dd8e35689a93c56393a5538ec98de41f04fae67"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 415,
+        "sha256": "702cbde2d1934ee3635e6b14cf50b1bb86ec3ab0113f978cc4602b9f40fbe11c",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-deep-research-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 5,
+        "high": 97,
+        "medium": 170,
+        "low": 130,
+        "unknown": 4,
+        "sha256": "b3d59ddabeefc445af94188044029e1dd6749a0460bbdf20370a766968d27d4c",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/deep-research-f3.json"
+      }
+    },
+    {
+      "service": "gateway",
+      "tag": "percival-gateway:0.3.5-86590e0-f3-44bd1356e380",
+      "sourceRevision": "86590e0075daeacb50c490f4cf0e3782928cf712",
+      "sourceDiffSha256": "44bd1356e380eb063122d9afee2628eb167924060e6b79e8ae5ab07fe6b5c784",
+      "imageId": "sha256:1c440be092513f98746c3491d02f7715b087850dd16055ec65067016b72520ab",
+      "repoDigest": "percival-gateway@sha256:1c440be092513f98746c3491d02f7715b087850dd16055ec65067016b72520ab",
+      "sizeBytes": 311784685,
+      "contextTransfer": "28.78MB",
+      "baseImages": [
+        "node:24-bookworm-slim@sha256:51b1100cc2a83d370c6a60952e3f2989c8a43159d0e38586e090f3b3326efefd",
+        "ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:5d275ca5f0da33c3368ac8fbb85fafabad023b3b8a7cff39a94ac0baecfd9a50"
+      ],
+      "lockHashes": {
+        "uv.lock": "13b8e565ec19fd2880f65297b71049f2ff5ac57c55f00120b3cf62d546b54f9d",
+        "webui/package-lock.json": "2807d1c377c3f69c78eb647066826b4ba0e560bb819aeea3cbd59c3663f48f62",
+        "channel-locks/manifest.json": "bc6597147b92371c96b797d370ead30e601d86e642f692c8bd844f45ecb60543",
+        "channel-locks/whatsapp.txt": "32629f980e906acac93289dadbdc9e912e6e9bc4824bfae88e1e0d98079bbf6a"
+      },
+      "buildArgs": {
+        "DEBIAN_SNAPSHOT": "20261009T000000Z",
+        "NANOBOT_CHANNELS": "whatsapp",
+        "VERSION": "0.3.5",
+        "GIT_SHA": "86590e0075daeacb50c490f4cf0e3782928cf712"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 343,
+        "sha256": "dc9a07b39339fc535ecd232b70a2c8b8c3532da7b8b61ec71e86782aadcaf39f",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-gateway-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 3,
+        "high": 89,
+        "medium": 187,
+        "low": 147,
+        "unknown": 14,
+        "sha256": "0f14faed52a0104c23530c2d8d16935812e1f6e7ca5f115fd69e1accc902bbf2",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/gateway-f3.json"
+      }
+    },
+    {
+      "service": "mcp-broker",
+      "tag": "percival-mcp-broker:0.3.5-86590e0-f3-44bd1356e380",
+      "sourceRevision": "86590e0075daeacb50c490f4cf0e3782928cf712",
+      "sourceDiffSha256": "44bd1356e380eb063122d9afee2628eb167924060e6b79e8ae5ab07fe6b5c784",
+      "imageId": "sha256:fd34055cd9dc5941b64a4e635bfd68166454fdab9e2d850d04ade9f19ab3d04d",
+      "repoDigest": "percival-mcp-broker@sha256:fd34055cd9dc5941b64a4e635bfd68166454fdab9e2d850d04ade9f19ab3d04d",
+      "sizeBytes": 100957123,
+      "contextTransfer": "432B",
+      "normalCandidateBuildContextTransfer": "11.64kB",
+      "baseImages": [
+        "docker:27.5.1-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c"
+      ],
+      "lockHashes": {
+        "uv.lock": "13b8e565ec19fd2880f65297b71049f2ff5ac57c55f00120b3cf62d546b54f9d",
+        "docker/mcp-broker-requirements.lock": "2aa61388a96d3f689392aa2cce7cf2a389ce34b9757fd0bba02907324595d02c"
+      },
+      "buildArgs": {
+        "VERSION": "0.3.5",
+        "GIT_SHA": "86590e0075daeacb50c490f4cf0e3782928cf712"
+      },
+      "sbom": {
+        "format": "CycloneDX",
+        "components": 280,
+        "sha256": "28f17b6c8327a044f2af0cea5268fe78a98fd6ab1abbf2b858360cc14cb76657",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/percival-mcp-broker-f3.cdx.json"
+      },
+      "trivy": {
+        "critical": 7,
+        "high": 162,
+        "medium": 225,
+        "low": 58,
+        "unknown": 41,
+        "sha256": "e5e1870b4dc8a36e5752e601efd21c35c390afededdace662c7a4f09d25a2fec",
+        "localPath": "/home/bill/.positronic/runtime/tmp/opencode/trivy-reports/mcp-broker-f3.json"
+      }
+    }
+  ],
+  "scanner": {
+    "name": "Trivy",
+    "version": "0.67.2",
+    "imageDigest": "sha256:ac2f9d0197456a8ce460884b113e49d65b667f506c31d014c9955869a7a5d682",
+    "databaseUpdatedAt": "2026-10-09T13:10:00Z",
+    "databaseDownloadedAt": "2026-10-09T15:53:02Z",
+    "limitations": [
+      "Trivy warned that third-party SBOMs may reduce vulnerability-detection accuracy for Deep Research and the gateway; those results require human triage.",
+      "The raw SBOM and Trivy report files are local artifacts under /home/bill/.positronic/runtime/tmp/opencode and are not checked into this repository."
+    ]
+  }
+}
