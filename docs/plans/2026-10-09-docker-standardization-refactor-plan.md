@@ -1,6 +1,6 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.3 (F0 concluído; F1 é a próxima fase).
+- **Revisão:** 2026-10-09 / v0.4 (F0 e F1 concluídos; F2 é a próxima fase).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -130,6 +130,14 @@ configuração foi executado.
 - Exercitar em fixture isolada; manter os containers/imagens históricos para rollback.
 
 **Gate F1:** relatório de execução com image IDs/digests, config `inspect`, resultado de MCP stdio e HTTP por modo; as duas regressões não podem ser corrigidas apenas desabilitando visibilidade do healthcheck sem provar funcionamento.
+
+**Execução 2026-10-09 — gate concluído em candidatos locais:** Deep Research e
+OSM passaram build `linux/amd64`, Compose stdio/HTTP isolado, handshake/tools,
+probe HTTP, auth/bind no OSM, init único e encerramento por SIGTERM. O relatório
+[`F1 runtime corrections`](../reports/2026-10-09-f1-runtime-corrections.md)
+registra IDs, RepoDigests locais, configuração inspecionada, comandos, testes e
+limitações. As imagens candidatas foram mantidas para rollback; containers e
+consumidores históricos não foram alterados. O cutover permanece em F6.
 
 ### F2 — Contrato de identidade e inventário contínuo
 
@@ -291,10 +299,9 @@ Não considerar a padronização local completa até que:
 
 ## 7. Próxima ação proposta
 
-Começar F0 com inventário sem segredos das configurações que lançam os seis
-servidores e reconciliação dos quatro containers ativos por consumidor. Em
-paralelo, preparar patches isolados de F1 para Deep Research e OSM, sem os
-aplicar até confirmar os defaults de transporte/init e o desenho Compose HTTP. A
-primeira implementação deve passar por smoke local descartável e rollback antes
-do canary. Inventariar já em F0 os `AGENTS.md` efetivos e a skill existente para
-preparar F8 sem publicar ou ativar uma skill prematuramente.
+Começar F2 com metadados OCI/container e inventário read-only, usando source
+SHA/revision explícitos e preservando os aliases/pins históricos. F1 deixou os
+candidatos locais disponíveis para rollback, mas não autorizou cutover dos
+consumidores; manter a distinção entre as imagens candidatas e as instâncias
+Positronic/Percival atuais. Continuar a preparar F8 sem publicar ou ativar uma
+skill prematuramente.
