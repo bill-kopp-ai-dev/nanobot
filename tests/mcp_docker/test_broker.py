@@ -36,9 +36,42 @@ def test_authenticated_health_only_checks_broker_readiness(monkeypatch: pytest.M
     calls: list[str] = []
     monkeypatch.setattr(broker, "ready", lambda: calls.append("ready"))
     monkeypatch.setattr(broker, "_STORE", {})
-    assert broker.action("health", "broker", {}) == {"ready": True}
+    assert broker.action("health", "broker", {}) == {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
     assert calls == ["ready"]
     assert broker._STORE == {}
+
+
+def test_update_same_image_rejects_before_removing_container(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "_STORE", {})
+    source = {"type": "local-image", "reference": "sha256:" + "a" * 64}
+    broker.action("hydrate", "weather", {"source": source, "configuration": {},
+                                          "active": True, "tools_disabled": [], "tools": ["forecast"]})
+    monkeypatch.setattr(broker, "_remove", lambda _server: pytest.fail("unchanged image removed container"))
+    with pytest.raises(broker.BrokerError, match="unchanged"):
+        broker.action("update-image", "weather", {"source": source})
+
+
+def test_minimum_access_spawn_checks_effective_binds(monkeypatch: pytest.MonkeyPatch) -> None:
+    class NoBinds:
+        def docker_args(self, mounts: list[str] | None) -> list[str]:
+            assert mounts == []
+            return []
+
+    monkeypatch.setattr(broker, "ready", lambda: NoBinds())
+    monkeypatch.setattr(broker, "image_reference", lambda _source: "sha256:" + "a" * 64)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(broker, "docker", lambda *args: calls.append(args))
+    monkeypatch.setattr(broker, "_running", lambda _server: True)
+    inspected = {"HostConfig": {"NetworkMode": "none"}, "Mounts": []}
+    monkeypatch.setattr(broker, "_inspect", lambda _server: inspected)
+    server = broker.ManagedServer("weather", broker.DockerImageSource(
+        type="local-image", reference="sha256:" + "a" * 64), broker.DockerHostConfig(mounts=[]))
+    broker._spawn(server)
+    assert not any("--mount" in args for args in calls)
+    inspected["Mounts"] = [{"Type": "bind", "Destination": "/host"}]
+    with pytest.raises(broker.BrokerError, match="unexpected binds"):
+        broker._spawn(server)
 
 
 def test_recovery_rebuilds_active_container_or_preserves_persistent_stop(monkeypatch: pytest.MonkeyPatch) -> None:

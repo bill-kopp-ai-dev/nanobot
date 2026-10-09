@@ -22,6 +22,7 @@ from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.config.loader import load_config, resolve_config_env_vars, save_config
 from nanobot.config.mcp_docker import (
     REDACTED_SECRET,
+    DockerHostConfig,
     DockerImageSource,
     DockerServer,
     McpDockerConfig,
@@ -47,7 +48,7 @@ class FakeBroker:
         if self.fail:
             raise BrokerUnavailableError("offline")
         if operation == "health":
-            return {"ready": True}
+            return {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
         if operation == "status":
             return {"registered": True}
         if operation == "hydrate":
@@ -68,6 +69,7 @@ def payload(server_id: str, revision: int, **extra: object) -> dict:
 
 
 def test_config_schema_rejects_unsupported_image_version_and_missing_configuration(tmp_path: Path) -> None:
+    assert DockerHostConfig(mounts=[]).model_dump()["mounts"] == []
     with pytest.raises(ValidationError):
         DockerImageSource(type="local-image", reference="ubuntu:latest")
     with pytest.raises(ValidationError):
@@ -85,8 +87,8 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
     broker = FakeBroker()
     domain = DockerMcpService(WebUISettingsConfig(path), broker)
-    host = {"env": {"TOKEN": {"kind": "secret", "value": "abcdefghijklm"},
-                    "FROM_BROKER": {"kind": "reference", "value": "${BROKER_ENV}"}}}
+    host = {"mounts": ["/srv/data"], "env": {"TOKEN": {"kind": "secret", "value": "abcdefghijklm"},
+                                                  "FROM_BROKER": {"kind": "reference", "value": "${BROKER_ENV}"}}}
     result = domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE}, configuration=host))
     assert result["revision"] == 1
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
@@ -104,11 +106,15 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
         "mounts": [{"type": "bind", "destination": "/host/srv/data", "readWrite": True}],
     }
     assert read["servers"]["alpha"]["tools"] == ["second"]
+    assert read["servers"]["alpha"]["toolsSource"] == "observed"
+    assert read["servers"]["alpha"]["savedTools"] == ["second"]
+    assert read["minimumMountsSupported"] is True
+    assert read["supportedNetworks"] == ["none", "bridge"]
     assert load_config(path).tools.mcp_docker.configurations["alpha"].env["TOKEN"].value == "abcdefghijklm"
     resolve_config_env_vars(load_config(path))  # broker reference is not resolved in the gateway
     with pytest.raises(DomainError) as invalid:
         domain.act("configure", payload("alpha", 1, expected_server_revision=0,
-                                        configuration={"env": {"NEW": {"kind": "secret", "value": REDACTED_SECRET}}}))
+                                        configuration={"mounts": [], "env": {"NEW": {"kind": "secret", "value": REDACTED_SECRET}}}))
     assert invalid.value.status == 400
     host["env"]["TOKEN"]["value"] = REDACTED_SECRET
     domain.act("configure", payload("alpha", 1, expected_server_revision=0, configuration=host))
@@ -126,6 +132,45 @@ def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
     assert "abcdefghijklm" not in audit
     assert '"phase": "failed"' in audit
     assert stat.S_IMODE((tmp_path / "mcp-docker" / "audit.jsonl").stat().st_mode) == 0o600
+
+
+def test_configure_rejects_missing_mounts(tmp_path: Path) -> None:
+    """A ``configure`` payload that omits ``mounts`` must be rejected so an
+    existing mount reduction cannot be silently widened to Full host access
+    by a stale or buggy client."""
+    path = tmp_path / "config.json"
+    domain = DockerMcpService(WebUISettingsConfig(path), FakeBroker())
+    domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE},
+                                  configuration={"mounts": ["/srv/data"], "persistent": False}))
+    current = domain.config.load().tools.mcp_docker.servers["alpha"]
+    with pytest.raises(DomainError) as exc:
+        domain.act("configure", payload("alpha", 1, expected_server_revision=current.revision,
+                                        configuration={"persistent": False}))
+    assert exc.value.status == 400
+    assert "mounts is required" in exc.value.args[0]
+    with pytest.raises(DomainError) as exc:
+        domain.act("configure", payload("alpha", 1, expected_server_revision=current.revision,
+                                        configuration=None))
+    assert exc.value.status == 400
+    assert "mounts is required" in exc.value.args[0]
+    # Persisted configuration remains the reduced version.
+    assert domain.config.load().tools.mcp_docker.configurations["alpha"].mounts == ["/srv/data"]
+
+
+def test_update_image_with_same_identity_is_rejected_for_fresh_server(tmp_path: Path) -> None:
+    """After a fresh ``install`` the very first ``update-image`` with the
+    same image identity must be rejected so callers cannot trigger a no-op
+    broker removal/recreate cycle."""
+    path = tmp_path / "config.json"
+    domain = DockerMcpService(WebUISettingsConfig(path), FakeBroker())
+    domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE},
+                                  configuration={"persistent": True}))
+    current = domain.config.load().tools.mcp_docker.servers["alpha"]
+    with pytest.raises(DomainError) as exc:
+        domain.act("update-image", payload("alpha", 1, expected_server_revision=current.revision,
+                                           source={"type": "local-image", "reference": IMAGE}))
+    assert exc.value.status == 409
+    assert "unchanged" in exc.value.args[0]
 
 
 def test_eight_families_and_cas(tmp_path: Path) -> None:
@@ -180,6 +225,42 @@ def test_eight_families_and_cas(tmp_path: Path) -> None:
     with pytest.raises(DomainError) as stale:
         domain.act("install", payload("weather", 0, source={"type": "local-image", "reference": IMAGE}, configuration={}))
     assert stale.value.status == 409
+
+
+def test_noop_update_and_stopped_persistent_edits_never_reach_broker(tmp_path: Path) -> None:
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(tmp_path / "config.json"), broker)
+    domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE},
+                                  configuration={"persistent": True, "mounts": []}))
+    assert domain.list()["servers"]["alpha"]["configuration"]["mounts"] == []
+    calls = len(broker.calls)
+    with pytest.raises(DomainError, match="unchanged"):
+        domain.act("update-image", payload("alpha", 1, expected_server_revision=0,
+                                           source={"type": "local-image", "reference": IMAGE}))
+    assert len(broker.calls) == calls
+    assert domain.list()["backups"] == []
+    domain.act("stop", payload("alpha", 1, expected_server_revision=0))
+    calls = len(broker.calls)
+    for action, fields in (("configure", {"configuration": {"persistent": True, "mounts": []}}),
+                           ("update-image", {"source": {"type": "local-image", "reference": NEXT_IMAGE}})):
+        with pytest.raises(DomainError, match="start the persistent"):
+            domain.act(action, payload("alpha", 2, expected_server_revision=1, **fields))
+    assert len(broker.calls) == calls
+    assert domain.list()["servers"]["alpha"]["state"] == "stopped-persistent"
+
+
+def test_new_gateway_does_not_advertise_modes_from_older_broker_health(tmp_path: Path) -> None:
+    class OldBroker(FakeBroker):
+        def action(self, operation: str, server_id: str, data: dict) -> dict:
+            if operation == "health":
+                return {"ready": True}
+            return super().action(operation, server_id, data)
+
+    domain = DockerMcpService(WebUISettingsConfig(tmp_path / "config.json"), OldBroker())
+    read = domain.list()
+    assert read["brokerStatus"] == {"status": "ready"}
+    assert read["minimumMountsSupported"] is False
+    assert read["supportedNetworks"] == ["none"]
 
 
 def test_domain_rehydrates_broker_registry_only_when_process_state_is_missing(tmp_path: Path) -> None:

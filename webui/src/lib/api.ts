@@ -713,6 +713,8 @@ export interface McpDockerSnapshot {
   schemaVersion: number;
   revision: number;
   allowRemoteAdmin: boolean;
+  minimumMountsSupported?: boolean;
+  supportedNetworks?: string[];
   brokerStatus?: { status: "ready" | "unavailable"; reason?: string; message?: string };
   servers: Record<string, {
     serverId: string;
@@ -721,6 +723,8 @@ export interface McpDockerSnapshot {
     active: boolean;
     state: string;
     tools: string[];
+    toolsSource?: "observed" | "saved";
+    savedTools?: string[];
     toolsDisabled: string[];
     dockerObservation: string;
       mcpConnectivity: string;

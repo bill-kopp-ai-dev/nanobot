@@ -145,10 +145,8 @@ class MountPolicy:
         return _inside(cover, path) or _inside(resolved_cover, resolved_path)
 
     def docker_args(self, mounts: list[str] | None) -> list[str]:
-        """Return bind arguments followed by covers; covers always mount last."""
+        """Return bind arguments followed by covers; [] never binds host paths."""
         requested = ["/"] if mounts is None else [_absolute(path) for path in mounts]
-        if not requested:
-            raise ValueError("explicit mount reduction cannot be empty")
         if mounts is not None and "/" in requested:
             raise ValueError("full host access uses the default, not a custom mount")
         args: list[str] = []

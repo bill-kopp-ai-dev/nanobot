@@ -174,7 +174,7 @@ def _spawn(server: ManagedServer) -> None:
     docker(*args, reference)
     if not _running(server.server_id):
         raise BrokerError("MCP container exited during startup")
-    # Verify the daemon actually honored the required root bind and covers.
+    # Verify the daemon honored the network, the zero-bind mode and required covers.
     container = _inspect(server.server_id)
     if container is None:
         raise BrokerError("container unavailable after spawn")
@@ -183,6 +183,13 @@ def _spawn(server: ManagedServer) -> None:
     actual_network = cast(dict[str, object], host_config).get("NetworkMode") if isinstance(host_config, dict) else None
     if actual_network != expected_network:
         raise BrokerError("container network policy mismatch")
+    if server.host.mounts == []:
+        actual_mounts = container.get("Mounts")
+        if not isinstance(actual_mounts, list) or any(
+            isinstance(item, dict) and cast(dict[str, object], item).get("Type") == "bind"
+            for item in cast(list[object], actual_mounts)
+        ):
+            raise BrokerError("minimum host access has unexpected binds")
     tmpfs = cast(dict[str, object], host_config).get("Tmpfs")
     plan = policy.docker_args(server.host.mounts)
     required_covers = [plan[i + 1].split(":", 1)[0]
@@ -351,7 +358,7 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     if op == "health":
         if data:
             raise BrokerError("unsupported broker health fields", 400)
-        return {"ready": True}
+        return {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
     if op == "observe":
         if set(data) != {"source"}:
             raise BrokerError("unsupported observation fields", 400)
@@ -455,6 +462,8 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
                 next_source = DockerImageSource.model_validate(data["source"])
             except (KeyError, ValidationError) as exc:
                 raise BrokerError("invalid image", 400) from exc
+            if next_source == server.source:
+                raise BrokerError("image identity is unchanged", 409)
             image_reference(next_source)
             old = server.source
             _remove(server_id)

@@ -12,7 +12,7 @@ from pathlib import Path
 from nanobot.agent.tools.mcp import MCPProvider
 from nanobot.agent.tools.registry import ToolRegistry
 from nanobot.config.loader import load_config
-from nanobot.mcp_docker.client import BrokerClient, BrokerUnavailableError
+from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
@@ -74,9 +74,16 @@ def main() -> None:
         asyncio.run(call_and_gate(server_id, tool, args))
         mutate("configure", server_id, configuration={**config, "mounts": ["/etc"]})
         mutate("configure", server_id, configuration=config)
+        mutate("configure", server_id, configuration={**config, "mounts": []})
+        minimum = DOMAIN.list()["servers"][server_id]
+        assert minimum["configuration"]["mounts"] == []
+        assert minimum["effectiveConfiguration"]["network"] == "none"
+        assert all(mount["type"] != "bind" for mount in minimum["effectiveConfiguration"]["mounts"])
         mutate("restart", server_id)
         mutate("update-image", server_id, source={"type": "local-image", "reference": update})
-        assert DOMAIN.list()["servers"][server_id]["tools"]
+        updated = DOMAIN.list()["servers"][server_id]
+        assert updated["tools"] and updated["configuration"]["mounts"] == []
+        assert all(mount["type"] != "bind" for mount in updated["effectiveConfiguration"]["mounts"])
         previous = load_config(ROOT / "config.json").tools.mcp_docker.servers[server_id].source.reference
         try:
             mutate("update-image", server_id, source={"type": "local-image", "reference": os.environ["F2_FAIL_IMAGE_ID"]})
@@ -91,8 +98,8 @@ def main() -> None:
             state_revision = load_config(ROOT / "config.json").tools.mcp_docker.revision
             try:
                 mutate("configure", server_id, configuration={**config, "mounts": [blocked]})
-            except BrokerUnavailableError:
-                pass
+            except BrokerRejectedError as exc:
+                assert exc.status_code == 400
             else:
                 raise AssertionError(f"protected mount was accepted: {blocked}")
             current = load_config(ROOT / "config.json").tools.mcp_docker
@@ -139,6 +146,9 @@ def main() -> None:
     transition = json.loads((ROOT / "mcp-docker/transitions/f2weather.json").read_text())
     assert transition["state"] == "committed" and transition["recovery"] == "rolled-back-to-config"
     assert DOMAIN.list()["servers"]["f2weather"]["dockerObservation"] == "running"
+    restored = DOMAIN.list()["servers"]["f2weather"]
+    assert restored["configuration"]["mounts"] == []
+    assert all(mount["type"] != "bind" for mount in restored["effectiveConfiguration"]["mounts"])
     mutate("exclude", "f2weather", expected_confirmation="f2weather")
     assert len(list((ROOT / "mcp-docker/backups").iterdir())) == 7
     assert "secret" not in (ROOT / "mcp-docker/audit.jsonl").read_text()

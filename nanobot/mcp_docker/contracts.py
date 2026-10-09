@@ -51,8 +51,8 @@ class DockerHostConfig(Base):
     model_config = ConfigDict(extra="forbid")
 
     persistent: bool = False
-    # Full host file access is the default. A reduced set is explicit; the
-    # broker still derives and verifies its mandatory covers for every spawn.
+    # None = full host file access; [] = no host binds; a nonempty list =
+    # selected paths. Covers are required only when a bind reaches them.
     mounts: list[str] | None = None
     # ``none`` keeps the container off every Docker network (and the host's
     # loopback, by inheritance); ``bridge`` enables the default bridge for
@@ -66,8 +66,8 @@ class DockerHostConfig(Base):
     @field_validator("mounts")
     @classmethod
     def check_mounts(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None and (not value or any(not p.startswith("/") or p == "/" or ".." in p.split("/") for p in value)):
-            raise ValueError("mount reductions must be nonempty absolute host paths")
+        if value is not None and any(not p.startswith("/") or p == "/" or ".." in p.split("/") for p in value):
+            raise ValueError("mount reductions must be absolute host paths")
         return value
 
     @field_validator("env")

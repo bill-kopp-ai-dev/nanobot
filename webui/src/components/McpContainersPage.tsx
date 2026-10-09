@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, CircleAlert, Clock3, RefreshCw } from "lucide-react";
+import { Box, CircleAlert, Clock3, Plus, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useClient } from "@/providers/ClientProvider";
@@ -16,15 +16,29 @@ function statusTone(value: string): string {
   return "border-border bg-muted/50 text-muted-foreground";
 }
 
-function Status({ label, value }: { label: string; value: string }) {
+function Status({ label, value, reliable = true }: { label: string; value: string; reliable?: boolean }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn("w-fit max-w-full rounded-full border px-2.5 py-1 text-xs font-medium", statusTone(value))}>
+      <span className={cn("w-fit max-w-full rounded-full border px-2.5 py-1 text-xs font-medium", statusTone(reliable ? value : "unknown"))}>
         {value}
       </span>
     </div>
   );
+}
+
+type Server = McpDockerSnapshot["servers"][string];
+
+function operationalStatus(server: Server, stale: boolean, brokerUnavailable: boolean): string {
+  if (stale) return "Data outdated; refresh failed";
+  if (brokerUnavailable || server.dockerObservation === "unknown" || server.observationError) return "Not verified";
+  if (server.dockerObservation === "image-missing") return "Image missing";
+  if (server.dockerObservation === "stopped" && server.state === "stopped-persistent" && server.active && server.configuration.persistent) return "Stopped as configured";
+  const intentStates = ["running", "starting", "restarting", "updating"];
+  if (["stopped", "container-missing"].includes(server.dockerObservation) && intentStates.includes(server.state)) return "Not running (intent mismatch)";
+  if (server.dockerObservation === "running" && server.mcpConnectivity === "disconnected") return "Container running; MCP disconnected";
+  if (server.dockerObservation === "running" && server.mcpConnectivity === "connected" && server.active && server.state === "running") return "MCP connected";
+  return "Unclassified / divergent state";
 }
 
 export function McpContainersPage() {
@@ -35,27 +49,40 @@ export function McpContainersPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [installOpen, setInstallOpen] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
   const mountedRef = useRef(true);
+  const refreshRequestRef = useRef(0);
+  const lastRevisionRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (snapshot && lastRevisionRef.current !== null && lastRevisionRef.current !== snapshot.revision) {
+      setHasDraft(false);
+    }
+    lastRevisionRef.current = snapshot?.revision ?? null;
+  }, [snapshot?.revision]);
 
-  const refresh = useCallback(async (quiet = false) => {
-    if (!mountedRef.current) return;
+  const refresh = useCallback(async (quiet = false): Promise<McpDockerSnapshot | null> => {
+    if (!mountedRef.current) return null;
+    const request = ++refreshRequestRef.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
     try {
       const result = await fetchMcpDockerSnapshot(getToken());
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || request !== refreshRequestRef.current) return null;
       setSnapshot(result);
       setSelectedId((current) => current && result.servers[current] ? current : Object.keys(result.servers)[0] ?? null);
       setError(null);
+      return result;
     } catch (caught) {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || request !== refreshRequestRef.current) return null;
       if (caught instanceof ApiError && caught.status === 401) {
         setError(t("mcpDocker.unauthorized", { defaultValue: "You are not authorized to view Docker MCP status." }));
       } else {
         setError(t("mcpDocker.loadError", { defaultValue: "Could not load Docker MCP status. Try again." }));
       }
+      return null;
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && request === refreshRequestRef.current) {
         setLoading(false);
         setRefreshing(false);
       }
@@ -68,6 +95,7 @@ export function McpContainersPage() {
     const timer = window.setInterval(() => void refresh(true), POLL_INTERVAL_MS);
     return () => {
       mountedRef.current = false;
+      refreshRequestRef.current += 1;
       window.clearInterval(timer);
     };
   }, [refresh]);
@@ -94,10 +122,10 @@ export function McpContainersPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => void refresh(true)} disabled={refreshing}>
+          <div className="flex flex-wrap gap-2"><Button onClick={() => setInstallOpen(true)}><Plus aria-hidden="true" className="mr-2 h-4 w-4" />Add MCP server</Button><Button variant="outline" onClick={() => void refresh(true)} disabled={refreshing}>
             <RefreshCw aria-hidden="true" className={cn("mr-2 h-4 w-4", refreshing && "animate-spin motion-reduce:animate-none")} />
             {t("mcpDocker.refresh", { defaultValue: "Refresh" })}
-          </Button>
+          </Button></div>
         </header>
 
         {error && (
@@ -127,7 +155,7 @@ export function McpContainersPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {t("mcpDocker.emptyDescription", { defaultValue: "Installed Docker MCP servers will appear here." })}
             </p>
-          </section><McpDockerManagement snapshot={snapshot} selectedId={null} selected={undefined} refresh={refresh} /></div>
+          </section><McpDockerManagement snapshot={snapshot} selectedId={null} selected={undefined} refresh={refresh} installOpen={installOpen} setInstallOpen={setInstallOpen} onInstalled={setSelectedId} /></div>
         ) : snapshot ? (
           <div className="space-y-6">
           {entries.length > 0 && <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(15rem,0.8fr)_minmax(0,1.5fr)]">
@@ -141,14 +169,15 @@ export function McpContainersPage() {
                     <button
                       type="button"
                       aria-current={selectedId === id ? "true" : undefined}
-                      onClick={() => setSelectedId(id)}
+                       onClick={() => { if (id !== selectedId && (!hasDraft || window.confirm("Discard the unsaved server configuration draft?"))) setSelectedId(id); }}
                       className={cn("w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", selectedId === id && "bg-muted/60")}
                     >
                       <span className="block truncate font-medium">{id}</span>
-                      <span className="mt-1 block truncate text-xs text-muted-foreground">{server.source.reference}</span>
+                       <span className="mt-1 block truncate text-xs text-muted-foreground" title={server.source.reference}>{server.source.reference}</span>
+                       <span className="mt-1 block text-xs">{operationalStatus(server, Boolean(error), snapshot.brokerStatus?.status === "unavailable")}</span>
                       <span className="mt-2 flex flex-wrap gap-1.5">
-                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusTone(server.dockerObservation))}>{server.dockerObservation}</span>
-                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusTone(server.mcpConnectivity))}>{server.mcpConnectivity}</span>
+                         <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusTone(error ? "unknown" : server.dockerObservation))}>{server.dockerObservation}</span>
+                         <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusTone(error ? "unknown" : server.mcpConnectivity))}>{server.mcpConnectivity}</span>
                       </span>
                     </button>
                   </li>
@@ -161,40 +190,39 @@ export function McpContainersPage() {
                 <div className="rounded-xl border p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <h2 id="mcp-server-detail-title" className="break-all text-lg font-semibold">{selectedId}</h2>
-                      <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{selected.source.type}: {selected.source.reference}</p>
+                      <h2 id="mcp-server-detail-title" className="text-lg font-semibold">{selectedId}</h2>
+                      <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={selected.source.reference}>{selected.source.type}: {selected.source.reference}</p>
+                      <Button variant="ghost" size="sm" onClick={() => void navigator.clipboard.writeText(selected.source.reference)} aria-label="Copy full image identity">Copy image identity</Button>
                     </div>
-                    <span className={cn("rounded-full border px-2.5 py-1 text-xs", selected.active ? statusTone("running") : statusTone("inactive"))}>
-                      {selected.active ? t("mcpDocker.active", { defaultValue: "active" }) : t("mcpDocker.inactive", { defaultValue: "inactive" })}
-                    </span>
+                    <span className={cn("rounded-full border px-2.5 py-1 text-xs", operationalStatus(selected, Boolean(error), snapshot.brokerStatus?.status === "unavailable") === "MCP connected" ? statusTone("connected") : statusTone("unknown"))}>{operationalStatus(selected, Boolean(error), snapshot.brokerStatus?.status === "unavailable")}</span>
                   </div>
                   <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                    <Status label={t("mcpDocker.dockerState", { defaultValue: "Docker state" })} value={selected.dockerObservation} />
-                    <Status label={t("mcpDocker.mcpState", { defaultValue: "MCP connectivity" })} value={selected.mcpConnectivity} />
+                    <Status label={t("mcpDocker.dockerState", { defaultValue: "Docker state" })} value={selected.dockerObservation} reliable={!error && !selected.observationError && snapshot.brokerStatus?.status !== "unavailable"} />
+                    <Status label={t("mcpDocker.mcpState", { defaultValue: "MCP connectivity" })} value={selected.mcpConnectivity} reliable={!error && !selected.observationError && snapshot.brokerStatus?.status !== "unavailable"} />
                     <Status label={t("mcpDocker.intentState", { defaultValue: "Gateway intent" })} value={selected.state} />
-                    <Status label={t("mcpDocker.image", { defaultValue: "Image" })} value={selected.source.type} />
+                    <Status label="Enabled in gateway" value={selected.active ? "yes" : "no"} />
                   </div>
                   {selected.observationError && <p role="status" className="mt-4 text-sm text-amber-700 dark:text-amber-300">{selected.observationError}</p>}
-                  <div className="mt-5 border-t pt-4">
+                  <p className="mt-4 text-xs text-muted-foreground">Configured: {selected.configuration.network} network · {selected.configuration.mounts === null || selected.configuration.mounts === undefined ? "Full host access" : selected.configuration.mounts.length ? `Customized (${selected.configuration.mounts.length} paths)` : "Minimum host access"} · {Object.keys(selected.configuration.env).length} environment variables</p>
+                  <details className="mt-5 border-t pt-4"><summary className="cursor-pointer text-sm font-semibold">Configuration and observed Docker details</summary>
                     <h3 className="text-sm font-semibold">{t("mcpDocker.hostMetadata", { defaultValue: "Host configuration metadata" })}</h3>
                     <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
                       <div><dt className="text-xs text-muted-foreground">{t("mcpDocker.network", { defaultValue: "Network" })}</dt><dd>{selected.configuration.network}</dd></div>
                       <div><dt className="text-xs text-muted-foreground">{t("mcpDocker.persistence", { defaultValue: "Persistent container" })}</dt><dd>{selected.configuration.persistent ? t("common.yes", { defaultValue: "Yes" }) : t("common.no", { defaultValue: "No" })}</dd></div>
-                      <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.mounts", { defaultValue: "Mount reductions" })}</dt><dd className="break-words">{selected.configuration.mounts?.length ? selected.configuration.mounts.join(", ") : t("mcpDocker.defaultHostAccess", { defaultValue: "Default host file access with mandatory control-plane covers" })}</dd></div>
-                      <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.environment", { defaultValue: "Environment metadata" })}</dt><dd>{Object.entries(selected.configuration.env).length === 0 ? t("mcpDocker.none", { defaultValue: "None" }) : Object.entries(selected.configuration.env).map(([name, entry]) => `${name} (${entry.kind === "secret" ? entry.maskHint ?? "••••" : entry.kind})`).join(", ")}</dd></div>
+                      <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.mounts", { defaultValue: "Mount reductions" })}</dt><dd className="break-words">{selected.configuration.mounts === null || selected.configuration.mounts === undefined ? "Full access with mandatory covers" : selected.configuration.mounts.length ? selected.configuration.mounts.join(", ") : "Minimum access — no host binds"}</dd></div>
+                      <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">{t("mcpDocker.environment", { defaultValue: "Environment metadata" })}</dt><dd>{Object.entries(selected.configuration.env).length === 0 ? "None" : Object.entries(selected.configuration.env).map(([name, entry]) => `${name} (${entry.kind})`).join(", ")}</dd></div>
                     </dl>
                     <div className="mt-4 border-t pt-3">
                       <h4 className="text-xs font-semibold">{t("mcpDocker.effectiveConfiguration", { defaultValue: "Observed effective Docker configuration" })}</h4>
                       {selected.effectiveConfiguration ? <dl className="mt-2 grid gap-2 text-xs sm:grid-cols-2"><div><dt className="text-muted-foreground">{t("mcpDocker.network", { defaultValue: "Network" })}</dt><dd>{selected.effectiveConfiguration.network}</dd></div><div className="sm:col-span-2"><dt className="text-muted-foreground">{t("mcpDocker.effectiveMounts", { defaultValue: "Actual mounts (target, type, access)" })}</dt><dd className="break-words">{selected.effectiveConfiguration.mounts.length ? selected.effectiveConfiguration.mounts.map((mount) => `${mount.destination} (${mount.type}, ${mount.readWrite ? "R/W" : "RO"})`).join(", ") : t("mcpDocker.none", { defaultValue: "None" })}</dd></div></dl> : <p className="mt-2 text-xs text-muted-foreground">{t("mcpDocker.effectiveUnknown", { defaultValue: "Effective Docker settings are unavailable until the broker can inspect the container." })}</p>}
                     </div>
-                  </div>
-                  <div className="mt-5 border-t pt-4">
-                    <h3 className="text-sm font-semibold">{t("mcpDocker.tools", { defaultValue: "Discovered tools" })}</h3>
-                    {selected.tools.length ? <ul className="mt-2 flex flex-wrap gap-2">{selected.tools.map((tool) => <li key={tool} className={cn("rounded-md border px-2 py-1 font-mono text-xs", selected.toolsDisabled.includes(tool) && "text-muted-foreground line-through")}>{tool}</li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">{t("mcpDocker.noTools", { defaultValue: "No tools currently observed." })}</p>}
-                  </div>
+                  </details>
+                  <details className="mt-5 border-t pt-4"><summary className="cursor-pointer text-sm font-semibold">Tools ({selected.mcpConnectivity === "connected" && !error ? selected.tools.length : (selected.savedTools ?? selected.tools).length}) — {selected.mcpConnectivity === "connected" && selected.toolsSource === "observed" && !error ? "observed" : "saved / not verifiable now"}</summary>
+                    {(selected.mcpConnectivity === "connected" && !error ? selected.tools : selected.savedTools ?? selected.tools).length ? <ul className="mt-2 flex flex-wrap gap-2">{(selected.mcpConnectivity === "connected" && !error ? selected.tools : selected.savedTools ?? selected.tools).map((tool) => <li key={tool} className={cn("rounded-md border px-2 py-1 font-mono text-xs", selected.toolsDisabled.includes(tool) && "text-muted-foreground line-through")}>{tool}</li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No saved tools available to display.</p>}
+                  </details>
                 </div>
 
-                <section aria-labelledby="mcp-history-title" className="rounded-xl border">
+                <details className="rounded-xl border"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold"><Clock3 aria-hidden="true" className="mr-2 inline h-4 w-4" />Recent activity</summary><section aria-labelledby="mcp-history-title">
                   <h2 id="mcp-history-title" className="flex items-center gap-2 border-b px-4 py-3 text-sm font-semibold"><Clock3 aria-hidden="true" className="h-4 w-4" />{t("mcpDocker.history", { defaultValue: "Recent activity" })}</h2>
                   {selectedHistory.length ? (
                     <ol className="divide-y">
@@ -206,11 +234,11 @@ export function McpContainersPage() {
                       ))}
                     </ol>
                   ) : <p className="px-4 py-5 text-sm text-muted-foreground">{t("mcpDocker.noHistory", { defaultValue: "No activity recorded for this server." })}</p>}
-                </section>
+                </section></details>
               </section>
             )}
           </div>}
-          <McpDockerManagement snapshot={snapshot} selectedId={selectedId} selected={selected} refresh={refresh} />
+          <McpDockerManagement snapshot={snapshot} selectedId={selectedId} selected={selected} refresh={refresh} installOpen={installOpen} setInstallOpen={setInstallOpen} onInstalled={setSelectedId} snapshotStale={Boolean(error)} onDraftChange={setHasDraft} />
           </div>
         ) : null}
       </div>

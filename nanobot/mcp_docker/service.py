@@ -83,11 +83,16 @@ class DockerMcpService:
     def list(self) -> dict[str, Any]:
         pending_transitions = self.recover_pending()
         section = self.config.load().tools.mcp_docker
+        broker_capabilities: dict[str, Any] = {}
         try:
             health = self.broker.action("health", "broker", {})
             if health.get("ready") is not True:
                 raise BrokerUnavailableError("broker health response invalid", reason="invalid-response")
             broker_status: dict[str, str] = {"status": "ready"}
+            broker_capabilities = {
+                "minimumMountsSupported": health.get("minimumMountsSupported") is True,
+                "supportedNetworks": ["none", "bridge"] if health.get("supportedNetworks") == ["none", "bridge"] else ["none"],
+            }
         except (BrokerUnavailableError, BrokerRejectedError, BrokerError) as exc:
             broker_status = {"status": "unavailable", **broker_problem(exc)}
         servers: dict[str, Any] = {}
@@ -149,6 +154,8 @@ class DockerMcpService:
                 } else "unknown",
                 "tools": [name for name in cast(list[object], observed_tools) if isinstance(name, str)]
                 if isinstance(observed_tools, list) else server.tools,
+                "toolsSource": "observed" if isinstance(observed_tools, list) else "saved",
+                "savedTools": server.tools,
                 **({"effectiveConfiguration": effective} if effective is not None else {}),
                 **({"observationError": observation["observationError"]}
                    if observation.get("observationError") else {}),
@@ -157,6 +164,7 @@ class DockerMcpService:
             "schemaVersion": section.schema_version,
             "revision": section.revision,
             "allowRemoteAdmin": section.allow_remote_admin,
+            **broker_capabilities,
             "brokerStatus": broker_status,
             "servers": servers,
             "history": self._history(),
@@ -487,12 +495,25 @@ class DockerMcpService:
                 raise DomainError(409, "start/stop requires an active persistent server")
             if action in {"restart", "activate"} and current and action == "restart" and not current.active:
                 raise DomainError(409, "server is inactive")
+            if current and current.state == "stopped-persistent" and action in {"configure", "update-image"}:
+                raise DomainError(409, "start the persistent server before changing its container")
+            # Reject silent privilege escalation via a missing ``mounts`` key.
+            # The default for ``mounts`` is ``None`` (Full host access). ``install``
+            # is allowed to omit it because Full access is the documented default,
+            # but ``configure`` must receive an explicit value so a stale or
+            # buggy client cannot widen an existing reduction without intent.
+            if action == "configure":
+                configuration_obj = payload.get("configuration")
+                if not isinstance(configuration_obj, dict) or "mounts" not in cast(dict[str, Any], configuration_obj):
+                    raise DomainError(400, "mounts is required for configure; pass null, [] or a list")
 
             try:
                 source = DockerImageSource.model_validate(payload["source"]) if action in {"install", "update-image"} else None
                 host = self._host(payload["configuration"], section.configurations.get(server_id)) if action in {"install", "configure"} else None
             except (ValidationError, KeyError, ValueError) as exc:
                 raise DomainError(400, "invalid image or host configuration") from exc
+            if action == "update-image" and current and source == current.source:
+                raise DomainError(409, "image identity is unchanged")
             tool = payload.get("tool")
             if action in {"disable-tool", "enable-tool"} and (not isinstance(tool, str) or not tool):
                 raise DomainError(400, "tool must be a nonempty raw name")
