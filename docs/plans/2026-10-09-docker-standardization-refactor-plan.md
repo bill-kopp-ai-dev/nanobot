@@ -1,6 +1,7 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.5 (F0/F1 concluídos; F2 em implementação).
+- **Revisão:** 2026-10-09 / v0.6 (F0/F1 concluídos; F2 implementada com gate de
+  rebuild limpo pendente; F3 implementada localmente com gate aberto).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -169,13 +170,15 @@ validação local, sem representar release nem atualizar `:dev`.
 
 **Execução local 2026-10-09 — implementação validada, gate aberto:** contrato OCI
 dos seis MCPs, build local source-derived, labels broker-managed e inventário
-read-only foram implementados. Os seis candidatos `linux/amd64` foram
-construídos/inspecionados; todos identificam o diff tracked local em tag e
-label explícitos. O relatório
+read-only foram implementados e enviados a `origin/main`. Os candidatos F2
+`linux/amd64` identificam o diff tracked local em tag e label explícitos. O relatório
 [`F2 identity/inventory`](../reports/2026-10-09-f2-docker-identity-inventory.md)
-registra IDs, hashes, verificações e limites. Ainda faltam builds canônicos em
-checkouts limpos após revisão/integração das alterações tracked; por isso F2 não
-está marcada concluída. Não houve mutação dos consumers, cutover ou cleanup.
+registra IDs, hashes, verificações e limites. Os sete repositórios F2 foram
+revisados, commitados e enviados a `origin/main`; ainda faltam builds canônicos
+dos seis MCPs em checkouts limpos após esses commits, por isso F2 não está
+marcada concluída. F3 iniciou após os commits F2 estarem integrados; os
+candidatos F3 usam SHA HEAD + diff explícito. Não houve pull remoto de imagens,
+mutação dos consumers, cutover ou cleanup.
 
 ### F3 — Reprodutibilidade, contextos e postura base
 
@@ -191,6 +194,37 @@ está marcada concluída. Não houve mutação dos consumers, cutover ou cleanup
 - Guardar manifest de build com source SHA, platform, base digests, dependency lock hash, image ID/RepoDigest, args não secretos e testes.
 
 **Gate F3:** mesmo source+lock+base digests gera o mesmo conjunto resolvido (ou diferenças explicadas por platform); build clean funciona em builder CI; contexto não contém estado local/secret; SBOM/scan registrados e exceções têm owner/expiração. Se exact image digest reproducibility não for alcançável, declarar qual nível de repeatability foi comprovado.
+
+**Execução F3 local 2026-10-09 — implementação validada, gate aberto:** o
+`uv.lock` existente do Percival foi liberado da regra de ignore e validado
+(`145` packages); o gateway usa `uv sync --locked`. Weather migrou de export
+`--no-hashes` para `uv sync --frozen`; OSM também instala diretamente pelo
+`uv.lock`. Os 13 manifests de dependências de canais agora têm requirements
+compilados com hashes para Python 3.12/linux/amd64;
+`scripts.compile_channel_locks --check` compara conteúdo e hashes com os manifests Python, e o instalador do
+gateway usa `pip --require-hashes` com validação do manifest. O lock do bootstrap
+uv do Notes também é hashado.
+
+Todas as instruções `FROM` nos oito Dockerfiles (gateway, broker e seis MCPs)
+estão pinadas a digest linux/amd64. As imagens Debian usam o snapshot imutável
+`20261009T000000Z`, upgrades explícitos e versões diretas de pacotes fixadas; o
+broker Alpine fixa Python/pip e instala Pydantic de lock com hashes. Os
+`.dockerignore` foram ampliados e inspecionados; os contextos BuildKit finais
+mediram 193 B (Notes), 2.65 kB (AgentMail), 4.63 kB (Weather), 3.94 kB (Khan),
+968 B (OSM), 6.85 kB (Deep Research), 28.78 MB (gateway) e 432 B (broker).
+São contextos dos worktrees-candidatos locais, não checkouts limpos de CI.
+
+Os oito candidatos foram construídos, inspecionados e receberam SBOM CycloneDX
+via Docker Scout; smoke stdio/HTTP F1 de OSM e Deep Research passou. Trivy
+0.67.2 (imagem fixada por digest; DB atualizado em 2026-10-09T13:10Z) registrou
+Critical/High em todos os oito. A política em
+[`docker-image-posture-policy`](../Decisions/2026-10-09-docker-image-posture-policy.md)
+define esses níveis como bloqueadores; não foram concedidos waivers. F3 não
+fecha até triagem/resolução ou aprovação explícita de exceções com owner e
+expiração, além de rebuild/validação em builder/checkout limpo e evidência
+reprodutível do conjunto resolvido. O relatório
+[`F3 reproducibility/context/posture`](../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
+registra candidatos, contextos, hashes dos artefatos e findings.
 
 ### F4 — Padronizar Compose e contratos de runtime
 
@@ -322,9 +356,10 @@ Não considerar a padronização local completa até que:
 
 ## 7. Próxima ação proposta
 
-Começar F2 com metadados OCI/container e inventário read-only, usando source
-SHA/revision explícitos e preservando os aliases/pins históricos. F1 deixou os
-candidatos locais disponíveis para rollback, mas não autorizou cutover dos
-consumidores; manter a distinção entre as imagens candidatas e as instâncias
-Positronic/Percival atuais. Continuar a preparar F8 sem publicar ou ativar uma
-skill prematuramente.
+Triar e resolver os findings Critical/High F3, priorizando dependências com
+versão corrigida disponível e os pacotes base reportados; registrar owner e
+expiração antes de qualquer waiver. Depois, repetir builds/scan em checkouts
+limpos no builder CI e fechar F3 somente com evidência do conjunto resolvido.
+F2 ainda depende de rebuilds canônicos limpos. Não iniciar F4/cutover a partir
+de candidatos locais não aceitos; manter imagens e consumers históricos sem
+alteração.

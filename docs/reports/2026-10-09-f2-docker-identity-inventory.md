@@ -1,7 +1,8 @@
 # F2 — Contrato de identidade e inventário contínuo
 
 - **Data:** 2026-10-09
-- **Estado:** implementação e validação local concluídas; gate final de builds canônicos em checkout limpo permanece aberto.
+- **Estado:** implementação revisada e integrada em `origin/main`; o gate final
+  de builds canônicos em checkout limpo permanece aberto.
 - **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F2.
 - **Engine local observado:** Docker Engine 29.7.2, linux/amd64. Isto não demonstra compatibilidade com Engine 27.x do gate remoto.
 
@@ -139,16 +140,17 @@ cleanup incidental; a imagem final válida está na tabela com tag `...b2b6543ec
 
 ## Gate e limites restantes
 
-F2 está implementada e validada localmente, mas **o gate não é declarado
-fechado**: os seis MCPs ainda têm alterações tracked não commitadas. Seus tags
-`-f2-<diff>` são candidatos de worktree identificáveis, não tags canônicos de
-release. O build script recusa a forma canônica com árvores tracked sujas. Para
-fechar o gate, após revisão e integração autorizada das alterações, reconstruir
-os seis checkouts limpos com `python scripts/percival-docker-build.py`, registrar
-os novos IDs/digests e confirmar que configuração broker permanece pinada nos
-IDs prévios. Não houve commit/push, publicação, pull explícito, cutover,
-alteração de consumers ou remoção de imagens.
+F2 está implementada, revisada e integrada em `origin/main`, mas **o gate não é
+declarado fechado**: os seis candidatos `-f2-<diff>` vieram de worktrees dirty e
+não representam builds canônicos dos commits integrados. Para fechar o gate,
+reconstruir os seis checkouts limpos com
+`python scripts/percival-docker-build.py`, registrar os novos IDs/digests e
+confirmar que a configuração broker permanece pinada nos IDs prévios. Na
+execução original não houve commit/push, publicação, pull explícito, cutover,
+alteração de consumers ou remoção de imagens; os commits F2 foram enviados
+posteriormente em 2026-10-09.
 
-Próxima etapa de plano segue F2: revisar/aceitar as alterações, obter builds
-canônicos de checkouts limpos e então reavaliar o gate. F3 não deve começar com
-identidades de imagem em worktrees pendentes.
+O gate F2 pendente é especificamente a reconstrução canônica em checkout limpo
+após a integração. A implementação F3 começou depois dos commits F2 estarem em
+`origin/main`; os candidatos F3 são independentes e não fecham retroativamente
+esse gate.
