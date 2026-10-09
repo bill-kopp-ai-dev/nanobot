@@ -1,6 +1,7 @@
 """Optional nanobot feature discovery and enablement."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -226,7 +227,51 @@ def install_extra(
     import importlib
 
     install_args, label = install_args_for_extra(extra, deps)
-    pip_cmd = [sys.executable, "-m", "pip", "install", *install_args]
+    lock_dir = os.environ.get("NANOBOT_CHANNEL_LOCK_DIR", "").strip()
+    lock_path: Path | None = None
+    if lock_dir:
+        from nanobot.channels.registry import discover_plugins
+
+        is_channel = extra in discover_plugins()
+    else:
+        is_channel = False
+    if lock_dir and is_channel:
+        lock_root = Path(lock_dir)
+        lock_path = lock_root / f"{extra}.txt"
+        manifest_path = lock_root / "manifest.json"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            record = manifest["channels"][extra]
+            expected_requirements = list(deps or [])
+            actual_requirements = record["requirements"]
+            lock_digest = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+            requirements_digest = hashlib.sha256(
+                "\n".join(expected_requirements).encode("utf-8")
+            ).hexdigest()
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return InstallResult(
+                False,
+                f"{extra} support",
+                [sys.executable, "-m", "pip", "install", *install_args],
+                output=f"Locked channel dependency file is unavailable or invalid: {extra}",
+            )
+        if (
+            actual_requirements != expected_requirements
+            or record.get("requirementsSha256") != requirements_digest
+            or record.get("lockSha256") != lock_digest
+        ):
+            return InstallResult(
+                False,
+                f"{extra} support",
+                [sys.executable, "-m", "pip", "install", *install_args],
+                output=f"Locked channel dependency file does not match its manifest: {extra}",
+            )
+        pip_cmd = [
+            sys.executable, "-m", "pip", "install", "--require-hashes",
+            "--no-deps", "-r", str(lock_path),
+        ]
+    else:
+        pip_cmd = [sys.executable, "-m", "pip", "install", *install_args]
     if not install_args:
         logger.info("Optional feature '{}' has no installable dependencies for this platform", extra)
         return InstallResult(True, label, pip_cmd)
@@ -242,7 +287,13 @@ def install_extra(
     failed_proc = proc
     if missing_pip(proc):
         if shutil.which("uv"):
-            uv_cmd = ["uv", "pip", "install", "--python", sys.executable, *install_args]
+            if lock_path is not None:
+                uv_cmd = [
+                    "uv", "pip", "install", "--require-hashes", "--no-deps",
+                    "--python", sys.executable, "-r", str(lock_path),
+                ]
+            else:
+                uv_cmd = ["uv", "pip", "install", "--python", sys.executable, *install_args]
             uv_env = os.environ.copy()
             if index_url := os.environ.get("PIP_INDEX_URL", "").strip():
                 uv_env["UV_INDEX_URL"] = index_url

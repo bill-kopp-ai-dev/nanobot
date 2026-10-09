@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import subprocess
 import sys
@@ -2611,6 +2612,66 @@ def test_install_extra_logs_command_and_output(monkeypatch):
     assert any("Installing optional feature 'weixin':" in record for record in records)
     assert any("Optional feature 'weixin' install exited with code 0" in record for record in records)
     assert any("install ok" in record for record in records)
+
+
+def test_install_extra_uses_verified_hash_lock_when_configured(tmp_path, monkeypatch):
+    from nanobot import optional_features
+
+    requirements = ["example-channel-sdk>=1.2,<2.0"]
+    lock_text = "example-channel-sdk==1.5.0 --hash=sha256:" + "a" * 64 + "\n"
+    lock_path = tmp_path / "feishu.txt"
+    lock_path.write_text(lock_text, encoding="utf-8")
+    manifest = {
+        "schemaVersion": 1,
+        "pythonVersion": "3.12",
+        "platform": "linux/amd64",
+        "channels": {
+            "feishu": {
+                "requirements": requirements,
+                "requirementsSha256": hashlib.sha256(
+                    "\n".join(requirements).encode("utf-8")
+                ).hexdigest(),
+                "lockSha256": hashlib.sha256(lock_text.encode("utf-8")).hexdigest(),
+            }
+        },
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def _run(argv: list[str]) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setenv("NANOBOT_CHANNEL_LOCK_DIR", str(tmp_path))
+
+    result = optional_features.install_extra("feishu", requirements, runner=_run)
+
+    assert result.ok is True
+    assert calls == [[
+        sys.executable, "-m", "pip", "install", "--require-hashes", "--no-deps",
+        "-r", str(lock_path),
+    ]]
+
+
+def test_install_extra_fails_closed_for_stale_hash_lock(tmp_path, monkeypatch):
+    from nanobot import optional_features
+
+    lock_path = tmp_path / "feishu.txt"
+    lock_path.write_text("example-channel-sdk==1.5.0\n", encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"schemaVersion": 1, "channels": {"feishu": {"requirements": []}}}),
+        encoding="utf-8",
+    )
+    calls: list[list[str]] = []
+    monkeypatch.setenv("NANOBOT_CHANNEL_LOCK_DIR", str(tmp_path))
+
+    result = optional_features.install_extra(
+        "feishu", ["example-channel-sdk>=1.2,<2.0"], runner=lambda argv: calls.append(argv)
+    )
+
+    assert result.ok is False
+    assert "does not match" in result.output
+    assert calls == []
 
 
 def test_run_install_command_returns_failure_on_timeout(monkeypatch):

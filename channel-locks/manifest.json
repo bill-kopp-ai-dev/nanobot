@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "pythonVersion": "3.12",
+  "platform": "linux/amd64",
+  "resolver": "uv 0.12.18 (x86_64-unknown-linux-gnu)",
+  "channels": {
+    "dingtalk": {
+      "requirements": [
+        "dingtalk-stream>=0.24.0,<1.0.0"
+      ],
+      "requirementsSha256": "ac498f64e3be6324208fc68f963fd50e506d98311b8e727688392c3d15508fb3",
+      "lockSha256": "60aea676a007189ea21dfedd8f69974afad2b91e233e8a5a8bddc0e09f24ab4c"
+    },
+    "discord": {
+      "requirements": [
+        "discord.py>=2.5.2,<3.0.0"
+      ],
+      "requirementsSha256": "2e11fe2ae546c1832cf0c1c4080c1b51c787e233dc0fbd6b430ee2eef1a4adfc",
+      "lockSha256": "dd6b974c29dad8a335ad2e064d936b14d8b8c51a4e6dcf5e7baa8f40100c79f0"
+    },
+    "feishu": {
+      "requirements": [
+        "lark-oapi>=1.5.0,<2.0.0"
+      ],
+      "requirementsSha256": "412fb428b69f2d6199ccdc5988522bb6c9a33de7936306cca388232fd952a61b",
+      "lockSha256": "6deee7c40c080fd4d306126d3d6428ca81b68976a71bd08744fb7a23178a0062"
+    },
+    "matrix": {
+      "requirements": [
+        "matrix-nio[e2e]>=0.25.2; sys_platform != 'win32'",
+        "matrix-nio>=0.25.2; sys_platform == 'win32'",
+        "aiohttp>=3.9.0,<4.0.0",
+        "mistune>=3.0.0,<4.0.0",
+        "nh3>=0.2.17,<1.0.0"
+      ],
+      "requirementsSha256": "f684f040beef7cbd17a10ca12e251a256469ad5d8e180874cab04f923c1d21d2",
+      "lockSha256": "a945b6b0fb14e6c683c22f37a0a28da625de857da51628f0daab6fcc54229abb"
+    },
+    "mochat": {
+      "requirements": [
+        "python-socketio>=5.16.0,<6.0.0",
+        "msgpack>=1.1.0,<2.0.0"
+      ],
+      "requirementsSha256": "af9893899f893f512d8ab78708fae19636432c361a9238de395eade74bce6ccb",
+      "lockSha256": "c1270eaff7b282a02a7c1d18931187c05f1457307dab122cda061f687b984e12"
+    },
+    "msteams": {
+      "requirements": [
+        "PyJWT>=2.0,<3.0",
+        "cryptography>=41.0"
+      ],
+      "requirementsSha256": "d8548c28fca14d87fa0c6a226fccb1113d9c90528943fbddcbad6f7660237493",
+      "lockSha256": "de44bb0f5bf5918b00f9ac21b3d3f574114691ecef1259b81d47941ddc4d6e50"
+    },
+    "napcat": {
+      "requirements": [
+        "aiohttp>=3.9.0,<4.0.0"
+      ],
+      "requirementsSha256": "a9fde4d9a69bab174fcf6fdabeb185ed6addcc642d1e1655cee35aad80524966",
+      "lockSha256": "c8a3c58b8e70b76324bec034dcc5b4d9de80715eba1ee4bf2ba8dd3ff9f9a232"
+    },
+    "qq": {
+      "requirements": [
+        "aiohttp>=3.9.0,<4.0.0",
+        "qq-botpy>=1.2.0,<2.0.0"
+      ],
+      "requirementsSha256": "e67cb508d609c7710cb848239d282fdab6456ce0e1620f15a885629f5f105e48",
+      "lockSha256": "e14764439c785d3e3e8e6ca63332f100653257fa50554f49f0f26d089ff216e1"
+    },
+    "slack": {
+      "requirements": [
+        "aiohttp>=3.9.0,<4.0.0",
+        "slack-sdk>=3.39.0,<4.0.0",
+        "slackify-markdown>=0.2.0,<1.0.0"
+      ],
+      "requirementsSha256": "1d5d9671396aa5544da95b1ce725290ba3a1f64dab03bfce2d7dbfbccca5f503",
+      "lockSha256": "cde274c4b2bbaa06bb9398eed4aabd3533d9843ded132a2ef59dd8105b89194b"
+    },
+    "telegram": {
+      "requirements": [
+        "python-telegram-bot[socks,webhooks]>=22.6,<23.0",
+        "socksio>=1.0.0,<2.0.0",
+        "python-socks[asyncio]>=2.8.0,<3.0.0; sys_platform != 'win32'"
+      ],
+      "requirementsSha256": "4bb5495441cacf54010c8f0484f41e0e353b4879870dddead1d2caea1a3967d7",
+      "lockSha256": "85431cff12bcfa05a781fc2e6ede96b5f72f6f40016f9a6a4434f97d64bd00ef"
+    },
+    "wecom": {
+      "requirements": [
+        "wecom-aibot-sdk-python>=0.1.7,<0.2.0"
+      ],
+      "requirementsSha256": "3722c33baff443ea65d21469ffaab07a5aa79065c601322ffccd9a9f55d46fdb",
+      "lockSha256": "e936810077fa713e4e1d40df8523544c50ae09183ed2b57ca792c5063e3dc063"
+    },
+    "weixin": {
+      "requirements": [
+        "qrcode[pil]>=8.0",
+        "pycryptodome>=3.20.0"
+      ],
+      "requirementsSha256": "74bb4507ce4df1fb1d92ce136b8d716bc86fcb409326da81aba518cd7838c253",
+      "lockSha256": "e5152fca6f00959f85c6d89b4869d1760225395d9cdf3df69220442129640d6e"
+    },
+    "whatsapp": {
+      "requirements": [
+        "neonize>=0.4.3.post0,<0.5.0",
+        "segno>=1.6.1,<2.0.0"
+      ],
+      "requirementsSha256": "cca94652ad5e03101893262e78978485a7ad649feddd665527bc1f9e7d508679",
+      "lockSha256": "32629f980e906acac93289dadbdc9e912e6e9bc4824bfae88e1e0d98079bbf6a"
+    }
+  }
+}
