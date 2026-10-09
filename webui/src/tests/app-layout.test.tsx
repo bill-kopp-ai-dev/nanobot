@@ -461,6 +461,7 @@ describe("App layout", () => {
     expect(content).not.toHaveAttribute("aria-hidden");
     expect(content).toHaveTextContent("~/.nanobot/config.json");
     expect(content).toHaveTextContent("channels.websocket.tokenIssueSecret");
+    expect(content).toHaveTextContent("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE");
     expect(content).toHaveTextContent("If that value is empty, use channels.websocket.token.");
 
     await user.keyboard(" ");

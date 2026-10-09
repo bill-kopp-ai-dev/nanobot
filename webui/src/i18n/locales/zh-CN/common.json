@@ -349,6 +349,7 @@
       "helpTitle": "在哪里找到密码？",
       "helpConfig": "在运行 nanobot 的设备上打开配置文件，通常位于：",
       "helpSecret": "复制此字段的值作为密码：",
+      "helpDockerSecret": "使用 Docker Compose 时，请使用以下变量指定文件中的内容：",
       "helpFallback": "若该值为空，请使用 <code>channels.websocket.token</code>。",
       "showPassword": "显示密码",
       "hidePassword": "隐藏密码",

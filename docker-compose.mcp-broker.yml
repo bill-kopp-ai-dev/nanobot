@@ -12,6 +12,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.mcp-broker
+      args:
+        VERSION: ${PERCIVAL_IMAGE_VERSION:-0.3.5}
+        GIT_SHA: ${PERCIVAL_IMAGE_REVISION:-unknown}
     image: ${PERCIVAL_MCP_BROKER_IMAGE:-percival-mcp-broker:dev}
     user: "65532:65532"
     init: true

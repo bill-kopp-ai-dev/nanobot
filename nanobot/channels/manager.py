@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import os
+import stat
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from contextlib import suppress
@@ -79,6 +81,44 @@ def _default_channel_config(name: str) -> dict[str, Any] | None:
     if not plugin.default_enabled:
         return None
     return channel_default_config(plugin)
+
+
+def _docker_websocket_bind_config(name: str, section: Any) -> Any:
+    """Bind the container's WebSocket listener to its network interface.
+
+    Compose publishes this listener on host loopback. The process inside the
+    container must listen on all interfaces for Docker port forwarding to work.
+    """
+    if name != "websocket":
+        return section
+    host = os.environ.get("PERCIVAL_DOCKER_GATEWAY_HOST", "").strip()
+    if not host:
+        return section
+    if host not in {"0.0.0.0", "::"}:
+        raise ValueError("PERCIVAL_DOCKER_GATEWAY_HOST must be 0.0.0.0 or :: when set")
+    values = dict(section or {})
+    if values.get("enabled", True):
+        secret_path = os.environ.get("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", "")
+        if not secret_path:
+            raise ValueError(
+                "PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE must be set for Docker WebUI"
+            )
+        secret_file = Path(secret_path).expanduser()
+        try:
+            metadata = secret_file.stat()
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+                raise ValueError(
+                    "Docker WebUI token-issuance secret file must be a regular file "
+                    "with owner-only permissions"
+                )
+            token_issue_secret = secret_file.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise ValueError("Docker WebUI token-issuance secret file is unavailable") from exc
+        if not token_issue_secret:
+            raise ValueError("Docker WebUI token-issuance secret file is empty")
+        values["host"] = host
+        values["token_issue_secret"] = token_issue_secret
+    return values
 
 
 class ChannelManager:
@@ -168,14 +208,14 @@ class ChannelManager:
         if default_enabled is None:
             default_enabled = channel_default_enabled(name)
         if section is not None or not default_enabled:
-            return section
+            return _docker_websocket_bind_config(name, section)
         if default_sections is None:
-            return _default_channel_config(name)
+            return _docker_websocket_bind_config(name, _default_channel_config(name))
         if name not in default_sections:
             default = _default_channel_config(name)
             if default is not None:
                 default_sections[name] = default
-        return default_sections.get(name)
+        return _docker_websocket_bind_config(name, default_sections.get(name))
 
     def _build_channel(
         self,

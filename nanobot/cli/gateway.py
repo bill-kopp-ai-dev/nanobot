@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -227,6 +228,13 @@ def create_gateway_app(
 
         configure_logging(verbose)
         cfg = load_runtime_config(config, workspace)
+        docker_bind_host = os.environ.get("PERCIVAL_DOCKER_GATEWAY_HOST", "").strip()
+        if docker_bind_host:
+            if docker_bind_host not in {"0.0.0.0", "::"}:
+                raise typer.BadParameter(
+                    "PERCIVAL_DOCKER_GATEWAY_HOST must be 0.0.0.0 or :: when set"
+                )
+            cfg.gateway.host = docker_bind_host
         instance = instance_for_selectors(workspace=workspace, config=config)
         unconfigured_provider_error = None
         if validate_startup_config is not None:

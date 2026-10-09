@@ -108,7 +108,7 @@ jobs:
                   python_required=true
                   docker_required=true
                   ;;
-                tests/test_docker.sh)
+                tests/test_docker.sh|scripts/percival-f5-*|scripts/write_docker_ci_manifest.py)
                   docker_required=true
                   ;;
                 pyproject.toml|hatch_build.py|scripts/install_channel_dependencies.py)
@@ -315,12 +315,23 @@ jobs:
     if: needs.changes.outputs.docker_required == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    env:
+      PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE: ${{ runner.temp }}/percival-f5-webui-token
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare isolated WebUI token secret
+        run: |
+          umask 077
+          openssl rand -hex 32 > "$PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE"
+          sudo chown 1000:1000 "$PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE"
+
       - name: Build image with default channel dependencies
-        run: docker build -t nanobot:test .
+        run: |
+          VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          docker build --platform linux/amd64 --build-arg VERSION="$VERSION" --build-arg GIT_SHA="$GITHUB_SHA" -t percival-gateway:ci .
+          docker build --platform linux/amd64 --build-arg VERSION="$VERSION" --build-arg GIT_SHA="$GITHUB_SHA" -f Dockerfile.mcp-broker -t percival-mcp-broker:ci .
 
       - name: Verify Docker Compose startup and privilege boundary
         env:
@@ -359,15 +370,46 @@ jobs:
               assert {"CHOWN", "SETGID", "SETUID", "SYS_ADMIN"} <= set(service["cap_add"])
               assert "no-new-privileges:true" in service["security_opt"]
           PY
+      - name: Gateway, WebUI, API auth/health and Compose conformance
+        run: bash scripts/percival-f5-compose-smoke.sh
 
       - name: Verify default WhatsApp dependencies
-        run: docker run --rm --entrypoint python nanobot:test -c "import neonize, segno"
+        run: docker run --rm --entrypoint python percival-gateway:ci -c "import neonize, segno"
 
       - name: Verify runtime dependency permissions
         run: >-
-          docker run --rm --user 1000:1000 --entrypoint sh nanobot:test -c
+          docker run --rm --user 1000:1000 --entrypoint sh percival-gateway:ci -c
           'test -w /app/.venv && test ! -w /app && test ! -w /app/nanobot &&
           python -m scripts.install_channel_dependencies discord && python -c "import discord"'
+
+      - name: Record gateway and broker build manifests
+        run: |
+          python3 scripts/write_docker_ci_manifest.py --image percival-gateway:ci --source-sha "$GITHUB_SHA" --lock uv.lock --lock channel-locks --output gateway-build-manifest.json
+          python3 scripts/write_docker_ci_manifest.py --image percival-mcp-broker:ci --source-sha "$GITHUB_SHA" --dockerfile Dockerfile.mcp-broker --lock docker/mcp-broker-requirements.lock --output broker-build-manifest.json
+      - name: Generate gateway CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: percival-gateway:ci
+          format: cyclonedx-json
+          output-file: gateway-sbom.cdx.json
+          upload-artifact: false
+      - name: Generate broker CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: percival-mcp-broker:ci
+          format: cyclonedx-json
+          output-file: broker-sbom.cdx.json
+          upload-artifact: false
+      - name: Upload image evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-evidence-percival-${{ github.sha }}
+          path: |
+            gateway-build-manifest.json
+            broker-build-manifest.json
+            gateway-sbom.cdx.json
+            broker-sbom.cdx.json
+          if-no-files-found: error
 
   arch:
     name: Python (Arch Linux, pinned)

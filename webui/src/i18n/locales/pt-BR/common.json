@@ -419,6 +419,7 @@
       "helpTitle": "Onde encontro a senha?",
       "helpConfig": "No dispositivo que executa o nanobot, abra o arquivo de configuração, geralmente em:",
       "helpSecret": "Copie o valor deste campo como senha:",
+      "helpDockerSecret": "No Docker Compose, use o conteúdo do arquivo indicado por:",
       "helpFallback": "Se esse valor estiver vazio, use <code>channels.websocket.token</code>.",
       "showPassword": "Mostrar senha",
       "hidePassword": "Ocultar senha",

@@ -521,6 +521,10 @@ function AuthForm({
             <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
               channels.websocket.tokenIssueSecret
             </code>
+            <p className="mt-3">{t("app.auth.helpDockerSecret")}</p>
+            <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
+              PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE
+            </code>
             <p className="mt-3">
               <Trans
                 i18nKey="app.auth.helpFallback"

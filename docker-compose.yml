@@ -4,6 +4,8 @@ x-common-config: &common-config
     dockerfile: Dockerfile
     args:
       NANOBOT_CHANNELS: ${NANOBOT_CHANNELS:-whatsapp}
+      VERSION: ${PERCIVAL_IMAGE_VERSION:-0.3.5}
+      GIT_SHA: ${PERCIVAL_IMAGE_REVISION:-unknown}
   volumes:
     - ~/.nanobot:/home/nanobot/.nanobot
   cap_drop:
@@ -25,6 +27,13 @@ services:
   nanobot-gateway:
     <<: *common-config
     command: ["gateway"]
+    # Listen on the container interface so the loopback-only published host
+    # ports can reach it. The host bind remains 127.0.0.1 by default.
+    environment:
+      PERCIVAL_DOCKER_GATEWAY_HOST: 0.0.0.0
+      PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE: /run/secrets/percival-webui-token-issue
+    secrets:
+      - percival-webui-token-issue
     init: true
     restart: unless-stopped
     ports:
@@ -77,3 +86,7 @@ services:
     command: ["status"]
     stdin_open: true
     tty: false
+
+secrets:
+  percival-webui-token-issue:
+    file: ${PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE:?Set a private WebUI token-issuance secret file}

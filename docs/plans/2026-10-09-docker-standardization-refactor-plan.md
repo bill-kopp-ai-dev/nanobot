@@ -1,8 +1,8 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.7 (F0/F1 concluídos; F2 implementada com gate de
-  rebuild limpo pendente; F3 implementada localmente com gate aberto; F4
-  implementada localmente com gate de runtime ainda aberto).
+- **Revisão:** 2026-10-09 / v0.8 (F0/F1 concluídos; F2 implementada com gate de
+  rebuild limpo pendente; F3 implementada com gate aberto; F4/F5 implementadas
+  localmente, com gates de runtime e CI remota ainda abertos).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -275,6 +275,26 @@ nenhum consumer/container real foi alterado.
 
 **Gate F5:** todos os seis repositórios executam build + conformance smoke em CI no branch/candidato; main project CI verifica Compose e broker; artefatos guardam manifest/SBOM; nenhum job publica imagem. Gates remotos GitHub Actions no SHA candidato devem passar antes de alegar CI fechado.
 
+**Execução local 2026-10-09 — implementação e validação local concluídas; gate
+aberto:** os sete repositórios receberam workflows/conformance steps próprios.
+Notes e Deep Research ganharam CI Docker; AgentMail passou a usar fixture
+AgentMail local e sem egress para o handshake; Weather/Deep Research exercitam
+HTTP profile; OSM CI foi alinhado a linux/amd64, a única arquitetura aprovada.
+Os jobs geram manifests com source SHA/base digests/lock hash/image ID e SBOM
+CycloneDX como artefatos, sem push. O CI principal verifica gateway/WebUI/API,
+Compose, auth/readiness e mantém o broker em Engine 27.5.1. O smoke local também
+expôs um bind interno incompatível com Docker port forwarding; o gateway foi
+ajustado para usar listener de container e arquivo read-only de token issuance obrigatório
+para WebUI, mantendo portas publicadas em loopback. Testes/smokes locais e SHAs
+base constam em [`relatório F5 CI/conformance`](../reports/2026-10-09-f5-ci-conformance.md).
+
+O gate F5 permanece aberto porque os workflows ainda não rodaram no GitHub no
+SHA candidato exato: as mudanças estão locais e o plano exige autorização
+específica antes de commit/push. F3 segue bloqueada por findings Critical/High
+sem waivers; F4 ainda precisa concluir persistência/restore e demais evidências
+de aceite. Nenhum consumer foi alterado, nenhuma imagem publicada e nenhum
+cutover foi executado.
+
 ### F6 — Migração local controlada e cutover por serviço
 
 **Depende de:** F2–F5 aprovados e referências dos consumidores mapeadas em F0.
@@ -379,6 +399,8 @@ Triar e resolver os findings Critical/High F3, priorizando dependências com
 versão corrigida disponível e os pacotes base reportados; registrar owner e
 expiração antes de qualquer waiver. Depois, repetir builds/scan em checkouts
 limpos no builder CI e fechar F3 somente com evidência do conjunto resolvido.
-F2 ainda depende de rebuilds canônicos limpos. Não iniciar F4/cutover a partir
-de candidatos locais não aceitos; manter imagens e consumers históricos sem
-alteração.
+F2 ainda depende de rebuilds canônicos limpos; F4 requer os smokes restantes de
+persistência/restore. Após revisão e autorização para o push do candidato, rodar
+GitHub Actions em cada SHA exato e fechar F5 somente com todos os jobs e
+artefatos verificados. Não iniciar cutover a partir de candidatos locais não
+aceitos; manter imagens e consumers históricos sem alteração.

@@ -419,6 +419,7 @@
       "helpTitle": "Where can I find the password?",
       "helpConfig": "On the device running nanobot, open the config file, usually at:",
       "helpSecret": "Copy the value of this field as your password:",
+      "helpDockerSecret": "For Docker Compose, use the contents of the file configured by:",
       "helpFallback": "If that value is empty, use <code>channels.websocket.token</code>.",
       "showPassword": "Show password",
       "hidePassword": "Hide password",

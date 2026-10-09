@@ -349,6 +349,7 @@
       "helpTitle": "Tìm mật khẩu ở đâu?",
       "helpConfig": "Trên thiết bị đang chạy nanobot, mở tệp cấu hình, thường nằm tại:",
       "helpSecret": "Sao chép giá trị của trường này làm mật khẩu:",
+      "helpDockerSecret": "Với Docker Compose, hãy dùng nội dung tệp được chỉ định bởi biến:",
       "helpFallback": "Nếu giá trị này trống, hãy dùng <code>channels.websocket.token</code>.",
       "showPassword": "Hiện mật khẩu",
       "hidePassword": "Ẩn mật khẩu",

@@ -71,10 +71,16 @@ Docker Engine version, and maintenance window.
 
 4. Set `PERCIVAL_STATE_HOST_PATH=$HOME/.percival` and the inventoried numeric
    socket/token GIDs and token-file path in the protected deployment
-   environment. Render and inspect the combined Compose model before starting:
+   environment. Also set `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` to a
+   private, persistent file readable by container UID 1000; it authorizes WebUI
+   token issuance on the container-bound WebSocket listener. Render and inspect the combined Compose
+    model before starting. Do not print its raw environment section because it
+    contains the token-issuance secret; emit only non-secret service, port and
+    mount fields:
 
    ```sh
-   docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml config
+    docker compose -f docker-compose.yml -f docker-compose.mcp-broker.yml config --format json \
+      | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({n:{"image":s.get("image"),"ports":s.get("ports",[]),"volumes":[v.get("target") for v in s.get("volumes",[])]} for n,s in d["services"].items()},indent=2))'
    ```
 
    Confirm only `percival-mcp-broker` mounts `/var/run/docker.sock`; the gateway

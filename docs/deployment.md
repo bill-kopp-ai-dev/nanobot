@@ -149,10 +149,24 @@ different `--user`, bake every enabled channel into the image because that UID
 is not guaranteed write access to the virtual environment.
 
 ```bash
+install -d -m 0700 "$HOME/.config/percival"
+umask 077
+openssl rand -hex 32 > "$HOME/.config/percival/webui-token-issue"
+sudo chown 1000:1000 "$HOME/.config/percival/webui-token-issue"
+chmod 0400 "$HOME/.config/percival/webui-token-issue"
+printf 'PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE=%s\n' \
+  "$HOME/.config/percival/webui-token-issue" >> .env
 docker compose run --rm nanobot-cli onboard   # first-time setup
 vim ~/.nanobot/config.json                     # add API keys
 docker compose up -d nanobot-gateway           # start gateway
 ```
+
+Compose publishes the WebUI and gateway ports on host loopback by default. The
+gateway listens on its container interface for Docker forwarding; the WebSocket
+WebUI requires a token-issuance secret file owned/readable by container UID 1000
+and refuses startup if it is missing. Compose mounts the file read-only instead
+of placing the secret value in container environment metadata. Keep `.env` and
+the secret file private and reuse the same value across restarts.
 
 ```bash
 docker compose run --rm nanobot-cli agent -m "Hello!"   # run CLI

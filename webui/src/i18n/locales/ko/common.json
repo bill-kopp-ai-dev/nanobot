@@ -349,6 +349,7 @@
       "helpTitle": "비밀번호는 어디에서 찾나요?",
       "helpConfig": "nanobot을 실행 중인 기기에서 설정 파일을 여세요. 일반적으로 다음 위치에 있습니다:",
       "helpSecret": "이 필드의 값을 비밀번호로 복사하세요:",
+      "helpDockerSecret": "Docker Compose에서는 다음 변수에 지정된 파일의 내용을 사용하세요:",
       "helpFallback": "값이 비어 있으면 <code>channels.websocket.token</code>을 사용하세요.",
       "showPassword": "비밀번호 표시",
       "hidePassword": "비밀번호 숨기기",

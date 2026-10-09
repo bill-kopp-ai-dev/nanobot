@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from typer.testing import CliRunner
 
+from nanobot.channels.manager import _docker_websocket_bind_config
 from nanobot.cli.gateway import _resolved_config_selector, create_gateway_app
 from nanobot.config.schema import Config
 from nanobot.gateway import (
@@ -178,6 +179,80 @@ def test_gateway_default_still_runs_foreground(tmp_path):
     assert calls[0][4] == GatewayInstance.resolve(
         config_path=_resolved_config_selector(None)
     )
+
+
+def test_gateway_applies_explicit_container_bind_host(monkeypatch, tmp_path):
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    config = Config.model_validate({"channels": {"websocket": {"enabled": True, "host": "127.0.0.1"}}})
+    app, _runtime, _service, calls, _prepare_calls = _test_app(tmp_path, config=config)
+
+    result = runner.invoke(app, ["gateway", "--foreground"])
+
+    assert result.exit_code == 0
+    assert calls[0][0].gateway.host == "0.0.0.0"
+
+
+def test_gateway_rejects_unsafe_container_bind_host(monkeypatch, tmp_path):
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "example.com")
+    app, _runtime, _service, calls, _prepare_calls = _test_app(tmp_path)
+
+    result = runner.invoke(app, ["gateway", "--foreground"])
+
+    assert result.exit_code != 0
+    assert calls == []
+
+
+def test_docker_websocket_bind_override_is_runtime_only(monkeypatch, tmp_path):
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    secret_path = tmp_path / "webui-token-issue"
+    secret_path.write_text("ci-secret", encoding="utf-8")
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", str(secret_path))
+
+    assert _docker_websocket_bind_config("websocket", {"enabled": True}) == {
+        "enabled": True,
+        "host": "0.0.0.0",
+        "token_issue_secret": "ci-secret",
+    }
+    assert _docker_websocket_bind_config("websocket", {"enabled": False}) == {
+        "enabled": False,
+    }
+    assert _docker_websocket_bind_config("telegram", {"enabled": True}) == {"enabled": True}
+
+
+def test_docker_websocket_bind_requires_token_secret(monkeypatch):
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    monkeypatch.delenv("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", raising=False)
+
+    with pytest.raises(ValueError, match="TOKEN_ISSUE_SECRET_FILE must be set"):
+        _docker_websocket_bind_config("websocket", {"enabled": True})
+
+
+def test_docker_websocket_bind_expands_secret_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    secret_path = tmp_path / ".config" / "percival" / "webui-token-issue"
+    secret_path.parent.mkdir(parents=True)
+    secret_path.write_text("ci-secret", encoding="utf-8")
+    secret_path.chmod(0o400)
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    monkeypatch.setenv(
+        "PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE",
+        "~/.config/percival/webui-token-issue",
+    )
+
+    result = _docker_websocket_bind_config("websocket", {"enabled": True})
+
+    assert result["token_issue_secret"] == "ci-secret"
+
+
+def test_docker_websocket_bind_rejects_permissive_secret_file(monkeypatch, tmp_path):
+    secret_path = tmp_path / "webui-token-issue"
+    secret_path.write_text("ci-secret", encoding="utf-8")
+    secret_path.chmod(0o644)
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", str(secret_path))
+
+    with pytest.raises(ValueError, match="owner-only permissions"):
+        _docker_websocket_bind_config("websocket", {"enabled": True})
 
 
 def test_gateway_foreground_reports_a_competing_live_instance(tmp_path):
