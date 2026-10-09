@@ -19,14 +19,23 @@ x-common-config: &common-config
     - no-new-privileges:true
 
 services:
+  # Persistent gateway/API listeners are loopback-bound on the host by default.
+  # A non-loopback bind is an explicit deployment choice and must sit behind
+  # reviewed TLS, authentication/proxy and firewall controls.
   nanobot-gateway:
-    container_name: nanobot-gateway
     <<: *common-config
     command: ["gateway"]
+    init: true
     restart: unless-stopped
     ports:
-      - 127.0.0.1:18790:18790
-      - 8765:8765
+      - "127.0.0.1:18790:18790"
+      - "${PERCIVAL_WS_BIND_ADDRESS:-127.0.0.1}:8765:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18790/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -37,13 +46,21 @@ services:
           memory: 256M
 
   nanobot-api:
-    container_name: nanobot-api
     <<: *common-config
     command:
       ["serve", "--host", "0.0.0.0", "-w", "/home/nanobot/.nanobot/api-workspace"]
-    restart: unless-stopped
+    init: true
+    # The API reads its mandatory bearer key from config.json. Do not create a
+    # restart loop when that key is absent or invalid.
+    restart: "no"
     ports:
-      - 127.0.0.1:8900:8900
+      - "${PERCIVAL_API_BIND_ADDRESS:-127.0.0.1}:8900:8900"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8900/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
@@ -59,4 +76,4 @@ services:
       - cli
     command: ["status"]
     stdin_open: true
-    tty: true
+    tty: false

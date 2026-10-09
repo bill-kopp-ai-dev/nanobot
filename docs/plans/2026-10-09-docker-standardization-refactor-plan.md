@@ -1,7 +1,8 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.6 (F0/F1 concluídos; F2 implementada com gate de
-  rebuild limpo pendente; F3 implementada localmente com gate aberto).
+- **Revisão:** 2026-10-09 / v0.7 (F0/F1 concluídos; F2 implementada com gate de
+  rebuild limpo pendente; F3 implementada localmente com gate aberto; F4
+  implementada localmente com gate de runtime ainda aberto).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -242,6 +243,24 @@ registra candidatos, contextos, hashes dos artefatos e findings.
 - **Percival main Compose:** decidir se `nanobot-api` vai para profile opcional ou torna `api_key` obrigatório; bind 8765 seguro como padrão; evitar restart loop sem segredo; avaliar healthcheck gateway/API e inicialização recursiva de ownership.
 
 **Gate F4:** `docker compose config` de cada receita passa com estado limpo; stdio não publica porta/não aloca TTY; HTTP health somente em serviço HTTP; API e volumes falham fechados com mensagem útil; duas instâncias do mesmo servidor não colidem por container name.
+
+**Execução local 2026-10-09 — implementação parcial, gate aberto:** os sete
+repositórios receberam contratos/receitas Compose alinhados e documentação
+operacional correspondente. `docker compose config --quiet` passou nas receitas
+e profiles enumerados; verificações estruturais confirmaram stdio sem TTY/portas/
+health HTTP/restart persistente e HTTP isolado com bind loopback/healthcheck.
+O gateway/API passaram a bind loopback por padrão e o API usa o `api_key` já
+obrigatório pelo runtime com `restart: no` para não formar restart loop sem
+credencial. Notes exige mount `/vault` gravável por UID/GID 65532; o Khan tem
+`khal` na dependência travada e documenta UID/GID 1000; Weather/OSM/Deep têm
+serviços HTTP de profile e stdio sob demanda. Veja
+[`relatório F4 Compose/runtime`](../reports/2026-10-09-f4-compose-runtime.md).
+
+O gate **não está fechado**: não foram construídas imagens candidatas nem
+executados handshakes MCP, SIGTERM, probes HTTP com containers ou teste de
+persistência/restore. A F3 segue aberta por findings Critical/High e rebuild
+limpo pendente, portanto esses smokes aguardam resolução/aprovação do gate F3;
+nenhum consumer/container real foi alterado.
 
 ### F5 — Conformance tests e CI por repositório
 

@@ -12,8 +12,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.mcp-broker
-    image: percival-mcp-broker:f2
+    image: ${PERCIVAL_MCP_BROKER_IMAGE:-percival-mcp-broker:dev}
     user: "65532:65532"
+    init: true
     group_add:
       - "${PERCIVAL_DOCKER_SOCKET_GID:?Set numeric Docker socket GID}"
       - "${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}"
