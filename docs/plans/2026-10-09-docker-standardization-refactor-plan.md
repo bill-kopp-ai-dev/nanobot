@@ -1,8 +1,8 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.8 (F0/F1 concluídos; F2 implementada com gate de
-  rebuild limpo pendente; F3 implementada com gate aberto; F4/F5 implementadas
-  localmente, com gates de runtime e CI remota ainda abertos).
+- **Revisão:** 2026-10-09 / v0.9 (F0/F1 concluídos; F2 implementada com gate de
+  rebuild limpo pendente; F3 implementada com gate aberto; F4/F5 implementadas,
+  com gates de runtime e CI remota ainda abertos).
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
 - **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
@@ -275,8 +275,8 @@ nenhum consumer/container real foi alterado.
 
 **Gate F5:** todos os seis repositórios executam build + conformance smoke em CI no branch/candidato; main project CI verifica Compose e broker; artefatos guardam manifest/SBOM; nenhum job publica imagem. Gates remotos GitHub Actions no SHA candidato devem passar antes de alegar CI fechado.
 
-**Execução local 2026-10-09 — implementação e validação local concluídas; gate
-aberto:** os sete repositórios receberam workflows/conformance steps próprios.
+**Execução 2026-10-09 — implementação revisada, commitada e enviada a `main`;
+gate remoto aberto:** os sete repositórios receberam workflows/conformance steps próprios.
 Notes e Deep Research ganharam CI Docker; AgentMail passou a usar fixture
 AgentMail local e sem egress para o handshake; Weather/Deep Research exercitam
 HTTP profile; OSM CI foi alinhado a linux/amd64, a única arquitetura aprovada.
@@ -289,11 +289,12 @@ para WebUI, mantendo portas publicadas em loopback. Testes/smokes locais e SHAs
 base constam em [`relatório F5 CI/conformance`](../reports/2026-10-09-f5-ci-conformance.md).
 
 O gate F5 permanece aberto porque os workflows ainda não rodaram no GitHub no
-SHA candidato exato: as mudanças estão locais e o plano exige autorização
-específica antes de commit/push. F3 segue bloqueada por findings Critical/High
-sem waivers; F4 ainda precisa concluir persistência/restore e demais evidências
-de aceite. Nenhum consumer foi alterado, nenhuma imagem publicada e nenhum
-cutover foi executado.
+SHA candidato exato: o estado dos Actions não foi consultado (esta sessão não
+tem autenticação GitHub CLI) e os artefatos manifest/SBOM ainda não foram
+observados remotamente. F3 segue bloqueada por findings Critical/High sem
+waivers; F4 ainda precisa concluir persistência/restore e demais evidências de
+aceite. Nenhum consumer foi alterado, nenhuma imagem publicada e nenhum cutover
+foi executado.
 
 ### F6 — Migração local controlada e cutover por serviço
 
@@ -400,7 +401,7 @@ versão corrigida disponível e os pacotes base reportados; registrar owner e
 expiração antes de qualquer waiver. Depois, repetir builds/scan em checkouts
 limpos no builder CI e fechar F3 somente com evidência do conjunto resolvido.
 F2 ainda depende de rebuilds canônicos limpos; F4 requer os smokes restantes de
-persistência/restore. Após revisão e autorização para o push do candidato, rodar
-GitHub Actions em cada SHA exato e fechar F5 somente com todos os jobs e
-artefatos verificados. Não iniciar cutover a partir de candidatos locais não
-aceitos; manter imagens e consumers históricos sem alteração.
+persistência/restore. Consultar GitHub Actions em cada SHA exato, verificar jobs
+e artefatos e fechar F5 somente depois de todos passarem. Não iniciar cutover a
+partir de candidatos locais não aceitos; manter imagens e consumers históricos
+sem alteração.

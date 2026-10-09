@@ -75,14 +75,14 @@ workflow execution on GitHub was performed.
 
 ## Limitations and gate state
 
-- Repositories remain dirty on the following reviewed base SHAs; these changes
-  are local only: Percival `cd4f52b1`, Notes `1b48b3f`, AgentMail `4d2fe03`,
-  Weather `10d8cd9`, Khan `de49d13`, OSM `40b464c`, Deep Research `9df79c9`.
-  Existing untracked operator files (`.positronic/`, `AGENTS.md`) were preserved.
-- Remote GitHub Actions have not run on the F5 candidate SHA, and workflow
-  manifest/SBOM artifacts are therefore not yet observed. The plan prohibits
-  commit/push without separate authorization. F5 cannot be declared closed
-  until each repository's build + conformance CI passes at its exact SHA.
+- Reviewed F5 changes were committed and pushed to `main`: Percival `a551c2f7`,
+  Notes `efae9b6`, AgentMail `3dc76d1`, Weather `67dc188`, Khan `f2917a0`, OSM
+  `cd4df41`, and Deep Research `d213fb3`. Existing untracked operator files
+  (`.positronic/`, `AGENTS.md`) were preserved.
+- Remote GitHub Actions status could not be queried because `gh` has no active
+  authentication in this session. Remote runs and manifest/SBOM artifacts are
+  therefore not observed. F5 cannot be declared closed until each repository's
+  build + conformance CI passes at its exact pushed SHA.
 - F3 remains blocked by untriaged Critical/High image findings and has no
   approved waivers. F4 remains open for persistence/restore and other remaining
   acceptance evidence. These prerequisite gates remain separate; this F5 work
