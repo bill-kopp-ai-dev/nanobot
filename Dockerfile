@@ -49,25 +49,25 @@ COPY pyproject.toml uv.lock README.md LICENSE THIRD_PARTY_NOTICES.md hatch_build
 # the dependency-only install. They must exist before uv pip install . runs.
 COPY nanobot/agent/kg/vendor/ nanobot/agent/kg/vendor/
 COPY nanobot/web/kg-interface/ nanobot/web/kg-interface/
-RUN mkdir -p nanobot && touch nanobot/__init__.py && \
-    if [ -n "$NANOBOT_EXTRAS" ]; then \
+COPY nanobot/__init__.py nanobot/optional_features.py nanobot/
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+RUN if [ -n "$NANOBOT_EXTRAS" ]; then \
         uv sync --locked --no-dev --no-install-project --extra "$NANOBOT_EXTRAS"; \
     else \
         uv sync --locked --no-dev --no-install-project; \
-    fi && \
-    rm -rf nanobot
+    fi
 
 # Copy the full source and install
 COPY nanobot/ nanobot/
 COPY scripts/compile_channel_locks.py scripts/install_channel_dependencies.py scripts/
 COPY channel-locks/ /app/channel-locks/
 COPY --from=webui-builder /app/nanobot/web/dist/ nanobot/web/dist/
-RUN python -m scripts.compile_channel_locks --check
 RUN if [ -n "$NANOBOT_EXTRAS" ]; then \
         uv sync --locked --no-dev --no-editable --extra "$NANOBOT_EXTRAS"; \
     else \
         uv sync --locked --no-dev --no-editable; \
     fi
+RUN python -m scripts.compile_channel_locks --check
 
 # Preinstall selected channel dependencies from their manifests. A comma-separated
 # list keeps the image configurable while preserving WhatsApp in the default image.
