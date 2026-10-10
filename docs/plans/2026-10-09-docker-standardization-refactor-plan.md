@@ -390,7 +390,7 @@ exige autorização específica e a sua própria evidência.
 | 1 | **F3 — findings Critical/High sem waiver — fechado pelo critério "documentação e triagem completas; resíduo de blocker transferido".** Scans locais worktree candidates 2026-10-10: broker 0/0; gateway 1 Critical/64 High; Notes, AgentMail, Weather, Khan, OSM e Deep Research 0/44 High cada. O gateway conserva Critical OpenSSH; CVEs de pacote-base permanecem. | [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md) e [`F3 preflight anterior`](../reports/2026-10-09-f3-remediation-and-f6-preflight.md) | Triagem local concluída para todos os candidatos (matriz de aplicabilidade, hardening aplicado nos sete runtimes Debian, NLTK excluído de Deep Research, OpenSSH Forky 10.5p1 testado fora da imagem, OpenVEX com 6 declarações restritas ao image ID do gateway). Notas F3 publicadas em `docs/issues/2026-10-10-f3-status.md` (Notes, Weather, Khan, OSM, Deep Research) e `docs/security/f3-status.md` (AgentMail, onde o `.gitignore` reserva `docs/issues/` para rascunhos locais); commits `ab0f07d`, `d2d6458`, `9746453`, `7f6bd4f`, `3588a45`, `1db41fc`. Resíduo transferido para a pendência #11 (correção de OpenSSH client 10.0p1 e VEX/build limpo dos findings base nas Actions remotas). | agente (remediação/evidência); operador (waiver/VEX e acesso GitHub). | JSON Trivy e CycloneDX com hashes, matriz de aplicabilidade, ADR/VEX aprovados, logs/actions e comparação de source SHA/diff. | Fechado como item próprio; o resíduo crítico passa a ser tratado por #11, e a triagem documentada por servidor é a base de evidência para qualquer decisão de waiver ou fix. |
 | 2 | **F4 — restore e aceite de gateway/API ainda sem evidência completa.** | [`F4 report`](../reports/2026-10-09-f4-compose-runtime.md) | `docker compose config` em cada receita, smoke isolado de `initialize`/`tools/list`/SIGTERM, probes HTTP nos profiles HTTP, restore/rollback validado para Notes e Khan. | agente. | Logs, IDs de container, screenshots. | Sem evidência de restore/rollback, o aceite F7 não pode ser assinado. |
 | 3 | **F5 — execuções remotas em GitHub Actions não verificadas.** `gh auth status: not logged into any GitHub hosts`. | [`F5 report`](../reports/2026-10-09-f5-ci-conformance.md) | Cada workflow de CI passa nos SHAs candidatos; manifest/SBOM arquivados. | operador (login); agente (análise). | URLs de runs, artifacts, comparação SHA. | Gate F5 ainda aberto; sem isso, qualquer release estaria sem CI verde. |
-| 4 | **Gateway/broker Percival parados; pins antigos ainda ativos.** Container gateway histórico com bind `0.0.0.0:8765`; `docker compose` falha por falta de `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE`; engine local 29.7.2 não satisfaz o gate do broker candidato 27.x. | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) | Compose inicia gateway/broker com bind loopback, segredo 0600 privado, GIDs compatíveis, Engine alvo aprovado; readiness confirmada por `doctor`; pins atualizados para OSM, Weather, AgentMail e Deep Research. | operador (segredo, GIDs); agente (deploy). | Compose render, `docker compose ps`, `nanobot mcp-docker doctor`, novas capturas de `docker ps`. | Sem isso, a parte Percival de F6 não fecha; o aceite local também não. |
+| 4 | **Gateway/broker local em Engine 29.7.2; pins antigos ainda ativos.** O stack Compose local está `healthy` com o overlay explicitamente descartável `docker-compose.engine29-override.yml`; isso não satisfaz nem representa o gate VPS Engine 27.x. O bind histórico `0.0.0.0:8765` foi substituído pelo par atual em loopback. Config revisão 4 ainda marca AgentMail, Weather, OSM e Deep Research ativos/em `running`, com pins antigos. | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) e [`F7 local stack report`](../reports/2026-10-10-f7-local-stack-provisioning.md) | Atualizar os quatro pins via API/domínio autenticado; validar readiness/canary por serviço. Manter binds de host em loopback e socket apenas no broker. O gate VPS requer inventário e Engine 27.x aprovados separadamente. | agente (mutações via domínio após credencial operator-admin); operador (senha/autorização local, gate VPS). | Compose render, `docker compose ps`, `nanobot mcp-docker doctor`, IDs das imagens/containers, GIDs, observation/health e `tools/list` por `server_id`. | F6 local permanece parcial até pins/canary e rollback; F7 continua bloqueado pelo restante das pendências e gates VPS/CI. |
 | 5 | **Rollback dos quatro pins Positronic não foi ensaiado.** As imagens antigas foram removidas; rollback agora exige reconstruir/recuperar tarballs. | [`F6 cutover report` addendum](../reports/2026-10-10-f6-local-cutover.md#addendum--limpeza-solicitada-pelo-operador) | Ensaio de `update-image` + `configure` voltando para IDs antigos reconstruídos; checagem de `tools/list`. | agente. | Logs, IDs, `tools/list` antes/depois. | F7 exige rollback testado. |
 | 6 | **Quatro pins Percival ainda apontando para imagens pré-F3.** OSM, Weather, AgentMail e Deep Research com `imageId` antigo. | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) | Cada `server_id` aponta para o image ID candidato correspondente; `observe`/`health` retornam `running`/`ready`; `tools/list` casa o contrato. | agente (quando broker disponível). | Logs do broker, `docker inspect`, `tools/list` de cada serviço. | F6 parcial; o aceite local cobre apenas Positronic. |
 | 7 | **Permissões do Khan e decisão sobre allowlist.** Tools descobertas, mas allowlist vazia no registry Positronic (`revision 7`). | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) | Decisão registrada sobre manter vazia ou expor subset. | operador. | ADR ou nota em `docs/percival-governance.md`. | Acceptance F7 requer alinhamento explícito. |
@@ -413,11 +413,27 @@ exige autorização específica e a sua própria evidência.
    servidor em `docs/issues/2026-10-10-f3-status.md` (cinco MCPs) e
    `docs/security/f3-status.md` (AgentMail).
 2. **Provisionar o stack gateway/broker Percival** — criar o arquivo
-   `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` (modo 0600, persistente,
-   em caminho fora do repo); fixar `PERCIVAL_DOCKER_GATEWAY_HOST=0.0.0.0`
-   apenas dentro do container; confirmar GIDs do socket e do token; escolher
-   stack local (Host gateway vs Compose pair) compatível com Engine 29.7.2 ou
-   ajustar a base do broker.
+    `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` (modo 0600, persistente,
+    em caminho fora do repo); fixar `PERCIVAL_DOCKER_GATEWAY_HOST=0.0.0.0`
+    apenas dentro do container; confirmar GIDs do socket e do token; escolher
+    stack local (Host gateway vs Compose pair) compatível com Engine 29.7.2 ou
+    ajustar a base do broker.
+   **Progresso 2026-10-10:** segredo criado em `~/.nanobot/mcp-docker/`
+   (valor não registrado), `.env` local atualizado e gateway/broker construídos
+   no HEAD `86cd784052abd11915246ff9f0a5ecd62715f557` mais worktree local. O
+   override do broker recebeu o nome real do gateway Compose após o primeiro
+   start evidenciar a incompatibilidade. Corrigi o alias camelCase do segredo
+   WebUI e testei bootstrap com o segredo do arquivo. Compose combinado validado:
+   18790/8765 em host loopback, gateway sem `docker.sock`, broker com socket e
+   sem porta publicada; GIDs 966 (socket) e 1999 (token) conferidos. Gateway e
+   broker estão `healthy`, e `doctor` passou. Para o Engine local 29.7.2, o
+   stack usa o overlay descartável Engine 29; isso não fecha gate VPS Engine
+   27. O relato e IDs estão em
+   [`F7 local stack provisioning`](../reports/2026-10-10-f7-local-stack-provisioning.md).
+   Os quatro MCPs continuam configurados com pins antigos; mutações via API
+   requerem `operator-admin` existente, cuja senha está sob controle do
+   operador. Nenhuma rotação/bypass foi feita; atualizar pins e validar canary
+   aguardam autenticação local autorizada.
 3. **Atualizar pins Percival e validar canary** — usar `update-image` para
    OSM, Weather, AgentMail e Deep Research; ler revisão/secret antes de
    cada mutação; verificar handshake, `tools/list`, SIGTERM, readiness HTTP
