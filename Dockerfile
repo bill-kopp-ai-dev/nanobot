@@ -8,7 +8,7 @@ COPY webui/ ./
 COPY packages/client-events/ /app/packages/client-events/
 RUN mkdir -p /app/nanobot/web && npm run build
 
-FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:eacce4ec0ff855c8be0cca407d8c5e8e20139dd3f8f64c018fb654bac0a40bd8 AS runtime
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb228142f776ed8df9e51fba89ee31f018c04a0452645c014783546b164c03 AS runtime
 
 ARG VERSION=0.3.5
 ARG GIT_SHA=unknown
@@ -31,6 +31,8 @@ RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian
         ca-certificates=20250419 git=1:2.47.3-0+deb13u1 \
         bubblewrap=0.12.0-1~deb13u1 openssh-client=1:10.0p1-7+deb13u4 \
         libmagic1t64=1:5.46-5 && \
+    chmod u-s /usr/bin/mount && \
+    rm -f /usr/bin/nsenter /usr/bin/infocmp && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
