@@ -224,8 +224,19 @@ define esses níveis como bloqueadores; não foram concedidos waivers. F3 não
 fecha até triagem/resolução ou aprovação explícita de exceções com owner e
 expiração, além de rebuild/validação em builder/checkout limpo e evidência
 reprodutível do conjunto resolvido. O relatório
-[`F3 reproducibility/context/posture`](../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
-registra candidatos, contextos, hashes dos artefatos e findings.
+  [`F3 reproducibility/context/posture`](../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
+  registra candidatos, contextos, hashes dos artefatos e findings.
+
+**Remediação local 2026-10-09/10 — gate continua aberto:** versões Python com
+correção disponível foram atualizadas, as bases Linux dos candidatos MCP/
+gateway foram alinhadas a Debian Trixie e as oito imagens foram rebuildadas e
+rescanneadas. Os candidatos passaram os smokes stdio; Notes e Khan também
+passaram persistência local isolada. A política continua sem waivers e o scan
+Trivy 0.67.2 ainda registra Critical/High nas oito imagens (ver
+[`F3 remediation and F6 preflight`](../reports/2026-10-09-f3-remediation-and-f6-preflight.md));
+portanto F3 não foi aprovada. HTTP/restore restantes de F4 e execuções remotas
+F5 também não foram concluídos. F6 não foi iniciada e nenhum consumer foi
+alterado.
 
 ### F4 — Padronizar Compose e contratos de runtime
 
@@ -310,6 +321,23 @@ Executar um serviço por vez, inicialmente Deep Research e OSM (corrigindo falso
 6. Se gate falhar, reverter o consumidor ao image ID/RepoDigest antigo e confirmar handshake e estado dos dados; manter ambos os artefatos até a decisão de retenção.
 
 **Gate F6:** cada serviço tem evidência de canary e rollback independente; owner/manager labels separam Percival de Positronic. Limpeza é uma lista explícita por Image ID/digest após confirmar zero referências em containers/configs, nunca `docker image prune -a`/`system prune` como atalho.
+
+**Execução local parcial 2026-10-10 UTC — desvio autorizado pelo operador:**
+apesar de F3–F5 abertos, o operador autorizou explicitamente iniciar F6. Pelo
+CLI suportado do Positronic foram atualizados Deep Research, AgentMail, Khan e
+Notes para os image IDs F3 candidatos, preservando escopos, configurações,
+mounts e allowlists; Notes foi reconfigurado nos dois projetos autorizados.
+Handshakes MCP/tools/list passaram. Khan mantém allowlist vazia. Por pedido
+posterior, foram removidos os quatro image IDs Positronic substituídos sem
+containers referenciando-os. O gateway e o broker Percival estavam parados; o
+gateway antigo publicaria 8765 em todas as interfaces e a configuração Compose
+atual não tem o caminho do segredo de token WebUI. Por isso não foram iniciados
+nem houve alteração ao config do broker: Weather, OSM e os outros dois pins
+Percival ainda aguardam cutover; suas imagens antigas permanecem no Engine.
+Rollback dos quatro pins Positronic exige recarregar ou reconstruir as imagens
+antigas e não foi ensaiado. F6 permanece parcial e não fecha os gates F3–F5.
+Evidência detalhada:
+[`F6 local cutover`](../reports/2026-10-10-f6-local-cutover.md).
 
 ### F7 — Aceite de operação e manutenção
 
@@ -402,6 +430,8 @@ expiração antes de qualquer waiver. Depois, repetir builds/scan em checkouts
 limpos no builder CI e fechar F3 somente com evidência do conjunto resolvido.
 F2 ainda depende de rebuilds canônicos limpos; F4 requer os smokes restantes de
 persistência/restore. Consultar GitHub Actions em cada SHA exato, verificar jobs
-e artefatos e fechar F5 somente depois de todos passarem. Não iniciar cutover a
-partir de candidatos locais não aceitos; manter imagens e consumers históricos
-sem alteração.
+e artefatos e fechar F5 somente depois de todos passarem. Para continuar F6
+após o desvio autorizado, preparar uma stack local de gateway/broker com segredo
+privado de token e bind loopback, então migrar OSM/Weather em sequência pelo
+domínio do broker, mantendo rollback por image ID. Não iniciar a cópia antiga
+do gateway com bind não-loopback.

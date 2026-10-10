@@ -1,4 +1,4 @@
-FROM docker:27.5.1-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c
+FROM docker:29.2.0-cli-alpine3.23@sha256:f7da93bb3a6c57789eec1180058c44127f70548977cc18e602d52082506de826
 
 ARG VERSION=0.3.5
 ARG GIT_SHA=unknown
@@ -12,7 +12,9 @@ LABEL org.opencontainers.image.title="Percival MCP Broker" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
 COPY docker/mcp-broker-requirements.lock /tmp/mcp-broker-requirements.lock
-RUN apk add --no-cache python3=3.12.15-r0 py3-pip=24.3.1-r0 && python3 -m venv /opt/broker-venv && \
+RUN apk upgrade --no-cache && \
+    apk add --no-cache python3=3.12.15-r0 py3-pip=25.1.1-r1 && \
+    python3 -m venv /opt/broker-venv && \
     /opt/broker-venv/bin/pip install --no-cache-dir --require-hashes --no-deps \
       -r /tmp/mcp-broker-requirements.lock && rm /tmp/mcp-broker-requirements.lock && \
     ln -s /usr/local/bin/docker /usr/bin/docker

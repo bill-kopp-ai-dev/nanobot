@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim@sha256:51b1100cc2a83d370c6a60952e3f2989c8a43159d0e38586e090f3b3326efefd AS webui-builder
+FROM node:24-trixie-slim@sha256:c83040f7e24bacea68e58a0b96a484ba430bf24abb2973eab7ba4701144b7b63 AS webui-builder
 
 WORKDIR /app
 COPY webui/package.json webui/package-lock.json ./webui/
@@ -8,7 +8,7 @@ COPY webui/ ./
 COPY packages/client-events/ /app/packages/client-events/
 RUN mkdir -p /app/nanobot/web && npm run build
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:5d275ca5f0da33c3368ac8fbb85fafabad023b3b8a7cff39a94ac0baecfd9a50 AS runtime
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:eacce4ec0ff855c8be0cca407d8c5e8e20139dd3f8f64c018fb654bac0a40bd8 AS runtime
 
 ARG VERSION=0.3.5
 ARG GIT_SHA=unknown
@@ -22,15 +22,15 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
 ARG DEBIAN_SNAPSHOT=20261009T000000Z
-RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s bookworm main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
-    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s bookworm-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
+RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
+    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
     rm -f /etc/apt/sources.list.d/debian.sources && \
     apt-get -o Acquire::Check-Valid-Until=false update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
-        ca-certificates=20250419~deb12u1 git=1:2.39.5-0+deb12u3 \
-        bubblewrap=0.8.0-2+deb12u1 openssh-client=1:9.2p1-2+deb12u10 \
-        libmagic1=1:5.44-3 && \
+        ca-certificates=20250419 git=1:2.47.3-0+deb13u1 \
+        bubblewrap=0.12.0-1~deb13u1 openssh-client=1:10.0p1-7+deb13u4 \
+        libmagic1t64=1:5.46-5 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

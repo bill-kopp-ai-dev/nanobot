@@ -62,21 +62,27 @@ def docker(*args: str, timeout: int = 35) -> str:
     return result.stdout.strip()
 
 
+def _supported_docker_versions(versions: str, *, allow_engine29: bool) -> bool:
+    parts = versions.split("|")
+    if len(parts) != 2:
+        return False
+    client_supported = re.fullmatch(r"(?:27|29)\.[0-9]+\.[0-9]+", parts[0]) is not None
+    server_27 = re.fullmatch(r"27\.[0-9]+\.[0-9]+", parts[1]) is not None
+    server_29_fixture = allow_engine29 and re.fullmatch(r"29\.[0-9]+\.[0-9]+", parts[1]) is not None
+    return client_supported and (server_27 or server_29_fixture)
+
+
 def ready() -> MountPolicy:
     if os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock") not in {
         "unix:///var/run/docker.sock", "unix:///run/docker.sock",
     } or os.environ.get("DOCKER_BIN", DOCKER) != DOCKER:
         raise BrokerError("only the local Docker socket and /usr/bin/docker are supported", 503)
     versions = docker("version", "--format", "{{.Client.Version}}|{{.Server.Version}}")
-    parts = versions.split("|")
-    if len(parts) != 2 or any(re.fullmatch(r"27\.[0-9]+\.[0-9]+", version) is None for version in parts):
-        # Disposable F2 smoke on a different local Engine is never a deploy
-        # compatibility claim; real deployment and CI require Engine 27.x.
-        if os.environ.get("PERCIVAL_DISPOSABLE_ENGINE29") != "1" or len(parts) != 2 or not (
-            re.fullmatch(r"(?:27|29)\.[0-9]+\.[0-9]+", parts[0])
-            and re.fullmatch(r"29\.[0-9]+\.[0-9]+", parts[1])
-        ):
-            raise BrokerError("Docker Client and Server 27.x required", 503)
+    if not _supported_docker_versions(
+        versions,
+        allow_engine29=os.environ.get("PERCIVAL_DISPOSABLE_ENGINE29") == "1",
+    ):
+        raise BrokerError("Docker Client 27.x/29.x and Server 27.x required", 503)
     root = docker("info", "--format", "{{.DockerRootDir}}")
     options = docker("info", "--format", "{{json .SecurityOptions}}")
     try:

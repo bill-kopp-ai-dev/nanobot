@@ -7,6 +7,12 @@ import pytest
 from nanobot.mcp_docker import broker
 
 
+def test_docker_client_29_can_target_engine27_but_engine29_is_fixture_only() -> None:
+    assert broker._supported_docker_versions("29.2.0|27.5.1", allow_engine29=False)
+    assert not broker._supported_docker_versions("29.2.0|29.7.2", allow_engine29=False)
+    assert broker._supported_docker_versions("29.2.0|29.7.2", allow_engine29=True)
+
+
 def test_container_lookup_distinguishes_absent_from_engine_offline(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(broker, "docker", lambda *_args: (_ for _ in ()).throw(broker.BrokerError("Docker object not found", 404)))
     assert broker._inspect("weather") is None
