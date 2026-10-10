@@ -58,3 +58,4 @@ services:
       PERCIVAL_HOST_MOUNTINFO: /run/host-mountinfo
       PERCIVAL_HOST_INVENTORY: /host-inventory
       PERCIVAL_BROKER_TOKEN_FILE: /run/secrets/percival-broker-token
+      PERCIVAL_GATEWAY_CONTAINER_NAME: ${PERCIVAL_GATEWAY_CONTAINER_NAME:?Set Compose gateway container name}

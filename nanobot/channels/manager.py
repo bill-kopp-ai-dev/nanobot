@@ -117,7 +117,12 @@ def _docker_websocket_bind_config(name: str, section: Any) -> Any:
         if not token_issue_secret:
             raise ValueError("Docker WebUI token-issuance secret file is empty")
         values["host"] = host
-        values["token_issue_secret"] = token_issue_secret
+        # Config models iterate using aliases (``tokenIssueSecret``), while
+        # plain dictionaries in tests/config adapters use field names. Update
+        # the key already present so model validation cannot prefer a stale
+        # alias value over this runtime-only secret-file override.
+        secret_key = "tokenIssueSecret" if "tokenIssueSecret" in values else "token_issue_secret"
+        values[secret_key] = token_issue_secret
     return values
 
 

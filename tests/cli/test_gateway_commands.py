@@ -219,6 +219,21 @@ def test_docker_websocket_bind_override_is_runtime_only(monkeypatch, tmp_path):
     assert _docker_websocket_bind_config("telegram", {"enabled": True}) == {"enabled": True}
 
 
+def test_docker_websocket_bind_override_replaces_model_alias(monkeypatch, tmp_path):
+    secret_path = tmp_path / "webui-token-issue"
+    secret_path.write_text("new-runtime-secret", encoding="utf-8")
+    secret_path.chmod(0o600)
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
+    monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", str(secret_path))
+    config = Config.model_validate({
+        "channels": {"websocket": {"enabled": True, "tokenIssueSecret": "stale-config-secret"}},
+    })
+
+    result = _docker_websocket_bind_config("websocket", config.channels.websocket)
+
+    assert result["tokenIssueSecret"] == "new-runtime-secret"
+
+
 def test_docker_websocket_bind_requires_token_secret(monkeypatch):
     monkeypatch.setenv("PERCIVAL_DOCKER_GATEWAY_HOST", "0.0.0.0")
     monkeypatch.delenv("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", raising=False)
