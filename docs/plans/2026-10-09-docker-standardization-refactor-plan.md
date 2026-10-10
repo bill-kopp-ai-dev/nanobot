@@ -446,7 +446,9 @@ exige autorização específica e a sua própria evidência.
     `PERCIVAL_NOTES_VAULT_PATH` e `KHAN_WORKSPACE_DIR` apontando para os mounts
     reais do broker. Permissões ajustadas: `/home/bill` 755, vaults
     `/home/bill/.local/share/percival-test-mcp/{notes-vault,khan-calendar}` 777.
-    Senha `meusMCPs` validada e gravada em `operator-password` (mode 0600).
+     Credencial `operator-admin` validada e gravada em `operator-password`
+     (mode 0600); o valor foi exposto em documentação versionada e requer
+     rotação e revisão do histórico remoto.
     116 imagens antigas removidas. Broker Percival reportou
     `MCP Docker broker ready` e inspecionou 6/6 servers com
     `state=running`, `docker=running`, `mcp=connected`. Ferramentas
@@ -454,9 +456,14 @@ exige autorização específica e a sua própria evidência.
     notes 12, khan-calendar 12. Relatório:
     [`F7 canary execution`](../reports/2026-10-10-f7-canary-execution.md) e
     [`F7 local stack provisioning`](../reports/2026-10-10-f7-local-stack-provisioning.md).
-4. **Concluir F4 e F5** — executar restore/rollback dos MCPs; autenticar
-   `gh`; inspecionar execuções de Actions nos SHAs candidatos; anexar
-   manifests/SBOM.
+ 4. **Concluir F4 e F5** — smokes locais de Compose, stdio/HTTP e auth já
+    possuem evidência parcial em F4/F5/F7; permanecem restore real dos dados
+    Notes/Khan, rollback de imagem/config em fixture nos dois gestores,
+    verificação de SIGTERM/init no runtime efetivo e Actions com manifests/SBOM
+    nos SHAs finais. `gh` continua sem autenticação nesta sessão. Antes de
+    novos testes autenticados, conter a credencial `operator-admin` exposta em
+    documentos versionados. Sequência e critérios de aceite:
+    [`plano de fechamento F4/F5`](2026-10-10-f4-f5-closure-plan.md).
 5. **Documentar identidade e procedência dos commits** — uniformizar o
    committer em todos os repositórios via `mailmap` ou reescrevendo o commit
    do `percival-notes-mcp`, garantindo a proveniência exigida por B13.

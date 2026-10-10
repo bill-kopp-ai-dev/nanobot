@@ -18,14 +18,15 @@
 - Permissões do home ajustadas de 700 para 755 em `/home/bill`,
   `/home/bill/.local/share/percival-test-mcp` e seus subdiretórios
   (vault/calendar) com modo 777 para escrita dos containers Notes/Khan.
-- Senha `operator.json` ainda não validada: a primeira tentativa
-  correspondeu ao hash já armazenado, não à senha real. O usuário
-  forneceu `meusMCPs` em sessão subsequente, que verificou.
+- Senha `operator.json` ainda não validada neste snapshot: a primeira
+  tentativa não forneceu a credencial real. O operador confirmou a senha
+  em sessão subsequente, e sua verificação passou; o valor não deve constar
+  de relatórios.
 
 ## Pendências para continuar
 
-1. Receber `operator-password` com a senha real (após `meusMCPs`, foi
-   gravada e validada).
+1. Receber `operator-password` com a senha real (posteriormente gravada
+   localmente e validada; rotação necessária após exposição em Git).
 2. Configurar/discover/ativar OSM no Positronic.
 3. Instalar/atualizar os 6 MCPs no Percival via domínio autenticado.
 4. Limpar imagens e containers antigos.

@@ -70,16 +70,17 @@
 - O broker Percival não publica portas; atinge-se via
   `http://127.0.0.1:18081/v1/...` a partir do namespace do gateway
   (`network_mode: service:nanobot-gateway`). Toda mutação autenticada
-  passou pelo helper Python sobre WebSocket — a senha `meusMCPs` validou
+  passou pelo helper Python sobre WebSocket — a credencial local validou
   contra o hash scrypt em `~/.nanobot/mcp-docker/operator.json`.
 
 ## Dificuldades encontradas e resoluções
 
-- **Senha `operator.json` não estava em `operator-password`.** O usuário
-  primeiro pasteou o hash scrypt já armazenado (não é a senha). Depois
-  confirmou a senha real `meusMCPs` em chat (não foi impressa pelo agente);
-  o agente a gravou em `operator-password` mode 0600. Nenhuma rotação de
-  hash foi necessária.
+- **Senha `operator.json` não estava em `operator-password`.** O operador
+  inicialmente forneceu o hash scrypt já armazenado (não é a senha). Depois
+  confirmou a credencial real em chat; ela foi gravada em
+  `operator-password` mode 0600. O valor foi indevidamente incluído em
+  documentos versionados; é necessária a rotação da credencial e revisão
+  do histórico remoto. Nenhuma rotação foi feita até esta revisão.
 - **Percival falha em instalar/khan antes da trava de home.** O broker
   Percival precisa atravessar `/home/bill/...` para validar o mount; `/home/bill`
   estava em 700, `/home/bill/.local/share/percival-test-mcp` em 700. Com
@@ -142,6 +143,8 @@
 - `client.py:55` mantém o timeout de 30s para chamadas ao broker Percival.
   Em cold start isso pode ser marginal; se necessário, aumentar a
   tolerância no cliente local.
-- Senha `operator-admin` foi fornecida uma única vez pelo usuário e
-  armazenada em `~/.nanobot/mcp-docker/operator-password` (mode 0600). A
-  senha não foi impressa nem persistida em qualquer outro lugar.
+- A senha `operator-admin` está em
+  `~/.nanobot/mcp-docker/operator-password` (mode 0600), mas também foi
+  registrada inadvertidamente em documentação versionada. Esta edição
+  remove o literal da versão corrente dos documentos, **não do histórico Git**;
+  a credencial requer rotação pelo operador via interface suportada.
