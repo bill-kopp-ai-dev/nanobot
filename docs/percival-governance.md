@@ -45,6 +45,17 @@ CI and packaging must be reconciled with Linux-only before claiming that the
 Percival release gate is complete. A CI policy decision alone does not close
 that implementation gap.
 
+## Manual de operação e manutenção
+
+O [manual operacional dos MCPs Docker locais](../operations/mcp-docker-local-runbook.md)
+concentra inventário seguro, build, atualização, rollback, backup/restore de
+Notes/Khan, contenção de incidentes (falso `unhealthy` em stdio, SIGTERM/PID 1),
+revisão trimestral, gatilho urgente por CVE e política de retenção de imagens
+intermediárias. Este manual não substitui o [runbook F5 de migração/recuperação
+de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md); os dois
+convivem. O aceite F7 não fecha sem que o manual esteja revisado e vinculado
+a partir deste parágrafo.
+
 ## B13: release authority
 
 The agent can draft `docs/kg-release-notes.md` and the canonical changelog,
