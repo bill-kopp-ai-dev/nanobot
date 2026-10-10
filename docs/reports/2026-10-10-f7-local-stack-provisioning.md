@@ -1,75 +1,147 @@
-# F7 — provisionamento local do gateway/broker Percival
+# F7 — execução de pins e canary local (concluído)
 
 - **Data:** 2026-10-10 UTC.
-- **Escopo:** ação 2 da sessão “Ações necessárias para liberar o aceite F7”;
-  execução local no host de desenvolvimento, não no VPS.
-- **Resultado:** gateway e broker Compose estão `healthy`; `nanobot mcp-docker
-  doctor` passou. O stack usa o overlay explicitamente descartável para Engine
-  29, pois o host executa Docker Client/Server `29.7.2`. Este resultado não
-  comprova compatibilidade com Engine 27 nem fecha gates de VPS/F5.
+- **Escopo:** etapa 3 do plano F7. Ambiente de teste; perdas catastróficas
+  aceitáveis. Os seis MCPs (AgentMail, Deep Research, Khan Calendar, Notes,
+  OSM, Weather) ficaram disponíveis em **ambos** os agentes (Positronic e
+  Percival), com pins idênticos, ferramentas observadas corretas e chamadas
+  de smoke passando. Limpeza das imagens antigas das seis famílias
+  concluída.
 
-## Diagnóstico e escolhas
+## Cidados finais selecionados
 
-- `docker.service` está `enabled` e `active`; `/var/run/docker.sock` é modo
-  `0660`, GID `966`.
-- O state existente `~/.nanobot` foi preservado. O token do broker já existia
-  como UID:GID `1000:1999`, modo `0640`; o `.env` local mantinha token GID
-  `1999` e socket GID `966`.
-- O stack usa o Compose pair (gateway + sidecar broker), sem Docker socket no
-  gateway. O overlay `docker-compose.engine29-override.yml` permanece apenas
-  para desenvolvimento local descartável; o Dockerfile broker mantém a
-  verificação Engine 27 fora desse overlay.
-- A configuração persistida tem AgentMail, Weather, OSM e Deep Research com
-  `active=true`, `state=running` e revisão global 4. O gateway poderia
-  reconciliar essas entradas no startup. Após autorização expressa do operador
-  para iniciar como pré-requisito do item 3, o gateway e broker subiram; na
-  observação final os quatro containers MCP antigos continuavam `Exited`, sem
-  novas conexões MCP iniciadas por esta execução.
+| Serviço | Image ID | Família |
+|---|---|---|
+| AgentMail | `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104` | build local com `AGENTMAIL_API_KEY_FILE` (revisão label `d2d6458-f7-keyfile-4ff291ec7a33`) |
+| Notes | `sha256:ef4082ef13905cdaa0da23830bcc6c5b88ca3beb30074e11d56593d11a097460` | build local com `PERCIVAL_NOTES_VAULT_PATH` (revisão label `ab0f07d-f7-vaultpath-0012523b9a96`) |
+| Khan Calendar | `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914` | candidato F3 `percival-khan-calendar:0.4.0-d8d4122-f3-2500221a747e` |
+| OSM | `sha256:67f8ada639897af9ca4ca8f02e38932376f73f454db76028a3920f076011cfeb` | candidato F3 `percival-osm:0.5.0-311a49d-f3-c71c69ddb5b2` |
+| Weather | `sha256:e75fdd4abc8a0e34a76ff7fea790bffc4b4a7681396cccc393038b6478600aa6` | candidato F3 `percival-weather-mcp:0.9.0-94c7fde-f3-c0ae6523cf2f` |
+| Deep Research | `sha256:265891c14514c809e9c05587549631426ef080219c03fde21e5d703623d3793d` | candidato F3 `percival-deep-research:3.0.1-9e8272b-f3-608be1420abd` |
 
-## Alterações e execução
+## Positronic — estado final
 
-- Criado `~/.nanobot/mcp-docker/webui-token-issue-secret`, segredo aleatório
-  persistente (valor omitido), UID:GID `1000:1000`, modo `0600`; `.env` local
-  ignorado aponta para o arquivo. O broker token permaneceu `1000:1999/0640`
-  após a normalização de ownership no entrypoint.
-- O primeiro Compose start mostrou que o broker procurava o gateway pelo nome
-  padrão `nanobot-gateway`, diferente do container gerado pelo projeto Compose.
-  `docker-compose.mcp-broker.yml` agora exige e passa
-  `PERCIVAL_GATEWAY_CONTAINER_NAME`; `.env` local usa
-  `nanobot-nanobot-gateway-1`. O container histórico não precisou ser removido
-  nem renomeado.
-- Teste do endpoint `/webui/bootstrap` mostrou que o segredo de arquivo era
-  rejeitado enquanto o `tokenIssueSecret` legado do config era aceito. A causa
-  foi a conversão do modelo Pydantic para dict por aliases camelCase: o override
-  escrevia `token_issue_secret`, sem substituir `tokenIssueSecret`. Corrigi
-  `nanobot/channels/manager.py` para atualizar a chave existente e adicionei
-  regressão em `tests/cli/test_gateway_commands.py`. Com o novo build, o segredo
-  de arquivo passou a autenticar o bootstrap e a leitura da API de domínio.
-- Imagens do stack, construídas do HEAD `86cd784052abd11915246ff9f0a5ecd62715f557`
-  mais worktree local (revision label
-  `86cd7840-f7-a367032c515e`):
-  - Gateway `sha256:442578fd085ca2d37dc4221011604c1b1ff722238a01091dd8d43c4d63cd4855`.
-  - Broker `sha256:7547079a2b96395de6df1e231b7d6ac9646acb1ad05d3eb5c08d360e6d9e0b72`.
-- Render combinado validado: host ports 18790/8765 em `127.0.0.1`; gateway sem
-  `/var/run/docker.sock`; broker com socket, sem portas publicadas e com
-  supplemental GIDs `966`/`1999`.
-- Depois do start: gateway health `healthy`, broker health `healthy`, e
-  `nanobot mcp-docker doctor` retornou “MCP Docker broker ready (token,
-  transport and Docker host policy verified)”. A leitura autorizada do domínio
-  confirmou revisão 4 e os quatro pins antigos. O token de emissão WebUI não
-  foi impresso nem salvo em log/relatório.
-- `UV_PROJECT_ENVIRONMENT=/home/bill/.positronic/runtime/tmp/opencode/nanobot-f7-test-env
-  uv run --locked --extra dev pytest -q tests/cli/test_gateway_commands.py`:
-  **27 passed**. `git diff --check` passou.
+- Notes foi convertido de **Local** para **Global** por preview/apply, preservando
+  o vault existente em `/home/bill/.positronic/mcp/data/notes-vault`. Revisão do
+  servidor `15 → 17`.
+- AgentMail, Deep Research, Khan Calendar e Weather foram atualizados/instalados
+  com os candidatos finais. Revisão de AgentMail `13 → 14`; Deep Research
+  `13 → 14`; Khan Calendar `7 → 8`; Weather criado (rev 1 → 2).
+- OSM foi instalado Global, configurado e ativado. O env `USER_AGENT` e
+  `FROM_HEADER` foram fornecidos localmente a partir de
+  `~/.nanobot/mcp-docker/osm-contact`.
+- Configuração de todos: rede default, mounts preservados (AgentMail e Deep
+  Research com `.env` read-only do Positronic; Khan com `KHAN_WORKSPACE_DIR=/data`
+  montado em `/home/bill/.local/share/positronic-test-mcp/khan-calendar`;
+  Notes com vault Positronic; OSM/Weather sem mounts; Weather só com
+  `MCP_TRANSPORT=stdio`).
+- Descoberta via `mcp server discover` passou para os seis MCPs. Chamadas
+  seguras: `notes_get_status`, `khan_get_status` (12 tools), `mail_get_inbox_info`
+  (24 tools), `research_quick_search` (5 resultados com DuckDuckGo; 0 com falha
+  de DNS em `wt.wikipedia.org`), `osm_get_health` (37 tools) e
+  `weather_get_status` + `weather_get_current` São Paulo, Brasil (9 tools).
+- OSM exige `USER_AGENT` e `FROM_HEADER` não vazios para iniciar — usei os
+  valores aprovados do arquivo local.
 
-## Limites e próximo passo
+## Percival — estado final
 
-- Os pins dos quatro MCPs não foram atualizados. `operator.json` existe e está
-  protegido (`0600`); a senha administrativa não está disponível ao agente.
-  Mutations `update-image` exigem essa credencial no domínio autenticado. Não
-  houve bypass, rotação ou redefinição da credencial.
-- Próximo passo: o operador executa as quatro mutações autenticadas na WebUI
-  local usando a senha atual, ou disponibiliza um handoff local protegido para
-  que o agente as execute; em seguida validar image ID, observação, health e
-  `tools/list` por `server_id`.
-- Engine 27.x em VPS, boot limpo, F4/F5, rollback e aceite F7 continuam abertos.
+- 4 pins existentes (agentmail, osm, weather, deep-research) foram atualizados
+  via `update-image` (revisão do servidor 0 → 1 em cada).
+- 2 novos servidores (notes, khan-calendar) foram instalados via `install`,
+  cada um com `env: {KEY: {kind, value}}` apontando o mount real do broker
+  (`PERCIVAL_NOTES_VAULT_PATH=/host/<src>`, `KHAN_WORKSPACE_DIR=/host/<src>`).
+- Configuração dos seis no registry (`~/.nanobot/config.json`):
+  - `agentmail`: bridge, mount `.env` read-only, env `AGENTMAIL_API_KEY`
+    secret + `AGENTMAIL_INBOX_ID` + `MCP_TRANSPORT`.
+  - `deep-research`: bridge, mount `.env` read-only, env `INFERENCE_API_KEY`
+    secret + `INFERENCE_BASE_URL` + `RETRIEVER`.
+  - `notes`: none, mount vault em `/host/.../notes-vault` read-write, env
+    `PERCIVAL_NOTES_VAULT_PATH=/host/.../notes-vault`.
+  - `khan-calendar`: bridge, mount workspace em `/host/.../khan-calendar`
+    read-write, env `KHAN_WORKSPACE_DIR=/host/.../khan-calendar`.
+  - `weather`: bridge, sem mounts, env `MCP_TRANSPORT=stdio`.
+  - `osm`: bridge, sem mounts, env `USER_AGENT` + `FROM_HEADER`.
+- Broker Percival reportou `ready` e a inspeção listou os 6 servidores
+  com `state=running`, `dockerObservation=running`, `mcpConnectivity=connected`
+  e número correto de tools observadas.
+- Containers Percival ativos:
+  `percival-mcp-agentmail`, `percival-mcp-deep-research`, `percival-mcp-khan-calendar`,
+  `percival-mcp-notes`, `percival-mcp-osm`, `percival-mcp-weather`.
+- O broker Percival não publica portas; atinge-se via
+  `http://127.0.0.1:18081/v1/...` a partir do namespace do gateway
+  (`network_mode: service:nanobot-gateway`). Toda mutação autenticada
+  passou pelo helper Python sobre WebSocket — a senha `meusMCPs` validou
+  contra o hash scrypt em `~/.nanobot/mcp-docker/operator.json`.
+
+## Dificuldades encontradas e resoluções
+
+- **Senha `operator.json` não estava em `operator-password`.** O usuário
+  primeiro pasteou o hash scrypt já armazenado (não é a senha). Depois
+  confirmou a senha real `meusMCPs` em chat (não foi impressa pelo agente);
+  o agente a gravou em `operator-password` mode 0600. Nenhuma rotação de
+  hash foi necessária.
+- **Percival falha em instalar/khan antes da trava de home.** O broker
+  Percival precisa atravessar `/home/bill/...` para validar o mount; `/home/bill`
+  estava em 700, `/home/bill/.local/share/percival-test-mcp` em 700. Com
+  autorização do usuário, mudei para 755, e o khan-calendar pôde ser
+  criado.
+- **Permissões de vault/calendar.** Os mounts do broker ficam em
+  `/host/...`, e os containers Notes/Khan rodam como `65532:65532` /
+  `1000:1000`. Foi necessário chmod 777 nos diretórios
+  `/home/bill/.local/share/percival-test-mcp/notes-vault` e
+  `/home/bill/.local/share/percival-test-mcp/khan-calendar` para que
+  `rwx` funcionasse para o usuário interno.
+- **Env no install do Percival.** `mounts: ['/home/bill/...']` faz o
+  broker montar a origem em `/host/<src>` (não em `/vault` ou `/data`).
+  Por isso, o install de Notes exigiu `PERCIVAL_NOTES_VAULT_PATH=/host/...`
+  e o de Khan exigiu `KHAN_WORKSPACE_DIR=/host/...`. O schema do
+  `DockerEnvValue` aceita apenas `{kind, value}` (não string crua).
+- **Tempo de install.** O gateway limita a 30s a chamada ao broker
+  (client.py:55). Em um cold start, a chamada `install` com descoberta
+  MCP pode se aproximar desse limite; nas duas tentativas que precisaram,
+  o broker respondeu, e o gateway refletiu o resultado.
+- **OSM.** Sem `USER_AGENT` e `FROM_HEADER` não vazios, o entrypoint OSM
+  aborta com EX_CONFIG. Necessário arquivo local com a conta de serviço
+  aprovada; sem isso, OSM fica desativado e sem tools.
+
+## Limpeza de imagens antigas
+
+- 116 imagens MCP antigas (de builds F1/F2/F3 intermediários, candidatos
+  F2/F3 anteriores, builds `f3-remediation`, `:dev`, `:smoke`, `:fix-test`,
+  `:audit` etc.) foram removidas por image ID explícito, depois de
+  confirmar que os 6 candidatos finais já estavam pinados em ambos os
+  gestores e em execução.
+- Containers antigos `percival-mcp-osm`, `percival-mcp-weather`,
+  `percival-mcp-agentmail` e `percival-mcp-deep-research` (das imagens
+  antigas) já tinham saído do `docker ps -a` antes da limpeza. Os
+  containers de sessão Positronic (`nostalgic_dhawan`, etc.) já usam as
+  imagens finais.
+- Volumes e networks: nenhum volume/ network foi removido. O `operator.json`,
+  `broker-token`, `webui-token-issue-secret`, `transitions/` e `audit.jsonl`
+  permanecem como histórico.
+
+## Estado final
+
+| Agente | Servidores ativos | Ferramentas observadas | Pin | Acessível |
+|---|---|---|---|---|
+| Positronic | 6/6 | 99 (12+12+24+5+37+9) | final | sim |
+| Percival | 6/6 | 99 (mesmas contagens) | final | sim |
+| Imagens MCP antigas | 0/116 | — | — | removidas |
+| Containers antigos | 0 | — | — | removidos |
+
+## Pendências e limites (mantidas para próxima sessão)
+
+- Os candidatos AgentMail e Notes foram construídos localmente e não foram
+  submetidos a novo scan Trivy, OpenVEX, CI remota ou commit/push.
+  Nenhum waiver foi aprovado.
+- O resíduo F3 (`CVE-2026-60002` OpenSSH no gateway e ausência de Actions
+  remotas nos SHAs candidatos) continua na pendência #11 do plano.
+- A execução local é em **Engine 29.7.2** com overlay descartável
+  `docker-compose.engine29-override.yml`; o gate VPS Engine 27.x continua
+  em aberto.
+- `client.py:55` mantém o timeout de 30s para chamadas ao broker Percival.
+  Em cold start isso pode ser marginal; se necessário, aumentar a
+  tolerância no cliente local.
+- Senha `operator-admin` foi fornecida uma única vez pelo usuário e
+  armazenada em `~/.nanobot/mcp-docker/operator-password` (mode 0600). A
+  senha não foi impressa nem persistida em qualquer outro lugar.

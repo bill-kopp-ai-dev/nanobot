@@ -434,10 +434,26 @@ exige autorização específica e a sua própria evidência.
    requerem `operator-admin` existente, cuja senha está sob controle do
    operador. Nenhuma rotação/bypass foi feita; atualizar pins e validar canary
    aguardam autenticação local autorizada.
-3. **Atualizar pins Percival e validar canary** — usar `update-image` para
-   OSM, Weather, AgentMail e Deep Research; ler revisão/secret antes de
-   cada mutação; verificar handshake, `tools/list`, SIGTERM, readiness HTTP
-   onde aplicável e rollback ensaiado.
+  3. **Atualizar pins Percival e validar canary** — usar `update-image` para
+     OSM, Weather, AgentMail e Deep Research; ler revisão/secret antes de
+     cada mutação; verificar handshake, `tools/list`, SIGTERM, readiness HTTP
+     onde aplicável e rollback ensaiado.
+    **Concluído 2026-10-10:** os 6 MCPs ficaram ativos em **ambos** os agentes
+    (Positronic e Percival) com os mesmos pins finais. Positronic atualizou
+    Notes/AgentMail/Deep Research/Khan/Weather e instalou OSM com
+    `USER_AGENT`/`FROM_HEADER` aprovados. Percival executou `update-image`
+    para os 4 pins existentes e `install` para Notes e Khan, com
+    `PERCIVAL_NOTES_VAULT_PATH` e `KHAN_WORKSPACE_DIR` apontando para os mounts
+    reais do broker. Permissões ajustadas: `/home/bill` 755, vaults
+    `/home/bill/.local/share/percival-test-mcp/{notes-vault,khan-calendar}` 777.
+    Senha `meusMCPs` validada e gravada em `operator-password` (mode 0600).
+    116 imagens antigas removidas. Broker Percival reportou
+    `MCP Docker broker ready` e inspecionou 6/6 servers com
+    `state=running`, `docker=running`, `mcp=connected`. Ferramentas
+    observadas (99 totais): agentmail 24, weather 9, osm 37, deep-research 5,
+    notes 12, khan-calendar 12. Relatório:
+    [`F7 canary execution`](../reports/2026-10-10-f7-canary-execution.md) e
+    [`F7 local stack provisioning`](../reports/2026-10-10-f7-local-stack-provisioning.md).
 4. **Concluir F4 e F5** — executar restore/rollback dos MCPs; autenticar
    `gh`; inspecionar execuções de Actions nos SHAs candidatos; anexar
    manifests/SBOM.
