@@ -1,0 +1,100 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:f3:openevex:2026-10-10:gateway-ssh-server-absent",
+  "author": "Percival F3 technical assessment",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-10T13:10:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-59999"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The Trivy finding describes an OpenSSH sshd server vulnerability. This exact gateway candidate contains openssh-client 1:10.0p1-7+deb13u4 and /usr/bin/ssh, but does not contain /usr/sbin/sshd or the openssh-server package; the vulnerable server component is absent.",
+      "action_statement": "Keep the image free of openssh-server and verify component absence in the clean CI builder before applying this assessment to any other image digest."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-60000"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The Trivy finding describes an OpenSSH sshd server vulnerability. This exact gateway candidate contains openssh-client 1:10.0p1-7+deb13u4 and /usr/bin/ssh, but does not contain /usr/sbin/sshd or the openssh-server package; the vulnerable server component is absent.",
+      "action_statement": "Keep the image free of openssh-server and verify component absence in the clean CI builder before applying this assessment to any other image digest."
+    },
+    {
+      "vulnerability": {
+        "name": "GHSA-6v7p-g79w-8964"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "Trivy attributes msgpack 1.1.2 to this image without PkgPath. Direct inspection of the final image's /app/.venv finds no msgpack import or distribution, and the scanned rootfs has no corresponding package metadata; the advisory's component is absent from the runtime image.",
+      "action_statement": "Retain the runtime importlib and distribution checks as evidence and confirm absence in the clean CI builder; re-evaluate if the gateway dependency lock adds msgpack."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47273"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "Trivy attributes setuptools 70.3.0 to this image without PkgPath. Direct inspection of the final image's /app/.venv finds no setuptools import or distribution, and the global site-packages contains only pip; the vulnerable setuptools component is absent from the runtime image.",
+      "action_statement": "Retain the runtime importlib and distribution checks as evidence and confirm absence in the clean CI builder; re-evaluate if the gateway begins using setuptools at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-97687"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Trivy reports urllib3 2.7.0 without PkgPath. The final runtime's /app/.venv contains urllib3 2.8.0, which is the fixed version identified by the advisory; the reported vulnerable version is not present.",
+      "action_statement": "Verify urllib3's installed version from the final runtime and SBOM in CI; revisit if the locked runtime version falls below 2.8.0."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-97689"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6a1498c06b84737595173bb9a7b7c441ad461447f984c87728257b80929da28",
+          "name": "percival-gateway:0.3.5-ed07024-f3-672a08bf4531"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Trivy reports urllib3 2.7.0 without PkgPath. The final runtime's /app/.venv contains urllib3 2.8.0, which is the fixed version identified by the advisory; the reported vulnerable version is not present.",
+      "action_statement": "Verify urllib3's installed version from the final runtime and SBOM in CI; revisit if the locked runtime version falls below 2.8.0."
+    }
+  ]
+}
