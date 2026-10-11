@@ -90,7 +90,10 @@ RUN useradd -m -u 1000 -s /bin/bash nanobot && \
     chown -R nanobot:nanobot /home/nanobot /app/.venv
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+# `a+rx` (not just `+x`) keeps the script readable by the non-root UID that
+# Compose pins in docker-compose.yml; with only `+x` the shell interpreter
+# cannot open a 711 file owned by root, and the container restarts in a loop.
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod a+rx /usr/local/bin/entrypoint.sh
 
 # Start as root so the entrypoint can chown the data dir (on Render, the
 # freshly-mounted root-owned persistent disk) before dropping to the non-root

@@ -117,6 +117,22 @@ on the container's writable layer. If you override the container with a
 different `--user`, bake every enabled channel into the image because that UID
 is not guaranteed write access to the virtual environment.
 
+The Compose file pins the container user to the host user that owns the
+persistent `~/.nanobot` volume, so the bind-mounted state is writable end-to-
+end without the root entrypoint having to traverse a 0700 directory it cannot
+read. The defaults match the in-image user (UID/GID 1000); if the host user
+has a different UID/GID, export them before `docker compose up`:
+
+```bash
+NANOBOT_UID=$(id -u) NANOBOT_GID=$(id -g) docker compose up -d
+```
+
+When the override is missing or the values are wrong, the container refuses
+to start with an actionable error and the fix is the same export above.
+`entrypoint.sh` still falls back to the root+privilege-drop path for the
+broker sidecar (which is fixed to UID 65532) and for Render deploys, which
+mount the persistent disk root-owned.
+
 ```bash
 install -d -m 0700 "$HOME/.config/percival"
 docker compose run --rm nanobot-cli onboard               # first-time setup

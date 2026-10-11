@@ -1,4 +1,12 @@
 x-common-config: &common-config
+  # Run as the host user that owns ~/.nanobot so the bind-mounted persistent
+  # state is writable end-to-end. Override with `NANOBOT_UID`/`NANOBOT_GID`
+  # when the host user has a non-default UID/GID, e.g.:
+  #   NANOBOT_UID=$(id -u) NANOBOT_GID=$(id -g) docker compose up -d
+  # Skipping the root privilege-drop path avoids a silent `chown` failure
+  # when the bind-mount source is mode 0700 and root inside the container
+  # lacks DAC_OVERRIDE to traverse it.
+  user: "${NANOBOT_UID:-1000}:${NANOBOT_GID:-1000}"
   build:
     context: .
     dockerfile: Dockerfile
@@ -10,7 +18,10 @@ x-common-config: &common-config
     - ~/.nanobot:/home/nanobot/.nanobot
   cap_drop:
     - ALL
-  # Entrypoint uses these to fix bind-mount ownership and drop to the nanobot user.
+  # When `user:` is not honoured (e.g., the broker sidecar on a future
+  # override) these capabilities let entrypoint.sh chown the bind mount and
+  # drop privileges. They are intentionally minimal and combined with
+  # `no-new-privileges` below.
   cap_add:
     - CHOWN
     - SETGID
