@@ -17,6 +17,7 @@ docs/plans/*
 !docs/plans/2026-10-09-docker-standardization-refactor-plan.md
 !docs/plans/2026-10-10-f7-operations-acceptance-closure-plan.md
 !docs/plans/2026-10-11-percival-single-password-auth-refactor-plan.md
+!docs/plans/2026-10-11-single-password-acceptance-closure-plan.md
 
 # Operational runbooks (Percival F7)
 !docs/operations/mcp-docker-local-runbook.md
