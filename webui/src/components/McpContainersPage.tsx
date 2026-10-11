@@ -118,7 +118,7 @@ export function McpContainersPage() {
                 {t("mcpDocker.title", { defaultValue: "MCP containers" })}
               </h1>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                {t("mcpDocker.description", { defaultValue: "Read-only status for Docker-managed MCP servers." })}
+                {t("mcpDocker.description", { defaultValue: "Observe Docker MCP servers and authorize changes with the instance password." })}
               </p>
             </div>
           </div>

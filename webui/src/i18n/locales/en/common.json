@@ -1,7 +1,7 @@
 {
   "mcpDocker": {
     "title": "MCP containers",
-    "description": "Observe and manage Docker MCP servers with operator authorization.",
+    "description": "Observe Docker MCP servers and authorize changes with the instance password.",
     "refresh": "Refresh",
     "retry": "Retry",
     "loadError": "Could not load Docker MCP status. Try again.",
@@ -346,9 +346,10 @@
       "config_permission": "This SSH user can't read nanobot's config. Set the nanobot service account in Connection options.",
       "config_invalid": "Couldn't read the server's nanobot configuration.",
       "webui_disabled": "The server's WebUI is disabled. Enable it on the server first.",
-      "webui_auth_required": "The server needs a WebUI login secret in its config. No model key is needed here.",
+      "webui_auth_required": "Initialize an instance password on the server with `nanobot auth init`; the password isn't stored in its config.",
       "public_ws_unsupported": "This server uses a public WebSocket URL. This first version supports a loopback WebUI over SSH.",
-      "remote_auth_failed": "The server rejected its saved WebUI credential. Check its running configuration.",
+      "remote_auth_failed": "The remote gateway rejected authentication. Check the instance password and its running configuration.",
+      "remote_auth_required": "Interactive login for remote instances is not available in this connection flow yet. Open the remote WebUI directly or use an SSH tunnel.",
       "incompatible_gateway": "This endpoint isn't a compatible nanobot gateway. Update the server or check its configuration.",
       "webui_unavailable": "The gateway is running, but its WebUI isn't installed.",
       "remote_unreachable": "SSH connected, but the nanobot WebUI isn't responding. Check that it's running.",
@@ -417,15 +418,15 @@
       "title": "Connect to percival",
       "label": "WebUI password",
       "helpTitle": "Where can I find the password?",
-      "helpConfig": "On the device running nanobot, open the config file, usually at:",
-      "helpSecret": "Copy the value of this field as your password:",
-      "helpDockerSecret": "For Docker Compose, use the contents of the file configured by:",
-      "helpFallback": "If that value is empty, use <code>channels.websocket.token</code>.",
+      "helpLost": "If you forgot it, reset it on the gateway host (shell access required):",
+      "helpLostNote": "Resetting the password revokes all active sessions.",
+      "helpVps": "Running on Docker or a VPS?",
+      "helpVpsNote": "Use the same instance password initialized on the server. If one hasn't been set, run `nanobot auth init` on the host.",
       "showPassword": "Show password",
       "hidePassword": "Hide password",
       "submit": "Connect",
       "required": "Enter password",
-      "invalid": "Incorrect password"
+      "invalid": "Incorrect password, or no instance password has been initialized"
     },
     "account": {
       "section": "Account",

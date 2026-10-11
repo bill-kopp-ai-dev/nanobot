@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { ArrowRight, ChevronDown, Eye, EyeOff, Moon, ShieldCheck, Sun, X } from "lucide-react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { channelUiPresentation } from "@/channel-plugins/registry";
 import { PercivalSidebar as Sidebar } from "@/components/percival/PercivalSidebar";
 import { StarPrompt } from "@/components/StarPrompt";
@@ -61,12 +61,11 @@ import { logoFallbackUrls } from "@/lib/provider-brand";
 import { cn } from "@/lib/utils";
 import {
   BootstrapAuthRequiredError,
-  clearSavedSecret,
-  consumeUrlBootstrapSecret,
+  LoginError,
   deriveWsUrl,
   fetchBootstrap,
-  loadSavedSecret,
-  saveSecret,
+  login as loginRequest,
+  logout as logoutRequest,
 } from "@/lib/bootstrap";
 import { displayTitle, sortSessions } from "@/lib/chat-groups";
 import { deriveTitle } from "@/lib/format";
@@ -117,6 +116,11 @@ type BootState =
       ingressLimits: BootstrapResponse["limits"] | null;
       runtimeSurface: RuntimeSurface;
       webuiCapabilities: string[];
+      sessionId: string;
+      csrfToken: string;
+      elevated: boolean;
+      elevationRemainingS: number;
+      elevationTtlS: number;
     };
 
 function bootstrapCapabilities(boot: BootstrapResponse): string[] {
@@ -408,13 +412,14 @@ function AuthForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const secret = value.trim();
-    if (!secret) {
+    const secret = value;
+    if (!secret.trim()) {
       setValue("");
       setValidationError("required");
       inputRef.current?.focus();
       return;
     }
+    setValue("");
     setSubmitting(true);
     onSecret(secret);
   };
@@ -513,24 +518,13 @@ function AuthForm({
               </>
             )}
           >
-            <p>{t("app.auth.helpConfig")}</p>
+            <p>{t("app.auth.helpLost")}</p>
             <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
-              ~/.nanobot/config.json
+              nanobot auth reset
             </code>
-            <p className="mt-4">{t("app.auth.helpSecret")}</p>
-            <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
-              channels.websocket.tokenIssueSecret
-            </code>
-            <p className="mt-3">{t("app.auth.helpDockerSecret")}</p>
-            <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
-              PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE
-            </code>
-            <p className="mt-3">
-              <Trans
-                i18nKey="app.auth.helpFallback"
-                components={{ code: <code className="font-mono text-xs text-foreground [overflow-wrap:anywhere]" /> }}
-              />
-            </p>
+            <p className="mt-3 text-xs text-muted-foreground">{t("app.auth.helpLostNote")}</p>
+            <p className="mt-4">{t("app.auth.helpVps")}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("app.auth.helpVpsNote")}</p>
           </Disclosure>
         </section>
       </div>
@@ -916,11 +910,10 @@ export default function App() {
   useAppViewport();
   const { t } = useTranslation();
   const [state, setState] = useState<BootState>({ status: "loading" });
-  const bootstrapSecretRef = useRef("");
 
   const refreshReadyClient = useCallback(
     async (client: NanobotClient, fallbackSurface: RuntimeSurface) => {
-      const boot = await fetchBootstrap("", bootstrapSecretRef.current);
+      const boot = await fetchBootstrap("");
       const url = deriveWsUrl(boot.ws_path, boot.token, boot.ws_url);
       const runtimeSurface = resolveRuntimeSurface(boot.runtime_surface, fallbackSurface);
       const runtimeHost = createRuntimeHost(runtimeSurface, boot.runtime_capabilities);
@@ -951,65 +944,66 @@ export default function App() {
     [],
   );
 
-  const bootstrapWithSecret = useCallback(
-    (secret: string) => {
-      let cancelled = false;
+  const beginWithPassword = useCallback(
+    async (password: string) => {
       if (readShellRoute().view === "chat") void loadThreadShell().catch(() => {});
-      (async () => {
-        setState({ status: "loading" });
-        try {
-          const boot = await fetchBootstrap("", secret);
-          if (cancelled) return;
-          if (secret) saveSecret(secret);
-          const url = deriveWsUrl(boot.ws_path, boot.token, boot.ws_url);
-          activateReloadCache(url);
-          const runtimeSurface = resolveRuntimeSurface(boot.runtime_surface, "browser");
-          const runtimeHost = createRuntimeHost(runtimeSurface, boot.runtime_capabilities);
-          const client = new NanobotClient({
-            url,
-            maxFrameBytes: boot.limits?.transport.max_frame_bytes,
-            socketFactory: runtimeHost.socketFactory,
-            onReauth: async () => {
-              try {
-                const refreshed = await refreshReadyClient(client, runtimeSurface);
-                return refreshed.url;
-              } catch {
-                return null;
-              }
-            },
-          });
-          bootstrapSecretRef.current = secret;
-          client.connect();
+      setState({ status: "loading" });
+      try {
+        const session = await loginRequest(password);
+        const boot = await fetchBootstrap("");
+        const url = deriveWsUrl(boot.ws_path, boot.token, boot.ws_url);
+        activateReloadCache(url);
+        const runtimeSurface = resolveRuntimeSurface(boot.runtime_surface, "browser");
+        const runtimeHost = createRuntimeHost(runtimeSurface, boot.runtime_capabilities);
+        const client = new NanobotClient({
+          url,
+          maxFrameBytes: boot.limits?.transport.max_frame_bytes,
+          socketFactory: runtimeHost.socketFactory,
+          onReauth: async () => {
+            try {
+              const refreshed = await refreshReadyClient(client, runtimeSurface);
+              return refreshed.url;
+            } catch {
+              return null;
+            }
+          },
+        });
+        client.connect();
+        setState({
+          status: "ready",
+          client,
+          token: boot.api_token ?? "",
+          tokenExpiresAt: boot.expires_in
+            ? bootstrapTokenExpiresAt(boot.expires_in)
+            : null,
+          modelName: boot.model_name ?? null,
+          ingressLimits: boot.limits ?? null,
+          runtimeSurface,
+          webuiCapabilities: bootstrapCapabilities(boot),
+          sessionId: session.sessionId,
+          csrfToken: session.csrfToken,
+          elevated: false,
+          elevationRemainingS: 0,
+          elevationTtlS: 900,
+        });
+      } catch (e) {
+        if (e instanceof LoginError) {
+          clearReloadCache();
+          clearStoredComposerDrafts();
+          webuiThreadCache.clear();
+          setState({ status: "auth", failed: e.status !== 429 });
+        } else if (isBootstrapAuthRequired(e)) {
+          clearReloadCache();
+          clearStoredComposerDrafts();
+          webuiThreadCache.clear();
+          setState({ status: "auth", failed: true });
+        } else {
           setState({
-            status: "ready",
-            client,
-            token: boot.api_token ?? "",
-            tokenExpiresAt: boot.expires_in
-              ? bootstrapTokenExpiresAt(boot.expires_in)
-              : null,
-            modelName: boot.model_name ?? null,
-            ingressLimits: boot.limits ?? null,
-            runtimeSurface,
-            webuiCapabilities: bootstrapCapabilities(boot),
+            status: "error",
+            message: e instanceof Error ? e.message : String(e),
           });
-        } catch (e) {
-          if (cancelled) return;
-          if (isBootstrapAuthRequired(e)) {
-            clearReloadCache();
-            clearStoredComposerDrafts();
-            webuiThreadCache.clear();
-            setState({ status: "auth", failed: !!secret });
-          } else {
-            setState({
-              status: "error",
-              message: e instanceof Error ? e.message : String(e),
-            });
-          }
         }
-      })();
-      return () => {
-        cancelled = true;
-      };
+      }
     },
     [refreshReadyClient],
   );
@@ -1025,7 +1019,7 @@ export default function App() {
           clearReloadCache();
           clearStoredComposerDrafts();
           webuiThreadCache.clear();
-          setState({ status: "auth", failed: !!bootstrapSecretRef.current });
+          setState({ status: "auth", failed: true });
         }
       }
     }, tokenRefreshDelayMs(state.tokenExpiresAt));
@@ -1033,9 +1027,67 @@ export default function App() {
   }, [refreshReadyClient, state]);
 
   useEffect(() => {
-    const saved = consumeUrlBootstrapSecret() || loadSavedSecret();
-    return bootstrapWithSecret(saved);
-  }, [bootstrapWithSecret]);
+    // On first load, attempt an immediate bootstrap using the active session
+    // cookie. If there is none, the bootstrap call fails with 401 and we
+    // transition to the auth form. The password is never persisted in the
+    // browser; refresh requires re-authentication.
+    let cancelled = false;
+    setState({ status: "loading" });
+    (async () => {
+      try {
+        const boot = await fetchBootstrap("");
+        if (cancelled) return;
+        const url = deriveWsUrl(boot.ws_path, boot.token, boot.ws_url);
+        activateReloadCache(url);
+        const runtimeSurface = resolveRuntimeSurface(boot.runtime_surface, "browser");
+        const runtimeHost = createRuntimeHost(runtimeSurface, boot.runtime_capabilities);
+        const client = new NanobotClient({
+          url,
+          maxFrameBytes: boot.limits?.transport.max_frame_bytes,
+          socketFactory: runtimeHost.socketFactory,
+          onReauth: async () => {
+            try {
+              const refreshed = await refreshReadyClient(client, runtimeSurface);
+              return refreshed.url;
+            } catch {
+              return null;
+            }
+          },
+        });
+        client.connect();
+        setState({
+          status: "ready",
+          client,
+          token: boot.api_token ?? "",
+          tokenExpiresAt: boot.expires_in
+            ? bootstrapTokenExpiresAt(boot.expires_in)
+            : null,
+          modelName: boot.model_name ?? null,
+          ingressLimits: boot.limits ?? null,
+          runtimeSurface,
+          webuiCapabilities: bootstrapCapabilities(boot),
+          sessionId: "",
+          csrfToken: "",
+          elevated: false,
+          elevationRemainingS: 0,
+          elevationTtlS: 900,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        if (isBootstrapAuthRequired(e)) {
+          setState({ status: "auth" });
+        } else {
+          setState({
+            status: "error",
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshReadyClient]);
 
   if (state.status === "loading") {
     return <StartupShell />;
@@ -1044,7 +1096,7 @@ export default function App() {
     return (
       <AuthForm
         failed={!!state.failed}
-        onSecret={(s) => bootstrapWithSecret(s)}
+        onSecret={(s) => beginWithPassword(s)}
       />
     );
   }
@@ -1068,11 +1120,17 @@ export default function App() {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (state.status === "ready") {
       state.client.close();
     }
-    clearSavedSecret();
+    try {
+      if (state.csrfToken) {
+        await logoutRequest(state.csrfToken);
+      }
+    } catch {
+      // best-effort
+    }
     clearReloadCache();
     clearStoredComposerDrafts();
     webuiThreadCache.clear();
@@ -1111,6 +1169,32 @@ export default function App() {
       modelName={state.modelName}
       ingressLimits={state.ingressLimits}
       webuiCapabilities={state.webuiCapabilities}
+      session={{
+        sessionId: state.sessionId,
+        csrfToken: state.csrfToken,
+        elevated: state.elevated,
+        elevationRemainingS: state.elevationRemainingS,
+        elevationTtlS: state.elevationTtlS,
+        signIn: beginWithPassword,
+        signOut: handleLogout,
+        elevate: async (password: string) => {
+          const { elevate } = await import("@/lib/bootstrap");
+          await elevate(password, state.csrfToken);
+        },
+        refreshElevation: async () => {
+          const { authStatus } = await import("@/lib/bootstrap");
+          const status = await authStatus();
+          setState((current) =>
+            current.status === "ready"
+              ? {
+                  ...current,
+                  elevated: status.elevated,
+                  elevationRemainingS: status.elevation_remaining_s ?? 0,
+                }
+              : current,
+          );
+        },
+      }}
     >
       <RemoteInstances><Shell
         runtimeSurface={state.runtimeSurface}

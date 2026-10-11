@@ -11,12 +11,13 @@ export class GatewayConnectionError extends Error {
 /** Resolve fresh short-lived credentials once the local gateway is reachable. */
 export async function fetchGatewayConnection(
   bootstrapUrl: string,
-  bootstrapSecret: string,
+  sessionCookie: string,
   apiUrl: string,
   clientId: string,
 ): Promise<GatewayConnection> {
   const response = await fetch(bootstrapUrl, {
-    headers: bootstrapSecret ? { "X-Nanobot-Auth": bootstrapSecret } : {},
+    headers: sessionCookie ? { Cookie: sessionCookie } : {},
+    cache: "no-store",
   })
   if (!response.ok) {
     const retryable = response.status === 408 || response.status === 429 || response.status >= 500

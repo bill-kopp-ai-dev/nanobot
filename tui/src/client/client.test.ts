@@ -18,6 +18,7 @@ import {
   type ConnectionStatusInfo,
   type InboundEvent,
 } from "."
+import { loginWithPassword } from "./instance-login"
 
 class FakeSocket {
   static readonly OPEN = 1
@@ -131,6 +132,26 @@ describe("Desktop attach-only protocol", () => {
 })
 
 describe("gateway protocol", () => {
+  test("logs in through POST and returns only the opaque session cookie", async () => {
+    const original = globalThis.fetch
+    let requestInit: RequestInit | undefined
+    globalThis.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
+      requestInit = init
+      return new Response(JSON.stringify({ session_id: "opaque-session" }))
+    }) as typeof fetch
+    try {
+      const cookie = await loginWithPassword(
+        "http://nanobot.test/auth/login",
+        "human-password-never-persisted",
+      )
+      expect(requestInit?.method).toBe("POST")
+      expect(requestInit?.body).toBe(JSON.stringify({ password: "human-password-never-persisted" }))
+      expect(cookie).toBe("percival_session=opaque-session")
+    } finally {
+      globalThis.fetch = original
+    }
+  })
+
   test("bootstraps fresh websocket and API credentials", async () => {
     const original = globalThis.fetch
     let headers: Headers | undefined
@@ -146,11 +167,11 @@ describe("gateway protocol", () => {
     try {
       const connection = await fetchGatewayConnection(
         "http://nanobot.test/webui/bootstrap",
-        "bootstrap-secret",
+        "percival_session=session-id",
         "http://nanobot.test",
         "tui-42",
       )
-      expect(headers?.get("X-Nanobot-Auth")).toBe("bootstrap-secret")
+      expect(headers?.get("Cookie")).toBe("percival_session=session-id")
       expect(connection).toEqual({
         wsUrl: "ws://nanobot.test/ws?mode=local&token=socket+token&client_id=tui-42",
         apiUrl: "http://nanobot.test",
@@ -203,7 +224,7 @@ describe("gateway protocol", () => {
     try {
       await expect(fetchGatewayConnection(
         "http://nanobot.test/webui/bootstrap",
-        "bootstrap-secret",
+        "percival_session=session-id",
         "http://nanobot.test",
         "tui-42",
       )).rejects.toMatchObject({
@@ -336,7 +357,7 @@ describe("gateway protocol", () => {
     const original = globalThis.fetch
     const bootstrapUrl = "http://bootstrap-user:bootstrap-pass@127.0.0.1:8769"
       + "/webui/bootstrap?token=socket-secret"
-    const bootstrapSecret = "bootstrap-secret"
+    const sessionCookie = "percival_session=session-id"
     const statuses: Array<{
       status: ConnectionStatus
       detail?: string
@@ -354,7 +375,7 @@ describe("gateway protocol", () => {
     const client = new NanobotClient({
       resolveConnection: () => fetchGatewayConnection(
         bootstrapUrl,
-        bootstrapSecret,
+        sessionCookie,
         "http://127.0.0.1:8769",
         "tui-42",
       ),
@@ -382,7 +403,7 @@ describe("gateway protocol", () => {
       const visible = JSON.stringify(statuses)
       expect(visible).not.toContain("bootstrap-user")
       expect(visible).not.toContain("bootstrap-pass")
-      expect(visible).not.toContain(bootstrapSecret)
+      expect(visible).not.toContain(sessionCookie)
       expect(visible).not.toContain("socket-secret")
       expect(visible).not.toContain("api-secret")
       expect(visible).not.toContain("/webui/bootstrap")

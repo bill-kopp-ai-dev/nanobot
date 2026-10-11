@@ -296,7 +296,7 @@ export class NanobotTui {
         ? {
             resolveConnection: () => fetchGatewayConnection(
               options.bootstrapUrl || "",
-              options.bootstrapSecret || "",
+              options.bootstrapSessionCookie || "",
               options.apiUrl,
               `tui-${process.pid}`,
             ),
@@ -1036,7 +1036,7 @@ export class NanobotTui {
     if (this.apiRefreshPromise) return this.apiRefreshPromise
     const refresh = (this.options.resolveConnection ? this.options.resolveConnection() : fetchGatewayConnection(
       this.options.bootstrapUrl || "",
-      this.options.bootstrapSecret || "",
+      this.options.bootstrapSessionCookie || "",
       this.options.apiUrl,
       `tui-${process.pid}`,
     )).then((connection) => {

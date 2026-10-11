@@ -519,8 +519,8 @@ export interface BootstrapResponse {
   terminal?: {
     webui?: { capabilities?: string[] };
   };
-  token?: string;
-  api_token?: string;
+  token: string;
+  api_token: string;
   ws_path: string;
   ws_url?: string | null;
   expires_in?: number;
@@ -528,6 +528,15 @@ export interface BootstrapResponse {
   model_name?: string | null;
   runtime_surface?: RuntimeSurface;
   runtime_capabilities?: RuntimeCapabilities;
+}
+
+export interface AuthSessionStatus {
+  configured: boolean;
+  authenticated: boolean;
+  elevated: boolean;
+  elevation_remaining_s?: number;
+  session_idle_remaining_s?: number;
+  session_absolute_remaining_s?: number;
 }
 
 interface WebUITransportLimits {

@@ -209,7 +209,7 @@ describe("NanobotTui session navigation", () => {
       {
         ...options,
         bootstrapUrl: "http://nanobot.test/webui/bootstrap",
-        bootstrapSecret: "bootstrap-secret",
+        bootstrapSessionCookie: "percival_session=session-id",
         apiUrl: "http://nanobot.test",
         apiToken: "expired-api-token",
       },

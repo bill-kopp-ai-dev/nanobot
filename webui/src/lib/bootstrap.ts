@@ -1,8 +1,7 @@
-import type { BootstrapResponse } from "./types";
+import type { BootstrapResponse, AuthSessionStatus } from "./types";
 import { fetchWithTimeout } from "./http";
 
-const SECRET_STORAGE_KEY = "nanobot-webui.bootstrap-secret";
-const URL_SECRET_PARAM = "bootstrapSecret";
+const LEGACY_SECRET_STORAGE_KEY = "nanobot-webui.bootstrap-secret";
 
 export class BootstrapAuthRequiredError extends Error {
   constructor(message = "bootstrap authentication required") {
@@ -11,74 +10,150 @@ export class BootstrapAuthRequiredError extends Error {
   }
 }
 
-/** Read a previously saved bootstrap secret from localStorage. */
-export function loadSavedSecret(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(SECRET_STORAGE_KEY) ?? "";
-  } catch {
-    return "";
+export class LoginError extends Error {
+  readonly status: number;
+  readonly body: string;
+  constructor(status: number, body: string) {
+    super(`login failed: HTTP ${status}: ${body}`);
+    this.name = "LoginError";
+    this.status = status;
+    this.body = body;
   }
 }
 
-/** Persist the bootstrap secret so page reloads don't re-prompt. */
-export function saveSecret(secret: string): void {
-  try {
-    window.localStorage.setItem(SECRET_STORAGE_KEY, secret);
-  } catch {
-    // ignore storage errors (private mode, etc.)
+export class ElevationError extends Error {
+  readonly status: number;
+  readonly body: string;
+  constructor(status: number, body: string) {
+    super(`elevation failed: HTTP ${status}: ${body}`);
+    this.name = "ElevationError";
+    this.status = status;
+    this.body = body;
   }
 }
 
-/** Clear the saved bootstrap secret (sign out). */
-export function clearSavedSecret(): void {
+export interface LoginResult {
+  sessionId: string;
+  csrfToken: string;
+  sessionIdleRemainingS: number;
+  sessionAbsoluteRemainingS: number;
+}
+
+function removeLegacyStorage(): void {
+  if (typeof window === "undefined") return;
   try {
-    window.localStorage.removeItem(SECRET_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_SECRET_STORAGE_KEY);
   } catch {
-    // ignore
+    // ignore storage errors
   }
 }
 
-export function consumeUrlBootstrapSecret(): string {
-  if (typeof window === "undefined") return "";
-  const hash = window.location.hash || "";
-  const queryStart = hash.indexOf("?");
-  if (queryStart < 0) return "";
+removeLegacyStorage();
 
-  const path = hash.slice(0, queryStart) || "#/";
-  const query = hash.slice(queryStart + 1);
-  const params = new URLSearchParams(query);
-  const secret = params.get(URL_SECRET_PARAM)?.trim() || "";
-  if (!secret) return "";
+/** Log in with the single instance password over the new `/auth/login` endpoint. */
+export async function login(
+  password: string,
+  baseUrl: string = "",
+  timeoutMs?: number,
+): Promise<LoginResult> {
+  const res = await fetchWithTimeout(`${baseUrl}/auth/login`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  }, timeoutMs);
+  if (!res.ok) {
+    throw new LoginError(res.status, await res.text());
+  }
+  const body = (await res.json()) as {
+    session_id: string;
+    csrf_token: string;
+    session_idle_remaining_s: number;
+    session_absolute_remaining_s: number;
+  };
+  return {
+    sessionId: body.session_id,
+    csrfToken: body.csrf_token,
+    sessionIdleRemainingS: body.session_idle_remaining_s,
+    sessionAbsoluteRemainingS: body.session_absolute_remaining_s,
+  };
+}
 
-  params.delete(URL_SECRET_PARAM);
-  const nextQuery = params.toString();
-  const nextHash = `${path}${nextQuery ? `?${nextQuery}` : ""}`;
-  window.history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}${window.location.search}${nextHash}`,
-  );
-  return secret;
+/** Clear the session cookie by calling /auth/logout. */
+export async function logout(
+  csrfToken: string,
+  baseUrl: string = "",
+  timeoutMs?: number,
+): Promise<void> {
+  const res = await fetchWithTimeout(`${baseUrl}/auth/logout`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "X-Percival-CSRF": csrfToken,
+    },
+  }, timeoutMs);
+  if (!res.ok) {
+    // Logout is best-effort; a server error here is not fatal for the client.
+    return;
+  }
+  await res.text();
+}
+
+/** Request an elevated session (15 min) for sensitive MCP mutations. */
+export async function elevate(
+  password: string,
+  csrfToken: string,
+  baseUrl: string = "",
+  timeoutMs?: number,
+): Promise<{ elevationRemainingS: number; elevationTtlS: number }> {
+  const res = await fetchWithTimeout(`${baseUrl}/auth/elevate`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Percival-CSRF": csrfToken,
+    },
+    body: JSON.stringify({ password }),
+  }, timeoutMs);
+  if (!res.ok) {
+    throw new ElevationError(res.status, await res.text());
+  }
+  const body = (await res.json()) as {
+    elevation_remaining_s: number;
+    elevation_ttl_s: number;
+  };
+  return {
+    elevationRemainingS: body.elevation_remaining_s,
+    elevationTtlS: body.elevation_ttl_s,
+  };
+}
+
+/** Inspect the current session without re-prompting. */
+export async function authStatus(
+  baseUrl: string = "",
+  timeoutMs?: number,
+): Promise<AuthSessionStatus> {
+  const res = await fetchWithTimeout(`${baseUrl}/auth/status`, {
+    method: "GET",
+    credentials: "same-origin",
+  }, timeoutMs);
+  if (!res.ok) {
+    throw new Error(`status failed: HTTP ${res.status}`);
+  }
+  return (await res.json()) as AuthSessionStatus;
 }
 
 /**
  * Fetch a short-lived token + the WebSocket path from the gateway's
- * ``/webui/bootstrap`` endpoint.
+ * ``/webui/bootstrap`` endpoint using the active session cookie.
  */
 export async function fetchBootstrap(
   baseUrl: string = "",
-  secret: string = "",
   timeoutMs?: number,
 ): Promise<BootstrapResponse> {
-  const headers: Record<string, string> = {};
-  if (secret) {
-    headers["X-Nanobot-Auth"] = secret;
-  }
   const res = await fetchWithTimeout(`${baseUrl}/webui/bootstrap`, {
     method: "GET",
     credentials: "same-origin",
-    headers,
   }, timeoutMs);
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
@@ -87,25 +162,19 @@ export async function fetchBootstrap(
     throw new Error(`bootstrap failed: HTTP ${res.status}`);
   }
   const body = (await res.json()) as BootstrapResponse;
-  if (!body.ws_path) {
-    throw new Error("bootstrap response missing ws_path");
+  if (!body.ws_path || !body.token || !body.api_token) {
+    throw new Error("bootstrap response missing session credentials");
   }
   return body;
 }
 
-/** Derive a WebSocket URL from the current window location and the server-provided path.
- *
- * Keeps the path segment exactly as the server registered it: the root ``/``
- * stays ``/`` and non-root paths are not given an extra trailing slash. This
- * matters because some WS servers dispatch handshakes based on the literal
- * path, not a normalised form.
- */
+/** Derive a WebSocket URL from the current window location and the server-provided path. */
 export function deriveWsUrl(
   wsPath: string,
-  token: string | null | undefined,
+  token: string,
   wsUrl?: string | null,
 ): string {
-  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  const query = `?token=${encodeURIComponent(token)}`;
   const path = wsPath && wsPath.startsWith("/") ? wsPath : `/${wsPath || ""}`;
   if (typeof window !== "undefined" && window.location.port === "5173") {
     const host = window.location.hostname.includes(":")
@@ -122,7 +191,6 @@ export function deriveWsUrl(
     return `${scheme}://${authority}${path}${query}`;
   }
   if (wsUrl && /^(wss?|nanobot-host):\/\//i.test(wsUrl)) {
-    if (!token) return wsUrl;
     const join = wsUrl.includes("?") ? "&" : "?";
     return `${wsUrl}${join}token=${encodeURIComponent(token)}`;
   }

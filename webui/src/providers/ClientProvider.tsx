@@ -10,6 +10,18 @@ import {
 import type { NanobotClient } from "@/lib/nanobot-client";
 import type { WebUIIngressLimits } from "@/lib/types";
 
+export interface ClientSession {
+  sessionId: string;
+  csrfToken: string;
+  elevated: boolean;
+  elevationRemainingS: number;
+  elevationTtlS: number;
+  signIn(password: string): Promise<void>;
+  signOut(): Promise<void>;
+  elevate(password: string): Promise<void>;
+  refreshElevation(): Promise<void>;
+}
+
 interface ClientContextValue {
   client: NanobotClient;
   token: string;
@@ -17,6 +29,7 @@ interface ClientContextValue {
   modelName: string | null;
   ingressLimits: WebUIIngressLimits | null;
   webuiCapabilities: string[];
+  session: ClientSession;
 }
 
 const ClientContext = createContext<ClientContextValue | null>(null);
@@ -27,6 +40,7 @@ export function ClientProvider({
   modelName = null,
   ingressLimits = null,
   webuiCapabilities = [],
+  session,
   children,
 }: {
   client: NanobotClient;
@@ -34,14 +48,15 @@ export function ClientProvider({
   modelName?: string | null;
   ingressLimits?: WebUIIngressLimits | null;
   webuiCapabilities?: string[];
+  session: ClientSession;
   children: ReactNode;
 }) {
   const tokenRef = useRef(token);
   tokenRef.current = token;
   const getToken = useCallback(() => tokenRef.current, []);
   const value = useMemo(
-    () => ({ client, token, getToken, modelName, ingressLimits, webuiCapabilities }),
-    [client, getToken, ingressLimits, modelName, token, webuiCapabilities],
+    () => ({ client, token, getToken, modelName, ingressLimits, webuiCapabilities, session }),
+    [client, getToken, ingressLimits, modelName, session, token, webuiCapabilities],
   );
 
   return (

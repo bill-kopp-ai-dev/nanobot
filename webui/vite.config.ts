@@ -162,7 +162,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/webui": { target, changeOrigin: true },
         "/api": { target, changeOrigin: true },
-        "/auth": { target, changeOrigin: true },
+        "/auth": { target, changeOrigin: true, headers: { Origin: target } },
       },
     },
     test: {

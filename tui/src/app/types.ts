@@ -12,7 +12,7 @@ export interface AppOptions {
   desktopGatewayId?: string
   wsUrl?: string
   bootstrapUrl?: string
-  bootstrapSecret?: string
+  bootstrapSessionCookie?: string
   healthUrl?: string
   apiUrl: string
   apiToken: string

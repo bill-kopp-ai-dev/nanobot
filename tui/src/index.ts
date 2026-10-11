@@ -1,4 +1,5 @@
 import { NanobotTui, sessionExitMessage, type AppOptions } from "./app"
+import { loginWithPassword, promptInstancePassword } from "./client/instance-login"
 import { desktopConnectionSource } from "./platform/desktop"
 
 if (process.argv.slice(2).join(" ") === "--desktop-protocol") {
@@ -18,6 +19,7 @@ function themePreference(): AppOptions["theme"] {
 
 const workspace = process.env.NANOBOT_TUI_WORKSPACE?.trim() || ""
 const bootstrapUrl = process.env.NANOBOT_TUI_BOOTSTRAP_URL?.trim() || ""
+const loginUrl = process.env.NANOBOT_TUI_LOGIN_URL?.trim() || ""
 const wsUrl = process.env.NANOBOT_TUI_WS_URL?.trim() || ""
 const healthUrl = process.env.NANOBOT_TUI_HEALTH_URL?.trim() || ""
 const gatewayStopCommand = process.env.NANOBOT_TUI_GATEWAY_STOP_COMMAND?.trim()
@@ -25,11 +27,21 @@ const gatewayStopCommand = process.env.NANOBOT_TUI_GATEWAY_STOP_COMMAND?.trim()
 if (!desktop && !bootstrapUrl && !wsUrl) {
   throw new Error("NANOBOT_TUI_BOOTSTRAP_URL or NANOBOT_TUI_WS_URL is required")
 }
+let bootstrapSessionCookie = ""
+if (!desktop && bootstrapUrl) {
+  if (!loginUrl) throw new Error("NANOBOT_TUI_LOGIN_URL is required")
+  let password = await promptInstancePassword()
+  try {
+    bootstrapSessionCookie = await loginWithPassword(loginUrl, password)
+  } finally {
+    password = ""
+  }
+}
 const options: AppOptions = {
   ...(desktop ? { resolveConnection: desktop.resolve, desktopGatewayId: desktop.gatewayId } : bootstrapUrl
-    ? {
+      ? {
         bootstrapUrl,
-        bootstrapSecret: process.env.NANOBOT_TUI_BOOTSTRAP_SECRET?.trim() || "",
+        bootstrapSessionCookie,
         healthUrl: healthUrl || undefined,
       }
     : { wsUrl }),

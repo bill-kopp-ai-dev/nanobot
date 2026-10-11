@@ -756,12 +756,6 @@ export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot
   return request<McpDockerSnapshot>("/api/settings/mcp-docker/list", token, undefined, API_READ_TIMEOUT_MS);
 }
 
-export async function fetchMcpDockerOperatorBootstrap(token: string): Promise<{ configured: boolean }> {
-  return request<{ configured: boolean }>(
-    "/api/settings/mcp-docker/operator-bootstrap", token, undefined, API_READ_TIMEOUT_MS,
-  );
-}
-
 export function mutateMcpDocker<T>(
   transport: WebUIMutationTransport,
   action: string,

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ApiError, fetchMcpDockerOperatorBootstrap, mutateMcpDocker, type McpDockerSnapshot } from "@/lib/api";
+import { ApiError, mutateMcpDocker, type McpDockerSnapshot } from "@/lib/api";
 import { useClient } from "@/providers/ClientProvider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { elevate, ElevationError } from "@/lib/bootstrap";
 
 type Server = McpDockerSnapshot["servers"][string];
 type EnvRow = { id: number; name: string; kind: "plain" | "secret" | "reference"; value: string };
@@ -105,11 +106,8 @@ export function McpDockerManagement({
   onDraftChange?: (dirty: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { client, getToken } = useClient();
-  const [operatorConfigured, setOperatorConfigured] = useState<boolean | null>(null);
-  const [operatorPassword, setOperatorPassword] = useState("");
-  const [setupPassword, setSetupPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const { client, session } = useClient();
+  const [elevationPassword, setElevationPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [restartRequired, setRestartRequired] = useState(false);
@@ -161,25 +159,13 @@ export function McpDockerManagement({
   }, [snapshot.revision]);
 
   useEffect(() => {
-    let mounted = true;
-    void fetchMcpDockerOperatorBootstrap(getToken()).then((result) => {
-      if (mounted) setOperatorConfigured(result.configured);
-    }).catch((reason: unknown) => {
-      if (mounted && reason instanceof ApiError && reason.status === 403) {
-        setOperatorConfigured(true);
-        setError(t("mcpDocker.remoteBootstrap", { defaultValue: "Credential status is local-only. Enter the existing operator password if remote administration is enabled." }));
-      } else if (mounted) {
-        setError(t("mcpDocker.adminStatusError", { defaultValue: "Could not check operator credential status." }));
-      }
-    });
     const unsubscribe = client.onStatus((status) => {
-      if (status !== "open") setOperatorPassword("");
+      if (status !== "open") setElevationPassword("");
     });
     return () => {
-      mounted = false;
       unsubscribe();
     };
-  }, [client, getToken, t]);
+  }, [client]);
 
   const selectedRevisionRef = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -219,7 +205,8 @@ export function McpDockerManagement({
     }
   }, [selectedId, selected, draftDirty]);
 
-  const enabled = operatorConfigured === true && operatorPassword.length > 0 && !busy && snapshot.pendingTransitions.length === 0 && !snapshotStale && (awaitingRevision === null || snapshot.revision >= awaitingRevision);
+  const elevated = session.elevated;
+  const enabled = elevated && !busy && snapshot.pendingTransitions.length === 0 && !snapshotStale && (awaitingRevision === null || snapshot.revision >= awaitingRevision);
   const mounts = mountMode === "full" ? null : mountMode === "minimum" ? [] : mountsText.split(/\r?\n/).map((path) => path.trim()).filter(Boolean);
   const needsBroaderConfirm = useMemo(() => broaderMountAccess(
     selected?.configuration.mounts,
@@ -228,8 +215,8 @@ export function McpDockerManagement({
 
   const failMessage = useCallback((reason: unknown) => {
     if (reason instanceof ApiError) {
-      if (reason.status === 401) return t("mcpDocker.adminUnauthorized", { defaultValue: "Operator password was rejected. Re-enter it and retry." });
-      if (reason.status === 403) return t("mcpDocker.adminForbidden", { defaultValue: "Remote administration is disabled or this action requires a local browser." });
+      if (reason.status === 401) return t("mcpDocker.adminUnauthorized", { defaultValue: "Your session expired. Sign in again to continue." });
+      if (reason.status === 403) return t("mcpDocker.adminForbidden", { defaultValue: "This action requires elevated authorization. Re-enter the instance password and try again." });
       if (reason.status === 409) return t("mcpDocker.conflict", { defaultValue: "The server changed since this page was loaded. The latest state has been refreshed." });
       if (reason.status === 503) return t("mcpDocker.brokerUnavailable", { defaultValue: "Docker MCP broker is unavailable; no successful result was confirmed." });
       if (reason.status === 502) return t("mcpDocker.actionError", { defaultValue: "The MCP Docker broker rejected the operation. Review the current server state before retrying." });
@@ -240,29 +227,28 @@ export function McpDockerManagement({
   const invoke = useCallback(async (
     action: string,
     payload: Record<string, unknown>,
-    options: { setup?: boolean; rotate?: boolean; success?: string } = {},
+    options: { success?: string } = {},
   ): Promise<McpDockerSnapshot | null> => {
-    const submittedSetup = options.setup;
-    const submittedRotate = options.rotate;
     setBusy(true);
     setError(null);
     setMessage(null);
     setRestartRequired(false);
     try {
-      const result = await mutateMcpDocker<{ revision?: number; server?: string; mcp_runtime?: { requires_restart?: boolean } }>(client, action, {
-        ...payload,
-        operator_admin: options.setup ? setupPassword : operatorPassword,
-      });
+      if (!session.elevated && elevationPassword) {
+        try {
+          await elevate(elevationPassword, session.csrfToken);
+          await session.refreshElevation();
+        } catch (reason) {
+          setElevationPassword("");
+          if (reason instanceof ElevationError) {
+            setError(t("mcpDocker.elevationRejected", { defaultValue: "The instance password was rejected; cannot elevate this session." }));
+            return null;
+          }
+          throw reason;
+        }
+      }
+      const result = await mutateMcpDocker<{ revision?: number; server?: string; mcp_runtime?: { requires_restart?: boolean } }>(client, action, payload);
       const needsRuntimeRestart = result.mcp_runtime?.requires_restart === true;
-      if (submittedSetup) {
-        setOperatorPassword(setupPassword);
-        setSetupPassword("");
-        setOperatorConfigured(true);
-      }
-      if (submittedRotate) {
-        setOperatorPassword(newPassword);
-        setNewPassword("");
-      }
       setInstallConfirmId("");
       setScopeConfirmId("");
       setUpdateConfirmId("");
@@ -272,6 +258,7 @@ export function McpDockerManagement({
       setConfigReviewed(false);
       setUpdateReviewed(false);
       setRestartRequired(needsRuntimeRestart);
+      setElevationPassword("");
       const read = await refresh(true);
       const revisionOk = result.revision === undefined || (read ? read.revision >= result.revision : false);
       const serverOk = result.server === undefined || action === "exclude" || Boolean(read?.servers[result.server]);
@@ -284,24 +271,15 @@ export function McpDockerManagement({
       return verified ? read : null;
     } catch (reason) {
       const latest = reason instanceof ApiError && [409, 502, 503].includes(reason.status) ? await refresh(true) : null;
-      if (submittedSetup) {
-        setSetupPassword("");
-        if (reason instanceof ApiError && reason.status === 409) setOperatorConfigured(true);
-      }
-      if (submittedRotate) {
-        setNewPassword("");
-      }
       if (reason instanceof ApiError && reason.status === 401) {
-        setOperatorPassword("");
-        setSetupPassword("");
-        setNewPassword("");
+        setElevationPassword("");
       }
       setError(reason instanceof ApiError && reason.status === 409 && !latest ? "Revision conflict; refresh failed. No further change is allowed until a current snapshot is available." : failMessage(reason));
       return null;
     } finally {
       setBusy(false);
     }
-  }, [client, failMessage, newPassword, operatorPassword, refresh, setupPassword, t]);
+  }, [client, elevationPassword, failMessage, refresh, session, t]);
 
   const revisionPayload = (serverId: string, server: Server) => ({
     server_id: serverId,
@@ -396,28 +374,42 @@ export function McpDockerManagement({
   return (
     <section className="space-y-5" aria-label={t("mcpDocker.management", { defaultValue: "MCP Docker management" })}>
       {(error || message) && <div role={error ? "alert" : "status"} className={cn("rounded-lg border p-3 text-sm", error ? "border-destructive/40 bg-destructive/5" : restartRequired || message?.startsWith("Operation accepted") ? "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300" : "border-emerald-500/40 bg-emerald-500/5")}>{error ?? message}</div>}
-      <p className="text-xs text-muted-foreground">Operator credential: {operatorPassword ? "provided (not verified until a mutation)" : "required"}</p>
+      <p className="text-xs text-muted-foreground">Elevation: {elevated ? `granted for ${Math.max(0, Math.floor(session.elevationRemainingS))}s` : "required to mutate MCP servers"}</p>
 
       <section className="space-y-3 rounded-xl border p-4">
-        <h2 className="font-semibold">{t("mcpDocker.operatorTitle", { defaultValue: "Operator authorization" })}</h2>
-        {operatorConfigured === null ? <p className="text-sm text-muted-foreground">{t("mcpDocker.checkingAdmin", { defaultValue: "Checking local operator setup…" })}</p> : operatorConfigured ? (
+        <h2 className="font-semibold">{t("mcpDocker.elevationTitle", { defaultValue: "Elevation" })}</h2>
+        {elevated ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {!operatorPassword && <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); setOperatorPassword(setupPassword); setSetupPassword(""); setError(null); }}>
-              <Label>{t("mcpDocker.adminPassword", { defaultValue: "Operator password" })}<Input type="password" autoComplete="current-password" maxLength={1024} value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} /></Label>
-              <Button type="submit" disabled={!setupPassword || busy}>Provide password</Button>
-            </form>}
-            {operatorPassword && <form className="space-y-2" onSubmit={(event) => { event.preventDefault(); void invoke("operator-rotate", { new_password: newPassword }, { rotate: true, success: t("mcpDocker.passwordRotated", { defaultValue: "Operator password rotated." }) }); }}>
-              <Label>{t("mcpDocker.newPassword", { defaultValue: "New operator password" })}<Input type="password" autoComplete="new-password" minLength={1} maxLength={1024} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></Label>
-              <Button type="submit" variant="outline" disabled={!newPassword || busy}>{t("mcpDocker.rotatePassword", { defaultValue: "Rotate password" })}</Button>
-            </form>}
-            {operatorPassword && <p className="self-center text-xs text-muted-foreground">{t("mcpDocker.passwordMemoryOnly", { defaultValue: "The password remains in page memory only and is cleared when the WebSocket disconnects or this page closes." })}</p>}
+            <p className="text-sm text-muted-foreground">{t("mcpDocker.elevationActive", { defaultValue: "This session is elevated. You can run mutations for the next 15 minutes." })}</p>
+            <p className="self-center text-xs text-muted-foreground">{t("mcpDocker.passwordMemoryOnly", { defaultValue: "The password is held in page memory only and is cleared on disconnect." })}</p>
           </div>
         ) : (
-          <form className="grid gap-3 sm:grid-cols-[1fr_auto]" onSubmit={(event) => { event.preventDefault(); void invoke("operator-setup", {}, { setup: true, success: t("mcpDocker.passwordConfigured", { defaultValue: "Operator password configured." }) }); }}>
-            <Label>{t("mcpDocker.setPassword", { defaultValue: "Set operator password" })}<Input type="password" autoComplete="new-password" maxLength={1024} value={setupPassword} onChange={(event) => setSetupPassword(event.target.value)} /></Label>
-            <Button type="submit" className="self-end" disabled={!setupPassword || busy}>{t("mcpDocker.setupPassword", { defaultValue: "Configure password" })}</Button>
-            <p className="text-xs text-muted-foreground sm:col-span-2">{t("mcpDocker.localSetupOnly", { defaultValue: "Initial setup requires a local browser. This password is separate from WebUI sign-in." })}</p>
-          </form>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <form className="space-y-2" onSubmit={async (event) => {
+                event.preventDefault();
+                if (!elevationPassword) return;
+                setBusy(true);
+                setError(null);
+                try {
+                  await elevate(elevationPassword, session.csrfToken);
+                  await session.refreshElevation();
+                  setElevationPassword("");
+                } catch (reason) {
+                  setElevationPassword("");
+                  if (reason instanceof ElevationError) {
+                    setError(t("mcpDocker.elevationRejected", { defaultValue: "The instance password was rejected. Re-enter it and try again." }));
+                  } else {
+                    setError(t("mcpDocker.actionError", { defaultValue: "The operation could not be completed. Review the server state before retrying." }));
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              }}>
+                <Label>{t("mcpDocker.elevationPassword", { defaultValue: "Instance password" })}<Input type="password" autoComplete="current-password" maxLength={1024} value={elevationPassword} onChange={(event) => setElevationPassword(event.target.value)} /></Label>
+                <Button type="submit" disabled={!elevationPassword || busy}>{t("mcpDocker.elevateAction", { defaultValue: "Elevate session" })}</Button>
+              </form>
+            <p className="self-center text-xs text-muted-foreground">{t("mcpDocker.passwordMemoryOnly", { defaultValue: "The password is held in page memory only and is cleared on disconnect." })}</p>
+          </div>
         )}
         <p className="text-xs text-muted-foreground">{snapshot.allowRemoteAdmin ? t("mcpDocker.remoteAdminEnabled", { defaultValue: "Remote operator administration is enabled by host configuration." }) : t("mcpDocker.remoteAdminDisabled", { defaultValue: "Remote operator administration is disabled by default; enable it only in trusted host configuration." })}</p>
       </section>
@@ -428,7 +420,7 @@ export function McpDockerManagement({
       </div>}
 
       {installOpen && <section className="rounded-xl border p-4" aria-label="Add MCP server"><div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Add MCP server</h2><Button variant="outline" onClick={() => { setInstallOpen(false); setInstallReviewed(false); setInstallConfirmId(""); }}>Cancel</Button></div>
-        {!enabled && <p className="mt-3 text-sm text-muted-foreground">Provide the operator password above and load a current snapshot to install a server.</p>}
+        {!enabled && <p className="mt-3 text-sm text-muted-foreground">Enter the instance password above and load a current snapshot to install a server.</p>}
       {enabled && <div className="mt-4 space-y-4">
         <p className="text-sm text-amber-700 dark:text-amber-300">Only an exact image ID or RepoDigest already available locally is accepted; no pull. Full host file access is the default with mandatory control-plane covers.</p>
         <div className="grid gap-3 sm:grid-cols-2">
