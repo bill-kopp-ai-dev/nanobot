@@ -25,7 +25,7 @@
 | Containers Positronic (sem label) | MCPs do Positronic | Ponte | Sem portas publicadas |
 | Engine local | 29.7.2 (overlay descartável) | — | Fora do gate VPS Engine 27.x |
 
-`docker.sock` está montado **apenas** no broker. O gateway pode receber `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` (modo 0600) para autorizar a UI Web a emitir tokens; nada além disso.
+`docker.sock` está montado **apenas** no broker. A autenticação da WebUI é feita pelo verificador em `~/.nanobot/auth/verifier.json` (criado por `nanobot auth init`); o gateway aceita `POST /auth/login` com a senha da instância e troca a sessão por tokens de WebSocket/API de via `/webui/bootstrap`. O entrypoint não toca em segredos humanos; `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` foi removido.
 
 ## 3. Procedimentos por cenário
 

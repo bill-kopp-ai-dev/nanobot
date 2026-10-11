@@ -1,5 +1,11 @@
 # Connect to an existing remote nanobot
 
+> **Authentication cutover:** browser-proxied remote instances are temporarily
+> unavailable (`remote_auth_required`) until the local SSH proxy forwards the
+> native instance-password login without retaining a password or a legacy
+> bootstrap secret. Open the remote WebUI directly through an SSH tunnel for
+> now. Saved SSH pairing and host-key records are not removed by this change.
+
 Open your local **nanobot WebUI**, click the current host (initially **Local**)
 at the bottom of the sidebar, and choose **Manage connections…**. This is the
 single entry point for switching and managing hosts. The page lists this computer
@@ -118,12 +124,13 @@ Custom SSH policies/layouts may reject the grant; use existing SSH settings in
 that case. Windows servers and containers are not supported by quick pairing.
 
 This is still **full access to nanobot**, not read-only access. Its configured
-tools may themselves run commands or modify files. The WebUI credential stays
-in the local backend, encrypted at rest alongside a private local decryption key
+tools may themselves run commands or modify files. The WebUI session stays in
+the local backend, encrypted at rest alongside a private local decryption key
 and dedicated SSH identity (directories `0700`, files `0600`). This protects
 against other OS users, not compromise of your logged-in account. Provider keys
-are not exported by the pairing protocol. Changes to the remote WebUI secret or
-port require pairing again; they are not silently refreshed through sudo.
+are not exported by the pairing protocol. Changes to the remote instance
+password or WebUI port require pairing again; they are not silently refreshed
+through sudo.
 
 SSH network reachability is still required. Pairing cannot fix a blocked port or
 VPN route. A failed connection keeps the paired profile for retry. **Network
@@ -222,7 +229,10 @@ and forced TTY are disabled for the fixed nanobot probe.
   be unlocked in the system SSH agent. Interactive SSH passwords are not
   collected by this UI.
 - The remote server needs `python3` and an already running nanobot WebUI with
-  a configured `tokenIssueSecret` (or `token`) in its configuration file.
+  a configured verifier at `~/.nanobot/auth/verifier.json` (created by
+  `nanobot auth init`). The local browser signs in over the SSH tunnel by
+  typing the instance password into the login form; the probe no longer
+  returns a `secret` or `token_issue_path`.
 - The remote gateway must support the authenticated `/webui/terminal`
   identity probe and the supported WebUI client contract. The local installation
   must have its WebUI bundle; the remote host only needs the backend endpoints.
@@ -422,20 +432,23 @@ On Windows, exclusive socket ownership may delay reusing a port after shutdown;
 retry later if it remains occupied. Nanobot does not weaken socket ownership
 to force a reconnect.
 
-SSH authenticates the server. A read-only, fixed Python probe retrieves only
-WebUI login information from its config. The gateway's protocol and runtime ID
-are verified before navigation. Only a local proxy credential is passed in the
-remote view's URL fragment and stored by its existing login UI. Local gateway
-restart replaces that credential and invalidates local token/media mappings;
-reopening the saved connection handles this without an extra login step.
-Nothing opens a public administration port or forwards your SSH agent.
+SSH authenticates the server. A read-only, fixed Python probe returns only
+non-secret connection metadata from the remote gateway (`auth_required: true`,
+port, gateway protocol/runtime ID). The local browser then signs in over the
+tunnel by typing the instance password; no secret leaves the remote host. Only
+a local proxy credential is passed in the remote view's URL fragment and
+stored by its existing login UI. Local gateway restart replaces that credential
+and invalidates local token/media mappings; reopening the saved connection
+handles this without an extra login step. Nothing opens a public administration
+port or forwards your SSH agent.
 
 **Upgrading the earlier remote-connection prototype:** it passed the remote
 WebUI login secret to browser storage. This version retires those old browser
 origins, but cannot revoke a secret already saved in an old tab. Close those
-tabs, clear their browser site data, and rotate the remote WebUI login secret
-to invalidate the old credential. This migration does not rotate credentials
-or restart your server automatically.
+tabs, clear their browser site data, and run `nanobot auth change` on the
+remote host to rotate the instance password and invalidate the old
+credential. This migration does not rotate credentials or restart your server
+automatically.
 
 Remote-connection actions require an authenticated local WebUI connection, a
 loopback-bound gateway, and local request origin. They are unavailable from a
@@ -450,6 +463,7 @@ are ignored when reading the framed probe result. A failed probe is distinct
 from an invalid nanobot configuration; raw SSH output and credentials aren't
 displayed in error messages. If SSH works in a terminal but not in nanobot,
 check that nanobot was started with access to the same system SSH agent.
-Configurations whose WebUI secret is supplied only by a service environment,
-interactive SSH passwords, and remote WebUIs with a public WebSocket URL need
-additional setup; this flow does not silently weaken their authentication.
+Configurations whose WebUI instance password is supplied only by a service
+environment, interactive SSH passwords, and remote WebUIs with a public
+WebSocket URL need additional setup; this flow does not silently weaken their
+authentication.

@@ -273,7 +273,7 @@ Open:
 http://127.0.0.1:8765
 ```
 
-If accessing from another device, bind the WebSocket channel to `0.0.0.0` and set `token` or `tokenIssueSecret`. The WebSocket channel refuses public binds without a token or token issue secret.
+If accessing from another device, bind the WebSocket channel to `0.0.0.0` and run `nanobot auth init` on the gateway host. The public bind requires the single instance-password verifier; legacy `token` and `tokenIssueSecret` values do not authorize login or WebSocket upgrades.
 
 | Symptom | Check |
 |---|---|

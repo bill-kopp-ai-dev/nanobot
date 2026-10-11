@@ -575,3 +575,5 @@ após o desvio autorizado, preparar uma stack local de gateway/broker com segred
 privado de token e bind loopback, então migrar OSM/Weather em sequência pelo
 domínio do broker, mantendo rollback por image ID. Não iniciar a cópia antiga
 do gateway com bind não-loopback.
+
+Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](2026-10-11-percival-single-password-auth-refactor-plan.md).

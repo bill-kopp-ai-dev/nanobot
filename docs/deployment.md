@@ -12,7 +12,7 @@ Check these once before Render, Docker, systemd, or LaunchAgent:
 | `nanobot agent -m "Hello!"` works | Proves install, config, provider, model, and workspace writes before adding a service layer |
 | Secrets are in environment variables or protected config files | API keys, bot tokens, OAuth state, and chat credentials should not be world-readable |
 | The active config directory (including `sessions/`) and workspace are persistent | Sessions follow `--config`; memory, generated artifacts, and the workspace identity marker follow the workspace |
-| Channel access control is intentional | Use `allowFrom`, pairing, WebSocket `token`/`tokenIssueSecret`, or private test channels before exposing the bot |
+| Channel access control is intentional | Use `allowFrom`, pairing, run `nanobot auth init` to set the instance password, or private test channels before exposing the bot |
 | Ports are planned | Gateway health defaults to local-only `127.0.0.1:18790`; WebUI/WebSocket defaults to `8765`; `nanobot serve` defaults to `8900` |
 | Logs are easy to reach | Use `docker compose logs`, `journalctl`, LaunchAgent log files, or `nanobot gateway --verbose` while diagnosing startup |
 
@@ -33,7 +33,7 @@ Restart the deployed process after editing `config.json`. Long-running processes
 Run nanobot online without managing a server. The blueprint deploys the gateway and bundled WebUI together, with a persistent disk so sessions, memory, and chat history survive restarts.
 
 > [!IMPORTANT]
-> This setup requires a paid Render service because persistent disks are not available on the free tier. During setup, provide `ANTHROPIC_API_KEY` and set `NANOBOT_WEB_TOKEN` to a strong private password (for example, generate one with `openssl rand -hex 32`).
+> This setup requires a paid Render service because persistent disks are not available on the free tier. During setup, provide `ANTHROPIC_API_KEY` and run `nanobot auth init` to set the single instance password; the gateway will then accept browser logins on the public WebUI.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/HKUDS/nanobot)
 
@@ -42,11 +42,11 @@ Run nanobot online without managing a server. The blueprint deploys the gateway 
 ### First Deployment
 
 1. Click **Deploy to Render**, sign in, and review the Blueprint. It creates one Starter web service and a 1 GB persistent disk.
-2. Enter your `ANTHROPIC_API_KEY`. Set `NANOBOT_WEB_TOKEN` to a new random value and save it in your password manager; this is the password for the public WebUI.
+2. Enter your `ANTHROPIC_API_KEY`. Run `nanobot auth init` on the deployed instance to set the instance password; save that password in your password manager, since it is what you type into the public WebUI login form.
 3. Create the Blueprint and wait for the service status to become **Live**. The first build can take several minutes.
-4. Open the generated `onrender.com` URL. The **Authentication required** page means the gateway is running: enter the same `NANOBOT_WEB_TOKEN` value to open the WebUI.
+4. Open the generated `onrender.com` URL. The **Authentication required** page means the gateway is running: enter the same instance password to open the WebUI.
 
-The model API key is used by nanobot to call Anthropic. The Web token only protects access to this deployment; do not share it in issues, screenshots, or chat.
+The model API key is used by nanobot to call Anthropic. The instance password only protects access to this deployment; do not share it in issues, screenshots, or chat.
 
 ### Updates and Data
 
@@ -54,7 +54,7 @@ The Blueprint disables automatic deploys so upstream repository changes do not u
 
 The persistent disk keeps `config.json`, sessions, memory, WebUI history, cron state, media, and logs across restarts and updates. The deployment initializes `config.json` only when it does not already exist, so settings changed later in the WebUI are not replaced on every boot.
 
-If deployment fails, open the service **Logs** page first. A missing model key fails provider requests after startup, while an incorrect Web token leaves you on the authentication page.
+If deployment fails, open the service **Logs** page first. A missing model key fails provider requests after startup, while an unset or rotated instance password leaves you on the authentication page.
 
 ## Docker
 
@@ -67,7 +67,7 @@ If deployment fails, open the service **Logs** page first. A missing model key f
 > Official Docker usage currently means building from this repository with the included `Dockerfile`. Docker Hub images under third-party namespaces are not maintained or verified by HKUDS/nanobot; do not mount API keys or bot tokens into them unless you trust the publisher.
 
 > [!IMPORTANT]
-> The gateway and WebSocket channel default to `host: "127.0.0.1"` in `config.json` (set in `nanobot/config/schema.py`). Docker `-p` port forwarding cannot reach a container's loopback interface, so for the host or LAN to reach the exposed ports you must set both binds to `0.0.0.0` in `~/.nanobot/config.json` before starting the container. To serve the bundled WebUI from Docker, bind the WebSocket channel externally and protect bootstrap with `tokenIssueSecret`:
+> The gateway and WebSocket channel default to `host: "127.0.0.1"` in `config.json` (set in `nanobot/config/schema.py`). Docker `-p` port forwarding cannot reach a container's loopback interface, so for the host or LAN to reach the exposed ports you must set both binds to `0.0.0.0` in `~/.nanobot/config.json` before starting the container. To serve the bundled WebUI from Docker, bind the WebSocket channel externally. The bind-to-`0.0.0.0` validator checks for `auth/verifier.json` instead of a static secret:
 >
 > ```json
 > {
@@ -75,14 +75,13 @@ If deployment fails, open the service **Logs** page first. A missing model key f
 >   "channels": {
 >     "websocket": {
 >       "host": "0.0.0.0",
->       "port": 8765,
->       "tokenIssueSecret": "your-secret-here"
+>       "port": 8765
 >     }
 >   }
 > }
 > ```
 >
-> When the WebSocket `host` is `0.0.0.0`, the channel refuses to start unless `token`, `tokenIssueSecret`, or a fully configured `trustedProxyAuth` is also configured. See [`webui.md#lan-access`](./webui.md#lan-access) for details.
+> Before the first start, run `docker compose run --rm nanobot-cli nanobot auth init` to set the single instance password; the gateway will then start normally on `0.0.0.0`. See [`webui.md#lan-access`](./webui.md#lan-access) for browser login details.
 > The gateway health route itself is intentionally minimal and unauthenticated. When the
 > container binds it to `0.0.0.0`, publish port `18790` to host loopback only; place any
 > remotely monitored health endpoint behind a firewall or reverse proxy. If another host
@@ -92,43 +91,13 @@ If deployment fails, open the service **Logs** page first. A missing model key f
 ### Cloudflare Tunnel + Cloudflare Access
 
 For a local `cloudflared` process in front of nanobot, Cloudflare Access can
-authenticate the user before forwarding the request and add
-`Cf-Access-Jwt-Assertion`. Opt in to trusted-proxy no-token mode only when the
-direct TCP peer is the tunnel process and the assertion is non-empty:
-
-```json
-{
-  "gateway": { "host": "127.0.0.1" },
-  "channels": {
-    "websocket": {
-      "host": "127.0.0.1",
-      "port": 8765,
-      "publicWsUrl": "wss://nanobot.example.com/",
-      "trustedProxyAuth": {
-        "trustedPeerCidrs": ["127.0.0.1/32", "::1/128"],
-        "assertionHeader": "Cf-Access-Jwt-Assertion"
-      }
-    }
-  }
-}
-```
-
-This is two-part authorization: a trusted direct loopback peer **and** a
-non-empty Cloudflare Access assertion. A trusted CIDR alone is not a bypass.
-For this flow `/webui/bootstrap` returns connection metadata without a
-bootstrap token or REST API token; the proxy assertion authorizes the WebSocket
-handshake and REST requests directly.
-
-Set `publicWsUrl` to the browser-facing `wss://` endpoint when the tunnel sends
-the origin host header (such as `127.0.0.1:8765`); otherwise the WebUI could
-attempt to open its WebSocket directly against the loopback address.
-The assertion header must be generated
-by Cloudflare Access after authentication; routing/client metadata headers such
-as `Host`, `Forwarded`, `X-Forwarded-*`, `X-Real-IP`, and `CF-Connecting-IP`
-are rejected as `assertionHeader` values. Nanobot trusts the assertion but does
-not cryptographically validate the JWT, so configure the tunnel and Access
-policy carefully and do not expose the nanobot listener directly to untrusted
-clients. Forwarded client headers do not establish proxy trust.
+provide an outer access-control layer, but it does not replace Percival's
+instance-password login. Forward the login, bootstrap, and WebSocket requests
+to the same gateway listener; preserve matching `Host` and `Origin`, and pass
+`X-Forwarded-Proto: https` only from a trusted proxy peer so the gateway can
+mark session cookies `Secure`. `trustedProxyAuth` assertions do not bypass the
+instance session or WebSocket token checks. Keep the origin gateway restricted
+to the tunnel/proxy and localhost.
 
 ### Docker Compose
 
@@ -150,23 +119,19 @@ is not guaranteed write access to the virtual environment.
 
 ```bash
 install -d -m 0700 "$HOME/.config/percival"
-umask 077
-openssl rand -hex 32 > "$HOME/.config/percival/webui-token-issue"
-sudo chown 1000:1000 "$HOME/.config/percival/webui-token-issue"
-chmod 0400 "$HOME/.config/percival/webui-token-issue"
-printf 'PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE=%s\n' \
-  "$HOME/.config/percival/webui-token-issue" >> .env
-docker compose run --rm nanobot-cli onboard   # first-time setup
-vim ~/.nanobot/config.json                     # add API keys
-docker compose up -d nanobot-gateway           # start gateway
+docker compose run --rm nanobot-cli onboard               # first-time setup
+docker compose run --rm nanobot-cli nanobot auth init     # set the instance password
+vim ~/.nanobot/config.json                                # add API keys
+docker compose up -d nanobot-gateway                      # start gateway
 ```
 
 Compose publishes the WebUI and gateway ports on host loopback by default. The
-gateway listens on its container interface for Docker forwarding; the WebSocket
-WebUI requires a token-issuance secret file owned/readable by container UID 1000
-and refuses startup if it is missing. Compose mounts the file read-only instead
-of placing the secret value in container environment metadata. Keep `.env` and
-the secret file private and reuse the same value across restarts.
+gateway listens on its container interface for Docker forwarding. WebUI
+authentication is backed by the verifier at `~/.nanobot/auth/verifier.json`,
+created by `nanobot auth init`; the gateway no longer reads
+`PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` and refuses to bind `0.0.0.0`
+until the verifier exists. Keep `.env` private and reuse the same instance
+password across restarts.
 
 ```bash
 docker compose run --rm nanobot-cli agent -m "Hello!"   # run CLI

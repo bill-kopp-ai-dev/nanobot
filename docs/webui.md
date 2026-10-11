@@ -23,14 +23,16 @@ nanobot webui
 ```
 
 `nanobot webui` creates the config/workspace when needed, enables the local
-WebSocket channel after confirmation, generates a WebUI bootstrap secret when
-one is missing, starts or joins the same on-demand gateway used by the native
-TUI, and opens the browser. With a fresh config,
+WebSocket channel after confirmation, starts or joins the same on-demand gateway
+used by the native TUI, and opens the browser. With a fresh config,
 it can open before a model is configured so you can finish setup in **Settings
 → Models**. The first-run path binds the WebUI to `127.0.0.1` by default, so
-it is not available from other devices on your LAN. While the launcher remains
-attached, it mirrors new log output from that exact gateway instance in the
-terminal without replaying older logs.
+it is not available from other devices on your LAN. WebUI login is backed by the
+single instance password stored at `~/.nanobot/auth/verifier.json`; run
+`nanobot auth init` (or `nanobot auth change` / `nanobot auth reset` for
+rotation/recovery) before opening the WebUI on a non-loopback bind. While the
+launcher remains attached, it mirrors new log output from that exact gateway
+instance in the terminal without replaying older logs.
 
 After model setup, explicitly promote the shared gateway when you do not want to keep a client open:
 
@@ -46,25 +48,11 @@ interactive launcher stops an on-demand gateway. `nanobot gateway --background` 
 gateway persistent; manage it with `nanobot gateway status`, `nanobot gateway
 logs`, `nanobot gateway restart`, and `nanobot gateway stop`.
 
-Manual config still works. Same-machine localhost WebUI access can run without
-a browser password. Set `tokenIssueSecret` when you intentionally expose the
-WebUI beyond localhost or want a browser password:
-
-```json
-{
-  "channels": {
-    "websocket": {
-      "enabled": true,
-      "host": "127.0.0.1",
-      "tokenIssueSecret": "your-webui-password",
-      "websocketRequiresToken": true
-    }
-  }
-}
-```
-
-The WebUI is served by the WebSocket channel on port `8765` by default. The
-gateway health endpoint, `18790` by default, is not the browser UI.
+Manual config still works. Browser access always requires the instance
+password, including on localhost. Run `nanobot auth init` on the gateway host
+before signing in; the legacy `channels.websocket.tokenIssueSecret` is ignored.
+HTTP and WebSocket upgrades share the WebUI listener on port `8765` by default.
+The gateway health endpoint, `18790` by default, is not the browser UI.
 
 ## First 10 Minutes
 
@@ -500,24 +488,30 @@ immediately for the current browser and do not change gateway configuration.
 ## LAN Access
 
 To open the WebUI from another device on the same network, bind the WebSocket
-channel to all interfaces and set a token or token issue secret:
+channel to all interfaces and run `nanobot auth init` once on the gateway host
+so a verifier file exists at `~/.nanobot/auth/verifier.json`:
 
 ```json
 {
   "channels": {
     "websocket": {
       "host": "0.0.0.0",
-      "port": 8765,
-      "tokenIssueSecret": "your-secret-here"
+      "port": 8765
     }
   }
 }
 ```
 
-The gateway refuses to start with `host` set to `"0.0.0.0"` unless `token` or
-`tokenIssueSecret` is configured. After the gateway starts, open
-`http://<your-ip>:8765` from the other device and enter the secret in the login
-form.
+Without `auth/verifier.json`, the gateway may start but serves only the
+unauthenticated UI shell and setup guidance; login, bootstrap, WebSocket, API
+and MCP actions remain unavailable. Initialize the password on the host with
+`nanobot auth init`, then open `http://<your-ip>:8765` from the other device
+and submit it in the login form. The browser stores the
+resulting `percival_session` and `percival_csrf` cookies (`HttpOnly`,
+`SameSite=Strict`, `Secure` when HTTPS) and exchanges them with
+`/webui/bootstrap` for a short-lived WebSocket token. Rotate the password from
+the host with `nanobot auth change`; recover from a lost password with
+`nanobot auth reset` (requires host access).
 
 Plain HTTP is enough for basic WebUI access, but browsers expose microphone
 capture only in secure contexts. Voice input works on same-machine localhost;
@@ -608,7 +602,7 @@ If the page does not open, check these in order:
 2. `~/.nanobot/config.json` does not explicitly set `channels.websocket.enabled` to `false`.
 3. `nanobot gateway` is still running.
 4. You are opening port `8765`, not the gateway health port.
-5. LAN access uses `host: "0.0.0.0"` and a token or token issue secret.
+5. LAN access uses `host: "0.0.0.0"` after `nanobot auth init` has created `auth/verifier.json` on the gateway host.
 
 If voice input asks for a secure connection, use HTTPS with a certificate the
 device trusts. Browsers do not expose microphone capture to

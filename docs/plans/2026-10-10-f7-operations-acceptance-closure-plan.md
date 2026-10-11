@@ -92,3 +92,5 @@ O quadro de pendências no plano principal registra snapshots anteriores. Atuali
 **Parar e escalar** se a credencial exposta ainda der acesso, se `tools/call` Khan falhar na imagem final sem decisão de limitação, se uma duplicata não puder ser atribuída com confiança, se faltar imagem de rollback, se a observação divergir da configuração, se houver Critical sem correção/decisão ou se a topologia VPS divergir da aprovada. Não eliminar incerteza por `docker rm`, waiver implícito ou hand-edit de estado.
 
 **Registro de encerramento recomendado:** um relatório F7 único com tabela `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, links ao manual e aos relatórios F4/F5/F3, inventário pós-cutover sem segredos, URLs dos runs e declaração de risco residual. A aprovação final de B13 para release é ato separado do fechamento técnico local.
+
+Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](2026-10-11-percival-single-password-auth-refactor-plan.md).

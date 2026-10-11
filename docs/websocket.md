@@ -6,7 +6,7 @@ Nanobot can act as a WebSocket server, allowing external clients (web apps, CLIs
 
 - Bidirectional real-time communication over WebSocket
 - Streaming support — receive agent responses token by token
-- Token-based authentication (static tokens and short-lived issued tokens)
+- Session-bound token authentication issued by `/webui/bootstrap` after a successful `/auth/login`
 - Multi-chat multiplexing — one connection can run many concurrent `chat_id`s
 - TLS/SSL support (WSS) with enforced TLSv1.2 minimum
 - Client allow-list via `allowFrom`
@@ -17,7 +17,10 @@ Nanobot can act as a WebSocket server, allowing external clients (web apps, CLIs
 ### 1. Configure
 
 The WebSocket channel is enabled by default. Add only the fields you want to
-override under `channels.websocket`:
+override under `channels.websocket`. WebUI authentication is backed by the
+single instance password stored at `~/.nanobot/auth/verifier.json` after
+`nanobot auth init`; the channel no longer reads a static `token` or
+`tokenIssueSecret` to authorize upgrades:
 
 ```json
 {
@@ -26,8 +29,6 @@ override under `channels.websocket`:
       "host": "127.0.0.1",
       "port": 8765,
       "path": "/",
-      "tokenIssueSecret": "your-webui-password",
-      "websocketRequiresToken": true,
       "allowFrom": ["*"],
       "streaming": true
     }
@@ -76,7 +77,7 @@ ws://{host}:{port}{path}?client_id={id}&token={token}
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `client_id` | No | Identifier for `allowFrom` authorization. Auto-generated as `anon-xxxxxxxxxxxx` if omitted. Truncated to 128 chars. |
-| `token` | Conditional | Authentication token. Required when `websocketRequiresToken` is `true` or `token` (static secret) is configured, unless the request comes through an authenticated `trustedProxyAuth` peer. |
+| `token` | Required | Short-lived WebSocket token returned by `/webui/bootstrap` after a successful `/auth/login`. The token is bound to the issuing session; rotating the password, logging out, or restarting the gateway invalidates it. Static tokens and proxy assertions do not bypass this requirement. |
 
 ## Wire Protocol
 
@@ -223,14 +224,18 @@ All fields go under `channels.websocket` in `config.json`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `token` | string | `""` | Static shared secret. When set, clients must provide `?token=<value>` matching this secret (timing-safe comparison). Issued tokens are also accepted as a fallback. A trusted proxy assertion bypasses this requirement. |
-| `websocketRequiresToken` | bool | `true` | When `true` and no static `token` is configured, clients must still present a valid issued token, unless `trustedProxyAuth` authenticates the direct proxy peer. Set to `false` to allow unauthenticated connections (only safe for local/trusted networks). |
-| `tokenIssuePath` | string | `""` | HTTP path for issuing short-lived tokens. Must differ from `path`. See [Token Issuance](#token-issuance). |
-| `tokenIssueSecret` | string | `""` | Secret required to obtain tokens via the issue endpoint. If empty, any client can obtain WebSocket connection tokens from `tokenIssuePath` (logged as a warning). `/webui/bootstrap` issues tokens for local/secret-authenticated requests; trusted-proxy requests intentionally receive no bootstrap or API token. |
-| `trustedProxyAuth` | object or `null` | `null` | Optional two-part no-token authorization for a directly connected upstream proxy. Both `trustedPeerCidrs` and a non-empty `assertionHeader` value must match; a CIDR alone never authorizes bootstrap or WebSocket/API access. |
-| `trustedProxyAuth.trustedPeerCidrs` | list of CIDR strings | — | Direct TCP peer networks that may present the assertion. IPv4, IPv6, and IPv4-mapped IPv6 peers are supported; universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected. |
-| `trustedProxyAuth.assertionHeader` | string | — | Header injected by the identity-aware proxy after successful authentication. Routing/client metadata headers (`Host`, `Forwarded`, `X-Forwarded-*`, `X-Real-IP`, `CF-Connecting-IP`) are rejected; nanobot trusts the remaining header's non-empty value but does not cryptographically validate it. |
-| `tokenTtlS` | int | `300` | Time-to-live for issued tokens in seconds (30 – 86,400). |
+| `token` | string | `""` | Legacy static secret accepted for config loading only; it never authorizes a WebSocket handshake. |
+| `websocketRequiresToken` | bool | `true` | Legacy setting accepted for config loading only. WebSocket handshakes always require a session-bound token. |
+| `trustedProxyAuth` | object or `null` | `null` | Legacy assertion configuration does not authenticate or bypass the instance-password session. A configured peer CIDR is used only to trust forwarded HTTPS scheme metadata. |
+| `trustedProxyAuth.trustedPeerCidrs` | list of CIDR strings | — | Direct TCP peer networks trusted for forwarded HTTPS scheme metadata. Universal CIDRs (`0.0.0.0/0`, `::/0`) are rejected. |
+| `trustedProxyAuth.assertionHeader` | string | — | Preserved for config compatibility; its value does not authenticate a user or issue tokens. |
+| `tokenTtlS` | int | `300` | Time-to-live for issued tokens in seconds (30 – 86,400). The TTL is per-session; rotating the password, logging out, or restarting the gateway invalidates outstanding tokens regardless of TTL. |
+
+The legacy `tokenIssuePath` and `tokenIssueSecret` fields are preserved for
+back-compat read but ignored. Tokens are no longer issued from a secret endpoint;
+they are returned by `/webui/bootstrap` in exchange for a valid `percival_session`
+cookie set by `POST /auth/login`. See [Authentication](#authentication-flow)
+for the full flow.
 
 ### Access Control
 
@@ -258,73 +263,47 @@ All fields go under `channels.websocket` in `config.json`.
 | `sslCertfile` | string | `""` | Path to the TLS certificate file (PEM). Both `sslCertfile` and `sslKeyfile` must be set to enable WSS. |
 | `sslKeyfile` | string | `""` | Path to the TLS private key file (PEM). Minimum TLS version is enforced as TLSv1.2. |
 
-## Token Issuance
+## Authentication flow
 
-For production deployments where `websocketRequiresToken: true`, use short-lived tokens instead of embedding static secrets in clients.
+WebUI authentication is backed by the single instance password stored at
+`~/.nanobot/auth/verifier.json` after `nanobot auth init`. The token issued by
+`/webui/bootstrap` is short-lived and bound to the active session.
 
 ### How it works
 
-1. Client sends `GET {tokenIssuePath}` with `Authorization: Bearer {tokenIssueSecret}` (or `X-Nanobot-Auth` header).
-2. Server responds with a one-time-use token:
+1. The browser loads `/`. The frontend calls `GET /webui/bootstrap` with the
+   `percival_session` cookie. If the cookie is missing or invalid, the
+   gateway returns `401` and the frontend shows the login form.
+2. The user submits the instance password to `POST /auth/login`. The gateway
+   verifies the password against `auth/verifier.json` (scrypt, with rate
+   limiting per account and per origin) and, on success, sets the
+   `percival_session` and `percival_csrf` cookies (`HttpOnly`,
+   `SameSite=Strict`, `Secure` when HTTPS).
+3. Subsequent `GET /webui/bootstrap` returns a one-time-use WebSocket token
+   and a REST `api_token`, both bound to the session:
 
-```json
-{"token": "nbwt_aBcDeFg...", "expires_in": 300}
-```
+   ```json
+   {"token": "nbwt_aBcDeFg...", "expires_in": 300}
+   ```
 
-3. Client opens WebSocket with `?token=nbwt_aBcDeFg...&client_id=...`.
-4. The token is consumed (single use) and cannot be reused.
+4. The client opens the WebSocket with `?token=nbwt_aBcDeFg...&client_id=...`.
+   The token is consumed on the upgrade (single use) and cannot be reused.
+   Rotating the password with `nanobot auth change`, logging out, or
+   restarting the gateway invalidates outstanding tokens regardless of TTL.
 
-The embedded WebUI's `/webui/bootstrap` route returns a WebSocket token and
-REST `api_token` for local or secret-authenticated requests. When
-`trustedProxyAuth` authenticates the direct proxy peer, it returns connection
-metadata only: no bootstrap token, no REST API token, and no token query
-parameter is required for the WebSocket handshake or subsequent REST requests.
+Sensitive MCP mutations additionally require `POST /auth/elevate` with the same
+instance password. Elevation lasts 15 minutes per session and is revoked on
+logout, password rotation, or gateway restart.
 
-### Trusted proxy no-token bootstrap
+### Reverse proxies
 
-`trustedProxyAuth` is an opt-in alternative for deployments where an
-identity-aware reverse proxy authenticates the user before connecting to nanobot.
-The proxy assertion becomes the authentication boundary for the entire WebUI
-surface: `/webui/bootstrap`, the WebSocket handshake, and REST API routes.
-Bootstrap is accepted only when **both** the direct TCP peer matches one of
-`trustedPeerCidrs` and the configured assertion header is present and non-empty.
-A trusted address by itself is never sufficient.
-
-Nanobot deliberately uses only `connection.remote_address` for the peer check.
-It never uses `X-Forwarded-For`, `Forwarded`, `X-Real-IP`, `CF-Connecting-IP`,
-or `X-Forwarded-Host` to decide whether the proxy is trusted. Nanobot trusts the
-assertion supplied by the explicitly trusted peer, but does not cryptographically
-validate or interpret the JWT/assertion contents. Do not enable this option if
-untrusted clients can connect directly to the nanobot listener.
-
-The configured assertion header must be a proxy-generated authentication
-assertion, not a routing or client metadata header. Headers such as `Host`,
-`Forwarded`, `X-Forwarded-*`, `X-Real-IP`, and `CF-Connecting-IP` are rejected
-by configuration; use the identity provider's post-authentication assertion
-header instead (for example, `Cf-Access-Jwt-Assertion`).
-
-For example, a local Cloudflare Tunnel with Cloudflare Access can validate the
-user at the edge and forward the resulting `Cf-Access-Jwt-Assertion`:
-
-```json
-{
-  "channels": {
-    "websocket": {
-      "host": "127.0.0.1",
-      "publicWsUrl": "wss://nanobot.example.com/",
-      "trustedProxyAuth": {
-        "trustedPeerCidrs": ["127.0.0.1/32", "::1/128"],
-        "assertionHeader": "Cf-Access-Jwt-Assertion"
-      }
-    }
-  }
-}
-```
-
-This works only when the directly connected `cloudflared` process reaches
-nanobot over the configured loopback address and supplies a non-empty assertion.
-Keep nanobot firewalled from untrusted clients; this configuration is not a
-CIDR-based bootstrap bypass.
+Reverse proxies must forward the native instance-password login and preserve
+the matching `Host` and `Origin`. For HTTPS termination, configure the proxy
+peer CIDR so `X-Forwarded-Proto: https` is trusted only from that peer; the
+assertion header does not replace login, session, CSRF, or WebSocket token
+checks. Keep the gateway inaccessible to untrusted direct clients. The unified
+aiohttp listener serves HTTP and WebSocket upgrades on the same configured
+port, including `POST /auth/login` with a JSON body.
 
 ### Example setup
 
@@ -334,8 +313,6 @@ CIDR-based bootstrap bypass.
     "websocket": {
       "port": 8765,
       "path": "/ws",
-      "tokenIssuePath": "/auth/token",
-      "tokenIssueSecret": "your-secret-here",
       "tokenTtlS": 300,
       "websocketRequiresToken": true,
       "allowFrom": ["*"],
@@ -345,13 +322,18 @@ CIDR-based bootstrap bypass.
 }
 ```
 
-Client flow:
+Client flow (session-bound token):
 
 ```bash
-# 1. Obtain a token
-curl -H "Authorization: Bearer your-secret-here" http://127.0.0.1:8765/auth/token
+# 1. Log in with the instance password and capture cookies.
+curl -c cookies.txt -X POST http://127.0.0.1:8765/auth/login \
+     -H 'Content-Type: application/json' \
+     -d '{"password":"your-instance-password"}'
 
-# 2. Connect using the token
+# 2. Exchange the session for a one-time WebSocket token
+curl -b cookies.txt http://127.0.0.1:8765/webui/bootstrap
+
+# 3. Connect using the token
 websocat "ws://127.0.0.1:8765/ws?client_id=alice&token=nbwt_aBcDeFg..."
 ```
 
@@ -360,6 +342,8 @@ websocat "ws://127.0.0.1:8765/ws?client_id=alice&token=nbwt_aBcDeFg..."
 - Issued tokens are single-use — each token can only complete one handshake.
 - Outstanding tokens are capped at 10,000. Requests beyond this return HTTP 429.
 - Expired tokens are purged lazily on each issue or validation request.
+- Sessions are revoked on password rotation, logout, or gateway restart
+  regardless of cookie TTL.
 
 ## Multi-chat multiplexing
 
@@ -436,7 +420,7 @@ Outbound `message` events may include a `media` field containing local filesyste
 }
 ```
 
-### Static token (simple auth)
+### Static token (legacy, rejected on upgrade in 0.1.0+)
 
 ```json
 {
@@ -449,9 +433,11 @@ Outbound `message` events may include a `media` field containing local filesyste
 }
 ```
 
-Clients connect with `?token=my-shared-secret&client_id=alice`.
+The field is preserved for back-compat reads but the WebSocket upgrade rejects
+it in 0.1.0+. Clients must exchange a valid session for a token through
+`/auth/login` and `/webui/bootstrap` instead.
 
-### Public endpoint with issued tokens
+### Public endpoint with session-bound tokens
 
 ```json
 {
@@ -460,8 +446,6 @@ Clients connect with `?token=my-shared-secret&client_id=alice`.
       "host": "0.0.0.0",
       "port": 8765,
       "path": "/ws",
-      "tokenIssuePath": "/auth/token",
-      "tokenIssueSecret": "production-secret",
       "websocketRequiresToken": true,
       "sslCertfile": "/etc/ssl/certs/server.pem",
       "sslKeyfile": "/etc/ssl/private/server-key.pem",
@@ -470,6 +454,11 @@ Clients connect with `?token=my-shared-secret&client_id=alice`.
   }
 }
 ```
+
+Run `nanobot auth init` on the gateway host before the first start so the
+bind-to-`0.0.0.0` validator finds `auth/verifier.json`. Clients POST the
+instance password to `/auth/login`, then exchange the resulting session
+cookie for a WebSocket token via `/webui/bootstrap`.
 
 ### Custom path
 

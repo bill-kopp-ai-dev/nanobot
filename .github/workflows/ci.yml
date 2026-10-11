@@ -315,17 +315,9 @@ jobs:
     if: needs.changes.outputs.docker_required == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
-    env:
-      PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE: ${{ runner.temp }}/percival-f5-webui-token
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Prepare isolated WebUI token secret
-        run: |
-          umask 077
-          openssl rand -hex 32 > "$PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE"
-          sudo chown 1000:1000 "$PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE"
 
       - name: Build image with default channel dependencies
         run: |
@@ -336,6 +328,8 @@ jobs:
       - name: Verify Docker Compose startup and privilege boundary
         env:
           HOME: ${{ runner.temp }}
+          # A throwaway instance password for the CI fixture; never used again.
+          PERCIVAL_CI_INSTANCE_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           docker compose run --rm --no-deps --build -T nanobot-cli status
           docker compose run --rm --no-deps -T --entrypoint sh nanobot-cli -s <<'OUTER'
