@@ -518,13 +518,17 @@ function AuthForm({
               </>
             )}
           >
-            <p>{t("app.auth.helpLost")}</p>
+            <p>{t("app.auth.helpInit")}</p>
             <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
-              nanobot auth reset
+              {t("app.auth.helpInitCmd")}
+            </code>
+            <p className="mt-4">{t("app.auth.helpLost")}</p>
+            <code className="mt-2 block rounded-compact bg-background px-3 py-2 font-mono text-xs text-foreground [overflow-wrap:anywhere]">
+              {t("app.auth.helpLostCmd")}
             </code>
             <p className="mt-3 text-xs text-muted-foreground">{t("app.auth.helpLostNote")}</p>
-            <p className="mt-4">{t("app.auth.helpVps")}</p>
-            <p className="mt-2 text-xs text-muted-foreground">{t("app.auth.helpVpsNote")}</p>
+            <p className="mt-4">{t("app.auth.helpHost")}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t("app.auth.helpHostNote")}</p>
           </Disclosure>
         </section>
       </div>
