@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  consumeUrlBootstrapSecret,
-  deriveWsUrl,
-  fetchBootstrap,
-} from "@/lib/bootstrap";
+import { deriveWsUrl, fetchBootstrap } from "@/lib/bootstrap";
 
 describe("bootstrap helpers", () => {
   afterEach(() => {
@@ -56,9 +52,9 @@ describe("bootstrap helpers", () => {
     );
   });
 
-  it("does not append a token for trusted-proxy websocket URLs", () => {
-    expect(deriveWsUrl("/", undefined, "wss://proxy.example/")).toBe(
-      "wss://proxy.example/",
+  it("attaches the session-bound token to reverse-proxy websocket URLs", () => {
+    expect(deriveWsUrl("/", "session-token", "wss://proxy.example/")).toBe(
+      "wss://proxy.example/?token=session-token",
     );
   });
 
@@ -66,7 +62,7 @@ describe("bootstrap helpers", () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
 
-    const pending = expect(fetchBootstrap("", "", 25)).rejects.toThrow(
+    const pending = expect(fetchBootstrap("", 25)).rejects.toThrow(
       "Request timed out after 25ms",
     );
     await vi.advanceTimersByTimeAsync(25);
@@ -74,7 +70,7 @@ describe("bootstrap helpers", () => {
     await pending;
   });
 
-  it("accepts tokenless trusted-proxy bootstrap responses", async () => {
+  it("rejects bootstrap responses without session-bound credentials", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -83,20 +79,6 @@ describe("bootstrap helpers", () => {
       })),
     );
 
-    await expect(fetchBootstrap()).resolves.toMatchObject({
-      ws_path: "/",
-      ws_url: "wss://proxy.example/",
-    });
-  });
-
-  it("consumes bootstrap secrets from the URL fragment", () => {
-    window.history.replaceState(
-      null,
-      "",
-      "/#/settings?bootstrapSecret=s3cret&section=models",
-    );
-
-    expect(consumeUrlBootstrapSecret()).toBe("s3cret");
-    expect(window.location.hash).toBe("#/settings?section=models");
+    await expect(fetchBootstrap()).rejects.toThrow("bootstrap response missing session credentials");
   });
 });

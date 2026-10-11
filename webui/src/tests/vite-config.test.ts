@@ -17,6 +17,18 @@ describe("development overlay dependencies", () => {
     expect(config.optimizeDeps?.include).toContain("@radix-ui/react-dialog");
     expect(config.optimizeDeps?.exclude ?? []).not.toContain("@radix-ui/react-dialog");
   });
+
+  it("proxies auth with a same-origin Origin header to the gateway", () => {
+    const config = webuiConfig({ command: "serve", mode: "test" });
+    const proxy = config.server?.proxy;
+    expect(Array.isArray(proxy)).toBe(false);
+    if (!proxy || Array.isArray(proxy)) return;
+    const authProxy = proxy["/auth"];
+    expect(authProxy).toMatchObject({
+      changeOrigin: true,
+      headers: { Origin: "http://127.0.0.1:8765" },
+    });
+  });
 });
 
 describe("gzipWebuiAssets", () => {

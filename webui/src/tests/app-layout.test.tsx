@@ -225,6 +225,29 @@ vi.mock("@/lib/bootstrap", () => ({
       this.name = "BootstrapAuthRequiredError";
     }
   },
+  LoginError: class LoginError extends Error {
+    constructor(readonly status: number, readonly body: string) {
+      super(`login failed: HTTP ${status}: ${body}`);
+      this.name = "LoginError";
+    }
+  },
+  ElevationError: class ElevationError extends Error {
+    constructor(readonly status: number, readonly body: string) {
+      super(`elevation failed: HTTP ${status}: ${body}`);
+      this.name = "ElevationError";
+    }
+  },
+  login: vi.fn().mockResolvedValue({
+    sessionId: "session-id",
+    csrfToken: "csrf-token",
+    sessionIdleRemainingS: 1800,
+    sessionAbsoluteRemainingS: 43200,
+  }),
+  logout: vi.fn().mockResolvedValue(undefined),
+  elevate: vi.fn().mockResolvedValue({ elevationRemainingS: 900, elevationTtlS: 900 }),
+  authStatus: vi.fn().mockResolvedValue({
+    configured: true, authenticated: true, elevated: false, elevation_remaining_s: 0,
+  }),
   fetchBootstrap: vi.fn().mockResolvedValue({
     token: "tok",
     api_token: "api-tok",
@@ -288,8 +311,10 @@ vi.mock("@/lib/nanobot-client", async (importOriginal) => {
 
 import {
   BootstrapAuthRequiredError,
+  LoginError,
   deriveWsUrl,
   fetchBootstrap,
+  login,
 } from "@/lib/bootstrap";
 import App from "@/App";
 import { mockBrowserFocus } from "./browser-focus";
@@ -459,10 +484,9 @@ describe("App layout", () => {
 
     expect(help).toHaveAttribute("aria-expanded", "true");
     expect(content).not.toHaveAttribute("aria-hidden");
-    expect(content).toHaveTextContent("~/.nanobot/config.json");
-    expect(content).toHaveTextContent("channels.websocket.tokenIssueSecret");
-    expect(content).toHaveTextContent("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE");
-    expect(content).toHaveTextContent("If that value is empty, use channels.websocket.token.");
+    expect(content).toHaveTextContent("nanobot auth reset");
+    expect(content).toHaveTextContent("shell access required");
+    expect(content).toHaveTextContent("nanobot auth init");
 
     await user.keyboard(" ");
 
@@ -545,6 +569,7 @@ describe("App layout", () => {
     vi.mocked(fetchBootstrap).mockRejectedValue(
       new Error("bootstrap failed: HTTP 401"),
     );
+    vi.mocked(login).mockRejectedValueOnce(new LoginError(401, "invalid password"));
 
     render(<App />);
 
@@ -554,13 +579,13 @@ describe("App layout", () => {
 
     const retryPassword = await screen.findByLabelText("WebUI password");
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Incorrect password",
+      "Incorrect password, or no instance password has been initialized",
     );
-    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password");
+    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password, or no instance password has been initialized");
     expect(retryPassword).toHaveValue("");
     expect(retryPassword).toHaveAttribute("aria-invalid", "true");
     expect(retryPassword).toHaveFocus();
-    expect(fetchBootstrap).toHaveBeenLastCalledWith("", "wrong-password");
+    expect(login).toHaveBeenCalledWith("wrong-password");
     expect(connectSpy).not.toHaveBeenCalled();
     fireEvent.change(retryPassword, { target: { value: "retry-password" } });
     expect(retryPassword).not.toHaveAttribute("placeholder");
@@ -587,9 +612,9 @@ describe("App layout", () => {
       fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     });
     const retryPassword = screen.getByLabelText("WebUI password");
-    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password");
+    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password, or no instance password has been initialized");
     act(() => vi.advanceTimersByTime(2_999));
-    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password");
+    expect(retryPassword).toHaveAttribute("placeholder", "Incorrect password, or no instance password has been initialized");
     act(() => vi.advanceTimersByTime(1));
     expect(retryPassword).not.toHaveAttribute("placeholder");
     expect(retryPassword).not.toHaveAttribute("aria-invalid");
