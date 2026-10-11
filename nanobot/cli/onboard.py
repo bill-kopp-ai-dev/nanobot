@@ -607,17 +607,6 @@ def _input_text(
     return value
 
 
-def _input_secret(display_name: str) -> str | None | object:
-    """Get a secret value without echoing it when questionary supports password input."""
-    prompt_factory = getattr(_get_questionary(), "password", None)
-    if prompt_factory is None:
-        prompt_factory = _get_questionary().text
-    value = _ask_prompt(prompt_factory(f"{display_name}:", key_bindings=_input_back_key_bindings()))
-    if value is _BACK_PRESSED or value is None:
-        return None if value is None else _BACK_PRESSED
-    return str(value).strip()
-
-
 def _input_with_existing(
     display_name: str,
     current: Any,
@@ -1901,12 +1890,6 @@ def _enable_quick_start_websocket_defaults(config: Config) -> bool:
                 "[yellow]! Quick Start needs the WebSocket channel for the local WebUI[/yellow]"
             )
             return False
-        webui_secret = _input_secret("Set a WebUI password")
-        if webui_secret is _BACK_PRESSED:
-            continue
-        if not webui_secret:
-            console.print("[yellow]! WebUI password is required when enabling WebSocket[/yellow]")
-            return False
         break
 
     config_cls = _get_channel_config_class("websocket")
@@ -1918,10 +1901,11 @@ def _enable_quick_start_websocket_defaults(config: Config) -> bool:
     model = config_cls.model_validate(current)
     if hasattr(model, "enabled"):
         setattr(model, "enabled", True)
-    if hasattr(model, "token_issue_secret"):
-        setattr(model, "token_issue_secret", webui_secret)
     if hasattr(model, "websocket_requires_token"):
         setattr(model, "websocket_requires_token", True)
+    for legacy_key in ("token", "token_issue_secret", "tokenIssueSecret"):
+        if hasattr(model, legacy_key):
+            setattr(model, legacy_key, "")
     setattr(config.channels, "websocket", model.model_dump(by_alias=True, exclude_none=True))
     return True
 

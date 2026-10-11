@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from loguru import logger as default_logger
 
 from nanobot.config.loader import get_config_path
+from nanobot.webui.gateway_auth import AccessController
 from nanobot.webui.gateway_endpoint import WebUIGatewayEndpoint
 from nanobot.webui.gateway_tokens import GatewayTokenStore
 from nanobot.webui.ingress_policy import DEFAULT_WEBUI_INGRESS_POLICY, WebUIIngressPolicy
@@ -49,6 +50,7 @@ class GatewayServices:
     local_trigger_store: LocalTriggerStore | None
     cron_pending_job_ids: Callable[[str], set[str]] | None
     local_trigger_pending_ids: Callable[[str], set[str]] | None
+    access: AccessController
 
 
 def build_gateway_services(
@@ -89,6 +91,8 @@ def build_gateway_services(
         refresh_runtime_config=refresh_runtime_config,
     )
     tokens = GatewayTokenStore()
+    access = AccessController.from_data_dir(settings.config.path.parent, log=logger)
+    access.attach_token_store(tokens)
     ingress = DEFAULT_WEBUI_INGRESS_POLICY
     minimum_frame_bytes = ingress.minimum_full_policy_frame_bytes()
     if config.max_message_bytes < minimum_frame_bytes:
@@ -125,6 +129,7 @@ def build_gateway_services(
         runtime_capabilities_overrides=runtime_capabilities_overrides,
         bus=bus,
         tokens=tokens,
+        access=access,
         media=media,
         ingress=ingress,
         workspaces=workspaces,
@@ -145,7 +150,8 @@ def build_gateway_services(
         discard_session=discard_session,
         log=logger,
     )
-    endpoint = WebUIGatewayEndpoint(config=config, http=http, tokens=tokens)
+    endpoint = WebUIGatewayEndpoint(config=config, http=http, tokens=tokens, access=access)
+    access.attach_endpoint(endpoint)
     return GatewayServices(
         http=http,
         endpoint=endpoint,
@@ -162,4 +168,5 @@ def build_gateway_services(
         local_trigger_store=local_trigger_store,
         cron_pending_job_ids=cron_pending_job_ids,
         local_trigger_pending_ids=local_trigger_pending_ids,
+        access=access,
     )

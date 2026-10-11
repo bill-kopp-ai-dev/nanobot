@@ -87,7 +87,7 @@ def launch_tui(
     chat_id = _initial_tui_chat_id(session_id)
     tui_workspace = _initial_tui_workspace(workspace_override)
     command = resolve_tui_command()
-    base_url, bootstrap_secret = _tui_gateway_connection(config)
+    base_url, _bootstrap_secret_unused = _tui_gateway_connection(config)
     gateway: _GatewayHandle | None = None
     process: subprocess.Popen[Any] | None = None
     try:
@@ -104,6 +104,7 @@ def launch_tui(
                     config.gateway.port,
                 ),
                 "NANOBOT_TUI_API_URL": base_url,
+                "NANOBOT_TUI_LOGIN_URL": f"{base_url}/auth/login",
                 "NANOBOT_TUI_MODEL": _model_display(config)[0],
                 "NANOBOT_TUI_MODEL_PRESET": config.agents.defaults.model_preset or "default",
                 "NANOBOT_TUI_WORKSPACE": str(tui_workspace),
@@ -119,10 +120,11 @@ def launch_tui(
                 ),
             }
         )
-        if bootstrap_secret:
-            env["NANOBOT_TUI_BOOTSTRAP_SECRET"] = bootstrap_secret
-        else:
-            env.pop("NANOBOT_TUI_BOOTSTRAP_SECRET", None)
+        # The TUI obtains a short-lived session via the new login endpoint; the
+        # password is prompted interactively by the TUI itself and never
+        # crosses this process boundary. The legacy env-var is cleared to
+        # avoid accidental reuse by a stale bun build.
+        env.pop("NANOBOT_TUI_BOOTSTRAP_SECRET", None)
         if chat_id:
             env["NANOBOT_TUI_CHAT_ID"] = chat_id
         else:
@@ -420,6 +422,7 @@ def _ensure_gateway(
     )
 
     base_url, _bootstrap_secret = _tui_gateway_connection(config)
+    _ = _bootstrap_secret  # retained for legacy callers; the new model does not use it
     instance = GatewayInstance.resolve(
         config_path=config_path,
         workspace=workspace_override,
@@ -505,7 +508,13 @@ def _ensure_gateway(
 
 
 def _tui_gateway_connection(config: Config) -> tuple[str, str]:
-    """Read the small bootstrap subset without importing the WebSocket runtime."""
+    """Read the gateway base URL without consulting any secret.
+
+    Returns ``(base_url, "")``; the empty second element is preserved for
+    callers that previously expected a shared bootstrap secret. The TUI now
+    authenticates with the instance password via the new ``/auth/login``
+    endpoint, so the gateway URL is the only value it needs up front.
+    """
     raw: object = getattr(config.channels, "websocket", None)
     settings = cast(dict[str, Any], raw) if isinstance(raw, dict) else {}
     host = _host_for_local_browser(str(settings.get("host") or "127.0.0.1"))
@@ -513,13 +522,7 @@ def _tui_gateway_connection(config: Config) -> tuple[str, str]:
         port = int(settings.get("port") or 8765)
     except (TypeError, ValueError):
         port = 8765
-    secret = str(
-        settings.get("tokenIssueSecret")
-        or settings.get("token_issue_secret")
-        or settings.get("token")
-        or ""
-    ).strip()
-    return f"http://{host}:{port}", secret
+    return f"http://{host}:{port}", ""
 
 
 def _websocket_chat_id(session_id: str) -> str | None:

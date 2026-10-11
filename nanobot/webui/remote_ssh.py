@@ -65,6 +65,9 @@ def transport_arguments(profile: RemoteProfile, remote_port: int, known_hosts: P
 _PROBE_PREFIX = b"\x1eNANOBOT_REMOTE:"
 
 # Fixed program, quoted as one shell argument. No user-supplied shell commands.
+# The probe only returns non-secret metadata. The remote browser authenticates
+# over the tunnel by entering the single instance password on the WebUI sign-in
+# page; the gateway never sends the password over SSH.
 _PROBE = r'''
 import json, os, pathlib, socket, sys
 def emit(value):
@@ -73,25 +76,25 @@ try:
     path = pathlib.Path(sys.argv[1]).expanduser()
     data = json.loads(path.read_text())
     ws = data.get("channels", {}).get("websocket", {})
-    secret = ws.get("tokenIssueSecret") or ws.get("token_issue_secret") or ws.get("token")
     if not ws.get("enabled"):
         raise ValueError("webui_disabled")
-    if not isinstance(secret, str) or not secret.strip() or "${" in secret:
-        raise ValueError("webui_auth_required")
     if ws.get("publicWsUrl") or ws.get("public_ws_url"):
         raise ValueError("public_ws_unsupported")
     if ws.get("trustedProxyAuth") or ws.get("trusted_proxy_auth"):
         raise ValueError("incompatible_gateway")
-    emit({"port": ws.get("port", 8765), "secret": secret,
-                      "token_issue_path": ws.get("tokenIssuePath") or ws.get("token_issue_path") or "",
-                      "hostname": socket.gethostname(), "config_path": str(path)})
+    verifier = path.parent / "auth" / "verifier.json"
+    if not verifier.is_file():
+        raise ValueError("auth_required")
+    emit({"port": ws.get("port", 8765),
+                      "hostname": socket.gethostname(), "config_path": str(path),
+                      "auth_required": True})
 except FileNotFoundError:
     emit({"error": "config_not_found"})
 except PermissionError:
     emit({"error": "config_permission"})
 except ValueError as e:
     code = str(e)
-    emit({"error": code if code in {"webui_disabled", "webui_auth_required", "public_ws_unsupported", "incompatible_gateway"} else "config_invalid"})
+    emit({"error": code if code in {"webui_disabled", "auth_required", "public_ws_unsupported", "incompatible_gateway"} else "config_invalid"})
 except (AttributeError, TypeError):
     emit({"error": "config_invalid"})
 '''
@@ -225,9 +228,12 @@ async def run_check(
 
 async def probe(profile: RemoteProfile, known_hosts: Path | None = None) -> dict[str, Any]:
     data = await run_check(profile, _PROBE, known_hosts)
-    if (not isinstance(data.get("secret"), str) or not data["secret"]
-            or type(data.get("port")) is not int or not 1 <= data["port"] <= 65535):
+    if type(data.get("port")) is not int or not 1 <= data["port"] <= 65535:
         raise RemoteError("probe_failed")
+    # Drop any pre-0.1.0 secret field from older peers; the new contract
+    # never carries the password.
+    data.pop("secret", None)
+    data.pop("token_issue_path", None)
     return data
 
 

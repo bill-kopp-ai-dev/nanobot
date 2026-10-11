@@ -16,47 +16,8 @@ import typer
 
 from nanobot.utils.helpers import _write_text_atomic  # pyright: ignore[reportPrivateUsage]
 
-app = typer.Typer(help="MCP Docker operator administration and restoration")
+app = typer.Typer(help="MCP Docker administration and restoration")
 _ID = re.compile(r"[a-z][a-z0-9-]{0,39}\Z")
-
-
-@app.command("operator-init")
-def operator_init(
-    config: Path | None = typer.Option(None, "--config", help="Path to this instance's config.json"),
-) -> None:
-    """Create the instance-local operator credential (one-time setup)."""
-    from nanobot.config.loader import get_config_path
-    from nanobot.mcp_docker.operator import OperatorCredential
-
-    path = (config or get_config_path()).expanduser().resolve(strict=False)
-    password = typer.prompt("Operator password", hide_input=True, confirmation_prompt=True)
-    try:
-        OperatorCredential(path.parent).set_password(password)
-    except (PermissionError, ValueError) as exc:
-        typer.echo(f"Operator initialization refused: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    typer.echo("Operator credential initialized")
-
-
-@app.command("operator-rotate")
-def operator_rotate(
-    config: Path | None = typer.Option(None, "--config", help="Path to this instance's config.json"),
-    recover: bool = typer.Option(False, "--recover", help="Local VPS recovery when old password is lost"),
-) -> None:
-    """Rotate the instance-local operator credential."""
-    from nanobot.config.loader import get_config_path
-    from nanobot.mcp_docker.operator import OperatorCredential
-
-    path = (config or get_config_path()).expanduser().resolve(strict=False)
-    credential = OperatorCredential(path.parent)
-    current = None if recover else typer.prompt("Current operator password", hide_input=True)
-    password = typer.prompt("New operator password", hide_input=True, confirmation_prompt=True)
-    try:
-        credential.set_password(password, current_password=current, recover=recover)
-    except (PermissionError, ValueError) as exc:
-        typer.echo(f"Operator rotation refused: {exc}", err=True)
-        raise typer.Exit(1) from exc
-    typer.echo("Operator credential rotated")
 
 
 @app.command("doctor")

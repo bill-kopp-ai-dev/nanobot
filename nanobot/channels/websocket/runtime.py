@@ -16,10 +16,13 @@ from typing import TYPE_CHECKING, Any, Self, TypeGuard, cast
 from urllib.parse import urlsplit, urlunsplit
 from weakref import WeakSet
 
+from aiohttp import WSMsgType, web
 from pydantic import Field, PrivateAttr, field_validator, model_validator
-from websockets.asyncio.server import Server, ServerConnection, serve, unix_serve
+from websockets.asyncio.server import ServerConnection
+from websockets.datastructures import Headers
 from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request as WsRequest
+from websockets.http11 import Response as WsResponse
 
 from nanobot.bus.events import (
     OUTBOUND_META_AGENT_UI,
@@ -34,6 +37,7 @@ from nanobot.session.webui_turns import (
     websocket_turn_transcript_persistence_failed,
 )
 from nanobot.webui.gateway_services import GatewayServices
+from nanobot.webui.http_utils import is_trusted_proxy_peer as _is_trusted_proxy_peer
 from nanobot.webui.http_utils import (
     normalize_config_path as _normalize_config_path,
 )
@@ -56,13 +60,11 @@ from nanobot.webui.outbound_wire import (
 )
 from nanobot.webui.session_identity import is_valid_webui_chat_id
 from nanobot.webui.transcript import WEBUI_TRANSCRIPT_INCOMPLETE_KEY
-from nanobot.webui.websocket_logging import websockets_server_logger
 
 if TYPE_CHECKING:
     from nanobot.bus.outbound_events import ProgressEvent
 
-# Plain HTTP WebUI routes also run through websockets.process_request.
-_WEBUI_HTTP_OPEN_TIMEOUT_S = 360.0
+# HTTP and WebSocket routes share one aiohttp listener.
 _LISTENER_CHECK_INTERVAL_S = 0.5
 _LISTENER_STABLE_AFTER_S = 30.0
 _LISTENER_RESTART_BACKOFF_S = (1.0, 2.0, 4.0, 8.0, 16.0, 30.0)
@@ -73,6 +75,80 @@ _OUTBOUND_QUEUE_MAX_FRAMES = 256
 _OUTBOUND_QUEUE_MAX_BYTES = 8 * 1024 * 1024
 _OUTBOUND_SEND_TIMEOUT_S = 10.0
 _OUTBOUND_CLOSE_TIMEOUT_S = 1.0
+
+
+class _AiohttpWebSocketConnection:
+    """Small compatibility adapter for the gateway's existing WS runtime."""
+
+    def __init__(self, request: WsRequest, remote_address: Any, transport: Any) -> None:
+        self.request = request
+        self.remote_address = remote_address
+        self.transport = transport
+        self.ws: web.WebSocketResponse | None = None
+
+    def respond(self, status: int, text: str) -> WsResponse:
+        from email.utils import formatdate
+        from http import HTTPStatus
+
+        body = text.encode("utf-8")
+        headers = Headers(
+            [
+                ("Date", formatdate(usegmt=True)),
+                ("Content-Type", "text/plain; charset=utf-8"),
+                ("Content-Length", str(len(body))),
+            ]
+        )
+        return WsResponse(status, HTTPStatus(status).phrase, headers, body)
+
+    async def send(self, data: str | bytes) -> None:
+        websocket = self.ws
+        if websocket is None:
+            raise RuntimeError("WebSocket handshake has not completed")
+        if isinstance(data, bytes):
+            await websocket.send_bytes(data)
+        else:
+            await websocket.send_str(data)
+
+    async def close(self, code: int = 1000, reason: str = "") -> None:
+        if self.ws is not None:
+            await self.ws.close(code=code, message=reason.encode("utf-8"))
+
+    def __aiter__(self) -> Any:
+        async def messages() -> Any:
+            if self.ws is None:
+                return
+            async for message in self.ws:
+                if message.type == WSMsgType.TEXT:
+                    yield message.data
+                elif message.type == WSMsgType.BINARY:
+                    yield message.data
+                elif message.type in {WSMsgType.CLOSE, WSMsgType.CLOSED, WSMsgType.ERROR}:
+                    break
+
+        return messages()
+
+
+class _AiohttpGatewayListener:
+    """Own an aiohttp runner/site and expose the lifecycle used by the channel."""
+
+    def __init__(self, runner: web.AppRunner, site: Any) -> None:
+        self.runner = runner
+        self.site = site
+
+    @property
+    def sockets(self) -> list[socket.socket]:
+        server = getattr(self.site, "_server", None)
+        return list(server.sockets or ()) if server is not None else []
+
+    def is_serving(self) -> bool:
+        server = getattr(self.site, "_server", None)
+        return bool(server and server.is_serving())
+
+    async def close(self) -> None:
+        await self.site.stop()
+
+    async def wait_closed(self) -> None:
+        await self.runner.cleanup()
 
 # A bind conflict or invalid address needs operator action and must not be
 # retried forever. These errors can be caused by a transient local network
@@ -122,7 +198,7 @@ def _is_routing_assertion_header(value: str) -> bool:
 
 
 class TrustedProxyAuthConfig(Base):
-    """Authentication assertions accepted from explicitly trusted proxy peers."""
+    """Trusted proxy peer metadata; it never replaces instance-password auth."""
 
     trusted_peer_cidrs: list[str] = Field(min_length=1)
     assertion_header: str = Field(min_length=1)
@@ -176,18 +252,14 @@ class WebSocketConfig(Base):
 
     Clients connect with URLs like ``ws://{host}:{port}{path}?client_id=...&token=...``.
     - ``client_id``: Used for ``allow_from`` authorization; if omitted, a value is generated and logged.
-    - ``token``: If non-empty, the ``token`` query param may match this static secret; short-lived tokens
-      from ``token_issue_path`` are also accepted.
-    - ``token_issue_path``: If non-empty, **GET** (HTTP/1.1) to this path returns JSON
-      ``{"token": "...", "expires_in": <seconds>}``; use ``?token=...`` when opening the WebSocket.
-      Must differ from ``path`` (the WS upgrade path). If the client runs in the **same process** as
-      nanobot and shares the asyncio loop, use a thread or async HTTP client for GET—do not call
-      blocking ``urllib`` or synchronous ``httpx`` from inside a coroutine.
-    - ``token_issue_secret``: If non-empty, token requests must send ``Authorization: Bearer <secret>`` or
-      ``X-Nanobot-Auth: <secret>``.
+    - ``token`` and ``token_issue_secret``: Legacy fields accepted for config
+      loading only; neither is used for authentication.
+    - ``token_issue_path``: Legacy route is retained only to return HTTP 410.
     - ``public_ws_url``: Optional public WebSocket endpoint returned by WebUI bootstrap instead of
       deriving one from proxy request headers. Its path must match ``path``.
-    - ``websocket_requires_token``: If True, the handshake must include a valid token (static or issued and not expired).
+    - WebSocket handshakes always require a valid, short-lived token issued to
+      an authenticated session, regardless of the legacy
+      ``websocket_requires_token`` setting.
     - Each connection has its own session: a unique ``chat_id`` maps to the agent session internally.
     - ``media`` field in outbound messages contains local filesystem paths; remote clients need a
       shared filesystem or an HTTP file server to access these files.
@@ -199,14 +271,20 @@ class WebSocketConfig(Base):
     unix_socket_path: str = ""
     path: str = "/"
     public_ws_url: str = ""
-    token: str = ""
-    token_issue_path: str = ""
-    token_issue_secret: str = ""
     trusted_proxy_auth: TrustedProxyAuthConfig | None = None
     token_ttl_s: int = Field(default=300, ge=30, le=86_400)
     websocket_requires_token: bool = True
     allow_from: list[str] = Field(default_factory=lambda: ["*"])
     streaming: bool = True
+    # Legacy plaintext secret fields are accepted by older configs but never
+    # consulted by the gateway. They are excluded from ``model_dump`` so the
+    # saved config does not surface them, but kept on the model so old
+    # ``config.json`` files load without errors. ``token_issue_path`` is
+    # preserved verbatim so custom paths in pre-0.1.0 configs continue to
+    # surface as 410 Gone from the handler.
+    token: str = Field(default="", exclude=True)
+    token_issue_path: str = ""
+    token_issue_secret: str = Field(default="", exclude=True)
     # Default 36 MB, upper 40 MB: supports up to 4 images at ~6 MB each after
     # client-side Worker normalization (see webui Composer). 4 × 6 MB × 1.37
     # (base64 overhead) + envelope framing stays under 36 MB; the 40 MB ceiling
@@ -280,18 +358,6 @@ class WebSocketConfig(Base):
         if _normalize_config_path(self.token_issue_path) == _normalize_config_path(self.path):
             raise ValueError("token_issue_path must differ from path (the WebSocket upgrade path)")
         return self
-
-    @model_validator(mode="after")
-    def wildcard_host_requires_auth(self) -> Self:
-        if self.host not in ("0.0.0.0", "::"):
-            return self
-        if self.token.strip() or self.token_issue_secret.strip() or self.trusted_proxy_auth is not None:
-            return self
-        raise ValueError(
-            "host is 0.0.0.0 (all interfaces) but neither token, token_issue_secret, "
-            "nor trusted_proxy_auth is set — set one to prevent unauthenticated access"
-        )
-
 
 def _parse_inbound_payload(raw: str) -> str | None:
     """Parse a client frame into text; return None for empty or unrecognized content."""
@@ -387,7 +453,7 @@ class WebSocketChannel(BaseChannel):
         self._webui_connections = gateway.endpoint.webui_connections
         self._stop_event: asyncio.Event | None = None
         self._server_task: asyncio.Task[None] | None = None
-        self._server: Server | None = None
+        self._server: _AiohttpGatewayListener | None = None
         self._connection_outbound: dict[ServerConnection, _ConnectionOutbound] = {}
         self._outbound_retire_tasks: set[asyncio.Task[None]] = set()
         self._retired_connections: WeakSet[ServerConnection] = WeakSet()
@@ -559,13 +625,65 @@ class WebSocketChannel(BaseChannel):
 
     # -- HTTP dispatch ------------------------------------------------------
 
-    async def _dispatch_http(self, connection: ServerConnection, request: WsRequest) -> Any:
+    async def _dispatch_http(self, connection: Any, request: WsRequest) -> Any:
         """Compatibility proxy for the externally composed gateway endpoint."""
         return await self.gateway.endpoint.process_request(
             connection,
             request,
             is_allowed=self.is_allowed,
         )
+
+    async def _handle_aiohttp_request(self, request: web.Request) -> web.StreamResponse:
+        """Dispatch HTTP and WebSocket traffic through the unified listener."""
+        headers = Headers(request.headers.items())
+        ws_request = WsRequest(request.raw_path, headers)
+        setattr(ws_request, "method", request.method)
+        if request.can_read_body:
+            setattr(ws_request, "body", await request.read())
+        remote = request.transport.get_extra_info("peername") if request.transport else None
+        connection = _AiohttpWebSocketConnection(ws_request, remote, request.transport)
+        request_scheme = request.scheme
+        forwarded_proto = headers.get("X-Forwarded-Proto", "").strip().casefold()
+        if (
+            forwarded_proto in {"http", "https"}
+            and _is_trusted_proxy_peer(connection, self.config)
+        ):
+            request_scheme = forwarded_proto
+        setattr(ws_request, "scheme", request_scheme)
+        response = await self.gateway.endpoint.process_request(
+            connection,  # type: ignore[arg-type]
+            ws_request,
+            is_allowed=self.is_allowed,
+        )
+        if isinstance(response, WsResponse):
+            outgoing = web.Response(status=response.status_code, body=response.body)
+            for name, value in response.headers.raw_items():
+                if name.casefold() in {"content-length", "date", "connection", "transfer-encoding"}:
+                    continue
+                outgoing.headers.add(name, value)
+            return outgoing
+        if response is not None:
+            return web.Response(status=500, text="Invalid gateway response")
+        if "websocket" not in request.headers.get("Upgrade", "").casefold():
+            return web.Response(status=404, text="Not Found")
+
+        websocket = web.WebSocketResponse(
+            max_msg_size=self.config.max_message_bytes,
+            heartbeat=min(self.config.ping_interval_s, self.config.ping_timeout_s),
+            compress=False,
+        )
+        connection.ws = websocket
+        try:
+            await websocket.prepare(request)
+            await self._connection_loop(connection)  # type: ignore[arg-type]
+        finally:
+            self.gateway.endpoint.discard_connection(connection)  # type: ignore[arg-type]
+        return websocket
+
+    def _build_aiohttp_app(self) -> web.Application:
+        app = web.Application(client_max_size=64 * 1024)
+        app.router.add_route("*", "/{tail:.*}", self._handle_aiohttp_request)
+        return app
 
     def _authorize_websocket_handshake(
         self,
@@ -603,7 +721,7 @@ class WebSocketChannel(BaseChannel):
             raise
 
     @classmethod
-    def _listener_is_serving(cls, server: Server) -> bool:
+    def _listener_is_serving(cls, server: _AiohttpGatewayListener) -> bool:
         """Return whether every bound socket still has a live listen capability."""
         try:
             sockets = server.sockets
@@ -627,7 +745,7 @@ class WebSocketChannel(BaseChannel):
             or winerror in _RECOVERABLE_LISTENER_WINERRORS
         )
 
-    async def _wait_for_listener_loss(self, server: Server) -> None:
+    async def _wait_for_listener_loss(self, server: _AiohttpGatewayListener) -> None:
         """Wait for shutdown or raise when the serving socket disappears."""
         assert self._stop_event is not None
         while not self._stop_event.is_set():
@@ -642,8 +760,20 @@ class WebSocketChannel(BaseChannel):
                         "WebSocket listener is no longer accepting connections"
                     )
 
-    async def _close_server(self, server: Server, socket_path: str) -> None:
-        server.close()
+    async def _watch_credential_revision(self, stop_event: asyncio.Event) -> None:
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=1.0)
+                return
+            except TimeoutError:
+                try:
+                    self.gateway.access.refresh_credential_revision()
+                    self.gateway.endpoint.close_expired_session_connections()
+                except OSError:
+                    self.logger.exception("failed to inspect instance credential revision")
+
+    async def _close_server(self, server: _AiohttpGatewayListener, socket_path: str) -> None:
+        await server.close()
         try:
             await server.wait_closed()
         except OSError as exc:
@@ -679,8 +809,7 @@ class WebSocketChannel(BaseChannel):
         self.gateway.http.remote_instances.resume()
         from nanobot.utils.logging_bridge import redirect_lib_logging
 
-        redirect_lib_logging("websockets", level="WARNING")
-        ws_logger = websockets_server_logger()
+        redirect_lib_logging("aiohttp", level="WARNING")
 
         stop_event = asyncio.Event()
         self._stop_event = stop_event
@@ -688,53 +817,37 @@ class WebSocketChannel(BaseChannel):
         ssl_context = self._build_ssl_context()
         scheme = "wss" if ssl_context else "ws"
 
-        async def process_request(
-            connection: ServerConnection,
-            request: WsRequest,
-        ) -> Any:
-            return await self._dispatch_http(connection, request)
-
-        async def handler(connection: ServerConnection) -> None:
-            await self._connection_loop(connection)
-
         async def runner() -> None:
             socket_path = self.config.unix_socket_path
             failures = 0
             while not stop_event.is_set():
-                server: Server | None = None
+                server: _AiohttpGatewayListener | None = None
+                runner_app: web.AppRunner | None = None
+                credential_watch: asyncio.Task[None] | None = None
                 was_serving = False
                 started_at = 0.0
                 try:
+                    app = self._build_aiohttp_app()
+                    runner_app = web.AppRunner(app, access_log=None, shutdown_timeout=5.0)
+                    await runner_app.setup()
                     if socket_path:
                         path_obj = Path(socket_path)
                         path_obj.parent.mkdir(parents=True, exist_ok=True)
                         with suppress(FileNotFoundError):
                             path_obj.unlink()
-                        server = await unix_serve(
-                            handler,
-                            socket_path,
-                            process_request=process_request,
-                            open_timeout=_WEBUI_HTTP_OPEN_TIMEOUT_S,
-                            max_size=self.config.max_message_bytes,
-                            ping_interval=self.config.ping_interval_s,
-                            ping_timeout=self.config.ping_timeout_s,
-                            logger=ws_logger,
-                        )
+                        site: Any = web.UnixSite(runner_app, socket_path)
+                        await site.start()
                         with suppress(OSError):
                             path_obj.chmod(0o600)
                     else:
-                        server = await serve(
-                            handler,
+                        site = web.TCPSite(
+                            runner_app,
                             self.config.host,
                             self.config.port,
-                            process_request=process_request,
-                            open_timeout=_WEBUI_HTTP_OPEN_TIMEOUT_S,
-                            max_size=self.config.max_message_bytes,
-                            ping_interval=self.config.ping_interval_s,
-                            ping_timeout=self.config.ping_timeout_s,
-                            ssl=ssl_context,
-                            logger=ws_logger,
+                            ssl_context=ssl_context,
                         )
+                        await site.start()
+                    server = _AiohttpGatewayListener(runner_app, site)
 
                     self._server = server
                     was_serving = True
@@ -745,6 +858,10 @@ class WebSocketChannel(BaseChannel):
                     self._running = True
                     started_at = asyncio.get_running_loop().time()
                     self._log_listener_ready(scheme)
+                    credential_watch = asyncio.create_task(
+                        self._watch_credential_revision(stop_event),
+                        name="webui-credential-revision-watch",
+                    )
                     await self._wait_for_listener_loss(server)
                 except asyncio.CancelledError:
                     raise
@@ -778,8 +895,15 @@ class WebSocketChannel(BaseChannel):
                         pass
                 finally:
                     self._running = False
+                    if credential_watch is not None:
+                        credential_watch.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await credential_watch
                     if server is not None:
                         await self._close_server(server, socket_path)
+                    elif runner_app is not None:
+                        with suppress(Exception):
+                            await runner_app.cleanup()
                     if self._server is server:
                         self._server = None
 
@@ -827,6 +951,9 @@ class WebSocketChannel(BaseChannel):
             await self._hydrate_after_subscribe(default_chat_id)
 
             async for raw in connection:
+                if not self.gateway.endpoint.validate_connection_session(connection):
+                    await connection.close(code=1008, reason="session revoked")
+                    return
                 if isinstance(raw, bytes):
                     try:
                         raw = raw.decode("utf-8")

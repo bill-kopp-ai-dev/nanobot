@@ -27,6 +27,10 @@ from websockets.exceptions import WebSocketException
 from websockets.typing import Origin
 from yarl import URL
 
+from nanobot.access.sessions import (
+    SESSION_COOKIE_NAME,
+    SESSION_CSRF_HEADER,
+)
 from nanobot.webui.client_contract import assess_webui_contract, compatibility_error
 from nanobot.webui.local_client_assets import LocalClientAssets
 from nanobot.webui.remote_ssh import (
@@ -57,13 +61,17 @@ class _Grant:
 
 
 class RemoteProxy:
-    """Owns the public listener, local credentials and a private SSH transport."""
+    """Owns the public listener, local credentials and a private SSH transport.
 
-    def __init__(self, tunnel: Tunnel, secret: str, gateway_id: str, issue_path: str) -> None:
+    The proxy authenticates to the remote gateway with the instance password
+    once and caches the resulting session cookie. It then forwards upstream
+    requests as that session and never re-exposes the password to the browser.
+    """
+
+    def __init__(self, tunnel: Tunnel, password: str, gateway_id: str, issue_path: str) -> None:
         self.tunnel = tunnel
         self.secret = secrets.token_urlsafe(32)
-        self.port = 0
-        self._remote_secret = secret
+        self._remote_password = password
         self._gateway_id = gateway_id
         self._issue_path = issue_path.rstrip("/") or ""
         # Reload caches are scoped to WS pathname. A fresh process must not
@@ -75,16 +83,23 @@ class RemoteProxy:
         self._media_cache: OrderedDict[str, str] = OrderedDict()
         self._tasks: set[asyncio.Task[Any]] = set()
         self._bootstrap_lock = asyncio.Lock()
+        self._login_lock = asyncio.Lock()
         self._enabled = True
         self._runner: web.AppRunner | None = None
+        self.port = 0
         self.assets = LocalClientAssets()
+        # Cached upstream session cookie + CSRF token from POST /auth/login.
+        # Both are cleared on pause/close/resume so the next upstream request
+        # re-authenticates against the live instance.
+        self._session_cookie = ""
+        self._csrf_token = ""
 
     @classmethod
     async def open(
-        cls, tunnel: Tunnel, secret: str, gateway_id: str, issue_path: str = "",
+        cls, tunnel: Tunnel, password: str, gateway_id: str, issue_path: str = "",
         *, local_port: int = 0, excluded_ports: set[int] | None = None,
     ) -> RemoteProxy:
-        self = cls(tunnel, secret, gateway_id, issue_path)
+        self = cls(tunnel, password, gateway_id, issue_path)
         if not self.assets.available:
             raise RemoteError("local_webui_unavailable")
         listener = _listen(local_port, excluded_ports or set())
@@ -109,17 +124,21 @@ class RemoteProxy:
     def origin(self) -> str:
         return f"http://127.0.0.1:{self.port}"
 
-    def resume(self, secret: str, gateway_id: str, issue_path: str = "") -> None:
+    def resume(self, password: str, gateway_id: str, issue_path: str = "") -> None:
         if gateway_id != self._gateway_id:
             self._ws_path = "/remote-session/" + secrets.token_urlsafe(18)
             self._api.clear()
             self._ws.clear()
             self._media_cipher = Fernet(Fernet.generate_key())
             self._media_cache.clear()
-        self._remote_secret = secret
+        self._remote_password = password
         self._gateway_id = gateway_id
         self._issue_path = issue_path.rstrip("/") or ""
         self._enabled = True
+        # The cached session belongs to the prior remote session; force a
+        # fresh login on the next upstream request.
+        self._session_cookie = ""
+        self._csrf_token = ""
 
     async def pause(self) -> None:
         self._enabled = False
@@ -129,6 +148,8 @@ class RemoteProxy:
         await asyncio.gather(*tasks, return_exceptions=True)
         self._api.clear()
         self._ws.clear()
+        self._session_cookie = ""
+        self._csrf_token = ""
         await self.tunnel.pause()
 
     async def close(self) -> None:
@@ -136,7 +157,9 @@ class RemoteProxy:
         if self._runner is not None:
             await self._runner.cleanup()
             self._runner = None
-        self._remote_secret = ""
+        self._remote_password = ""
+        self._session_cookie = ""
+        self._csrf_token = ""
         self._media_cipher = Fernet(Fernet.generate_key())
         self._media_cache.clear()
         await self.tunnel.close()
@@ -215,6 +238,67 @@ class RemoteProxy:
     def _upstream(self, path: str) -> str:
         return f"http://127.0.0.1:{self.tunnel.port}{path}"
 
+    def _session_headers(self, *, with_csrf: bool = False) -> dict[str, str]:
+        """Headers required to authenticate an upstream call.
+
+        Always passes the cached session cookie. State-changing requests also
+        receive the CSRF header so the upstream's CSRF guard can match it.
+        """
+        headers: dict[str, str] = {}
+        if self._session_cookie:
+            headers["Cookie"] = f"{SESSION_COOKIE_NAME}={self._session_cookie}"
+        if with_csrf and self._csrf_token:
+            headers[SESSION_CSRF_HEADER] = self._csrf_token
+        return headers
+
+    async def _ensure_session(self, client: httpx.AsyncClient) -> None:
+        """Acquire the upstream session cookie if it is not yet cached.
+
+        Called under ``_login_lock`` so concurrent upstream requests share a
+        single login. The CSRF token returned with the session cookie is
+        cached alongside the cookie. Authentication failures surface as 502
+        without reflecting the upstream's body or the password.
+        """
+        if self._session_cookie:
+            return
+        async with self._login_lock:
+            if self._session_cookie:
+                return
+            response = await client.post(
+                self._upstream("/auth/login"),
+                json={"password": self._remote_password},
+                headers={
+                    "Host": f"127.0.0.1:{self.port}",
+                    "Origin": self.origin,
+                },
+            )
+            if response.status_code != 200:
+                raise web.HTTPBadGateway(text="Remote authentication unavailable")
+            try:
+                payload = response.json()
+            except (json.JSONDecodeError, ValueError):
+                raise web.HTTPBadGateway(text="Remote authentication unavailable") from None
+            if not isinstance(payload, dict):
+                raise web.HTTPBadGateway(text="Remote authentication unavailable")
+            data = cast(dict[str, Any], payload)
+            session_id = data.get("session_id")
+            csrf_token = data.get("csrf_token")
+            if not isinstance(session_id, str) or not session_id:
+                raise web.HTTPBadGateway(text="Remote authentication unavailable")
+            if not isinstance(csrf_token, str) or not csrf_token:
+                raise web.HTTPBadGateway(text="Remote authentication unavailable")
+            # Prefer the cookie header the upstream actually issued, fall back
+            # to the JSON body value when the upstream elided Set-Cookie.
+            cookie_value = session_id
+            for raw in response.headers.get("Set-Cookie", "").split(","):
+                pair = raw.strip().split(";", 1)[0]
+                name, _, value = pair.partition("=")
+                if name.strip() == SESSION_COOKIE_NAME and value.strip():
+                    cookie_value = value.strip()
+                    break
+            self._session_cookie = cookie_value
+            self._csrf_token = csrf_token
+
     async def _bootstrap(self) -> web.Response:
         now = time.monotonic()
         for grants in (self._api, self._ws):
@@ -223,9 +307,31 @@ class RemoteProxy:
             if len(grants) >= _MAX_CAPABILITIES:
                 raise web.HTTPTooManyRequests()
         async with httpx.AsyncClient(trust_env=False, timeout=20) as client:
-            response = await client.get(self._upstream("/webui/bootstrap"), headers={
-                "X-Nanobot-Auth": self._remote_secret, "Host": f"127.0.0.1:{self.port}",
-            })
+            await self._ensure_session(client)
+            bootstrap_headers = {
+                **self._session_headers(),
+                "Host": f"127.0.0.1:{self.port}",
+            }
+            response = await client.get(
+                self._upstream("/webui/bootstrap"), headers=bootstrap_headers,
+            )
+            if response.status_code == 401:
+                # The cached session expired or was revoked server-side.
+                # Re-authenticate once and retry. On a second 401 the upstream
+                # is genuinely rejecting the new session; surface 502 instead
+                # of leaking upstream details.
+                self._session_cookie = ""
+                self._csrf_token = ""
+                await self._ensure_session(client)
+                bootstrap_headers = {
+                    **self._session_headers(),
+                    "Host": f"127.0.0.1:{self.port}",
+                }
+                response = await client.get(
+                    self._upstream("/webui/bootstrap"), headers=bootstrap_headers,
+                )
+                if response.status_code == 401:
+                    raise web.HTTPBadGateway(text="Remote authentication unavailable")
         if response.status_code != 200:
             raise web.HTTPBadGateway(text="Remote authentication unavailable")
         payload: object = response.json()
@@ -319,6 +425,11 @@ class RemoteProxy:
         if request.method not in {"GET", "HEAD"}:
             raise web.HTTPMethodNotAllowed(request.method, ["GET", "HEAD"])
         async with httpx.AsyncClient(trust_env=False, timeout=30) as client:
+            await self._ensure_session(client)
+            for key, value in self._session_headers(
+                with_csrf=request.method not in {"GET", "HEAD"},
+            ).items():
+                headers[key] = value
             async with client.stream(request.method, self._upstream(str(url)), headers=headers) as upstream:
                 if upstream.is_redirect:
                     raise web.HTTPBadGateway(text="Unexpected remote redirect")
@@ -360,7 +471,13 @@ class RemoteProxy:
             query = [(key, value) for key, value in request.rel_url.query.items() if key != "token"]
             query.append(("token", grant.remote))
             url = URL(f"ws://127.0.0.1:{self.port}").with_path(grant.path, encoded=True).with_query(query)
+            additional_headers = [
+                (name, value) for name, value in self._session_headers().items()
+            ]
+            # The WS upgrade request is a GET; CSRF is required for state-
+            # changing HTTP calls only and is therefore not forwarded here.
             async with connect(str(url), sock=upstream_socket, proxy=None, origin=Origin(self.origin),
+                               additional_headers=additional_headers or None,
                                max_size=_MAX_BYTES, open_timeout=20, close_timeout=2) as upstream:
                 browser = web.WebSocketResponse(max_msg_size=_MAX_BYTES, heartbeat=30)
                 await browser.prepare(request)

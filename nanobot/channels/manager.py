@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import inspect
 import os
-import stat
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from contextlib import suppress
@@ -88,6 +87,10 @@ def _docker_websocket_bind_config(name: str, section: Any) -> Any:
 
     Compose publishes this listener on host loopback. The process inside the
     container must listen on all interfaces for Docker port forwarding to work.
+
+    Percival 0.1.0 no longer reads a static WebUI secret. Authentication is
+    driven by the single human password persisted by ``nanobot auth init``;
+    bootstrap issues short-lived tokens bound to an active session.
     """
     if name != "websocket":
         return section
@@ -98,31 +101,11 @@ def _docker_websocket_bind_config(name: str, section: Any) -> Any:
         raise ValueError("PERCIVAL_DOCKER_GATEWAY_HOST must be 0.0.0.0 or :: when set")
     values = dict(section or {})
     if values.get("enabled", True):
-        secret_path = os.environ.get("PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE", "")
-        if not secret_path:
-            raise ValueError(
-                "PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE must be set for Docker WebUI"
-            )
-        secret_file = Path(secret_path).expanduser()
-        try:
-            metadata = secret_file.stat()
-            if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
-                raise ValueError(
-                    "Docker WebUI token-issuance secret file must be a regular file "
-                    "with owner-only permissions"
-                )
-            token_issue_secret = secret_file.read_text(encoding="utf-8").strip()
-        except OSError as exc:
-            raise ValueError("Docker WebUI token-issuance secret file is unavailable") from exc
-        if not token_issue_secret:
-            raise ValueError("Docker WebUI token-issuance secret file is empty")
         values["host"] = host
-        # Config models iterate using aliases (``tokenIssueSecret``), while
-        # plain dictionaries in tests/config adapters use field names. Update
-        # the key already present so model validation cannot prefer a stale
-        # alias value over this runtime-only secret-file override.
-        secret_key = "tokenIssueSecret" if "tokenIssueSecret" in values else "token_issue_secret"
-        values[secret_key] = token_issue_secret
+        # Drop any legacy secret field carried over from a pre-0.1.0 config so
+        # the gateway never compares against a stale plaintext value.
+        for legacy_key in ("tokenIssueSecret", "token_issue_secret", "token"):
+            values.pop(legacy_key, None)
     return values
 
 

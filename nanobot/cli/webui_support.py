@@ -55,7 +55,6 @@ __all__ = [
     "_validate_gateway_startup",
     "_warn_webui_bind_scope",
     "_webui_browser_url",
-    "webui_bootstrap_secret",
     "_webui_build_mode_for_interactive",
     "_webui_channel_enabled",
     "_webui_display_url",
@@ -234,16 +233,11 @@ def _validate_gateway_startup(config: Config) -> str | None:
         browser_url = _webui_browser_url(config)
         webui_url = browser_url.split("/#/", 1)[0]
         console.print(Text(f"WebUI: {webui_url}", style="cyan"))
-        if browser_url != webui_url:
-            secret_key = (
-                "tokenIssueSecret"
-                if str(webui_config.get("tokenIssueSecret") or "").strip()
-                else "token"
-            )
+        if not _instance_password_configured(config_path.parent):
             console.print(
                 Text(
-                    f"If prompted, enter the WebUI password from "
-                    f"channels.websocket.{secret_key} in {config_path}.",
+                    "The WebUI is not signed in yet. Run `nanobot auth init` "
+                    "to set the single instance password, then sign in.",
                     style="dim",
                 )
             )
@@ -253,6 +247,15 @@ def _validate_gateway_startup(config: Config) -> str | None:
     console.print("Complete provider/model setup:")
     _print_model_setup_steps(config_path)
     raise typer.Exit(1)
+
+
+def _instance_password_configured(data_dir: Path) -> bool:
+    try:
+        from nanobot.access.credential import AccessCredential
+
+        return AccessCredential(data_dir).exists()
+    except Exception:
+        return False
 
 
 def _prepare_webui_bundle_for_gateway(
@@ -310,31 +313,15 @@ def _gateway_health_bind_note(host: str) -> str:
     return "" if is_loopback_host(host) else f" [dim](listening on {host})[/dim]"
 
 
-def webui_bootstrap_secret(config: Config) -> str:
-    """Return the shared local bootstrap credential for WebUI protocol clients."""
-    ws_cfg = _webui_config_dict(config)
-    return str(ws_cfg.get("tokenIssueSecret") or ws_cfg.get("token") or "").strip()
-
-
 def _webui_browser_url(config: Config) -> str:
-    from urllib.parse import quote
-
     ws_cfg = _webui_config_dict(config)
     host = _host_for_local_browser(str(ws_cfg.get("host") or "127.0.0.1"))
     port = int(ws_cfg.get("port") or 8765)
-    base_url = f"http://{host}:{port}"
-    secret = webui_bootstrap_secret(config)
-    if not secret:
-        return base_url
-    return f"{base_url}/#/?bootstrapSecret={quote(secret, safe='')}"
+    return f"http://{host}:{port}"
 
 
 def _webui_display_url(url: str) -> str:
-    marker = "bootstrapSecret="
-    if marker not in url:
-        return url
-    prefix, _ = url.split(marker, 1)
-    return f"{prefix}{marker}<redacted>"
+    return url
 
 
 def _ensure_local_webui_channel(
@@ -352,8 +339,7 @@ def _ensure_local_webui_channel(
 
     needs_enable = not model.enabled
     needs_port = port is not None and model.port != port
-    needs_secret = not model.token_issue_secret.strip() and not model.token.strip()
-    if not needs_enable and not needs_port and not needs_secret:
+    if not needs_enable and not needs_port:
         return False
 
     target_port = port if port is not None else model.port
@@ -361,12 +347,9 @@ def _ensure_local_webui_channel(
     console.print("[bold]Local WebUI setup[/bold]")
     console.print(f"  URL: [cyan]http://127.0.0.1:{target_port}[/cyan]")
     console.print("  Bind: [cyan]127.0.0.1 only[/cyan] (not exposed to your LAN)")
-    if needs_secret:
-        console.print("  WebUI password: will be generated and stored in config")
-    else:
-        console.print("  WebUI password: already stored in config")
     console.print(
-        "  LAN access requires an explicit host change plus a WebUI password in config."
+        "  Sign in uses the single instance password. "
+        "Run `nanobot auth init` to set it on first use."
     )
     _confirm_webui_action("Update the local WebUI channel in this config?", yes=yes)
 
@@ -382,11 +365,11 @@ def _ensure_local_webui_channel(
     if not model.websocket_requires_token:
         model.websocket_requires_token = True
         changed = True
-    if needs_secret:
-        import secrets
-
-        model.token_issue_secret = secrets.token_urlsafe(32)
-        changed = True
+    # Always clear any legacy plaintext secret field carried over.
+    for legacy_key in ("token", "token_issue_secret", "tokenIssueSecret"):
+        if getattr(model, legacy_key, ""):
+            setattr(model, legacy_key, "")
+            changed = True
 
     setattr(config.channels, "websocket", model.model_dump(by_alias=True, exclude_none=True))
     return changed
@@ -399,7 +382,7 @@ def _warn_webui_bind_scope(config: Config) -> None:
         return
     console.print(
         "[yellow]Warning: WebUI is configured to bind outside localhost. "
-        "Keep tokenIssueSecret set and use this only on trusted networks.[/yellow]"
+        "Expose only on trusted networks and ensure TLS/proxy controls are in place.[/yellow]"
     )
 
 
@@ -530,18 +513,18 @@ def _print_webui_manual_access(config: Config, config_path: Path, url: str) -> N
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     tunnel_host = _host_for_local_browser(parsed.hostname or "127.0.0.1")
     tunnel_url = f"{parsed.scheme}://127.0.0.1:{port}"
-    ws_cfg = _webui_config_dict(config)
-    password_key = (
-        "tokenIssueSecret" if str(ws_cfg.get("tokenIssueSecret") or "").strip() else "token"
-    )
 
     console.print()
     console.print("[bold]Open the WebUI manually[/bold]")
     console.print(f"  WebUI: [cyan]{browser_url}[/cyan]")
-    console.print(
-        "  WebUI password: "
-        f"[cyan]channels.websocket.{password_key}[/cyan] in [cyan]{config_path}[/cyan]"
-    )
+    console.print(f"  Config: [cyan]{config_path}[/cyan]")
+    if _instance_password_configured(config_path.parent):
+        console.print("  Sign in with the single instance password.")
+    else:
+        console.print(
+            "  No instance password is configured yet. "
+            "Run `nanobot auth init` on the host before opening the WebUI."
+        )
     console.print()
     console.print("If nanobot is running on another machine, create an SSH tunnel from yours:")
     console.print(

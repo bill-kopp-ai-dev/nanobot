@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import email.utils
 import gzip
-import hmac
 import http
 import ipaddress
 import json
@@ -12,10 +11,16 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Any, cast
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlsplit
 
 from websockets.datastructures import Headers
 from websockets.http11 import Response
+
+from nanobot.access.sessions import (
+    SESSION_COOKIE_NAME,
+    SESSION_CSRF_COOKIE,
+    SESSION_CSRF_HEADER,
+)
 
 QueryParams = dict[str, list[str]]
 
@@ -227,6 +232,15 @@ def is_trusted_proxy_authenticated_request(
     config: Any,
 ) -> bool:
     """Return True when a configured proxy peer presents a non-empty assertion."""
+    if not is_trusted_proxy_peer(connection, config):
+        return False
+    trusted_proxy_auth = getattr(config, "trusted_proxy_auth", None)
+    assertion_header = getattr(trusted_proxy_auth, "assertion_header", "")
+    return bool(case_insensitive_header(headers, assertion_header))
+
+
+def is_trusted_proxy_peer(connection: Any, config: Any) -> bool:
+    """Return whether the immediate peer belongs to configured proxy CIDRs."""
     trusted_proxy_auth = getattr(config, "trusted_proxy_auth", None)
     if trusted_proxy_auth is None:
         return False
@@ -234,10 +248,7 @@ def is_trusted_proxy_authenticated_request(
     if address is None:
         return False
     networks = getattr(trusted_proxy_auth, "_trusted_peer_networks", ())
-    if not any(_address_matches_network(address, network) for network in networks):
-        return False
-    assertion_header = getattr(trusted_proxy_auth, "assertion_header", "")
-    return bool(case_insensitive_header(headers, assertion_header))
+    return any(_address_matches_network(address, network) for network in networks)
 
 
 def _host_without_port(value: str) -> str:
@@ -311,14 +322,149 @@ def bearer_token(headers: Any) -> str | None:
     return None
 
 
-def issue_route_secret_matches(headers: Any, configured_secret: str) -> bool:
-    if not configured_secret:
+_COOKIE_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
+
+
+def parse_cookie_header(value: str) -> dict[str, str]:
+    """Parse a Cookie header into a name->value mapping (last value wins)."""
+    if not value:
+        return {}
+    out: dict[str, str] = {}
+    for raw_segment in value.split(";"):
+        segment = raw_segment.strip()
+        if not segment or "=" not in segment:
+            continue
+        name, _, value_part = segment.partition("=")
+        name = name.strip()
+        if not name or not _COOKIE_NAME_RE.match(name):
+            continue
+        out[name] = value_part.strip()
+    return out
+
+
+def read_session_cookie(headers: Any) -> str:
+    """Return the session cookie value, or an empty string when absent."""
+    raw = case_insensitive_header(headers, "Cookie")
+    if not raw:
+        return ""
+    cookies = parse_cookie_header(raw)
+    return cookies.get(SESSION_COOKIE_NAME, "")
+
+
+def read_csrf_cookie(headers: Any) -> str:
+    raw = case_insensitive_header(headers, "Cookie")
+    if not raw:
+        return ""
+    cookies = parse_cookie_header(raw)
+    return cookies.get(SESSION_CSRF_COOKIE, "")
+
+
+def read_csrf_header(headers: Any) -> str:
+    return case_insensitive_header(headers, SESSION_CSRF_HEADER)
+
+
+def build_session_cookie(value: str, *, secure: bool, max_age_s: int) -> str:
+    """Render a session cookie with conservative defaults."""
+    parts = [
+        f"{SESSION_COOKIE_NAME}={value}",
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Strict",
+        f"Max-Age={int(max_age_s)}",
+    ]
+    if secure:
+        parts.append("Secure")
+    return "; ".join(parts)
+
+
+def build_csrf_cookie(value: str, *, secure: bool) -> str:
+    parts = [
+        f"{SESSION_CSRF_COOKIE}={value}",
+        "Path=/",
+        "SameSite=Strict",
+        f"Max-Age={SESSION_ABSOLUTE_COOKIE_S}",
+    ]
+    if secure:
+        parts.append("Secure")
+    return "; ".join(parts)
+
+
+def build_clear_cookies(secure: bool) -> list[tuple[str, str]]:
+    expires = "Thu, 01 Jan 1970 00:00:00 GMT"
+    parts_session = [
+        f"{SESSION_COOKIE_NAME}=",
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Strict",
+        f"Expires={expires}",
+    ]
+    parts_csrf = [
+        f"{SESSION_CSRF_COOKIE}=",
+        "Path=/",
+        "SameSite=Strict",
+        f"Expires={expires}",
+    ]
+    if secure:
+        parts_session.append("Secure")
+        parts_csrf.append("Secure")
+    return [("Set-Cookie", "; ".join(parts_session)), ("Set-Cookie", "; ".join(parts_csrf))]
+
+
+SESSION_ABSOLUTE_COOKIE_S = 12 * 60 * 60
+
+
+def origin_matches_request(
+    headers: Any,
+    request_host: str,
+    request_scheme: str | None = None,
+) -> bool:
+    """Return True when Origin is a valid same-authority HTTP(S) origin."""
+    origin = case_insensitive_header(headers, "Origin")
+    if not origin:
         return True
-    authorization = headers.get("Authorization") or headers.get("authorization")
-    if authorization and authorization.lower().startswith("bearer "):
-        supplied = authorization[7:].strip()
-        return hmac.compare_digest(supplied, configured_secret)
-    header_token = headers.get("X-Nanobot-Auth") or headers.get("x-nanobot-auth")
-    if not header_token:
+    try:
+        parsed_origin = urlsplit(origin)
+        parsed_host = urlsplit(f"//{request_host}")
+        if parsed_origin.scheme not in {"http", "https"} or not parsed_origin.hostname:
+            return False
+        if request_scheme and parsed_origin.scheme != request_scheme:
+            return False
+        if parsed_origin.username or parsed_origin.password or parsed_origin.path not in {"", "/"}:
+            return False
+        if not parsed_host.hostname:
+            return False
+        origin_port = parsed_origin.port or (443 if parsed_origin.scheme == "https" else 80)
+        host_port = parsed_host.port or origin_port
+    except ValueError:
         return False
-    return hmac.compare_digest(header_token.strip(), configured_secret)
+    return (
+        parsed_origin.hostname.rstrip(".").casefold()
+        == parsed_host.hostname.rstrip(".").casefold()
+        and origin_port == host_port
+    )
+
+
+def cookie_request_is_secure(
+    headers: Any,
+    *,
+    request_scheme: str | None = None,
+    connection: Any = None,
+    config: Any = None,
+) -> bool:
+    """Whether cookies should be marked Secure for this request.
+
+    The gateway serves loopback HTTP only by default; cookies are Secure
+    only when the underlying transport is HTTPS (or behind a trusted proxy
+    that asserts HTTPS). The current request's ``X-Forwarded-Proto`` is
+    consulted but only when the immediate peer is loopback or a trusted
+    proxy peer.
+    """
+    if request_scheme == "https":
+        return True
+    if connection is not None and config is not None and not is_trusted_proxy_peer(connection, config):
+        return False
+    proto = case_insensitive_header(headers, "X-Forwarded-Proto").split(",", 1)[0]
+    proto = proto.strip().lower()
+    if proto in {"https", "wss"}:
+        return True
+    return False

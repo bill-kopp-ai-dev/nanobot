@@ -57,7 +57,7 @@ class WebUIDevServer:
 def webui_dev_browser_url(webui_url: str) -> str:
     """Move a configured WebUI URL to Vite while preserving its auth fragment."""
     parsed = urlsplit(webui_url)
-    return urlunsplit(("http", f"{WEBUI_DEV_HOST}:{WEBUI_DEV_PORT}", parsed.path, "", parsed.fragment))
+    return urlunsplit(("http", f"{WEBUI_DEV_HOST}:{WEBUI_DEV_PORT}", parsed.path or "/", "", parsed.fragment))
 
 
 def webui_dev_proxy_target(webui_url: str) -> str:

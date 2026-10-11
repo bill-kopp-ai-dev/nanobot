@@ -463,6 +463,11 @@ class RemoteInstances:
             transport = remote_ssh.PairedSSHProfile(**profile.model_dump(include=set(RemoteProfile.model_fields)))
         else:
             data = await remote_ssh.probe(profile, known_hosts)
+        # Remote forwarding still needs an interactive session-login contract.
+        # Never reuse a pre-0.1.0 bootstrap secret or retain a human password
+        # in RemoteProxy while that flow is not implemented.
+        if data.get("auth_required") is not False:
+            raise RemoteError("remote_auth_required")
         used_ports = self._remember_origins(self._read())
         # Retire browser origins from the earlier transparent tunnel. Those
         # origins may still contain remote secrets in old tabs/localStorage.

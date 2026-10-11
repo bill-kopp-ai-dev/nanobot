@@ -71,21 +71,23 @@ def bridge_source(port: int, until: int) -> str:
 
 
 def metadata(config: Path) -> dict[str, Any]:
-    """Read only the WebUI credential out of the operator-selected config."""
+    """Read non-secret gateway metadata out of the operator-selected config."""
     try:
         raw = json.loads(config.read_text())
         ws = raw.get("channels", {}).get("websocket", {})
-        secret = ws.get("tokenIssueSecret") or ws.get("token_issue_secret") or ws.get("token")
-        if not ws.get("enabled") or not isinstance(secret, str) or not secret.strip() or "${" in secret:
-            raise RemoteError("webui_auth_required")
+        if not ws.get("enabled"):
+            raise RemoteError("auth_required")
         if ws.get("publicWsUrl") or ws.get("public_ws_url") or ws.get("trustedProxyAuth") or ws.get("trusted_proxy_auth"):
             raise RemoteError("incompatible_gateway")
+        verifier = config.parent / "auth" / "verifier.json"
+        if not verifier.is_file():
+            raise RemoteError("auth_required")
         port = ws.get("port", 8765)
         if type(port) is not int or not 1 <= port <= 65535:
             raise ValueError
-        return {"port": port, "secret": secret, "hostname": socket.gethostname(),
+        return {"port": port, "hostname": socket.gethostname(),
                 "config_path": str(config.resolve()),
-                "token_issue_path": ws.get("tokenIssuePath") or ws.get("token_issue_path") or ""}
+                "auth_required": True}
     except PermissionError:
         raise RemoteError("config_permission") from None
     except (OSError, ValueError, TypeError, AttributeError):

@@ -44,6 +44,7 @@ from nanobot.agent.tools.mcp import MCPProvider  # noqa: E402
 from nanobot.agent.tools.registry import ToolRegistry  # noqa: E402
 from nanobot.cli import terminal as cli_terminal  # noqa: E402
 from nanobot.cli.agent import agent  # noqa: E402
+from nanobot.cli.auth import app as auth_app  # noqa: E402
 from nanobot.cli.gateway import create_gateway_app  # noqa: E402
 from nanobot.cli.gateway_runtime import _run_gateway  # noqa: E402
 from nanobot.cli.kg import app as kg_app  # noqa: E402
@@ -105,6 +106,7 @@ from nanobot.cli.remote import app as remote_app  # noqa: E402
 app.add_typer(remote_app, name="remote")
 app.add_typer(kg_app, name="kg")
 app.add_typer(mcp_docker_app, name="mcp-docker")
+app.add_typer(auth_app, name="auth")
 
 def version_callback(value: bool):
     if value:

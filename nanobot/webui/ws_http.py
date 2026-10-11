@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
 import mimetypes
 import re
@@ -45,14 +46,27 @@ from nanobot.webui.file_preview import (
     file_preview_payload,
     file_reference_payload,
 )
-from nanobot.webui.gateway_tokens import GatewayTokenStore, token_response_payload
+from nanobot.webui.gateway_auth import AccessController
+from nanobot.webui.gateway_tokens import GatewayTokenStore
 from nanobot.webui.http_utils import JSONResponseMetrics, bearer_token
 from nanobot.webui.http_utils import accepts_gzip as _accepts_gzip
+from nanobot.webui.http_utils import (
+    build_clear_cookies as _build_clear_cookies,
+)
+from nanobot.webui.http_utils import (
+    build_csrf_cookie as _build_csrf_cookie,
+)
+from nanobot.webui.http_utils import (
+    build_session_cookie as _build_session_cookie,
+)
 from nanobot.webui.http_utils import (
     case_insensitive_header as _case_insensitive_header,
 )
 from nanobot.webui.http_utils import (
     combined_list_header as _combined_list_header,
+)
+from nanobot.webui.http_utils import (
+    cookie_request_is_secure as _cookie_request_is_secure,
 )
 from nanobot.webui.http_utils import (
     host_for_url as _host_for_url,
@@ -71,13 +85,10 @@ from nanobot.webui.http_utils import (
 )
 from nanobot.webui.http_utils import is_loopback_host as _is_loopback_host
 from nanobot.webui.http_utils import (
-    is_trusted_proxy_authenticated_request as _is_trusted_proxy_authenticated_request,
-)
-from nanobot.webui.http_utils import (
-    issue_route_secret_matches as _issue_route_secret_matches,
-)
-from nanobot.webui.http_utils import (
     normalize_config_path as _normalize_config_path,
+)
+from nanobot.webui.http_utils import (
+    origin_matches_request as _origin_matches_request,
 )
 from nanobot.webui.http_utils import (
     parse_query as _parse_query,
@@ -87,6 +98,15 @@ from nanobot.webui.http_utils import (
 )
 from nanobot.webui.http_utils import (
     query_first as _query_first,
+)
+from nanobot.webui.http_utils import (
+    read_csrf_cookie as _read_csrf_cookie,
+)
+from nanobot.webui.http_utils import (
+    read_csrf_header as _read_csrf_header,
+)
+from nanobot.webui.http_utils import (
+    read_session_cookie as _read_session_cookie,
 )
 from nanobot.webui.http_utils import (
     safe_host_header as _safe_host_header,
@@ -244,7 +264,6 @@ _WEBUI_MUTATION_PATHS = {
         for action in (
             "install", "configure", "disable-tool", "enable-tool", "activate",
             "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
-            "operator-setup", "operator-rotate",
         )
     },
 }
@@ -372,6 +391,7 @@ class GatewayHTTPHandler:
         runtime_capabilities_overrides: dict[str, Any] | None,
         bus: MessageBus,
         tokens: GatewayTokenStore,
+        access: AccessController,
         media: WebUIMediaGateway,
         ingress: WebUIIngressPolicy,
         workspaces: WebUIWorkspaceController,
@@ -400,6 +420,7 @@ class GatewayHTTPHandler:
         self.runtime_model_name = runtime_model_name
         self.bus = bus
         self.tokens = tokens
+        self.access = access
         self.media = media
         self.ingress = ingress
         self.workspaces = workspaces
@@ -446,6 +467,7 @@ class GatewayHTTPHandler:
             mcp_runtime_status=mcp_runtime_status,
             mcp_reload=mcp_reload,
             mcp_oauth_redirect_uri=self._mcp_oauth_redirect_uri,
+            access=access,
         )
 
     def workspace_project_selection_available(self, connection: Any) -> bool:
@@ -502,12 +524,6 @@ class GatewayHTTPHandler:
         got, _ = _parse_request_path(request.path)
         started = time.perf_counter()
         response: Any | None = None
-        setattr(
-            request,
-            "_nanobot_trusted_proxy_authenticated",
-            _is_trusted_proxy_authenticated_request(connection, request.headers, self.config),
-        )
-
         try:
             if self._is_webui_mutation_path(got):
                 return _http_error(
@@ -605,6 +621,22 @@ class GatewayHTTPHandler:
         request: WsRequest,
         got: str,
     ) -> Any | None:
+        # Auth endpoints (login, logout, elevate, status) come first so
+        # unauthenticated clients can reach them. Login/status are GET-able for
+        # diagnostics; login/elevate/change POST a password.
+        if got == "/auth/login":
+            return self._auth_login(connection, request)
+        if got == "/auth/logout":
+            return self._auth_logout(connection, request)
+        if got == "/auth/elevate":
+            return self._auth_elevate(connection, request)
+        if got == "/auth/status":
+            return self._auth_status(request)
+        # Legacy token issue path is now a 410 to surface clear errors.
+        if self.config.token_issue_path:
+            issue_expected = _normalize_config_path(self.config.token_issue_path)
+            if got == issue_expected:
+                return self._handle_token_issue(connection, request)
         if got == "/kg-interface/api" or got.startswith("/kg-interface/api/"):
             proxy_authenticated = getattr(request, "_nanobot_trusted_proxy_authenticated", False)
             # check_api_token normally also accepts ?token= for older WebUI
@@ -630,11 +662,6 @@ class GatewayHTTPHandler:
             )
         if got == "/api/remote-instances" or got.startswith("/api/remote-instances/"):
             return await self._dispatch_remote_instances(connection, request, got)
-        # Token issue endpoint
-        if self.config.token_issue_path:
-            issue_expected = _normalize_config_path(self.config.token_issue_path)
-            if got == issue_expected:
-                return self._handle_token_issue(connection, request)
 
         # Bootstrap
         if got == "/webui/bootstrap":
@@ -741,49 +768,181 @@ class GatewayHTTPHandler:
     # -- Token issue --------------------------------------------------------
 
     def _handle_token_issue(self, connection: Any, request: Any) -> Any:
-        secret = self.config.token_issue_secret.strip() or self.config.token.strip()
-        if secret:
-            if not _issue_route_secret_matches(request.headers, secret):
-                return connection.respond(401, "Unauthorized")
-        else:
-            self._log.warning(
-                "token_issue_path is set but token_issue_secret is empty; "
-                "any client can obtain connection tokens — set token_issue_secret for production."
-            )
-        if not self.tokens.can_issue():
-            self._log.error(
-                "too many outstanding issued tokens ({}), rejecting issuance",
-                len(self.tokens.issued_tokens),
-            )
-            return _http_json_response(
-                {"error": "too many outstanding tokens"},
-                status=429,
-                extra_headers=_NO_STORE_HEADERS,
-            )
-        token_value = self.tokens.issue_token(self.config.token_ttl_s)
+        """Deprecated since 0.1.0 — replaced by /auth/login + /webui/bootstrap.
+
+        Kept only to surface a clear 410 for older clients during cutover.
+        """
+        return connection.respond(410, "Gone; use /auth/login")
+
+    # -- Auth routes --------------------------------------------------------
+
+    def _request_source(self, connection: Any) -> str:
+        try:
+            addr: object = connection.remote_address
+        except Exception:
+            return "unknown"
+        if isinstance(addr, tuple):
+            parts = cast(tuple[object, ...], addr)
+            return str(parts[0]) if parts else "unknown"
+        return str(addr or "unknown")
+
+    def _auth_login(self, connection: Any, request: WsRequest) -> Response:
+        from nanobot.access.errors import AuthError, AuthThrottledError
+
+        if not _origin_matches_request(
+            request.headers,
+            _case_insensitive_header(request.headers, "Host"),
+            getattr(request, "scheme", None),
+        ):
+            return _http_error(403, "auth_login_origin_mismatch")
+        payload = self._read_json_payload(request)
+        if payload is None:
+            return _http_error(400, "invalid login payload")
+        password = payload.get("password")
+        if not isinstance(password, str):
+            return _http_error(400, "password required")
+        source = self._request_source(connection)
+        try:
+            session = self.access.login(password, source=source)
+        except AuthThrottledError as exc:
+            return _http_error(429, f"too many attempts; retry in {exc.retry_after_s:.0f}s")
+        except AuthError as exc:
+            return _http_error(401, str(exc))
+        secure = _cookie_request_is_secure(
+            request.headers,
+            request_scheme=getattr(request, "scheme", None),
+            connection=connection,
+            config=self.config,
+        )
+        cookie_value = _build_session_cookie(session.session_id, secure=secure, max_age_s=12 * 60 * 60)
+        csrf_cookie = _build_csrf_cookie(session.csrf_token, secure=secure)
         return _http_json_response(
-            token_response_payload(token_value, self.config.token_ttl_s),
+            {
+                "session_id": session.session_id,
+                "csrf_token": session.csrf_token,
+                "session_idle_remaining_s": max(0.0, session.idle_expiry - time.monotonic()),
+                "session_absolute_remaining_s": max(0.0, session.absolute_expiry - time.monotonic()),
+            },
+            extra_headers=[("Set-Cookie", cookie_value), ("Set-Cookie", csrf_cookie), *_NO_STORE_HEADERS],
+        )
+
+    def _auth_logout(self, connection: Any, request: WsRequest) -> Response:
+        if not _origin_matches_request(
+            request.headers,
+            _case_insensitive_header(request.headers, "Host"),
+            getattr(request, "scheme", None),
+        ):
+            return _http_error(403, "auth_logout_origin_mismatch")
+        if not self._validate_csrf(request):
+            return _http_error(403, "csrf validation failed")
+        session_id = _read_session_cookie(request.headers)
+        if session_id:
+            self.access.logout(session_id)
+            # Also revoke any open WebSockets tied to this session.
+            endpoint = cast(
+                Any,
+                getattr(self, "_endpoint", None)
+                or getattr(self.settings_routes, "_endpoint", None),
+            )
+            revoke = getattr(endpoint, "revoke_session", None)
+            if callable(revoke):
+                revoke(session_id)
+        secure = _cookie_request_is_secure(
+            request.headers,
+            request_scheme=getattr(request, "scheme", None),
+            connection=connection,
+            config=self.config,
+        )
+        clear = _build_clear_cookies(secure)
+        return _http_json_response(
+            {"ok": True},
+            extra_headers=[*clear, *_NO_STORE_HEADERS],
+        )
+
+    def _auth_elevate(self, connection: Any, request: WsRequest) -> Response:
+        from nanobot.access.errors import (
+            AuthError,
+            AuthThrottledError,
+            SessionExpiredError,
+            SessionNotFoundError,
+        )
+
+        if not _origin_matches_request(
+            request.headers,
+            _case_insensitive_header(request.headers, "Host"),
+            getattr(request, "scheme", None),
+        ):
+            return _http_error(403, "auth_elevate_origin_mismatch")
+        if not self._validate_csrf(request):
+            return _http_error(403, "csrf validation failed")
+        session_id = _read_session_cookie(request.headers)
+        if not session_id:
+            return _http_error(401, "session required")
+        payload = self._read_json_payload(request)
+        if payload is None:
+            return _http_error(400, "invalid elevation payload")
+        password = payload.get("password")
+        if not isinstance(password, str):
+            return _http_error(400, "password required")
+        try:
+            remaining = self.access.elevate(
+                password=password,
+                session_id=session_id,
+                source=self._request_source(connection),
+            )
+        except SessionNotFoundError:
+            return _http_error(401, "session required")
+        except SessionExpiredError:
+            return _http_error(401, "session expired")
+        except AuthThrottledError as exc:
+            return _http_error(429, f"too many attempts; retry in {exc.retry_after_s:.0f}s")
+        except AuthError as exc:
+            return _http_error(401, str(exc))
+        return _http_json_response(
+            {"elevation_remaining_s": remaining, "elevation_ttl_s": self.access.elevation.ttl_s()},
             extra_headers=_NO_STORE_HEADERS,
         )
+
+    def _auth_status(self, request: WsRequest) -> Response:
+        session_id = _read_session_cookie(request.headers)
+        return _http_json_response(
+            self.access.status(session_id),
+            extra_headers=_NO_STORE_HEADERS,
+        )
+
+    def _validate_csrf(self, request: WsRequest) -> bool:
+        cookie_token = _read_csrf_cookie(request.headers)
+        header_token = _read_csrf_header(request.headers)
+        if not cookie_token or not header_token:
+            return False
+        return hmac.compare_digest(cookie_token, header_token)
+
+
+    @staticmethod
+    def _read_json_payload(request: WsRequest) -> dict[str, Any] | None:
+        body = getattr(request, "body", None) or b""
+        if not body or getattr(request, "method", "GET").upper() != "POST":
+            return None
+        try:
+            parsed = json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+        return cast(dict[str, Any], parsed) if isinstance(parsed, dict) else None
 
     # -- Bootstrap ----------------------------------------------------------
 
     def _handle_bootstrap(
         self, connection: Any, request: Any, *, terminal_probe: bool = False,
     ) -> Response:
-        secret = self.config.token_issue_secret.strip() or self.config.token.strip()
-        is_local_browser = _is_local_browser_request(connection, request.headers)
-        is_proxy_authenticated = _is_trusted_proxy_authenticated_request(
-            connection,
-            request.headers,
-            self.config,
-        )
-        if not is_proxy_authenticated:
-            if secret:
-                if not _issue_route_secret_matches(request.headers, secret):
-                    return _http_error(401, "Unauthorized")
-            elif not is_local_browser:
-                return _http_error(403, "bootstrap is localhost-only")
+        from nanobot.access.errors import SessionExpiredError, SessionNotFoundError
+
+        session_id = _read_session_cookie(request.headers)
+        if not session_id:
+            return _http_error(401, "session required")
+        try:
+            self.access.session(session_id)
+        except (SessionNotFoundError, SessionExpiredError) as exc:
+            return _http_error(401, str(exc))
 
         from nanobot.webui.client_contract import gateway_identity
 
@@ -792,36 +951,21 @@ class GatewayHTTPHandler:
             # Capability probing does not allocate credentials or acquire client leases.
             return _http_json_response(terminal, extra_headers=_NO_STORE_HEADERS)
 
-        if is_proxy_authenticated:
-            payload = {
-                "ws_path": _normalize_config_path(self.config.path),
-                "ws_url": self._bootstrap_ws_url(request),
-                "limits": self.ingress.bootstrap_limits(
-                    max_frame_bytes=self.config.max_message_bytes,
-                ),
-                "model_name": _resolve_bootstrap_model_name(
-                    self.runtime_model_name,
-                    self.settings.config.path,
-                ),
-                "runtime_surface": self._runtime_surface,
-                "runtime_capabilities": self._capabilities,
-                "terminal": terminal,
-            }
-            return _http_json_response(payload, extra_headers=_NO_STORE_HEADERS)
-
-        api_token_allowed = bool(secret) or is_local_browser
-        if not self.tokens.can_issue(include_api_token=api_token_allowed):
+        if not self.tokens.can_issue(include_api_token=True):
             return _http_response(
                 json.dumps({"error": "too many outstanding tokens"}).encode("utf-8"),
                 status=429,
                 content_type="application/json; charset=utf-8",
                 extra_headers=_NO_STORE_HEADERS,
             )
-        token = self.tokens.issue_token(self.config.token_ttl_s, audience="webui")
-        api_token = (
-            self.tokens.issue_api_token(self.config.token_ttl_s)
-            if api_token_allowed
-            else None
+        token = self.tokens.issue_token(
+            self.config.token_ttl_s,
+            audience="webui",
+            session_id=session_id,
+        )
+        api_token = self.tokens.issue_api_token(
+            self.config.token_ttl_s,
+            session_id=session_id,
         )
 
         ws_url = self._bootstrap_ws_url(request)
@@ -842,8 +986,7 @@ class GatewayHTTPHandler:
             "runtime_surface": self._runtime_surface,
             "runtime_capabilities": self._capabilities,
         }
-        if api_token is not None:
-            payload["api_token"] = api_token
+        payload["api_token"] = api_token
         return _http_json_response(payload, extra_headers=_NO_STORE_HEADERS)
 
     def _bootstrap_ws_url(self, request: Any) -> str:
