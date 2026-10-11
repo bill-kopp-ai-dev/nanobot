@@ -1247,7 +1247,11 @@ class TestMainMenuUpdate:
         websocket = getattr(config.channels, "websocket")
         assert websocket["enabled"] is True
         assert websocket["websocketRequiresToken"] is True
-        assert websocket["tokenIssueSecret"] == "webui-secret"
+        # The 0.1.0 contract authenticates the WebUI with the instance password
+        # created by ``nanobot auth init``; the legacy bootstrap secret is no
+        # longer written by the wizard.
+        assert "tokenIssueSecret" not in websocket
+        assert "token_issue_secret" not in websocket
 
     def test_quick_start_provider_menu_escape_returns_back(self, monkeypatch):
         """Esc from the first Quick Start menu should return to the main menu."""
@@ -1578,7 +1582,10 @@ class TestMainMenuUpdate:
         websocket = getattr(config.channels, "websocket")
         assert websocket["enabled"] is True
         assert websocket["websocketRequiresToken"] is True
-        assert websocket["tokenIssueSecret"] == "webui-secret"
+        # The wizard clears the legacy bootstrap-secret fields under the new
+        # auth contract; they must not reappear in the persisted config.
+        assert "tokenIssueSecret" not in websocket
+        assert "token_issue_secret" not in websocket
 
     def test_quick_start_websocket_step_can_be_declined(self, monkeypatch):
         """Declining WebSocket should stop Quick Start before changing channel config."""
@@ -1602,8 +1609,8 @@ class TestMainMenuUpdate:
         assert onboard_wizard._enable_quick_start_websocket_defaults(config) is False
         assert getattr(config.channels, "websocket", None) is None
 
-    def test_quick_start_websocket_requires_password(self, monkeypatch):
-        """Accepting WebSocket with an empty password should not enable the channel."""
+    def test_quick_start_enables_local_websocket_without_creating_a_password(self, monkeypatch):
+        """WebSocket setup doesn't create or solicit the separate instance password."""
         config = Config()
 
         class FakePrompt:
@@ -1620,12 +1627,11 @@ class TestMainMenuUpdate:
             "questionary",
             SimpleNamespace(
                 confirm=lambda *a, **kw: FakePrompt(True),
-                password=lambda *a, **kw: FakePrompt(""),
             ),
         )
 
-        assert onboard_wizard._enable_quick_start_websocket_defaults(config) is False
-        assert getattr(config.channels, "websocket", None) is None
+        assert onboard_wizard._enable_quick_start_websocket_defaults(config) is True
+        assert config.channels.websocket["host"] == "127.0.0.1"
 
     def test_quick_start_requires_api_key_before_setting_defaults(self, monkeypatch):
         """Quick Start should not create a ready-looking config without an API key."""

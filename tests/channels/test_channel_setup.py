@@ -40,6 +40,10 @@ INTERNAL_CHANNEL_FIELDS = {
     "weixin": {"token"},
     "whatsapp": {"databasePath", "lidMappings"},
     # nanobot WebUI owns this transport and intentionally has no channel dialog.
+    # ``token``, ``tokenIssueSecret`` and ``tokenIssuePath`` are preserved on
+    # the model for backward compatibility but the gateway no longer reads
+    # them. Trusted proxy assertions no longer replace instance-password
+    # authentication; normal proxies must forward the native login flow.
     "websocket": {
         "allowFrom",
         "host",
@@ -52,9 +56,7 @@ INTERNAL_CHANNEL_FIELDS = {
         "sslCertfile",
         "sslKeyfile",
         "streaming",
-        "token",
         "tokenIssuePath",
-        "tokenIssueSecret",
         "tokenTtlS",
         "trustedProxyAuth",
         "unixSocketPath",

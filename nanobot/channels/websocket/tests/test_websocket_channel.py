@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import httpx
 import pytest
@@ -63,9 +64,6 @@ from nanobot.webui.http_utils import (
     http_json_response as _http_json_response,
 )
 from nanobot.webui.http_utils import (
-    issue_route_secret_matches as _issue_route_secret_matches,
-)
-from nanobot.webui.http_utils import (
     normalize_config_path as _normalize_config_path,
 )
 from nanobot.webui.http_utils import (
@@ -87,6 +85,11 @@ from nanobot.webui.transcript import (
     read_transcript_lines,
 )
 
+from .ws_test_client import (
+    TEST_INSTANCE_PASSWORD,
+    create_session,
+    issue_session_token,
+)
 from .ws_test_client import http_get as _http_get
 
 # -- Shared helpers (aligned with test_websocket_integration.py) ---------------
@@ -154,6 +157,8 @@ def _ch(bus: Any, **kw: Any) -> WebSocketChannel:
         runtime_surface="browser",
         runtime_capabilities_overrides=None,
     )
+    if not gateway.access.credential.exists():
+        gateway.access.credential.set_password(TEST_INSTANCE_PASSWORD)
     return WebSocketChannel(cfg, bus, gateway=gateway)
 
 
@@ -164,7 +169,7 @@ def _basic_handler(bus: Any, **kw: Any) -> GatewayServices:
         "path": "/ws", "websocketRequiresToken": False,
         "tokenIssueSecret": kw.get("token_issue_secret", ""),
     })
-    return build_gateway_services(
+    services = build_gateway_services(
         config=cfg,
         bus=bus,
         session_manager=kw.get("session_manager"),
@@ -175,13 +180,26 @@ def _basic_handler(bus: Any, **kw: Any) -> GatewayServices:
         runtime_surface=kw.get("runtime_surface", "browser"),
         runtime_capabilities_overrides=kw.get("runtime_capabilities_overrides"),
     )
+    if not services.access.credential.exists():
+        services.access.credential.set_password(TEST_INSTANCE_PASSWORD)
+    return services
 
 
 async def _connect_when_ready(url: str) -> Any:
+    deadline = asyncio.get_running_loop().time() + 2.0
     while True:
         try:
-            return await websockets.connect(url)
-        except OSError:
+            parsed = urlsplit(url)
+            token = await issue_session_token(parsed.hostname or "127.0.0.1", parsed.port or 8765)
+            query = parse_qs(parsed.query, keep_blank_values=True)
+            query.setdefault("token", [token])
+            authenticated_url = urlunsplit(
+                (parsed.scheme, parsed.netloc, parsed.path, urlencode(query, doseq=True), parsed.fragment)
+            )
+            return await websockets.connect(authenticated_url)
+        except (OSError, httpx.ConnectError):
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
             await asyncio.sleep(0.02)
 
 
@@ -254,7 +272,7 @@ def bus() -> MagicMock:
 
 
 @pytest.mark.asyncio
-async def test_start_extends_http_open_timeout_for_slow_settings_routes(
+async def test_start_serves_http_and_websocket_on_one_listener(
     bus,
     monkeypatch,
 ) -> None:
@@ -263,25 +281,44 @@ async def test_start_extends_http_open_timeout_for_slow_settings_routes(
     channel = _ch(bus, port=0)
     seen: dict[str, Any] = {}
 
-    class Server:
-        def close(self) -> None:
+    class Runner:
+        def __init__(self, app: Any, **kwargs: Any) -> None:
+            seen["app"] = app
+            seen["runner_kwargs"] = kwargs
+
+        async def setup(self) -> None:
             pass
 
-        async def wait_closed(self) -> None:
+        async def cleanup(self) -> None:
             pass
 
-    async def fake_serve(*args: Any, **kwargs: Any) -> Server:
+    class Site:
+        def __init__(self, runner: Any, host: str, port: int, **kwargs: Any) -> None:
+            seen["host"] = host
+            seen["port"] = port
+            seen["site_kwargs"] = kwargs
+
+        async def start(self) -> None:
+            assert channel._stop_event is not None
+            channel._stop_event.set()
+
+        async def stop(self) -> None:
+            pass
+
+    def fake_app_runner(app: Any, **kwargs: Any) -> Runner:
         seen.update(kwargs)
-        assert channel._stop_event is not None
-        channel._stop_event.set()
-        return Server()
+        return Runner(app, **kwargs)
 
-    monkeypatch.setattr(websocket_module, "serve", fake_serve)
+    monkeypatch.setattr(websocket_module.web, "AppRunner", fake_app_runner)
+    monkeypatch.setattr(websocket_module.web, "TCPSite", Site)
     monkeypatch.setattr(channel, "_listener_is_serving", lambda _server: True)
 
     await channel.start()
 
-    assert seen["open_timeout"] >= 300
+    assert seen["host"] == channel.config.host
+    assert seen["port"] == channel.config.port
+    assert seen["site_kwargs"]["ssl_context"] is None
+    assert seen["app"].router.routes()
 
 
 @pytest.fixture(autouse=True)
@@ -291,6 +328,11 @@ def isolate_webui_workspace_state(tmp_path, monkeypatch) -> None:
     wth._WEBSOCKET_TURN_IDS.clear()
     wth._WEBSOCKET_TURN_OWNERS.clear()
     monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("nanobot.config.loader.get_config_path", lambda: tmp_path / "config.json")
+    monkeypatch.setattr("nanobot.webui.gateway_services.get_config_path", lambda: tmp_path / "config.json")
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(tmp_path).set_password(TEST_INSTANCE_PASSWORD)
     monkeypatch.setattr(
         "nanobot.webui.workspaces.get_webui_dir",
         lambda: tmp_path / "webui",
@@ -827,28 +869,8 @@ def test_token_issue_path_must_differ_from_websocket_path() -> None:
         WebSocketConfig(path="/ws", token_issue_path="/ws")
 
 
-def test_issue_route_secret_matches_bearer_and_header() -> None:
-    from websockets.datastructures import Headers
-
-    secret = "my-secret"
-    bearer_headers = Headers([("Authorization", "Bearer my-secret")])
-    assert _issue_route_secret_matches(bearer_headers, secret) is True
-    x_headers = Headers([("X-Nanobot-Auth", "my-secret")])
-    assert _issue_route_secret_matches(x_headers, secret) is True
-    wrong = Headers([("Authorization", "Bearer other")])
-    assert _issue_route_secret_matches(wrong, secret) is False
-
-
-def test_issue_route_secret_matches_empty_secret() -> None:
-    from websockets.datastructures import Headers
-
-    # Empty secret always returns True regardless of headers
-    assert _issue_route_secret_matches(Headers([]), "") is True
-    assert _issue_route_secret_matches(Headers([("Authorization", "Bearer anything")]), "") is True
-
-
 @pytest.mark.asyncio
-async def test_token_issue_route_requires_secret_when_static_token_configured(bus: MagicMock) -> None:
+async def test_legacy_token_issue_route_is_gone_and_static_tokens_are_rejected(bus: MagicMock) -> None:
     port = 29882
     channel = _ch(
         bus,
@@ -863,15 +885,13 @@ async def test_token_issue_route_requires_secret_when_static_token_configured(bu
 
     try:
         denied = await _http_get(f"http://127.0.0.1:{port}/custom-token")
-        assert denied.status_code == 401
-
-        allowed = await _http_get(
-            f"http://127.0.0.1:{port}/custom-token",
-            headers={"Authorization": "Bearer static-token"},
-        )
-        assert allowed.status_code == 200
-        assert allowed.json()["token"].startswith("nbwt_")
-        assert allowed.headers["Cache-Control"] == "no-store"
+        assert denied.status_code == 410
+        with pytest.raises(websockets.exceptions.InvalidStatus) as excinfo:
+            async with websockets.connect(
+                f"ws://127.0.0.1:{port}/ws?client_id=static&token=static-token"
+            ):
+                pass
+        assert excinfo.value.response.status_code == 401
     finally:
         await channel.stop()
         await server_task
@@ -1088,8 +1108,11 @@ def test_only_bootstrap_tokens_mark_webui_connections(bus: MagicMock) -> None:
     channel = _ch(bus)
     webui_connection = MagicMock()
     client_connection = MagicMock()
-    webui_token = channel.gateway.tokens.issue_token(300, audience="webui")
-    client_token = channel.gateway.tokens.issue_token(300)
+    session = channel.gateway.access.sessions.create("127.0.0.1")
+    webui_token = channel.gateway.tokens.issue_token(
+        300, audience="webui", session_id=session.session_id,
+    )
+    client_token = channel.gateway.tokens.issue_token(300, session_id=session.session_id)
 
     assert channel._authorize_websocket_handshake(
         webui_connection,
@@ -4163,7 +4186,7 @@ def test_registry_discovers_websocket_channel() -> None:
 
 
 @pytest.mark.asyncio
-async def test_http_route_issues_token_then_websocket_requires_it(bus: MagicMock) -> None:
+async def test_session_bootstrap_issues_one_time_websocket_token(bus: MagicMock) -> None:
     port = 29879
     channel = _ch(
         bus, port=port,
@@ -4176,16 +4199,9 @@ async def test_http_route_issues_token_then_websocket_requires_it(bus: MagicMock
     await asyncio.sleep(0.3)
 
     try:
-        deny = await _http_get(f"http://127.0.0.1:{port}/auth/token")
-        assert deny.status_code == 401
-
-        issue = await _http_get(
-            f"http://127.0.0.1:{port}/auth/token",
-            headers={"Authorization": "Bearer route-secret"},
-        )
-        assert issue.status_code == 200
-        token = issue.json()["token"]
-        assert token.startswith("nbwt_")
+        legacy = await _http_get(f"http://127.0.0.1:{port}/auth/token")
+        assert legacy.status_code == 410
+        token = await issue_session_token("127.0.0.1", port)
 
         with pytest.raises(websockets.exceptions.InvalidStatus) as missing_token:
             async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=x"):
@@ -4257,7 +4273,12 @@ async def test_settings_api_returns_safe_subset_and_updates_whitelist(
 
     webui_client = None
     try:
-        webui_token = channel.gateway.tokens.issue_token(300, audience="webui")
+        session = channel.gateway.access.sessions.create("127.0.0.1")
+        webui_token = channel.gateway.tokens.issue_token(
+            300,
+            audience="webui",
+            session_id=session.session_id,
+        )
         webui_client = await websockets.connect(
             f"ws://127.0.0.1:{port}/ws?token={webui_token}&client_id=settings-test"
         )
@@ -4655,7 +4676,7 @@ async def test_image_settings_hot_reload_without_restart(
     await asyncio.sleep(0.3)
     webui_client = None
     try:
-        webui_token = channel.gateway.tokens.issue_token(300, audience="webui")
+        webui_token = await issue_session_token("127.0.0.1", port)
         webui_client = await websockets.connect(
             f"ws://127.0.0.1:{port}/ws?token={webui_token}&client_id=image-reload-test"
         )
@@ -4706,7 +4727,7 @@ async def test_image_settings_fall_back_to_restart_when_hot_reload_fails(
     await asyncio.sleep(0.3)
     webui_client = None
     try:
-        webui_token = channel.gateway.tokens.issue_token(300, audience="webui")
+        webui_token = await issue_session_token("127.0.0.1", port)
         webui_client = await websockets.connect(
             f"ws://127.0.0.1:{port}/ws?token={webui_token}&client_id=image-fallback-test"
         )
@@ -4789,7 +4810,9 @@ async def test_bootstrap_exposes_native_surface(bus: MagicMock) -> None:
     try:
         response = await _http_get(
             f"http://127.0.0.1:{port}/webui/bootstrap",
-            headers={"X-Nanobot-Auth": "native-secret"},
+            headers={
+                "Cookie": f"percival_session={await create_session('127.0.0.1', port)}",
+            },
         )
         assert response.status_code == 200
         body = response.json()
@@ -4898,7 +4921,7 @@ async def test_end_to_end_server_pushes_streaming_deltas_to_client(bus: MagicMoc
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=stream-tester") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=stream-tester") as client:
             ready_raw = await client.recv()
             ready = json.loads(ready_raw)
             chat_id = ready["chat_id"]
@@ -4951,15 +4974,15 @@ async def test_token_issue_rejects_when_at_capacity(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        # Fill issued tokens to capacity
+        session_id = await create_session("127.0.0.1", port)
         channel.gateway.tokens.issued_tokens = {
             f"nbwt_fill_{i}": time.monotonic() + 300
             for i in range(channel.gateway.tokens.max_tokens)
         }
 
         resp = await _http_get(
-            f"http://127.0.0.1:{port}/auth/token",
-            headers={"Authorization": "Bearer s"},
+            f"http://127.0.0.1:{port}/webui/bootstrap",
+            headers={"Cookie": f"percival_session={session_id}"},
         )
         assert resp.status_code == 429
         assert resp.headers["Cache-Control"] == "no-store"
@@ -5220,7 +5243,7 @@ async def test_client_id_truncation(bus: MagicMock) -> None:
 
     try:
         long_id = "x" * 200
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id={long_id}") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id={long_id}") as client:
             ready = json.loads(await client.recv())
             assert ready["client_id"] == "x" * 128
             assert len(ready["client_id"]) == 128
@@ -5238,7 +5261,7 @@ async def test_non_utf8_binary_frame_ignored(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=bin-test") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=bin-test") as client:
             await client.recv()  # consume ready
             # Send non-UTF-8 bytes
             await client.send(b"\xff\xfe\xfd")
@@ -5251,7 +5274,7 @@ async def test_non_utf8_binary_frame_ignored(bus: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_static_token_accepts_issued_token_as_fallback(bus: MagicMock) -> None:
+async def test_static_token_and_legacy_issue_route_are_rejected(bus: MagicMock) -> None:
     port = 29885
     channel = _ch(
         bus, port=port,
@@ -5264,18 +5287,17 @@ async def test_static_token_accepts_issued_token_as_fallback(bus: MagicMock) -> 
     await asyncio.sleep(0.3)
 
     try:
-        # Get an issued token
         resp = await _http_get(
             f"http://127.0.0.1:{port}/auth/token",
             headers={"Authorization": "Bearer route-secret"},
         )
-        assert resp.status_code == 200
-        issued_token = resp.json()["token"]
-
-        # Connect using issued token (not the static one)
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?token={issued_token}&client_id=caller") as client:
-            ready = json.loads(await client.recv())
-            assert ready["event"] == "ready"
+        assert resp.status_code == 410
+        with pytest.raises(websockets.exceptions.InvalidStatus) as excinfo:
+            async with websockets.connect(
+                f"ws://127.0.0.1:{port}/ws?token=static-secret&client_id=caller"
+            ):
+                pass
+        assert excinfo.value.response.status_code == 401
     finally:
         await channel.stop()
         await server_task
@@ -5340,7 +5362,7 @@ async def test_multiplex_legacy_still_works(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=legacy") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=legacy") as client:
             ready = json.loads(await client.recv())
             default_chat = ready["chat_id"]
 
@@ -5372,13 +5394,14 @@ async def test_multiplex_legacy_still_works(bus: MagicMock) -> None:
 
 @pytest.mark.asyncio
 async def test_multiplex_new_chat_roundtrip(bus: MagicMock) -> None:
-    port = 29931
-    channel = _ch(bus, port=port)
+    channel = _ch(bus, port=0)
     server_task = asyncio.create_task(channel.start())
     await asyncio.sleep(0.3)
+    assert channel._server is not None
+    port = channel._server.sockets[0].getsockname()[1]
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=mp") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=mp") as client:
             ready = json.loads(await client.recv())
             default_chat = ready["chat_id"]
 
@@ -5514,7 +5537,7 @@ async def test_multiplex_two_chats_isolated(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=two") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=two") as client:
             await client.recv()  # ready
 
             await client.send(json.dumps({"type": "new_chat"}))
@@ -5551,7 +5574,7 @@ async def test_multiplex_invalid_frames_return_error(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=bad") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=bad") as client:
             await client.recv()  # ready
 
             # attach with bad chat_id
@@ -5587,7 +5610,7 @@ async def test_multiplex_cleanup_on_disconnect(bus: MagicMock) -> None:
     await asyncio.sleep(0.3)
 
     try:
-        async with websockets.connect(f"ws://127.0.0.1:{port}/ws?client_id=dc") as client:
+        async with await _connect_when_ready(f"ws://127.0.0.1:{port}/ws?client_id=dc") as client:
             ready = json.loads(await client.recv())
             default_chat = ready["chat_id"]
             await client.send(json.dumps({"type": "new_chat"}))

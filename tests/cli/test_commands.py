@@ -2209,8 +2209,11 @@ def test_webui_yes_creates_config_and_enables_local_websocket(
     assert websocket["host"] == "127.0.0.1"
     assert websocket["port"] == 8899
     assert websocket["websocketRequiresToken"] is True
-    assert isinstance(websocket["tokenIssueSecret"], str)
-    assert len(websocket["tokenIssueSecret"]) >= 32
+    # The legacy ``tokenIssueSecret`` field is no longer written; WebUI auth is
+    # driven by the instance password at ``auth/verifier.json``.
+    assert "tokenIssueSecret" not in websocket
+    assert "token_issue_secret" not in websocket
+    assert "token" not in websocket
     assert data["agents"]["defaults"]["workspace"] == str(workspace)
     assert seen["templates"] == workspace
     options = seen["start_options"]
@@ -2219,7 +2222,7 @@ def test_webui_yes_creates_config_and_enables_local_websocket(
     assert options.workspace == str(workspace.resolve(strict=False))
     compact_output = re.sub(r"\s+", " ", _strip_ansi(result.stdout))
     assert "Open the WebUI manually" in compact_output
-    assert "channels.websocket.tokenIssueSecret" in compact_output
+    assert "channels.websocket.tokenIssueSecret" not in compact_output
     assert "ssh -N -L 8899:127.0.0.1:8899 <user>@<server>" in compact_output
     assert seen["lease_release_wait_for_stop"] is False
     assert "stop_timeout" not in seen
@@ -2337,7 +2340,10 @@ def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) 
     assert dev_kwargs["target_url"] == "http://127.0.0.1:8899"
     browser_url = dev_kwargs["browser_url"]
     assert isinstance(browser_url, str)
-    assert browser_url.startswith("http://127.0.0.1:5173/#/?bootstrapSecret=")
+    # The new contract hands the WebUI a clean URL; the password is entered
+    # inside the page and the resulting ``?token=`` is obtained via /auth/login.
+    assert browser_url == "http://127.0.0.1:5173/"
+    assert "bootstrapSecret" not in browser_url
     assert seen["start_options"].port == 18888
     assert seen["attached_while_dev_running"] is True
     assert seen["attach_kwargs"] == {"poll_hook": seen["dev_server"].ensure_running}
@@ -2345,9 +2351,10 @@ def test_webui_dev_starts_vite_sidecar_and_gateway(monkeypatch, tmp_path: Path) 
     assert seen["dev_running"] is False
     assert seen["dev_running_at_release"] is False
     assert seen["lease_release_wait_for_stop"] is False
-    assert "WebUI dev: http://127.0.0.1:5173/#/?bootstrapSecret=<redacted>" in re.sub(
+    assert "WebUI dev: http://127.0.0.1:5173/" in re.sub(
         r"\s+", " ", _strip_ansi(result.stdout)
     )
+    assert "bootstrapSecret" not in result.stdout
 
 
 def test_webui_dev_waits_for_external_gateway_via_health_endpoint(monkeypatch) -> None:
@@ -2470,16 +2477,18 @@ def test_webui_resumes_first_run_without_provider_setup(
     assert "Configure a provider and model in WebUI Settings → Models." in resumed.stdout
     assert "Quick Start" not in resumed.stdout
     assert json.loads(config_file.read_text(encoding="utf-8")) == saved_config
-    assert saved_config["channels"]["websocket"]["host"] == "127.0.0.1"
-    assert saved_config["channels"]["websocket"]["tokenIssueSecret"]
+    assert "tokenIssueSecret" not in json.dumps(saved_config)
 
 
 def test_webui_missing_runtime_env_fails_before_starting_gateway(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    """The legacy ``tokenIssueSecret`` env-var resolution path is gone; the
+    WebUI no longer reads or writes a bootstrap secret. This test now exercises
+    a port-typed env ref which is still resolved before gateway startup."""
     config_file = tmp_path / "config.json"
-    missing_env = "NANOBOT_TEST_MISSING_WEBUI_SECRET"
+    missing_env = "NANOBOT_TEST_MISSING_WEBUI_PORT"
     monkeypatch.delenv(missing_env, raising=False)
     config_file.write_text(
         json.dumps({
@@ -2493,7 +2502,7 @@ def test_webui_missing_runtime_env_fails_before_starting_gateway(
                 "websocket": {
                     "enabled": True,
                     "host": "0.0.0.0",
-                    "tokenIssueSecret": f"${{{missing_env}}}",
+                    "port": f"${{{missing_env}}}",
                 }
             },
         }),
@@ -2547,9 +2556,12 @@ def test_webui_yes_opens_settings_for_incomplete_custom_model_setup(
     assert saved["providers"]["custom"]["displayName"] == "Custom"
 
 
-def test_open_webui_browser_redacts_bootstrap_secret(monkeypatch, capsys) -> None:
+def test_open_webui_browser_handles_a_clean_login_url(monkeypatch, capsys) -> None:
     opened: list[str] = []
-    url = "http://127.0.0.1:8765/#/?bootstrapSecret=super-secret"
+    # The 0.1.0 contract hands the browser a clean URL with no secret in the
+    # fragment; the user signs in inside the page and ``?token=`` is appended
+    # only after a successful ``/auth/login``.
+    url = "http://127.0.0.1:8765/"
     monkeypatch.setattr(cli_webui_support, "_text_only_browser_name", lambda: None)
     monkeypatch.setattr(
         cli_webui_support,
@@ -2561,8 +2573,7 @@ def test_open_webui_browser_redacts_bootstrap_secret(monkeypatch, capsys) -> Non
 
     assert opened == [url]
     output = _strip_ansi(capsys.readouterr().out)
-    assert "bootstrapSecret=<redacted>" in output
-    assert "super-secret" not in output
+    assert "bootstrapSecret" not in output
 
 
 def test_open_webui_browser_reports_launch_failure(monkeypatch, capsys) -> None:
@@ -2619,12 +2630,19 @@ def test_text_only_browser_name_detects_links(monkeypatch) -> None:
     ],
 )
 def test_print_webui_manual_access_includes_password_source_and_ssh_tunnel(
-    capsys, host: str, tunnel_host: str,
+    capsys, host: str, tunnel_host: str, tmp_path: Path, monkeypatch,
 ) -> None:
+    # The tokenIssueSecret field is preserved on the model for backward
+    # compatibility but is no longer part of the WebUI auth flow; the manual
+    # access instructions now point at the single instance password instead.
     config = Config(channels={"websocket": {
         "host": host, "port": 8899, "tokenIssueSecret": "do-not-print",
     }})
-    config_path = Path("/srv/nanobot/config.json")
+    config_path = tmp_path / "config.json"
+    monkeypatch.setattr("nanobot.config.loader.get_config_path", lambda: config_path)
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(tmp_path).set_password("smoke-fleet-aurora-2026-instance")
 
     cli_webui_support._print_webui_manual_access(
         config,
@@ -2634,8 +2652,9 @@ def test_print_webui_manual_access_includes_password_source_and_ssh_tunnel(
 
     output = re.sub(r"\s+", " ", _strip_ansi(capsys.readouterr().out))
     assert f"WebUI: http://{tunnel_host}:8899" in output
-    assert "channels.websocket.tokenIssueSecret" in output
-    assert str(config_path) in output
+    assert "channels.websocket.tokenIssueSecret" not in output
+    assert "Config:" in output
+    assert config_path.name in output
     assert f"ssh -N -L 8899:{tunnel_host}:8899 <user>@<server>" in output
     assert "Then open http://127.0.0.1:8899 on your computer." in output
     assert "do-not-print" not in output
@@ -2736,7 +2755,9 @@ def test_webui_foreground_attaches_to_existing_managed_gateway(monkeypatch, tmp_
     parsed = urlparse(opened_url)
     assert f"{parsed.scheme}://{parsed.netloc}" == "http://127.0.0.1:8765"
     fragment = parsed.fragment.removeprefix("/?")
-    assert parse_qs(fragment).get("bootstrapSecret")
+    # The new contract opens the WebUI at a clean URL with no bootstrap secret.
+    assert "bootstrapSecret" not in fragment
+    assert parse_qs(fragment).get("token") is None
     assert seen["open_kwargs"] == {"wait": False}
     assert seen["lease_release_wait_for_stop"] is False
 
@@ -2914,6 +2935,9 @@ def test_webui_foreground_reports_an_existing_gateway_without_leaking_secret(
     tmp_path: Path,
 ) -> None:
     config_file = tmp_path / "config.json"
+    # The legacy ``tokenIssueSecret`` field is preserved on the model but is
+    # no longer read by the gateway; nothing about a WebUI secret should
+    # appear in foreground output either.
     config_file.write_text(
         '{"channels":{"websocket":{"tokenIssueSecret":"do-not-leak"}}}',
         encoding="utf-8",
@@ -2931,7 +2955,8 @@ def test_webui_foreground_reports_an_existing_gateway_without_leaking_secret(
 
     assert result.exit_code == 1
     assert "gateway is already running for this local instance" in result.stdout
-    assert "bootstrapSecret=<redacted>" in result.stdout
+    assert "bootstrapSecret" not in result.stdout
+    assert "tokenIssueSecret" not in result.stdout
     assert "do-not-leak" not in result.stdout
 
 

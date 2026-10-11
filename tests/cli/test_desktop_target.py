@@ -154,15 +154,17 @@ def test_unix_request_revalidates_instance_identity() -> None:
 
 
 def test_webui_url_requires_ready_capability_and_loopback() -> None:
+    # The 0.1.0 contract hands the browser a clean URL; authentication happens
+    # inside the page against the instance password at ``auth/verifier.json``.
     assert (
         _desktop_webui_url(
             DesktopReply(
                 "ready",
                 frozenset({"webui"}),
-                "http://127.0.0.1:8765/#/?bootstrapSecret=private",
+                "http://127.0.0.1:8765/#/login",
             )
         )
-        == "http://127.0.0.1:8765/#/?bootstrapSecret=private"
+        == "http://127.0.0.1:8765/#/login"
     )
     with pytest.raises(DesktopTargetError, match="non-loopback"):
         _desktop_webui_url(
@@ -287,7 +289,7 @@ def test_python_choice_does_not_request_desktop_operation(monkeypatch, capsys) -
 def test_desktop_webui_selection_revalidates_and_opens_browser(monkeypatch, capsys) -> None:
     calls: list[str] = []
     browser_urls: list[str] = []
-    url = "http://localhost:8765/#/?bootstrapSecret=private"
+    url = "http://localhost:8765/#/login"
 
     class Target:
         def request(self, operation: str) -> DesktopReply:
@@ -383,8 +385,8 @@ def test_python_label_preserves_venv_executable(monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("url", [
-    "http://[::1/#/?bootstrapSecret=private",
-    "http://localhost:invalid/#/?bootstrapSecret=private",
+    "http://[::1/#/login",
+    "http://localhost:invalid/#/login",
     "http://localhost:99999/",
     "http://localhost:0/",
     "http://evil.example\\@localhost/",
@@ -397,7 +399,7 @@ def test_invalid_browser_urls_are_protocol_errors(url):
 
 
 def test_browser_failure_does_not_leak_bootstrap_or_fall_back(monkeypatch, capsys):
-    url = "http://localhost:8765/#/?bootstrapSecret=private"
+    url = "http://localhost:8765/#/login"
 
     class Target:
         def request(self, _operation):

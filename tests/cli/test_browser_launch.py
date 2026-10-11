@@ -39,9 +39,9 @@ def macos_url_services(monkeypatch):
 
 @pytest.mark.parametrize("url", [
     "http://127.0.0.1:8765/",
-    "http://127.0.0.1:8765/#/?bootstrapSecret=synthetic-only",
-    "http://localhost:5173/#/?bootstrapSecret=quote%22%27%24%28%29%26",
-    "http://[::1]:8765/#/中文?bootstrapSecret=synthetic-only",
+    "http://127.0.0.1:8765/#/login",
+    "http://localhost:5173/#/login",
+    "http://[::1]:8765/#/中文",
 ])
 def test_macos_uses_os_url_events_without_process_arguments(macos_url_services, capsys, url):
     foundation, services = macos_url_services
@@ -60,7 +60,7 @@ def test_macos_browser_failures_never_fall_back_or_log_url(
     macos_url_services, monkeypatch, capsys, failure,
 ):
     foundation, services = macos_url_services
-    url = "http://localhost/#/?bootstrapSecret=synthetic-only"
+    url = "http://localhost/#/login"
     if failure in {"load", "symbol"}:
         error_type = OSError if failure == "load" else AttributeError
         monkeypatch.setattr(ctypes, "CDLL", MagicMock(side_effect=error_type(url)))
@@ -86,7 +86,7 @@ def test_desktop_handoff_uses_the_protected_shared_launcher(
 ):
     foundation, services = macos_url_services
     services.LSOpenCFURLRef.return_value = launch_status
-    url = "http://localhost:8765/#/?bootstrapSecret=synthetic-only"
+    url = "http://localhost:8765/#/login"
     calls = []
 
     class Target:

@@ -441,18 +441,11 @@ async def test_paired_profile_follows_moved_data_root(tmp_path, monkeypatch, wit
     assert paired["ssh_config"] == (str(restarted.pairing.path(request.id) / "ssh_route") if with_route else "")
     assert next(item for item in profiles if item["id"] == source["id"])["ssh_config"] == str(external)
 
-    async def check_transport(profile, port, known_hosts, **kwargs):
-        assert profile.identity_file == paired["identity_file"]
-        assert profile.ssh_config == paired["ssh_config"]
-        args = ssh_arguments(profile, known_hosts)
-        assert str(original) not in " ".join(args)
-        assert known_hosts.read_text() == "nanobot-remote " + value.host_key + "\n"
-        raise RemoteError("ssh_unreachable")
-
-    monkeypatch.setattr(remote_ssh, "open_tunnel", check_transport)
-    monkeypatch.setattr(remote_ssh.shutil, "which", lambda _: "/usr/bin/ssh")
-    with pytest.raises(RemoteError, match="ssh_unreachable"):
+    open_tunnel = AsyncMock()
+    monkeypatch.setattr(remote_ssh, "open_tunnel", open_tunnel)
+    with pytest.raises(RemoteError, match="remote_auth_required"):
         await restarted.action("connect", {"id": request.id})
+    open_tunnel.assert_not_awaited()
     await restarted.action("remove", {"id": request.id})
     assert not restarted.pairing.path(request.id).exists()
     assert external.exists()
@@ -460,9 +453,12 @@ async def test_paired_profile_follows_moved_data_root(tmp_path, monkeypatch, wit
 
 
 def test_model_keys_never_enter_pairing_metadata(tmp_path):
+    from nanobot.access.credential import AccessCredential
+
     path = tmp_path / "config.json"
     path.write_text(json.dumps({"providers": {"deepseek": {"apiKey": "not-exported"}},
                                 "channels": {"websocket": {"enabled": True, "tokenIssueSecret": "webui-only"}}}))
+    AccessCredential(tmp_path).set_password("fixture-crimson-forest-2026")
     assert "not-exported" not in json.dumps(remote_pair_server.metadata(path))
 
 

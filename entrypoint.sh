@@ -45,6 +45,8 @@ if [ "$(id -u)" = "0" ]; then
             exit 1
         fi
     fi
+    # Single-instance password storage lives in $dir/auth (0600) and is owned
+    # by the same chown pass above; no extra handling required.
     if setpriv --reuid=nanobot --regid=nanobot --init-groups true 2>/dev/null; then
         echo "[entrypoint] dropping privileges to nanobot via setpriv"
         exec setpriv --reuid=nanobot --regid=nanobot --init-groups nanobot "$@"

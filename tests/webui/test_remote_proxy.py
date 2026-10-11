@@ -13,22 +13,55 @@ from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+from aiohttp import WSMsgType as AioWSMsgType
+from aiohttp import web as aiohttp_web
 from websockets.asyncio.client import connect
-from websockets.asyncio.server import serve
 from websockets.datastructures import Headers
 from websockets.exceptions import InvalidStatus
 from websockets.http11 import Request
 
+from nanobot.access.credential import AccessCredential
+from nanobot.access.errors import AuthError, AuthThrottledError, SetupRequiredError
 from nanobot.channels.websocket.runtime import WebSocketConfig
 from nanobot.webui import remote_ssh
 from nanobot.webui.client_contract import webui_contract
 from nanobot.webui.gateway_services import build_gateway_services
+from nanobot.webui.http_utils import (
+    build_csrf_cookie,
+    build_session_cookie,
+)
 from nanobot.webui.local_client_assets import LocalClientAssets
 from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import RemoteProfile, open_tunnel
 
 ROOT = "synthetic-remote-root"
 MEDIA = "/api/media/AAAAAAAAAAAAAAAAAAAAAA/remoteFilePayload"
+
+
+def _ws_request_from_aiohttp(req: aiohttp_web.Request) -> Request:
+    """Wrap an aiohttp request as a websockets Request so service.endpoint accepts it."""
+    headers = Headers(list(req.headers.items()))
+    return Request(req.path_qs, headers)
+
+
+def _ws_connection_from_aiohttp(req: aiohttp_web.Request) -> SimpleNamespace:
+    """Minimal websockets.ServerConnection stand-in for service.endpoint dispatch.
+
+    Returned as a frozen dataclass so it can be added to sets such as
+    ``services.endpoint.webui_connections`` (which require hashable members).
+    """
+    from dataclasses import dataclass
+
+    @dataclass(frozen=True)
+    class _FakeConnection:
+        remote_address: object
+
+    peer = req.transport.get_extra_info("peername") if req.transport else None
+    if isinstance(peer, tuple):
+        remote_address = (peer[0], peer[1]) + peer[2:] if len(peer) >= 2 else peer
+    else:
+        remote_address = peer
+    return _FakeConnection(remote_address=remote_address)
 
 
 @pytest.fixture
@@ -47,66 +80,186 @@ async def remote(tmp_path, monkeypatch):
         default_restrict_to_workspace=False, runtime_model_name=None,
         runtime_surface="browser", runtime_capabilities_overrides=None,
     )
+    # Persist a password verifier so /auth/login accepts the proxy password.
+    AccessCredential(tmp_path).set_password(ROOT)
     seen, children = [], []
     # Frozen initial wire declaration: current client vs an independently defined host.
     state = SimpleNamespace(block=asyncio.Event(), entered=asyncio.Event(), ws_redirect=False,
                             contract={"version": "0.3.5", "min_protocol": 1, "max_protocol": 1,
                                       "capabilities": ["webui.core.v1"]})
 
-    async def process(connection, request):
-        seen.append(request)
-        path = urlsplit(request.path).path
-        if path.startswith("/assets/"):
-            response = connection.respond(200, "fixture asset")
-            response.headers["Content-Type"] = "application/javascript"
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-            if "private" in request.path:
-                response.headers["Cache-Control"] = "private, no-store"
-            if "cookie" in request.path:
-                response.headers["Set-Cookie"] = "session=private"
-            return response
-        if path == "/redirect" or (state.ws_redirect and path == config.path):
-            response = connection.respond(302, "redirect")
-            response.headers["Location"] = "http://127.0.0.1:1/?token=" + ROOT
-            response.headers["Set-Cookie"] = "credential=" + ROOT
-            return response
-        if path == "/api/fixture" or path == "/api/block":
-            if not services.tokens.check_api_token(request):
-                return connection.respond(401, "Unauthorized")
-            if path == "/api/block":
-                state.entered.set()
-                await state.block.wait()
-            response = connection.respond(200, json.dumps({"text": f"![image]({MEDIA})"}))
-            response.headers["Content-Type"] = "application/json"
-            response.headers["Set-Cookie"] = "credential=" + ROOT
-            return response
-        if path == MEDIA:
-            assert request.headers.get("Authorization") is None
-            response = connection.respond(206, "bytes")
-            response.headers["Content-Type"] = "image/png"
-            response.headers["Content-Range"] = "bytes 0-4/10"
-            return response
-        response = await services.endpoint.process_request(connection, request, is_allowed=lambda _: True)
+    async def login_handler(req: aiohttp_web.Request) -> aiohttp_web.Response:
+        seen.append(_ws_request_from_aiohttp(req))
+        try:
+            payload = await req.json()
+        except (json.JSONDecodeError, ValueError):
+            return aiohttp_web.json_response({"error": "invalid login payload"}, status=400)
+        password = payload.get("password") if isinstance(payload, dict) else None
+        if not isinstance(password, str):
+            return aiohttp_web.json_response({"error": "password required"}, status=400)
+        source = req.remote or "unknown"
+        try:
+            session = services.access.login(password, source=source)
+        except SetupRequiredError:
+            return aiohttp_web.json_response({"error": "setup_required"}, status=409)
+        except AuthThrottledError as exc:
+            return aiohttp_web.json_response({"error": str(exc)}, status=429)
+        except AuthError as exc:
+            return aiohttp_web.json_response({"error": str(exc)}, status=401)
+        body = {
+            "session_id": session.session_id,
+            "csrf_token": session.csrf_token,
+            "session_idle_remaining_s": max(0.0, session.idle_expiry - time.monotonic()),
+            "session_absolute_remaining_s": max(0.0, session.absolute_expiry - time.monotonic()),
+        }
+        response = aiohttp_web.json_response(body)
+        response.headers["Set-Cookie"] = ", ".join([
+            build_session_cookie(session.session_id, secure=False, max_age_s=12 * 60 * 60),
+            build_csrf_cookie(session.csrf_token, secure=False),
+        ])
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    async def assets_handler(req: aiohttp_web.Request) -> aiohttp_web.Response:
+        seen.append(_ws_request_from_aiohttp(req))
+        path = req.rel_url.path
+        response = aiohttp_web.Response(body=b"fixture asset", status=200)
+        response.headers["Content-Type"] = "application/javascript"
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if "private" in path:
+            response.headers["Cache-Control"] = "private, no-store"
+        if "cookie" in path:
+            response.headers["Set-Cookie"] = "session=private"
+        return response
+
+    async def redirect_handler(req: aiohttp_web.Request) -> aiohttp_web.Response:
+        seen.append(_ws_request_from_aiohttp(req))
+        response = aiohttp_web.Response(body=b"redirect", status=302)
+        response.headers["Location"] = "http://127.0.0.1:1/?token=" + ROOT
+        response.headers["Set-Cookie"] = "credential=" + ROOT
+        return response
+
+    async def api_handler(req: aiohttp_web.Request) -> aiohttp_web.Response:
+        seen.append(_ws_request_from_aiohttp(req))
+        path = req.rel_url.path
+        ws_req = _ws_request_from_aiohttp(req)
+        if not services.tokens.check_api_token(ws_req):
+            return aiohttp_web.Response(body=b"Unauthorized", status=401)
+        if path == "/api/block":
+            state.entered.set()
+            await state.block.wait()
+        response = aiohttp_web.Response(
+            body=json.dumps({"text": f"![image]({MEDIA})"}).encode("utf-8"), status=200,
+        )
+        response.headers["Content-Type"] = "application/json"
+        response.headers["Set-Cookie"] = "credential=" + ROOT
+        return response
+
+    async def media_handler(req: aiohttp_web.Request) -> aiohttp_web.Response:
+        seen.append(_ws_request_from_aiohttp(req))
+        assert req.headers.get("Authorization") is None
+        response = aiohttp_web.Response(body=b"bytes", status=206)
+        response.headers["Content-Type"] = "image/png"
+        response.headers["Content-Range"] = "bytes 0-4/10"
+        return response
+
+    async def bootstrap_handler(req: aiohttp_web.Request) -> aiohttp_web.StreamResponse:
+        seen.append(_ws_request_from_aiohttp(req))
+        connection = _ws_connection_from_aiohttp(req)
+        response = await services.endpoint.process_request(
+            connection, _ws_request_from_aiohttp(req), is_allowed=lambda _: True,
+        )
+        path = req.rel_url.path
         if path == "/webui/bootstrap" and response.status_code == 200:
             payload = json.loads(response.body)
             payload["terminal"]["webui"] = state.contract
-            response.body = json.dumps(payload).encode()
-            del response.headers["Content-Length"]
+            new_body = json.dumps(payload).encode()
+            # websockets Headers.__setitem__ appends rather than replaces;
+            # delete first to keep exactly one Content-Length matching the
+            # rewritten body before we forward through aiohttp.
+            try:
+                del response.headers["Content-Length"]
+            except KeyError:
+                pass
+            response.body = new_body
             response.headers["Content-Length"] = str(len(response.body))
-        return response
+        # The gateway returns websockets Response objects; lift them into aiohttp.
+        from aiohttp.web import Response as AioResponse
+        if isinstance(response, AioResponse):
+            return response
+        headers = [(key, value) for key, value in response.headers.raw_items()]
+        return aiohttp_web.Response(
+            body=getattr(response, "body", b""), status=response.status_code,
+            headers=headers,
+        )
 
-    async def messages(ws):
-        assert ws in services.endpoint.webui_connections
-        assert ws.request.headers.get("X-Nanobot-Auth") is None
-        await ws.send(json.dumps({"ready": True, "media": MEDIA,
-                                  "query": parse_qs(urlsplit(ws.request.path).query).get("client_id")}))
+    async def ws_handler(req: aiohttp_web.Request) -> aiohttp_web.WebSocketResponse:
+        seen.append(_ws_request_from_aiohttp(req))
+        ws_req = _ws_request_from_aiohttp(req)
+        connection = _ws_connection_from_aiohttp(req)
+        # Replicate the gateway's authorize step: accept ?token= or trusted proxy.
+        from nanobot.webui.gateway_endpoint import is_websocket_upgrade
+        from nanobot.webui.http_utils import parse_query, query_first
+        if not is_websocket_upgrade(ws_req):
+            return aiohttp_web.Response(status=400, text="WS required")
+        query = parse_query(req.path_qs)
+        supplied = query_first(query, "token")
+        accepted = False
+        if supplied:
+            session_id = services.tokens.session_for_issued_token(supplied)
+            if session_id and services.endpoint._consume_issued_with_session(
+                connection, supplied, session_id,
+            ):
+                accepted = True
+        if not accepted and not config.websocket_requires_token:
+            accepted = True
+        if not accepted:
+            return aiohttp_web.Response(status=401, text="Unauthorized")
+        if state.ws_redirect:
+            response = aiohttp_web.Response(body=b"redirect", status=302)
+            response.headers["Location"] = "http://127.0.0.1:1/?token=" + ROOT
+            response.headers["Set-Cookie"] = "credential=" + ROOT
+            return response
+        # The legacy ``X-Nanobot-Auth`` shared-secret contract is gone; the
+        # proxy now authenticates with the cached session cookie and a Bearer
+        # query token. Replicating the prior fixture's negative assertion.
+        assert req.headers.get("X-Nanobot-Auth") is None
+        ws = aiohttp_web.WebSocketResponse(max_msg_size=64 * 1024 * 1024, heartbeat=30)
+        await ws.prepare(req)
+        services.endpoint.webui_connections.add(connection)
+        await ws.send_json({"ready": True, "media": MEDIA,
+                            "query": parse_qs(urlsplit(req.path_qs).query).get("client_id")})
         async for message in ws:
-            await ws.send(message)
+            if message.type == AioWSMsgType.TEXT:
+                await ws.send_str(message.data)
+            elif message.type == AioWSMsgType.BINARY:
+                await ws.send_bytes(message.data)
+        return ws
+
+    app = aiohttp_web.Application(client_max_size=64 * 1024 * 1024)
+    app.router.add_post("/auth/login", login_handler)
+    app.router.add_get("/assets/{tail:.*}", assets_handler)
+    app.router.add_get("/redirect", redirect_handler)
+    app.router.add_get("/api/fixture", api_handler)
+    app.router.add_get("/api/block", api_handler)
+    app.router.add_get(MEDIA, media_handler)
+    app.router.add_get("/webui/bootstrap", bootstrap_handler)
+    app.router.add_get("/webui/terminal", bootstrap_handler)
+    # The fixture accepts WS upgrades on the configured ``config.path``
+    # AND on any other path, mirroring the prior ``serve()`` behaviour that
+    # ran the ``messages`` handler for every WS handshake regardless of
+    # path. The handler still validates the configured path internally.
+    app.router.add_get(config.path, ws_handler)
+    app.router.add_get("/{ws_path:.*}", ws_handler)
 
     real_spawn = asyncio.create_subprocess_exec
     monkeypatch.setattr(remote_ssh.shutil, "which", lambda _: "fixture-ssh")
-    async with serve(messages, "127.0.0.1", 0, process_request=process, max_size=64 * 1024 * 1024) as server:
-        port = server.sockets[0].getsockname()[1]
+    runner = aiohttp_web.AppRunner(app, access_log=None, handle_signals=False)
+    await runner.setup()
+    site = aiohttp_web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]  # type: ignore[union-attr]
+    try:
         pipe = f"""
 import os, socket, threading
 upstream = socket.create_connection(('127.0.0.1', {port}))
@@ -136,6 +289,8 @@ while data := upstream.recv(65536):
             state.block.set()
             await proxy.close()
             assert all(child.returncode is not None for child in children)
+    finally:
+        await runner.cleanup()
 
 
 async def bootstrap(remote, headers=None):
@@ -225,9 +380,17 @@ async def test_remote_credentials_never_leave_the_backend(remote):
         assert MEDIA not in response.text and ROOT not in response.text
         assert "set-cookie" not in response.headers
         request = remote.seen[-1]
-        assert request.headers.get("Cookie") is None
+        # The proxy replaces the browser's cookie with its own session cookie.
+        # The browser-supplied ``injected=1`` value must never reach upstream,
+        # and other forwarded-user/host headers must not be reflected either.
+        assert request.headers.get("Cookie") == f"percival_session={remote.proxy._session_cookie}"
+        assert "injected" not in request.headers.get("Cookie", "")
         assert request.headers.get("X-Forwarded-User") is None
         assert request.headers.get("X-Forwarded-Host") is None
+        # The legacy shared-secret bootstrap header is no longer used; the
+        # proxy must not forward its old self-issued secret (nor any other
+        # proxy-side token) to the upstream gateway.
+        assert request.headers.get("X-Nanobot-Auth") is None
         assert request.headers["Authorization"] != "Bearer " + issued["api_token"]
 
 

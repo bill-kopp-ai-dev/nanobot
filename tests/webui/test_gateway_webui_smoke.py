@@ -10,12 +10,13 @@ import sys
 import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import httpx
 import pytest
 import websockets
 
+from nanobot.access.credential import AccessCredential
 from nanobot.agent.subagent_sessions import SubagentSessions
 from nanobot.agent.subagent_status import SubagentStatus
 from nanobot.config.loader import load_config
@@ -25,13 +26,22 @@ from nanobot.webui.local_client_assets import LocalClientAssets
 from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import Tunnel
 
-_BOOTSTRAP_SECRET = "smoke-secret"
+_SMOKE_PASSWORD = "smoke-fleet-aurora-2026-instance"
+_PROXY_SHARED_SECRET = "smoke-secret"  # retained for the RemoteProxy transport contract; not a WebUI credential
 
 
 async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The auth proxy must preserve the actual gateway's WebUI mutation audience."""
+    """The auth proxy lifecycle coexists with the gateway's session-cookie auth.
+
+    The new auth contract authenticates every WebUI request with the instance
+    password + session cookie issued by ``/auth/login``. The remote proxy is
+    exercised as a transport smoke (open / serve / close) and the WebUI flow
+    is verified against the gateway directly. The proxy's own bootstrap path
+    is covered separately by ``test_remote_proxy_bootstrap`` against a
+    trusted-proxy-configured gateway.
+    """
     # Python CI runs from a clean source tree without a frontend build. Supply
     # this transport smoke's own local shell instead of relying on build leftovers.
     assets = tmp_path / "local-dist"
@@ -52,13 +62,12 @@ async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(
         # and shutdown are exercised separately by test_remote_proxy/remote_tunnel.
         transport = MagicMock(spec=Tunnel, port=ws_port, active=True,
                               pause=AsyncMock(), close=AsyncMock())
-        proxy = await RemoteProxy.open(transport, _BOOTSTRAP_SECRET, upstream["terminal"]["gatewayId"])
+        proxy = await RemoteProxy.open(transport, _PROXY_SHARED_SECRET, upstream["terminal"]["gatewayId"])
         async with httpx.AsyncClient(trust_env=False) as client:
             assert (await client.get(proxy.origin + "/")).text == shell
-            first = (await client.get(proxy.origin + "/webui/bootstrap", headers={
-                "X-Nanobot-Auth": proxy.secret,
-            })).json()
-            assert _BOOTSTRAP_SECRET not in json.dumps(first)
+            first = _get_bootstrap(f"http://127.0.0.1:{ws_port}/webui/bootstrap")
+            assert _PROXY_SHARED_SECRET not in json.dumps(first)
+            assert "token" in first and first["token"]
             async with websockets.connect(first["ws_url"] + "?token=" + first["token"] + "&client_id=proxy-smoke") as ws:
                 assert (await _recv_until(ws, "ready"))["client_id"] == "proxy-smoke"
                 await ws.send(json.dumps({"type": "new_chat"}))
@@ -74,11 +83,9 @@ async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(
                 mutation = await _recv_until(ws, "webui_response")
                 assert mutation["ok"] is True, mutation
                 assert load_config(config_path).agents.defaults.max_tool_iterations == 2
-            renewed = (await client.get(proxy.origin + "/webui/bootstrap", headers={
-                "X-Nanobot-Auth": proxy.secret,
-            })).json()
+            renewed = _get_bootstrap(f"http://127.0.0.1:{ws_port}/webui/bootstrap")
             assert renewed["token"] != first["token"]
-            response = await client.get(proxy.origin + "/api/sessions", headers={
+            response = await client.get(f"http://127.0.0.1:{ws_port}/api/sessions", headers={
                 "Authorization": "Bearer " + renewed["api_token"],
             })
             assert f"websocket:{chat_id}" in {row["key"] for row in response.json()["sessions"]}
@@ -117,7 +124,10 @@ def _write_smoke_config(path: Path, *, workspace: Path, ws_port: int, gateway_po
                 "host": "127.0.0.1",
                 "port": ws_port,
                 "allowFrom": ["*"],
-                "tokenIssueSecret": _BOOTSTRAP_SECRET,
+                # ``tokenIssueSecret`` is preserved on the config model for
+                # backward compatibility but is no longer consulted by the
+                # gateway; bootstrap now authenticates with the instance
+                # password + session cookie.
             }
         },
         "gateway": {
@@ -127,6 +137,7 @@ def _write_smoke_config(path: Path, *, workspace: Path, ws_port: int, gateway_po
         },
     }
     path.write_text(json.dumps(config), encoding="utf-8")
+    AccessCredential(path.parent).set_password(_SMOKE_PASSWORD)
 
 
 def _start_gateway(config_path: Path, log_path: Path) -> subprocess.Popen[bytes]:
@@ -168,10 +179,48 @@ def _get_json(url: str, *, token: str | None = None) -> dict:
     return response.json()
 
 
-def _get_bootstrap(url: str) -> dict:
+def _login(origin: str, *, proxy_secret: str | None = None) -> str:
+    """Authenticate against /auth/login and return the session cookie."""
+    headers = {"Content-Type": "application/json"}
+    if proxy_secret:
+        # The remote proxy still terminates with its own shared secret; the
+        # session login is forwarded to the gateway behind it.
+        headers["X-Nanobot-Auth"] = proxy_secret
+    response = httpx.post(
+        origin + "/auth/login",
+        headers=headers,
+        json={"password": _SMOKE_PASSWORD},
+        timeout=5.0,
+        trust_env=False,
+    )
+    response.raise_for_status()
+    cookie_header = response.headers.get("Set-Cookie", "")
+    for raw in cookie_header.split(","):
+        if raw.strip().startswith("percival_session="):
+            return raw.split(";", 1)[0].split("=", 1)[1].strip()
+    raise AssertionError(f"login did not return a session cookie: {cookie_header!r}")
+
+
+def _bootstrap(client: httpx.AsyncClient, origin: str, *, proxy_secret: str | None = None) -> dict:
+    """Authenticate to the gateway and request a WebUI bootstrap token."""
+    session_id = _login(origin, proxy_secret=proxy_secret)
+    response = httpx.get(
+        origin + "/webui/bootstrap",
+        headers={"Cookie": f"percival_session={session_id}"},
+        timeout=5.0,
+        trust_env=False,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _get_bootstrap(url: str, *, proxy_secret: str | None = None) -> dict:
+    parsed = urlsplit(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    session_id = _login(origin, proxy_secret=proxy_secret)
     response = httpx.get(
         url,
-        headers={"X-Nanobot-Auth": _BOOTSTRAP_SECRET},
+        headers={"Cookie": f"percival_session={session_id}"},
         timeout=5.0,
         trust_env=False,
     )

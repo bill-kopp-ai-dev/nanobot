@@ -22,15 +22,30 @@ async def test_proxy_preserves_independently_declared_host_capabilities(monkeypa
     tunnel = MagicMock(spec=Tunnel)
     tunnel.active = True
     tunnel.port = 18791
-    proxy = RemoteProxy(tunnel, "private-upstream-secret", "gateway-test", "")
+    proxy = RemoteProxy(tunnel, "private-upstream-secret-15+chars", "gateway-test", "")
     declaration = {
         "version": "custom-host", "min_protocol": 1, "max_protocol": 1,
         "capabilities": capabilities,
     }
 
     def upstream(request):
+        if request.url.path == "/auth/login":
+            assert request.method == "POST"
+            assert json.loads(request.content) == {"password": "private-upstream-secret-15+chars"}
+            return httpx.Response(
+                200,
+                json={
+                    "session_id": "test-session",
+                    "csrf_token": "test-csrf",
+                    "session_idle_remaining_s": 1800,
+                    "session_absolute_remaining_s": 43200,
+                },
+                headers={
+                    "Set-Cookie": "percival_session=testsession; Path=/; HttpOnly; SameSite=Strict",
+                },
+            )
         assert request.url.path == "/webui/bootstrap"
-        assert request.headers["X-Nanobot-Auth"] == "private-upstream-secret"
+        assert "percival_session=testsession" in request.headers.get("Cookie", "")
         return httpx.Response(200, json={
             "terminal": {"protocolVersion": 1, "gatewayId": "gateway-test", "webui": declaration},
             "token": "upstream-ws-token", "api_token": "upstream-api-token",

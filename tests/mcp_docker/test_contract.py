@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from nanobot.access.credential import AccessCredential, AccessCredentialError
 from nanobot.agent.tools import mcp as mcp_module
 from nanobot.agent.tools.mcp import (
     MCPProvider,
@@ -30,7 +31,6 @@ from nanobot.config.mcp_docker import (
 from nanobot.config.schema import Config, MCPServerConfig
 from nanobot.mcp_docker import broker as broker_module
 from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
-from nanobot.mcp_docker.operator import OperatorCredential
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
@@ -630,13 +630,17 @@ def test_competing_writers_and_separate_operator_password(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="CAS conflict"):
         save_config(stale, path)
     assert "alpha" in load_config(path).tools.mcp_docker.servers
-    credential = OperatorCredential(tmp_path)
-    credential.set_password("first password")
-    assert credential.verify("first password")
-    with pytest.raises(PermissionError):
-        credential.set_password("unauthorized")
-    credential.set_password("second password", current_password="first password")
-    assert credential.verify("second password") and not credential.verify("first password")
+    credential = AccessCredential(tmp_path)
+    credential.set_password("first crimson lantern river 2026")
+    assert credential.verify("first crimson lantern river 2026")
+    with pytest.raises(AccessCredentialError):
+        credential.set_password("scarlet meadow orbit 2026")
+    credential.set_password(
+        "second cobalt garden orbit 2026",
+        current_password="first crimson lantern river 2026",
+    )
+    assert credential.verify("second cobalt garden orbit 2026")
+    assert not credential.verify("first crimson lantern river 2026")
     assert stat.S_IMODE(credential.path.stat().st_mode) == 0o600
     assert "password" not in credential.path.read_text()
 

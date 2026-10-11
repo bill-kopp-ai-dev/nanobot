@@ -17,6 +17,7 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 import websockets
@@ -27,7 +28,42 @@ from websockets.http11 import Request as WsRequest
 from nanobot.channels.websocket.runtime import WebSocketChannel
 from nanobot.webui.http_utils import http_response
 
+TEST_INSTANCE_PASSWORD = "fixture-crimson-forest-2026"
 _IN_PROCESS_HTTP_CHANNELS: dict[int, InProcessHttpChannel] = {}
+
+
+async def issue_session_token(
+    host: str,
+    port: int,
+    password: str = TEST_INSTANCE_PASSWORD,
+) -> str:
+    """Login through the supported HTTP contract and return one WS token."""
+    session_id = await create_session(host, port, password)
+    async with httpx.AsyncClient(timeout=5.0, trust_env=False, verify=False) as client:
+        bootstrap = await client.get(
+            f"http://{host}:{port}/webui/bootstrap",
+            headers={"Cookie": f"percival_session={session_id}"},
+        )
+        if not bootstrap.is_success:
+            raise AssertionError(f"bootstrap returned HTTP {bootstrap.status_code}: {bootstrap.text}")
+        token = bootstrap.json().get("token")
+    if not isinstance(token, str) or not token:
+        raise RuntimeError("test login did not return a WebSocket token")
+    return token
+
+
+async def create_session(
+    host: str,
+    port: int,
+    password: str = TEST_INSTANCE_PASSWORD,
+) -> str:
+    async with httpx.AsyncClient(timeout=5.0, trust_env=False, verify=False) as client:
+        response = await client.post(
+            f"http://{host}:{port}/auth/login",
+            json={"password": password},
+        )
+        response.raise_for_status()
+        return str(response.json()["session_id"])
 
 
 class _HttpConnection:
@@ -138,19 +174,29 @@ class WsTestClient:
             params.append(f"token={token}")
         sep = "&" if "?" in uri else "?"
         self._uri = uri + sep + "&".join(params) if params else uri
+        self._provided_token = bool(token)
         self._extra_headers = extra_headers
         self._ws: ClientConnection | None = None
+
+    async def _issue_session_token(self) -> None:
+        parsed = urlsplit(self._uri)
+        token = await issue_session_token(parsed.hostname or "127.0.0.1", parsed.port or 8765)
+        query = parse_qsl(parsed.query, keep_blank_values=True)
+        query.append(("token", token))
+        self._uri = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
 
     async def connect(self, timeout: float = 2.0) -> None:
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             try:
+                if not self._provided_token and "token=" not in self._uri:
+                    await self._issue_session_token()
                 self._ws = await websockets.connect(
                     self._uri,
                     additional_headers=self._extra_headers,
                 )
                 return
-            except OSError:
+            except (OSError, httpx.ConnectError):
                 if asyncio.get_running_loop().time() >= deadline:
                     raise
                 await asyncio.sleep(0.01)

@@ -354,14 +354,15 @@ def test_gateway_provider_setup_failure_points_to_shortest_routes_when_webui_dis
         (["gateway", "restart"], "restart"),
     ],
 )
-@pytest.mark.parametrize("secret_field", ["tokenIssueSecret", "token"])
 def test_gateway_missing_provider_managed_start_for_webui_setup(
     tmp_path,
     monkeypatch,
     args: list[str],
     start_mode: str,
-    secret_field: str,
 ) -> None:
+    """Per-0.1.0 the WebUI is authenticated by the instance password at
+    ``auth/verifier.json``; the legacy ``tokenIssueSecret`` / ``token`` fields
+    are deprecated and are no longer surfaced by diagnostics."""
     config_path = tmp_path / "explicit-gateway-config.json"
     workspace = tmp_path / "workspace"
     webui_port = 18776
@@ -375,7 +376,7 @@ def test_gateway_missing_provider_managed_start_for_webui_setup(
                         "enabled": True,
                         "host": "127.0.0.1",
                         "port": webui_port,
-                        secret_field: bootstrap_secret,
+                        "tokenIssueSecret": bootstrap_secret,
                     }
                 },
             }
@@ -429,9 +430,9 @@ def test_gateway_missing_provider_managed_start_for_webui_setup(
     assert "WebUI Settings" in output
     assert "Models." in output
     assert f"WebUI: http://127.0.0.1:{webui_port}" in output
-    assert f"channels.websocket.{secret_field}" in output
-    if secret_field == "token":
-        assert "channels.websocket.tokenIssueSecret" not in output
+    # The diagnostics no longer surface the deprecated secret field.
+    assert "channels.websocket.tokenIssueSecret" not in output
+    assert "channels.websocket.token" not in output
     assert "bootstrapSecret" not in output
     assert bootstrap_secret not in output
     assert "Gateway cannot start" not in output

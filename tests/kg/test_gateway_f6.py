@@ -54,6 +54,10 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
         }))
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
+    # Bootstrap now authenticates with the instance password + session cookie.
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(config_path.parent).set_password("fixture-crimson-forest-2026")
     services = build_gateway_services(
         config=WebSocketConfig(host="127.0.0.1", token_issue_secret="fixture-secret"),
         bus=None, session_manager=None, static_dist_path=None,
@@ -77,8 +81,10 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
             async with httpx.AsyncClient(trust_env=False) as client:
                 prefix = "/kg-interface/api/"
                 assert (await client.get(origin + prefix + "memory/notes")).status_code == 401
+                session = services.access.login("fixture-crimson-forest-2026", source="127.0.0.1")
+                session_cookie = f"percival_session={session.session_id}"
                 bootstrap = (await client.get(origin + "/webui/bootstrap", headers={
-                    "X-Nanobot-Auth": "fixture-secret",
+                    "Cookie": session_cookie,
                 })).json()
                 headers = {"Authorization": "Bearer " + bootstrap["api_token"]}
 

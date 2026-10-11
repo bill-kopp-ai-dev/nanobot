@@ -13,6 +13,7 @@ import pytest
 from websockets.datastructures import Headers
 
 from nanobot.config.loader import get_config_path
+from nanobot.webui.gateway_auth import AccessController
 from nanobot.webui.http_utils import http_json_response
 from nanobot.webui.mcp_presets_api import custom_mcp_action
 from nanobot.webui.settings_routes import WebUISettingsRouter
@@ -27,6 +28,7 @@ def _router(
     mcp_reload: Callable[[], Awaitable[dict[str, object]]] | None = None,
     rename_model_preset: Callable[[str, str], int] | None = None,
     refresh_runtime_config: Callable[[], None] | None = None,
+    access: AccessController | None = None,
 ) -> WebUISettingsRouter:
     return WebUISettingsRouter(
         settings=WebUISettingsServices.create(
@@ -48,6 +50,9 @@ def _router(
         mcp_runtime_status=mcp_runtime_status,
         mcp_reload=mcp_reload,
         mcp_oauth_redirect_uri=lambda _request: "https://gateway.example/auth/mcp/callback",
+        access=access or AccessController.from_data_dir(
+            (config_path or get_config_path()).expanduser().resolve(strict=False).parent
+        ),
     )
 
 

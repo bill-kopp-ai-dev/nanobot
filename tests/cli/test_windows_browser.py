@@ -44,10 +44,10 @@ def launcher(monkeypatch):
 
 @pytest.mark.parametrize("url", [
     "http://127.0.0.1:8765/",
-    "http://127.0.0.1:8765/#/?bootstrapSecret=synthetic-only",
-    "http://localhost:5173/#/?bootstrapSecret=quote%22%27%24%28%29%26",
-    "http://[::1]:8765/#/中文?bootstrapSecret=synthetic-only",
-    "https://localhost/?token=synthetic-only#%62ootstrapSecret=alternate",
+    "http://127.0.0.1:8765/#/login",
+    "http://localhost:5173/",
+    "http://[::1]:8765/#/中文",
+    "https://localhost/?token=synthetic-only",
 ])
 def test_windows_uses_pipe_not_argv_or_browser_override(launcher, capsys, url):
     process, spawn = launcher
@@ -81,7 +81,7 @@ def test_invalid_input_does_not_spawn_a_helper(launcher, url, capsys):
 @pytest.mark.parametrize("failure", ["spawn", "eof", "bad_ack", "pipe"])
 def test_launcher_failure_never_logs_url_or_retries(launcher, failure, capsys):
     process, spawn = launcher
-    url = "http://localhost/#/?bootstrapSecret=synthetic-only"
+    url = "http://localhost/#/login"
     if failure == "spawn":
         spawn.side_effect = OSError(url)
     elif failure == "pipe":
@@ -123,7 +123,7 @@ def test_windows_desktop_handoff_retains_revalidation_and_no_fallback(launcher, 
             calls.append(operation)
             return desktop_target.DesktopReply(
                 "ready", frozenset({"webui"}),
-                "http://localhost:8765/#/?bootstrapSecret=synthetic-only",
+                "http://localhost:8765/#/login",
             )
 
     monkeypatch.setattr(desktop_target, "_interactive_shell", lambda: True)
@@ -137,7 +137,7 @@ def test_windows_desktop_handoff_retains_revalidation_and_no_fallback(launcher, 
 
 
 def test_redirect_escapes_html_without_changing_url():
-    url = 'http://localhost/#/?bootstrapSecret="/><script>alert(1)</script>&other=中文'
+    url = 'http://localhost/#/login?token="/><script>alert(1)</script>&other=中文'
     content = browser._redirect_html(url)
     tags = []
 
@@ -172,13 +172,13 @@ def helper_file(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("failure", [None, "launch", "exception", "ack", "interrupted"])
 def test_helper_owns_file_until_expiry_and_cleans_every_exit(helper_file, monkeypatch, failure):
-    incoming = io.BytesIO(b"http://localhost/#/?bootstrapSecret=synthetic-only\n")
+    incoming = io.BytesIO(b"http://localhost/#/login\n")
     outgoing = io.BytesIO()
     events = []
 
     def open_file(path):
-        assert path.exists() and b"synthetic-only" in path.read_bytes()
-        assert "synthetic-only" not in str(path)
+        assert path.exists() and b"localhost" in path.read_bytes()
+        assert "localhost" not in str(path)
         events.append("launch")
         if failure == "exception":
             raise OSError("launch failed")
@@ -395,11 +395,11 @@ def test_private_file_checks_precede_secret_write_and_failures_clean_up(tmp_path
     monkeypatch.setattr(browser, "_WindowsFiles", Files)
     if failure:
         with pytest.raises(OSError):
-            with browser._private_redirect(b"synthetic-only"):
+            with browser._private_redirect(b"http://localhost/#/login"):
                 pytest.fail("unsafe handoff became available")
     else:
-        with browser._private_redirect(b"synthetic-only") as path:
-            assert path.read_bytes() == b"synthetic-only"
+        with browser._private_redirect(b"http://localhost/#/login") as path:
+            assert path.read_bytes() == b"http://localhost/#/login"
             assert events.index(("private", path, False)) < events.index(("write", path))
             assert ("close", path, 0x40020080) in events  # No live write handle for browser.
             assert ("close", path.parent, 0x20080) not in events  # Directory is pinned.
@@ -433,7 +433,7 @@ def test_helper_lifetime_is_independent_of_client_pipes(tmp_path):
         [browser.sys.executable, "-I", "-S", "-c", script],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     ) as child:
-        child.stdin.write(b"http://localhost/#/?bootstrapSecret=synthetic-only\n")
+        child.stdin.write(b"http://localhost/#/login\n")
         child.stdin.close()
         assert child.stdout.read(1) == b"1"
         assert path.exists()
@@ -472,8 +472,8 @@ def test_native_private_file_permissions_sharing_and_cleanup(tmp_path, monkeypat
     api = browser._WindowsFiles()
     api.base = tmp_path
     monkeypatch.setattr(browser, "_WindowsFiles", lambda: api)
-    with browser._private_redirect(b"synthetic-only") as path:
-        assert path.read_bytes() == b"synthetic-only"
+    with browser._private_redirect(b"http://localhost/#/login") as path:
+        assert path.read_bytes() == b"http://localhost/#/login"
         with api.opened(path) as handle:
             api.check_private(handle, directory=False)
         with pytest.raises(PermissionError):

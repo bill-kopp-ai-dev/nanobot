@@ -19,7 +19,12 @@ from nanobot.bus.outbound_events import ProgressEvent
 from nanobot.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
 from nanobot.webui.gateway_services import build_gateway_services
 
-from .ws_test_client import WsTestClient, issue_token, issue_token_ok
+from .ws_test_client import (
+    TEST_INSTANCE_PASSWORD,
+    WsTestClient,
+    issue_session_token,
+    issue_token,
+)
 
 
 def _ch(bus: Any, port: int, **kw: Any) -> WebSocketChannel:
@@ -44,6 +49,8 @@ def _ch(bus: Any, port: int, **kw: Any) -> WebSocketChannel:
         runtime_surface="browser",
         runtime_capabilities_overrides=None,
     )
+    if not gateway.access.credential.exists():
+        gateway.access.credential.set_password(TEST_INSTANCE_PASSWORD)
     return WebSocketChannel(cfg, bus, gateway=gateway)
 
 
@@ -52,6 +59,13 @@ def bus() -> MagicMock:
     b = MagicMock()
     b.publish_inbound = AsyncMock()
     return b
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_data_dir(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("nanobot.config.loader.get_config_path", lambda: tmp_path / "config.json")
+    monkeypatch.setattr("nanobot.webui.gateway_services.get_config_path", lambda: tmp_path / "config.json")
 
 
 # -- Connection basics ----------------------------------------------------
@@ -169,10 +183,16 @@ async def test_empty_payload_ignored(bus: MagicMock) -> None:
 
 @pytest.mark.asyncio
 async def test_messages_preserve_order(bus: MagicMock) -> None:
-    ch = _ch(bus, 29908)
+    ch = _ch(bus, 0)
     t = asyncio.create_task(ch.start())
     try:
-        async with WsTestClient("ws://127.0.0.1:29908/", client_id="o") as c:
+        for _ in range(50):
+            if ch._server is not None and ch._server.sockets:
+                break
+            await asyncio.sleep(0.01)
+        assert ch._server is not None
+        port = ch._server.sockets[0].getsockname()[1]
+        async with WsTestClient(f"ws://127.0.0.1:{port}/", client_id="o") as c:
             await c.recv_ready()
             for i in range(5):
                 await c.send_text(f"msg-{i}")
@@ -406,12 +426,14 @@ async def test_disconnected_client_cleanup(bus: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_static_token_accepted(bus: MagicMock) -> None:
+async def test_static_token_rejected_even_when_configured(bus: MagicMock) -> None:
     ch = _ch(bus, 29915, token="secret")
     t = asyncio.create_task(ch.start())
     try:
-        async with WsTestClient("ws://127.0.0.1:29915/", client_id="a", token="secret") as c:
-            assert (await c.recv_ready()).client_id == "a"
+        with pytest.raises(websockets.exceptions.InvalidStatus) as exc:
+            async with WsTestClient("ws://127.0.0.1:29915/", client_id="a", token="secret"):
+                pass
+        assert exc.value.response.status_code == 401
     finally:
         await ch.stop()
         await t
@@ -438,26 +460,22 @@ async def test_token_issue_full_flow(bus: MagicMock) -> None:
              websocketRequiresToken=True)
     t = asyncio.create_task(ch.start())
     try:
-        # no secret -> 401
+        # The legacy route no longer issues credentials.
         _, status = await issue_token(port=29917, issue_path="/auth/token")
-        assert status == 401
+        assert status == 410
 
-        # with secret -> token
-        token = await issue_token_ok(port=29917, issue_path="/auth/token", secret="s")
+        token = await issue_session_token("127.0.0.1", 29917)
 
-        # no token -> 401
         with pytest.raises(websockets.exceptions.InvalidStatus) as exc:
-            async with WsTestClient("ws://127.0.0.1:29917/ws", client_id="x"):
+            async with websockets.connect("ws://127.0.0.1:29917/ws?client_id=x"):
                 pass
         assert exc.value.response.status_code == 401
 
-        # valid token -> ok
         async with WsTestClient("ws://127.0.0.1:29917/ws", client_id="ok", token=token) as c:
             assert (await c.recv_ready()).client_id == "ok"
 
-        # reuse -> 401
         with pytest.raises(websockets.exceptions.InvalidStatus) as exc:
-            async with WsTestClient("ws://127.0.0.1:29917/ws", client_id="r", token=token):
+            async with websockets.connect(f"ws://127.0.0.1:29917/ws?token={token}&client_id=r"):
                 pass
         assert exc.value.response.status_code == 401
     finally:

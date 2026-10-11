@@ -46,6 +46,12 @@ async def test_get_bearer_and_authenticated_ws_mutation(
     monkeypatch.setattr("nanobot.webui.ws_http.kg_static_root", lambda: kg_dist)
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
+    # ``token_issue_secret`` is preserved on the config model for backward
+    # compatibility; bootstrap now requires the instance password + session
+    # cookie issued by /auth/login.
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(config_path.parent).set_password("fixture-crimson-forest-2026")
     config = WebSocketConfig(host="127.0.0.1", token_issue_secret="fixture-secret")
     services = build_gateway_services(
         config=config, bus=None, session_manager=None, static_dist_path=webui_dist,
@@ -62,15 +68,17 @@ async def test_get_bearer_and_authenticated_ws_mutation(
         async for message in connection:
             await router.dispatch(connection, "kg-browser", json.loads(message))
 
-    async with serve(messages, "127.0.0.1", 0, process_request=process) as server:
-        port = server.sockets[0].getsockname()[1]
+    async with serve(messages, "127.0.0.1", 0, process_request=process) as server_obj:
+        port = server_obj.sockets[0].getsockname()[1]
         origin = f"http://127.0.0.1:{port}"
         try:
             async with httpx.AsyncClient(trust_env=False) as client:
                 health_path = "/kg-interface/api/memory/healthz"
                 assert (await client.get(origin + health_path)).status_code == 401
+                session = services.access.login("fixture-crimson-forest-2026", source="127.0.0.1")
+                session_cookie = f"percival_session={session.session_id}"
                 bootstrap = (await client.get(origin + "/webui/bootstrap", headers={
-                    "X-Nanobot-Auth": "fixture-secret",
+                    "Cookie": session_cookie,
                 })).json()
                 assert (await client.get(
                     origin + health_path, params={"token": bootstrap["api_token"]},
@@ -169,6 +177,11 @@ async def test_spa_transport_in_real_browser_against_gateway(
     webui_dist = tmp_path / "webui-dist"
     webui_dist.mkdir()
     (webui_dist / "index.html").write_text("<!doctype html><title>WebUI</title>")
+    # ``token_issue_secret`` is preserved on the model for backward compatibility;
+    # bootstrap now authenticates with the instance password via /auth/login.
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(config_path.parent).set_password("fixture-crimson-forest-2026")
     services = build_gateway_services(
         config=WebSocketConfig(host="127.0.0.1", token_issue_secret="fixture-secret"),
         bus=None, session_manager=None, static_dist_path=webui_dist,

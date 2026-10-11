@@ -89,6 +89,9 @@ def test_launcher_passes_the_canonical_model_preset_to_the_tui(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    # The legacy ``channels.websocket.tokenIssueSecret`` field is preserved on
+    # the config model for backward compatibility but the TUI no longer reads
+    # it; authentication now uses the instance password via /auth/login.
     config = Config(
         channels={"websocket": {"tokenIssueSecret": "bootstrap-secret"}},
     )
@@ -142,8 +145,13 @@ def test_launcher_passes_the_canonical_model_preset_to_the_tui(
     assert captured["NANOBOT_TUI_BOOTSTRAP_URL"] == (
         "http://127.0.0.1:8765/webui/bootstrap"
     )
+    assert captured["NANOBOT_TUI_LOGIN_URL"] == (
+        "http://127.0.0.1:8765/auth/login"
+    )
     assert captured["NANOBOT_TUI_HEALTH_URL"] == "http://127.0.0.1:18790/health"
-    assert captured["NANOBOT_TUI_BOOTSTRAP_SECRET"] == "bootstrap-secret"
+    # The TUI authenticates with the instance password at /auth/login; the
+    # legacy bootstrap secret env-var is cleared (and never set) by launch_tui.
+    assert captured.get("NANOBOT_TUI_BOOTSTRAP_SECRET", "") == ""
     assert "NANOBOT_TUI_WS_URL" not in captured
     assert "NANOBOT_TUI_API_TOKEN" not in captured
     assert "NANOBOT_TUI_CHAT_ID" not in captured

@@ -27,7 +27,7 @@ from nanobot.session.session_handles import SessionHandleResolver
 from nanobot.triggers.local_store import LocalTriggerStore
 from nanobot.webui.gateway_services import GatewayServices, build_gateway_services
 
-from .ws_test_client import InProcessHttpChannel
+from .ws_test_client import TEST_INSTANCE_PASSWORD, InProcessHttpChannel
 from .ws_test_client import http_get as _http_get
 
 _PORT = 29900
@@ -36,6 +36,11 @@ _PORT = 29900
 @pytest.fixture(autouse=True)
 def _isolate_runtime_data(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("nanobot.config.paths.get_data_dir", lambda: tmp_path)
+    monkeypatch.setattr("nanobot.config.loader.get_config_path", lambda: tmp_path / "config.json")
+    monkeypatch.setattr("nanobot.webui.gateway_services.get_config_path", lambda: tmp_path / "config.json")
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(tmp_path).set_password(TEST_INSTANCE_PASSWORD)
 
 
 class _MatrixChannel(BaseChannel):
@@ -85,9 +90,10 @@ def _make_handler(
     mcp_reload: Any | None = None,
     recovery_action: Any | None = None,
 ) -> GatewayServices:
+    global _LOCAL_BROWSER_REQ
     config = WebSocketConfig.model_validate(cfg) if isinstance(cfg, dict) else cfg
     workspace = workspace_path or Path.cwd()
-    return build_gateway_services(
+    services = build_gateway_services(
         config=config,
         bus=bus,
         session_manager=session_manager,
@@ -106,6 +112,14 @@ def _make_handler(
         mcp_reload=mcp_reload,
         recovery_action=recovery_action,
     )
+    if not services.access.credential.exists():
+        services.access.credential.set_password(TEST_INSTANCE_PASSWORD)
+    session = services.access.sessions.create("127.0.0.1")
+    _LOCAL_BROWSER_REQ = _FakeReq({
+        "Host": "127.0.0.1:8765",
+        "Cookie": f"percival_session={session.session_id}",
+    })
+    return services
 
 
 def _ch(
@@ -236,7 +250,14 @@ async def test_bootstrap_returns_token_for_localhost(
     )
     server_task = asyncio.create_task(channel.start())
     try:
-        resp = await _http_get("http://127.0.0.1:29901/webui/bootstrap")
+        session_id = channel.gateway.access.login(
+            TEST_INSTANCE_PASSWORD,
+            source="127.0.0.1",
+        ).session_id
+        resp = await _http_get(
+            "http://127.0.0.1:29901/webui/bootstrap",
+            headers={"Cookie": f"percival_session={session_id}"},
+        )
         assert resp.status_code == 200
         assert resp.headers["Cache-Control"] == "no-store"
         body = resp.json()
@@ -3589,9 +3610,9 @@ class _FakeConn:
         self.remote_address = remote_address
 
     def respond(self, status: int, body: str) -> Any:
-        from websockets.http11 import Response
+        from nanobot.webui.http_utils import http_error
 
-        return Response(status=status, body=body.encode())
+        return http_error(status, body)
 
 
 class _FakeReq:
@@ -3832,12 +3853,12 @@ def _trusted_proxy_config(
     }
 
 
-def test_trusted_proxy_requires_non_empty_assertion(bus: MagicMock) -> None:
+def test_trusted_proxy_assertion_does_not_replace_instance_session(bus: MagicMock) -> None:
     channel = _ch(bus, **_trusted_proxy_config())
     for assertion in (None, "", "   "):
         headers = {"Cf-Access-Jwt-Assertion": assertion} if assertion is not None else {}
         resp = channel.gateway.http._handle_bootstrap(_LOCAL, _FakeReq(headers))
-        assert resp.status_code == 403
+        assert resp.status_code == 401
 
 
 def test_trusted_proxy_rejects_untrusted_peer_spoof(bus: MagicMock) -> None:
@@ -3846,10 +3867,10 @@ def test_trusted_proxy_rejects_untrusted_peer_spoof(bus: MagicMock) -> None:
         _REMOTE,
         _FakeReq({"Cf-Access-Jwt-Assertion": "spoofed"}),
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
-def test_trusted_proxy_bootstrap_has_no_tokens(
+def test_trusted_proxy_bootstrap_still_uses_session_tokens(
     bus: MagicMock,
 ) -> None:
     assertion = "opaque-upstream-assertion"
@@ -3866,6 +3887,7 @@ def test_trusted_proxy_bootstrap_has_no_tokens(
                 "X-Real-IP": "203.0.113.42",
                 "X-Forwarded-Host": "nanobot.example",
                 "Cf-Access-Jwt-Assertion": assertion,
+                "Cookie": _LOCAL_BROWSER_REQ.headers["Cookie"],
             }
         ),
     )
@@ -3874,8 +3896,9 @@ def test_trusted_proxy_bootstrap_has_no_tokens(
     assert assertion not in body
     assert assertion not in repr(log.mock_calls)
     payload = json.loads(body)
-    assert "token" not in payload
-    assert "api_token" not in payload
+    assert payload["token"].startswith("nbwt_")
+    assert payload["api_token"].startswith("nbwt_")
+    assert payload["api_token"] != payload["token"]
     assert payload["ws_path"] == "/"
 
 
@@ -3892,7 +3915,7 @@ async def test_trusted_proxy_authorizes_rest_without_api_token(bus: MagicMock) -
             path="/api/sessions",
         ),
     )
-    assert response.status_code == 503
+    assert response.status_code == 401
 
 
 def test_trusted_proxy_authorizes_websocket_without_token(bus: MagicMock) -> None:
@@ -3902,8 +3925,8 @@ def test_trusted_proxy_authorizes_websocket_without_token(bus: MagicMock) -> Non
         {},
         {"Cf-Access-Jwt-Assertion": "present"},
     )
-    assert response is None
-    assert _LOCAL in channel._webui_connections
+    assert response.status_code == 401
+    assert _LOCAL not in channel._webui_connections
 
 
 def test_forwarding_headers_alone_never_authorize_bootstrap(bus: MagicMock) -> None:
@@ -3919,10 +3942,10 @@ def test_forwarding_headers_alone_never_authorize_bootstrap(bus: MagicMock) -> N
             }
         ),
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
-def test_trusted_proxy_bypasses_bootstrap_secret_and_tokens(bus: MagicMock) -> None:
+def test_trusted_proxy_assertion_does_not_bypass_bootstrap_session(bus: MagicMock) -> None:
     channel = _ch(
         bus,
         tokenIssueSecret="route-secret",
@@ -3932,10 +3955,7 @@ def test_trusted_proxy_bypasses_bootstrap_secret_and_tokens(bus: MagicMock) -> N
         _LOCAL,
         _FakeReq({"Cf-Access-Jwt-Assertion": "present"}),
     )
-    assert resp.status_code == 200
-    payload = json.loads(resp.body)
-    assert "token" not in payload
-    assert "api_token" not in payload
+    assert resp.status_code == 401
 
 
 @pytest.mark.parametrize(
@@ -3981,20 +4001,23 @@ def test_trusted_proxy_rejects_routing_headers(assertion_header: str) -> None:
     with pytest.raises(ValidationError, match="proxy-generated"):
         WebSocketConfig.model_validate(_trusted_proxy_config(assertion_header=assertion_header))
 
-def test_wildcard_host_without_auth_raises_on_startup(bus: MagicMock) -> None:
-    import pytest
-    from pydantic_core import ValidationError
+def test_wildcard_host_without_instance_password_fails_closed(bus: MagicMock, tmp_path: Path) -> None:
+    from nanobot.access.credential import AccessCredential
 
-    with pytest.raises(ValidationError, match="token"):
-        _ch(bus, host="0.0.0.0")
+    AccessCredential(tmp_path).path.unlink(missing_ok=True)
+    channel = _ch(bus, host="0.0.0.0")
+    assert channel.gateway.http._handle_bootstrap(_REMOTE, _NO_HEADERS).status_code == 401
+    assert channel._authorize_websocket_handshake(
+        _LOCAL, {}, {"Host": "127.0.0.1:8765"},
+    ).status_code == 401
 
 
-def test_wildcard_host_with_token_is_valid(bus: MagicMock) -> None:
+def test_wildcard_host_with_instance_password_is_valid_even_with_legacy_token_field(bus: MagicMock) -> None:
     channel = _ch(bus, host="0.0.0.0", token="my-token")
     assert channel.config.host == "0.0.0.0"
 
 
-def test_wildcard_host_with_secret_is_valid(bus: MagicMock) -> None:
+def test_wildcard_host_with_instance_password_is_valid_even_with_legacy_secret_field(bus: MagicMock) -> None:
     channel = _ch(bus, host="0.0.0.0", tokenIssueSecret="s3cret")
     assert channel.config.host == "0.0.0.0"
 
@@ -4004,33 +4027,28 @@ def test_wildcard_host_with_trusted_proxy_auth_is_valid(bus: MagicMock) -> None:
     assert channel.config.host == "0.0.0.0"
 
 
-def test_wildcard_ipv6_without_auth_raises(bus: MagicMock) -> None:
-    import pytest
-    from pydantic_core import ValidationError
+def test_wildcard_ipv6_without_instance_password_fails_closed(bus: MagicMock, tmp_path: Path) -> None:
+    from nanobot.access.credential import AccessCredential
 
-    with pytest.raises(ValidationError, match="token"):
-        _ch(bus, host="::")
+    AccessCredential(tmp_path).path.unlink(missing_ok=True)
+    channel = _ch(bus, host="::")
+    assert channel.gateway.http._handle_bootstrap(_REMOTE, _NO_HEADERS).status_code == 401
 
 
-def test_wildcard_ipv6_with_secret_is_valid(bus: MagicMock) -> None:
+def test_wildcard_ipv6_legacy_secret_does_not_authorize_bootstrap(bus: MagicMock) -> None:
     channel = _ch(bus, host="::", tokenIssueSecret="s3cret")
     resp = channel.gateway.http._handle_bootstrap(
         _REMOTE, _FakeReq({"X-Nanobot-Auth": "s3cret"})
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 401
 
 
-def test_bootstrap_accepts_static_token_as_secret(bus: MagicMock) -> None:
-    """When only token (not token_issue_secret) is set, bootstrap accepts it."""
+def test_bootstrap_rejects_static_token_as_credential(bus: MagicMock) -> None:
     channel = _ch(bus, host="0.0.0.0", token="static-tok")
     resp = channel.gateway.http._handle_bootstrap(
         _REMOTE, _FakeReq({"Authorization": "Bearer static-tok"})
     )
-    assert resp.status_code == 200
-    body = json.loads(resp.body)
-    assert body["token"].startswith("nbwt_")
-    assert body["api_token"].startswith("nbwt_")
-    assert body["api_token"] != body["token"]
+    assert resp.status_code == 401
 
 
 def test_bootstrap_ws_url_uses_forwarded_https_host(bus: MagicMock) -> None:
@@ -4039,7 +4057,7 @@ def test_bootstrap_ws_url_uses_forwarded_https_host(bus: MagicMock) -> None:
         _LOCAL,
         _FakeReq(
             {
-                "Authorization": "Bearer s3cret",
+                "Cookie": _LOCAL_BROWSER_REQ.headers["Cookie"],
                 "Host": "nanobot.example",
                 "X-Forwarded-Proto": "https",
             }
@@ -4062,7 +4080,7 @@ def test_bootstrap_ws_url_uses_configured_public_url(bus: MagicMock) -> None:
         _LOCAL,
         _FakeReq(
             {
-                "Authorization": "Bearer s3cret",
+                "Cookie": _LOCAL_BROWSER_REQ.headers["Cookie"],
                 "Host": "127.0.0.1:29931",
                 "X-Forwarded-Proto": "https",
             }
@@ -4087,7 +4105,7 @@ def test_public_ws_url_must_match_configured_path() -> None:
 def test_bootstrap_without_auth_rejects_remote_requests(bus: MagicMock) -> None:
     channel = _ch(bus, host="127.0.0.1")
     resp = channel.gateway.http._handle_bootstrap(_REMOTE, _NO_HEADERS)
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 def test_bootstrap_without_auth_rejects_reverse_proxy_remote_headers(bus: MagicMock) -> None:
@@ -4096,10 +4114,10 @@ def test_bootstrap_without_auth_rejects_reverse_proxy_remote_headers(bus: MagicM
         _LOCAL,
         _FakeReq({"Host": "nanobot.example", "X-Forwarded-For": "203.0.113.42"}),
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
-def test_localhost_without_auth_is_valid(bus: MagicMock) -> None:
+def test_localhost_bootstrap_uses_session_cookie(bus: MagicMock) -> None:
     channel = _ch(bus, host="127.0.0.1")
     resp = channel.gateway.http._handle_bootstrap(_LOCAL, _LOCAL_BROWSER_REQ)
     assert resp.status_code == 200
@@ -4118,7 +4136,7 @@ def test_localhost_without_auth_is_valid(bus: MagicMock) -> None:
 def test_authenticated_bootstrap_returns_distinct_api_token(bus: MagicMock) -> None:
     channel = _ch(bus, host="127.0.0.1", tokenIssueSecret="s3cret")
     resp = channel.gateway.http._handle_bootstrap(
-        _LOCAL, _FakeReq({"Authorization": "Bearer s3cret"})
+        _LOCAL, _LOCAL_BROWSER_REQ
     )
     assert resp.status_code == 200
     body = json.loads(resp.body)
@@ -4181,22 +4199,22 @@ def test_bootstrap_rejects_wrong_secret(bus: MagicMock) -> None:
     assert resp.status_code == 401
 
 
-def test_bootstrap_accepts_remote_with_valid_secret(bus: MagicMock) -> None:
+def test_bootstrap_accepts_remote_with_valid_session(bus: MagicMock) -> None:
     channel = _ch(bus, host="0.0.0.0", tokenIssueSecret="s3cret")
     resp = channel.gateway.http._handle_bootstrap(
-        _REMOTE, _FakeReq({"Authorization": "Bearer s3cret"})
+        _REMOTE, _LOCAL_BROWSER_REQ
     )
     assert resp.status_code == 200
     body = json.loads(resp.body)
     assert body["token"].startswith("nbwt_")
 
 
-def test_bootstrap_accepts_x_nanobot_auth_header(bus: MagicMock) -> None:
+def test_bootstrap_rejects_x_nanobot_auth_header(bus: MagicMock) -> None:
     channel = _ch(bus, host="0.0.0.0", tokenIssueSecret="s3cret")
     resp = channel.gateway.http._handle_bootstrap(
         _REMOTE, _FakeReq({"X-Nanobot-Auth": "s3cret"})
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 401
 
 
 def test_bootstrap_secret_also_enforced_on_localhost(bus: MagicMock) -> None:

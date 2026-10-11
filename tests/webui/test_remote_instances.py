@@ -46,7 +46,11 @@ def ssh(monkeypatch):
                             secret="local-capability", pause=tunnel.pause, close=tunnel.close,
                             resume=MagicMock())
     monkeypatch.setattr(RemoteProxy, "open", AsyncMock(return_value=proxy))
-    probe = AsyncMock(return_value={"port": 8765, "secret": "private-webui-secret", "hostname": "team-host"})
+    probe = AsyncMock(return_value={
+        "port": 8765, "secret": "private-webui-secret", "hostname": "team-host",
+        # Test-only stand-in for a remote session already granted out of band.
+        "auth_required": False,
+    })
     monkeypatch.setattr(remote_ssh, "probe", probe)
     monkeypatch.setattr(remote_ssh, "open_tunnel", AsyncMock(return_value=tunnel))
     state = {"status": 200, "identity": {"protocolVersion": 1, "gatewayId": "remote-one", "webui": webui_contract()}}
@@ -60,6 +64,18 @@ def ssh(monkeypatch):
     real_client = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs))
     return SimpleNamespace(tunnel=tunnel, proxy=proxy, probe=probe, state=state, client=real_client)
+
+
+async def test_single_password_remote_login_is_explicitly_blocked_until_proxy_login_exists(
+    manager, ssh,
+):
+    key = await save(manager)
+    ssh.probe.return_value["auth_required"] = True
+    with pytest.raises(RemoteError, match="remote_auth_required"):
+        await manager.action("connect", {"id": key})
+    remote_ssh.open_tunnel.assert_not_awaited()
+    RemoteProxy.open.assert_not_awaited()
+    assert not manager.connections
 
 
 async def test_save_survives_restart_without_credentials(manager):
@@ -782,13 +798,16 @@ def test_ssh_probe_rejects_trusted_assertion_bypass(tmp_path, field):
 
 @pytest.mark.parametrize("banner", [b"", b"Welcome to the server\n", b"{\"port\": 1}\nWelcome without newline"])
 async def test_probe_ignores_shell_banners_without_exposing_them(monkeypatch, banner):
-    data = {"port": 8765, "secret": "synthetic-root"}
+    data = {"port": 8765, "auth_required": True, "secret": "synthetic-root"}
+    sanitized = {"port": 8765, "auth_required": True}
     process = MagicMock(returncode=0)
     process.communicate = AsyncMock(return_value=(
         banner + b"\n" + remote_ssh._PROBE_PREFIX + json.dumps(data).encode() + b"\nGoodbye\n", b"",
     ))
     monkeypatch.setattr(asyncio, "create_subprocess_exec", AsyncMock(return_value=process))
-    assert await remote_ssh.probe(RemoteProfile(name="Test", host="example.test")) == data
+    result = await remote_ssh.probe(RemoteProfile(name="Test", host="example.test"))
+    assert result == sanitized
+    assert "secret" not in result
 
 
 @pytest.mark.parametrize("output", [
