@@ -8,13 +8,12 @@ Strategy:
   Backup is a directory copy.
 - For both: verify hash of fixture dir matches after restore.
 """
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
-import hashlib
-import shutil
-import time
 from pathlib import Path
 
 VAULT = Path("/home/bill/.local/share/positronic-f4-fixture/notes-vault")

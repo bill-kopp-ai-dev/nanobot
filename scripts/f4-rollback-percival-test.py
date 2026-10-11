@@ -7,13 +7,11 @@ and the WS/API tokens.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
-import shutil
-import urllib.request
 import urllib.error
-import time
-import uuid
+import urllib.request
 from pathlib import Path
 
 VAULT = Path("/home/bill/.local/share/percival-f4-fixture/notes-vault")

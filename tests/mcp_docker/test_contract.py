@@ -411,6 +411,80 @@ async def test_managed_server_is_loaded_when_token_returns_after_gateway_start(
     assert reconciled == ["weather"]
 
 
+@pytest.mark.asyncio
+async def test_managed_retry_does_not_restart_deliberately_stopped_persistent_server(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.servers["weather"] = DockerServer(
+        server_id="weather", source={"type": "local-image", "reference": IMAGE},
+        state="running", tools=["forecast"],
+    )
+    config.tools.mcp_docker.configurations["weather"] = DockerHostConfig(persistent=True)
+    save_config(config, path)
+    monkeypatch.setattr(BrokerClient, "token", lambda _client: "t" * 64)
+    monkeypatch.setattr(BrokerClient, "action", lambda *_args: pytest.fail("stopped server reconciled"))
+    provider = MCPProvider.from_config(load_config(path), ToolRegistry())
+    config.tools.mcp_docker.servers["weather"].state = "stopped-persistent"
+    save_config(config, path)
+
+    assert await asyncio.to_thread(provider._reconcile_managed, {"percival_docker_weather"}) == set()
+
+
+@pytest.mark.asyncio
+async def test_managed_retry_recovers_existing_stopped_container_after_broker_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.servers["weather"] = DockerServer(
+        server_id="weather", source={"type": "local-image", "reference": IMAGE},
+        state="running", tools=["forecast"],
+    )
+    config.tools.mcp_docker.configurations["weather"] = DockerHostConfig(mounts=[])
+    save_config(config, path)
+    monkeypatch.setattr(BrokerClient, "token", lambda _client: "t" * 64)
+    provider = MCPProvider.from_config(config, ToolRegistry())
+    running = False
+    started: list[str] = []
+
+    class NoBinds:
+        def docker_args(self, mounts: list[str] | None) -> list[str]:
+            assert mounts == []
+            return []
+
+    def inspect(_server_id: str) -> dict:
+        return {
+            "Image": IMAGE, "State": {"Running": running},
+            "Config": {"Labels": {"percival.mcp-docker.server-id": "weather",
+                                  "percival.mcp-docker.owner": "percival",
+                                  "percival.mcp-docker.managed-by": "percival-broker"}, "Env": []},
+            "HostConfig": {"NetworkMode": "none", "CapDrop": ["ALL"],
+                           "SecurityOpt": ["no-new-privileges"], "Mounts": None, "Tmpfs": None},
+        }
+
+    def docker(*args: str) -> str:
+        nonlocal running
+        if args[:2] == ("image", "inspect"):
+            return IMAGE
+        assert args == ("start", "percival-mcp-weather")
+        started.append(args[1])
+        running = True
+        return ""
+
+    monkeypatch.setattr(BrokerClient, "action", lambda _client, op, sid, data: broker_module.action(op, sid, data))
+    monkeypatch.setattr(broker_module, "_STORE", {})
+    monkeypatch.setattr(broker_module, "ready", lambda: NoBinds())
+    monkeypatch.setattr(broker_module, "_inspect", inspect)
+    monkeypatch.setattr(broker_module, "docker", docker)
+    monkeypatch.setattr(broker_module, "_discover", lambda _server: ["forecast"])
+
+    assert await asyncio.to_thread(provider._reconcile_managed, {"percival_docker_weather"}) == {"percival_docker_weather"}
+    assert started == ["percival-mcp-weather"]
+    assert broker_module._STORE["weather"].tools == ["forecast"]
+
+
 def test_preparing_transition_is_reconciled_to_persisted_config(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
     broker = FakeBroker()

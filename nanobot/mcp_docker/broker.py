@@ -163,6 +163,18 @@ def _remove(server_id: str) -> None:
         docker("rm", "-f", _name(server_id))  # never -v
 
 
+def _resolved_env(host: DockerHostConfig) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for key, entry in sorted(host.env.items()):
+        value = entry.value
+        if entry.kind == "reference":
+            value = os.environ.get(value[2:-1], "")
+            if not value:
+                raise BrokerError("broker environment reference missing")
+        result[key] = value
+    return result
+
+
 def _spawn(server: ManagedServer) -> None:
     policy = ready()  # re-read host mounts/data-root before every new container
     reference = image_reference(server.source)
@@ -175,12 +187,7 @@ def _spawn(server: ManagedServer) -> None:
             f"--network={server.host.network}", "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
             *policy.docker_args(server.host.mounts)]
-    for key, entry in sorted(server.host.env.items()):
-        value = entry.value
-        if entry.kind == "reference":
-            value = os.environ.get(value[2:-1], "")
-            if not value:
-                raise BrokerError("broker environment reference missing")
+    for key, value in _resolved_env(server.host).items():
         args += ["-e", f"{key}={value}"]
     docker(*args, reference)
     if not _running(server.server_id):
@@ -209,6 +216,70 @@ def _spawn(server: ManagedServer) -> None:
         cover in cast(dict[str, object], tmpfs) for cover in required_covers
     )):
         raise BrokerError("mandatory Docker covers not present")
+
+
+def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
+    """Resume only an owned container that still matches the current host policy.
+
+    Retain its writable layer (notably for persistent servers). An obsolete
+    image, bind, cover or env requires an explicit, reviewed reconfiguration.
+    """
+    policy = ready()
+    reference = image_reference(server.source)
+    image_id = docker("image", "inspect", "--format", "{{.Id}}", reference)
+    raw_config: object = container.get("Config")
+    raw_host_config: object = container.get("HostConfig")
+    if not isinstance(raw_config, dict) or not isinstance(raw_host_config, dict):
+        raise BrokerError("stopped MCP container configuration unavailable")
+    config = cast(dict[str, object], raw_config)
+    host_config = cast(dict[str, object], raw_host_config)
+    raw_labels: object = config.get("Labels")
+    labels = cast(dict[str, object], raw_labels) if isinstance(raw_labels, dict) else {}
+    raw_security_options: object = host_config.get("SecurityOpt")
+    if (container.get("Image") != image_id or
+        labels.get("percival.mcp-docker.owner") != "percival" or
+        labels.get("percival.mcp-docker.managed-by") != "percival-broker" or
+        labels.get("percival.mcp-docker.server-id") != server.server_id or
+        host_config.get("NetworkMode") != server.host.network or
+        host_config.get("CapDrop") != ["ALL"] or
+        not isinstance(raw_security_options, list) or
+        "no-new-privileges" not in cast(list[object], raw_security_options) or
+        host_config.get("Privileged") is True):
+        raise BrokerError("stopped MCP container configuration mismatch")
+
+    plan = policy.docker_args(server.host.mounts)
+    expected_mounts = sorted(plan[index + 1] for index, arg in enumerate(plan[:-1]) if arg == "--mount")
+    raw_mounts = host_config.get("Mounts")
+    if raw_mounts is None and not expected_mounts:
+        raw_mounts = []  # Docker reports null when no explicit mounts were configured.
+    if not isinstance(raw_mounts, list) or host_config.get("Binds") or host_config.get("VolumesFrom"):
+        raise BrokerError("stopped MCP container mount policy mismatch")
+    mounts: list[str] = []
+    for raw in cast(list[object], raw_mounts):
+        if not isinstance(raw, dict):
+            raise BrokerError("stopped MCP container mount policy mismatch")
+        mount = cast(dict[str, object], raw)
+        options = mount.get("BindOptions")
+        read_only = mount.get("ReadOnly")
+        if (mount.get("Type") != "bind" or (read_only is not None and read_only is not False) or
+            not isinstance(mount.get("Source"), str) or not isinstance(mount.get("Target"), str) or
+            not isinstance(options, dict) or cast(dict[str, object], options).get("NonRecursive") is not True):
+            raise BrokerError("stopped MCP container mount policy mismatch")
+        mounts.append(f"type=bind,src={mount['Source']},dst={mount['Target']},bind-recursive=disabled")
+    covers = dict(plan[index + 1].split(":", 1) for index, arg in enumerate(plan[:-1]) if arg == "--tmpfs")
+    tmpfs = host_config.get("Tmpfs")
+    if sorted(mounts) != expected_mounts or (tmpfs if tmpfs is not None else {}) != covers:
+        raise BrokerError("stopped MCP container mount policy mismatch")
+
+    env = config.get("Env")
+    if not isinstance(env, list) or any(not isinstance(item, str) for item in cast(list[object], env)):
+        raise BrokerError("stopped MCP container environment mismatch")
+    current_env = dict(item.split("=", 1) for item in cast(list[str], env) if "=" in item)
+    if any(current_env.get(key) != value for key, value in _resolved_env(server.host).items()):
+        raise BrokerError("stopped MCP container environment mismatch")
+    docker("start", _name(server.server_id))
+    if not _running(server.server_id):
+        raise BrokerError("MCP container did not start", 503)
 
 
 def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
@@ -438,8 +509,12 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
         if op in {"install", "reconcile"}:
             try:
                 if server.active:
-                    if _inspect(server_id) is None:
+                    container = _inspect(server_id)
+                    if container is None:
                         _spawn(server)
+                    elif op == "reconcile" and not _running(server_id):
+                        server.tools = []
+                        _start_stopped(server, container)
                     if _running(server_id):
                         server.tools = _discover(server_id)
                 return {"running": _running(server_id), "tools": server.tools}

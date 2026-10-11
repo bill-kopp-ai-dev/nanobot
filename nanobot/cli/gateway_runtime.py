@@ -64,6 +64,20 @@ class _MCPReadinessHook(AgentHook):
         await self._provider.connect()
 
 
+async def _retry_mcp_readiness(
+    provider: MCPProvider, shutdown_event: asyncio.Event, *, interval_s: float = 30.0,
+) -> None:
+    """Reconnect startup misses after the broker becomes ready, without a user turn."""
+    while not shutdown_event.is_set():
+        try:
+            await asyncio.wait_for(shutdown_event.wait(), timeout=interval_s)
+        except asyncio.TimeoutError:
+            try:
+                await provider.connect()
+            except Exception as exc:
+                logger.warning("MCP readiness retry failed: {}", type(exc).__name__)
+
+
 def _http_endpoint_responding(url: str, *, timeout_s: float = 0.25) -> bool:
     """Return whether an HTTP endpoint responds, including with an auth error."""
     import urllib.error
@@ -946,6 +960,10 @@ def _run_gateway(
                     name="nanobot-config-watcher",
                 ),
                 asyncio.create_task(_run_agent(), name="nanobot-agent-loop"),
+                asyncio.create_task(
+                    _retry_mcp_readiness(mcp_provider, shutdown_event),
+                    name="nanobot-mcp-readiness-retry",
+                ),
                 asyncio.create_task(channels.start_all(), name="nanobot-channels"),
                 asyncio.create_task(
                     run_local_trigger_queue(

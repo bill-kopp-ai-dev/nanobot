@@ -13,9 +13,9 @@ The fixture data is preserved across the rollback.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 VAULT = Path("/home/bill/.local/share/positronic-f4-fixture/notes-vault")
@@ -151,7 +151,7 @@ def test_notes_rollback_positronic():
         r = cli("mcp", "server", "update-image", "notes-fixture-f4", NOTES_A, str(current_rev))
         cli("mcp", "server", "configure", "notes-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
             f"--tools={NOTES_TOOLS}")
         s = cli("mcp", "server", "show", "notes-fixture-f4")
 
@@ -170,7 +170,7 @@ def test_notes_rollback_positronic():
     # 2. configure (Positronic requires this after update-image)
     c = cli("mcp", "server", "configure", "notes-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
             f"--tools={NOTES_TOOLS}")
     check(c["serverId"] == "notes-fixture-f4", "configure applied after A→B")
     print(f"  config rev={c['revision']} after A→B")
@@ -192,7 +192,7 @@ def test_notes_rollback_positronic():
     # 5. configure again
     c = cli("mcp", "server", "configure", "notes-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/notes-vault|/vault|rw",
             f"--tools={NOTES_TOOLS}")
     check(c["serverId"] == "notes-fixture-f4", "configure applied after B→A")
     print(f"  config rev={c['revision']} after B→A")
@@ -233,9 +233,9 @@ def test_khan_rollback_positronic():
         cli("mcp", "server", "update-image", "khan-fixture-f4", KHAN_A, str(current_rev))
         cli("mcp", "server", "configure", "khan-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
-            f"--env=KHAN_WORKSPACE_DIR=/data",
-            f"--env=KHAL_CONFIG=/data/khal.conf",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
+            "--env=KHAN_WORKSPACE_DIR=/data",
+            "--env=KHAL_CONFIG=/data/khal.conf",
             f"--tools={KHAN_TOOLS}")
         s = cli("mcp", "server", "show", "khan-fixture-f4")
 
@@ -252,9 +252,9 @@ def test_khan_rollback_positronic():
     # 2. configure
     c = cli("mcp", "server", "configure", "khan-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
-            f"--env=KHAN_WORKSPACE_DIR=/data",
-            f"--env=KHAL_CONFIG=/data/khal.conf",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
+            "--env=KHAN_WORKSPACE_DIR=/data",
+            "--env=KHAL_CONFIG=/data/khal.conf",
             f"--tools={KHAN_TOOLS}")
     check(c["serverId"] == "khan-fixture-f4", "khan configure after A→B")
     print(f"  config rev={c['revision']} after A→B")
@@ -288,9 +288,9 @@ def test_khan_rollback_positronic():
     # 5. configure again
     c = cli("mcp", "server", "configure", "khan-fixture-f4", "0",
             "--network=none",
-            f"--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
-            f"--env=KHAN_WORKSPACE_DIR=/data",
-            f"--env=KHAL_CONFIG=/data/khal.conf",
+            "--mount=/home/bill/.local/share/positronic-f4-fixture/khan-calendar|/data|rw",
+            "--env=KHAN_WORKSPACE_DIR=/data",
+            "--env=KHAL_CONFIG=/data/khal.conf",
             f"--tools={KHAN_TOOLS}")
     check(c["serverId"] == "khan-fixture-f4", "khan configure after B→A")
 

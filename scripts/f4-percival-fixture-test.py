@@ -6,12 +6,12 @@ as the data path. The broker mounts /host/<src> for /host/... in the container, 
 the docker run invocation uses the same path; the broker-level behavior is already
 covered by the F7 reports and the Percival smoke checks.
 """
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
-import hashlib
-import shutil
 from pathlib import Path
 
 VAULT = Path("/home/bill/.local/share/percival-f4-fixture/notes-vault")

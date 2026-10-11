@@ -1547,7 +1547,7 @@ class MCPProvider:
                 continue
             server = config.tools.mcp_docker.servers.get(server_id)
             host = config.tools.mcp_docker.configurations.get(server_id)
-            if server is None or host is None or not server.active:
+            if server is None or host is None or not server.active or server.state != "running":
                 continue
             try:
                 result = broker.action("reconcile", server_id, {

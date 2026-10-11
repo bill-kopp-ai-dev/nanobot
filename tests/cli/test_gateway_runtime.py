@@ -18,6 +18,7 @@ from nanobot.cli.gateway_runtime import (
     _close_gateway_runtime,
     _gateway_readiness_payload,
     _MCPReadinessHook,
+    _retry_mcp_readiness,
 )
 
 
@@ -103,6 +104,21 @@ async def test_mcp_readiness_hook_delegates_to_application_provider() -> None:
     await hook.before_run(AgentRunHookContext(messages=[]))
 
     assert provider.connect_calls == 1
+
+
+async def test_gateway_retries_mcp_startup_miss_without_an_agent_turn() -> None:
+    stopped = asyncio.Event()
+
+    class FlakyProvider(_TrackingMCPProvider):
+        async def connect(self) -> None:
+            self.connect_calls += 1
+            if self.connect_calls == 1:
+                raise RuntimeError("broker starting")
+            stopped.set()
+
+    provider = FlakyProvider()
+    await asyncio.wait_for(_retry_mcp_readiness(provider, stopped, interval_s=0.01), timeout=1)
+    assert provider.connect_calls == 2
 
 
 async def _cancellable_task(events: list[str]) -> None:

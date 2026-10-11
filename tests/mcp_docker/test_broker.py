@@ -108,6 +108,143 @@ def test_recovery_rebuilds_active_container_or_preserves_persistent_stop(monkeyp
     assert spawns == ["osm"]
 
 
+def test_reconcile_starts_owned_stopped_container_without_replacing_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    image = "sha256:" + "a" * 64
+    running = False
+    calls: list[tuple[str, ...]] = []
+
+    class NoBinds:
+        def docker_args(self, mounts: list[str] | None) -> list[str]:
+            assert mounts == []
+            return []
+
+    def docker(*args: str) -> str:
+        nonlocal running
+        calls.append(args)
+        if args[:2] == ("image", "inspect"):
+            return image
+        if args == ("start", "percival-mcp-weather"):
+            running = True
+        return ""
+
+    def inspect(_server_id: str) -> dict:
+        return {
+            "Image": image, "State": {"Running": running},
+            "Config": {"Labels": {"percival.mcp-docker.server-id": "weather",
+                                  "percival.mcp-docker.owner": "percival",
+                                  "percival.mcp-docker.managed-by": "percival-broker"},
+                       "Env": ["TEST=value"]},
+            "HostConfig": {"NetworkMode": "none", "Mounts": None, "Tmpfs": None,
+                           "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"]},
+        }
+
+    monkeypatch.setattr(broker, "ready", lambda: NoBinds())
+    monkeypatch.setattr(broker, "_STORE", {})
+    monkeypatch.setattr(broker, "_inspect", inspect)
+    monkeypatch.setattr(broker, "docker", docker)
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+    payload = {"source": {"type": "local-image", "reference": image},
+               "configuration": {"persistent": True, "mounts": [],
+                                 "env": {"TEST": {"kind": "plain", "value": "value"}}},
+               "active": True, "tools_disabled": []}
+
+    assert broker.action("reconcile", "weather", payload) == {"running": True, "tools": ["forecast"]}
+    assert broker.action("reconcile", "weather", payload) == {"running": True, "tools": ["forecast"]}
+    assert calls.count(("start", "percival-mcp-weather")) == 1
+    assert not any(args[0] in {"rm", "run"} for args in calls)
+
+
+@pytest.mark.parametrize("drift", ["image", "network", "mounts", "covers", "labels", "env", "capabilities"])
+def test_reconcile_rejects_stopped_container_with_configuration_drift(
+    monkeypatch: pytest.MonkeyPatch, drift: str,
+) -> None:
+    image = "sha256:" + "a" * 64
+    container = {
+        "Image": image, "State": {"Running": False},
+        "Config": {"Labels": {"percival.mcp-docker.server-id": "weather",
+                              "percival.mcp-docker.owner": "percival",
+                              "percival.mcp-docker.managed-by": "percival-broker"},
+                   "Env": ["TEST=value"]},
+        "HostConfig": {"NetworkMode": "none", "Mounts": [], "Tmpfs": {},
+                       "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"]},
+    }
+    if drift == "image":
+        container["Image"] = "sha256:" + "b" * 64
+    elif drift == "network":
+        container["HostConfig"]["NetworkMode"] = "bridge"
+    elif drift == "mounts":
+        container["HostConfig"]["Mounts"] = [{"Type": "bind", "Source": "/", "Target": "/host"}]
+    elif drift == "covers":
+        container["HostConfig"]["Tmpfs"] = {"/host/run": "rw,noexec,nosuid,nodev,mode=0700"}
+    elif drift == "labels":
+        container["Config"]["Labels"]["percival.mcp-docker.owner"] = "other"
+    elif drift == "capabilities":
+        container["HostConfig"]["CapDrop"] = []
+    else:
+        container["Config"]["Env"] = ["TEST=old"]
+    class NoBinds:
+        def docker_args(self, _mounts: list[str] | None) -> list[str]:
+            return []
+
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(broker, "ready", lambda: NoBinds())
+    monkeypatch.setattr(broker, "_STORE", {})
+    monkeypatch.setattr(broker, "_inspect", lambda _server: container)
+    monkeypatch.setattr(broker, "docker", lambda *args: calls.append(args) or image)
+    with pytest.raises(broker.BrokerError):
+        broker.action("reconcile", "weather", {
+            "source": {"type": "local-image", "reference": image},
+            "configuration": {"mounts": [], "env": {"TEST": {"kind": "plain", "value": "value"}}},
+            "active": True, "tools_disabled": [],
+        })
+    assert not any(args[0] in {"start", "rm", "run"} for args in calls)
+
+
+def test_reconcile_stopped_container_verifies_bind_and_cover_plan(monkeypatch: pytest.MonkeyPatch) -> None:
+    image = "sha256:" + "a" * 64
+    running = False
+    bind = "type=bind,src=/srv/data,dst=/host/srv/data,bind-recursive=disabled"
+    cover = "/host/srv/data/private:rw,noexec,nosuid,nodev,mode=0700"
+
+    class CoveredBinds:
+        def docker_args(self, mounts: list[str] | None) -> list[str]:
+            assert mounts == ["/srv/data"]
+            return ["--mount", bind, "--tmpfs", cover]
+
+    container = {
+        "Image": image, "State": {"Running": False},
+        "Config": {"Labels": {"percival.mcp-docker.server-id": "weather",
+                              "percival.mcp-docker.owner": "percival",
+                              "percival.mcp-docker.managed-by": "percival-broker"}, "Env": []},
+        "HostConfig": {"NetworkMode": "none", "CapDrop": ["ALL"],
+                       "SecurityOpt": ["no-new-privileges"],
+                       "Mounts": [{"Type": "bind", "Source": "/srv/data", "Target": "/host/srv/data",
+                                   "BindOptions": {"NonRecursive": True}}],
+                       "Tmpfs": {"/host/srv/data/private": cover.split(":", 1)[1]}},
+    }
+
+    def docker(*args: str) -> str:
+        nonlocal running
+        if args[:2] == ("image", "inspect"):
+            return image
+        assert args == ("start", "percival-mcp-weather")
+        running = True
+        container["State"]["Running"] = True
+        return ""
+
+    monkeypatch.setattr(broker, "_STORE", {})
+    monkeypatch.setattr(broker, "ready", lambda: CoveredBinds())
+    monkeypatch.setattr(broker, "_inspect", lambda _server: container)
+    monkeypatch.setattr(broker, "docker", docker)
+    monkeypatch.setattr(broker, "_discover", lambda _server: ["forecast"])
+
+    result = broker.action("reconcile", "weather", {
+        "source": {"type": "local-image", "reference": image},
+        "configuration": {"mounts": ["/srv/data"]}, "active": True, "tools_disabled": [],
+    })
+    assert running and result == {"running": True, "tools": ["forecast"]}
+
+
 def test_start_rehydrates_broker_state_after_process_restart(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(broker, "ready", lambda: object())
     monkeypatch.setattr(broker, "_STORE", {})
