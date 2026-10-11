@@ -72,7 +72,7 @@ Docker Engine version, and maintenance window.
 4. Set `PERCIVAL_STATE_HOST_PATH=$HOME/.percival` and the inventoried numeric
    socket/token GIDs and token-file path in the protected deployment
    environment. Before the first start, run `docker compose run --rm
-   nanobot-cli nanobot auth init` to set the single instance password; the
+   nanobot-cli auth init` to set the single instance password; the
    gateway will then start normally on `0.0.0.0`. Render and inspect the
    combined Compose model before starting. Do not print its raw environment
    section because it contains any remaining broker tokens; emit only

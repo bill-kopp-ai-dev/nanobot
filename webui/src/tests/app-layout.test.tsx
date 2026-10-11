@@ -484,8 +484,8 @@ describe("App layout", () => {
 
     expect(help).toHaveAttribute("aria-expanded", "true");
     expect(content).not.toHaveAttribute("aria-hidden");
-    expect(content).toHaveTextContent("docker compose run --rm nanobot-cli nanobot auth init");
-    expect(content).toHaveTextContent("docker compose run --rm nanobot-cli nanobot auth reset");
+    expect(content).toHaveTextContent("docker compose run --rm nanobot-cli auth init");
+    expect(content).toHaveTextContent("docker compose run --rm nanobot-cli auth reset");
     expect(content).toHaveTextContent("First time?");
 
     await user.keyboard(" ");

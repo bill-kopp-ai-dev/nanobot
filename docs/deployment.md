@@ -81,7 +81,7 @@ If deployment fails, open the service **Logs** page first. A missing model key f
 > }
 > ```
 >
-> Before the first start, run `docker compose run --rm nanobot-cli nanobot auth init` to set the single instance password; the gateway will then start normally on `0.0.0.0`. See [`webui.md#lan-access`](./webui.md#lan-access) for browser login details.
+> Before the first start, run `docker compose run --rm nanobot-cli auth init` to set the single instance password; the gateway will then start normally on `0.0.0.0`. See [`webui.md#lan-access`](./webui.md#lan-access) for browser login details.
 > The gateway health route itself is intentionally minimal and unauthenticated. When the
 > container binds it to `0.0.0.0`, publish port `18790` to host loopback only; place any
 > remotely monitored health endpoint behind a firewall or reverse proxy. If another host
@@ -136,7 +136,7 @@ mount the persistent disk root-owned.
 ```bash
 install -d -m 0700 "$HOME/.config/percival"
 docker compose run --rm nanobot-cli onboard               # first-time setup
-docker compose run --rm nanobot-cli nanobot auth init     # set the instance password
+docker compose run --rm nanobot-cli auth init            # set the instance password
 vim ~/.nanobot/config.json                                # add API keys
 docker compose up -d nanobot-gateway                      # start gateway
 ```
