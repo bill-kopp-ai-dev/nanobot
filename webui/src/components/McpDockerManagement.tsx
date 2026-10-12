@@ -523,11 +523,13 @@ export function McpDockerManagement({
               })()}
             </div>
 
-            <div className="space-y-2 border-t border-destructive/30 pt-4">
-              <h3 className="text-sm font-semibold text-destructive">{t("mcpDocker.excludeServer", { defaultValue: "Exclude server" })}</h3>
-              <p className="text-sm text-muted-foreground">{t("mcpDocker.excludeWarning", { defaultValue: "This creates a backup, revokes tools and removes only the managed container and registry entry. It does not delete the image or volumes." })}</p>
-              <Label>{t("mcpDocker.typeToExclude", { defaultValue: "Type {{server}} to exclude this server", server: selectedId })}<Input value={excludeConfirmId} onChange={(event) => setExcludeConfirmId(event.target.value)} /></Label>
-              <Button variant="destructive" disabled={busy || excludeConfirmId !== selectedId} onClick={() => void serverAction("exclude", { expected_confirmation: selectedId }, { success: t("mcpDocker.excludeComplete", { defaultValue: "Server backed up and excluded; the image and volumes remain on disk." }) })}>{t("mcpDocker.exclude", { defaultValue: "Back up and exclude" })}</Button>
+            <div className="space-y-4 rounded-lg border border-destructive/40 bg-destructive/[0.04] p-4">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-destructive">{t("mcpDocker.excludeServer", { defaultValue: "Exclude server" })}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t("mcpDocker.excludeWarning", { defaultValue: "A backup will be created, tools revoked, and only the managed container and registry entry removed. The image and volumes will remain on disk." })}</p>
+              </div>
+              <div className="space-y-2"><Label>{t("mcpDocker.typeToExclude", { defaultValue: "Type {{server}} to confirm", server: selectedId })}</Label><Input autoComplete="off" spellCheck={false} value={excludeConfirmId} onChange={(event) => setExcludeConfirmId(event.target.value)} /></div>
+              <Button className="w-full sm:w-auto" variant="destructive" disabled={busy || excludeConfirmId !== selectedId} onClick={() => void serverAction("exclude", { expected_confirmation: selectedId }, { success: t("mcpDocker.excludeComplete", { defaultValue: "Server backed up and excluded; the image and volumes remain on disk." }) })}>{t("mcpDocker.exclude", { defaultValue: "Back up and exclude" })}</Button>
             </div>
           </section>}
         </>
