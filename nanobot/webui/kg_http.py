@@ -22,7 +22,7 @@ from nanobot.agent.kg.ak import ingest as ak_ingest
 from nanobot.agent.kg.ak import read as ak_read
 from nanobot.agent.kg.cm import core as cm_core
 from nanobot.agent.kg.cm import f2 as cm_f2
-from nanobot.agent.kg.graph_data import GraphTooLargeError, graph_artifact
+from nanobot.agent.kg.graph_data import GraphTooLargeError, graph_artifact, graph_status
 from nanobot.agent.kg.roots import BundleKind, bundle_root
 from nanobot.agent.kg.vendor.okf_bundle_core.errors import CASMismatchError, ZettelError
 from nanobot.agent.kg.vendor.okf_bundle_core.lock import LockTimeout
@@ -37,6 +37,14 @@ if TYPE_CHECKING:
 PREFIX = "/kg-interface/api/"
 _ID = re.compile(r"\d{8}-\d{6}\Z")
 _MAX_PAYLOAD_BYTES = 2 * 1024 * 1024 + 4096
+
+
+class BundleUninitializedError(FileNotFoundError):
+    """The configured bundle does not have the required initialized layout."""
+
+
+class NativeKgDisabledError(RuntimeError):
+    """Native KG routes are disabled by configuration."""
 
 
 class _Input(BaseModel):
@@ -96,6 +104,10 @@ _ZETTEL_ERROR_MAP: dict[str, tuple[int, str]] = {
 
 
 def _failure(exc: Exception) -> Response:
+    if isinstance(exc, NativeKgDisabledError):
+        return _error(503, "native_disabled")
+    if isinstance(exc, BundleUninitializedError):
+        return _error(503, "bundle_uninitialized")
     if isinstance(exc, GraphTooLargeError):
         return _error(413, "graph_too_large")
     if isinstance(exc, CASMismatchError):
@@ -143,6 +155,19 @@ def _one(query: dict[str, list[str]], key: str) -> str | None:
     return values[0] if values else None
 
 
+def _known_read_route(kind: BundleKind, route: str) -> bool:
+    common = {"healthz", "notes", "search", "stats", "graph", "graph/data"}
+    if kind == "cm":
+        common.add("storage/stats")
+    else:
+        common.add("sources")
+    if route in common:
+        return True
+    if re.fullmatch(r"notes/[^/]+(?:/history)?", route):
+        return True
+    return kind == "ak" and re.fullmatch(r"sources/[^/]+(?:/chunks/\d+)?", route) is not None
+
+
 class KgGatewayBridge:
     def __init__(self, settings: WebUISettingsServices, workspaces: WebUIWorkspaceController):
         self.settings = settings
@@ -151,16 +176,30 @@ class KgGatewayBridge:
     def _root(self, kind: BundleKind, *, write: bool = False) -> Path:
         config = self.settings.config.load().kg
         if config.mode == "mcp":
-            raise RuntimeError("native KG disabled")
+            raise NativeKgDisabledError("native KG disabled")
         # The SPA has no project selector: it acts on the gateway's WebUI
         # default scope, never a path or session key from the browser.
         scope = self.workspaces.default_scope()
         root = bundle_root(kind, config, scope.project_path, use_request_context=False)
         if scope.restrict_to_workspace:
             root = resolve_allowed_path(root, allowed_root=scope.project_path)
-        if not root.is_dir() or not (root / "notes").is_dir():
-            raise FileNotFoundError("KG bundle not initialized")
+        if not root.is_dir() or not (root / "notes").is_dir() or not (root / ".git").is_dir():
+            raise BundleUninitializedError("KG bundle not initialized")
         return root
+
+    def _health(self, kind: BundleKind) -> Response:
+        adapter = "memory" if kind == "cm" else "acquire"
+        try:
+            root = self._root(kind)
+        except (BundleUninitializedError, NativeKgDisabledError) as exc:
+            code = "native_disabled" if isinstance(exc, NativeKgDisabledError) else "bundle_uninitialized"
+            return http_json_response({"ok": False, "error": code}, status=503)
+        except (WorkspaceBoundaryError, PathEscapeError):
+            return http_json_response({"ok": False, "error": "workspace_forbidden"}, status=403)
+        except PermissionError:
+            return http_json_response({"ok": False, "error": "bundle_inaccessible"}, status=503)
+        return http_json_response({"ok": True, "server": "percival-native-" + adapter,
+                                   "bundle": "ready", "graph": graph_status(root)})
 
     async def read(self, path: str, *, authenticated: bool) -> Response:
         if not authenticated:
@@ -171,17 +210,25 @@ class KgGatewayBridge:
             if adapter not in {"memory", "acquire"}:
                 return _error(404, "kg_route_not_found")
             kind: BundleKind = "cm" if adapter == "memory" else "ak"
+            if route == "healthz":
+                return await asyncio.to_thread(self._health, kind)
+            if not _known_read_route(kind, route):
+                return _error(404, "kg_route_not_found")
             query = parse_qs(urlsplit(path).query, keep_blank_values=True)
             root = await asyncio.to_thread(self._root, kind)
-            if route == "healthz":
-                return http_json_response({"ok": True, "server": "percival-native-" + adapter})
             result = await asyncio.to_thread(self._read, kind, root, route, query)
             if result is None:
                 return _error(404, "kg_route_not_found")
             return http_json_response(result, extra_headers=[("Cache-Control", "no-store")])
+        except BundleUninitializedError:
+            return _error(503, "bundle_uninitialized")
+        except NativeKgDisabledError:
+            return _error(503, "native_disabled")
+        except (WorkspaceBoundaryError, PathEscapeError):
+            return _error(403, "workspace_forbidden")
+        except PermissionError:
+            return _error(503, "bundle_inaccessible")
         except FileNotFoundError:
-            if path.endswith("/healthz"):
-                return http_json_response({"ok": False, "error": "kg_unavailable"}, status=503)
             return _error(404, "bundle_or_note_not_found")
         except Exception as exc:
             return _failure(exc)
@@ -216,7 +263,9 @@ class KgGatewayBridge:
         if route == "storage/stats" and kind == "cm":
             return cm_f2.storage_stats(root)
         if route == "graph":
-            return graph_artifact(root)
+            artifact = graph_artifact(root)
+            artifact["status"] = graph_status(root)
+            return artifact
         if route == "graph/data":
             return graph_artifact(root, data=True)
         if kind == "ak" and route == "sources":

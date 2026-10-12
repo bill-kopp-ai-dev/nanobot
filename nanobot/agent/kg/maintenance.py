@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any, cast
 from nanobot.agent.kg.ak import core as ak_core
 from nanobot.agent.kg.cm import core as cm_core
 from nanobot.agent.kg.cm.f2 import memory_set_protected
+from nanobot.agent.kg.graph_data import notes_fingerprint
 from nanobot.agent.kg.vendor.okf_bundle_core.errors import ZettelError
 from nanobot.agent.kg.vendor.okf_bundle_core.frontmatter import (
     extract_links,
@@ -91,6 +93,9 @@ def rebuild_graph(root: Path, kind: str) -> dict[str, Any]:
             temporary = Path(handle.name)
         try:
             result = build_graph(root, layout, output=temporary)
+            graph = json.loads(temporary.read_text(encoding="utf-8"))
+            graph["source_fingerprint"] = notes_fingerprint(root)
+            temporary.write_text(json.dumps(graph, indent=2, ensure_ascii=False), encoding="utf-8")
             temporary.replace(output_dir / "graph.json")
         finally:
             temporary.unlink(missing_ok=True)

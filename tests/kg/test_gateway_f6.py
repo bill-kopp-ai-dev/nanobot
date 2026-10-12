@@ -15,6 +15,8 @@ from websockets.exceptions import InvalidStatus
 
 from nanobot.agent.kg.ak.core import write_source_note
 from nanobot.agent.kg.cm.core import notes_read, notes_write
+from nanobot.agent.kg.graph_data import notes_fingerprint
+from nanobot.agent.kg.maintenance import init_bundle
 from nanobot.channels.websocket.runtime import WebSocketConfig
 from nanobot.webui.gateway_services import build_gateway_services
 from nanobot.webui.inbound_commands import WebUICommandRouter
@@ -37,7 +39,7 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
     cm = workspace / ".collective-memory"
     ak = workspace / ".acquired-knowledge"
     created = notes_write(cm, note_id=CM_ID, body="original needle", frontmatter_patch={"title": "CM"})
-    ak.mkdir()
+    init_bundle(ak, "ak")
     for note_id, note_type in ((AK_ID, "ExtractedNote"), (SOURCE_ID, "Source")):
         write_source_note(
             ak, source_id=note_id, title=note_type, body="## Conteúdo extraído\n\nsource needle\n",
@@ -51,6 +53,7 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
         (graph_dir / "graph.json").write_text(json.dumps({
             "directed": True, "multigraph": False, "graph": {},
             "nodes": [{"id": note_id, "label": "fixture"}], "links": [],
+            "source_fingerprint": notes_fingerprint(root),
         }))
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
@@ -93,8 +96,8 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
                     assert response.status_code == 200, (path, response.text)
                     return response.json()
 
-                assert (await get("memory/healthz"))["ok"]
-                assert (await get("acquire/healthz"))["ok"]
+                assert (await get("memory/healthz"))["bundle"] == "ready"
+                assert (await get("acquire/healthz"))["bundle"] == "ready"
                 assert (await get("memory/notes?limit=1"))["results"][0]["title"] == "CM"
                 assert (await get(f"memory/notes/{CM_ID}"))["body_hash"] == created["body_hash"]
                 assert (await get(f"memory/notes/{CM_ID}/history?limit=1"))["history"]
@@ -102,13 +105,13 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
                 assert (await get("memory/search?q=needle"))["count"] == 1
                 assert (await get("memory/stats"))["notes_total"] == 1
                 assert "total_bytes" in await get("memory/storage/stats")
-                assert (await get("memory/graph"))["exists"]
+                assert (await get("memory/graph"))["status"] == "valid"
                 assert (await get("memory/graph/data"))["nodes"][0]["id"] == CM_ID
                 assert (await get("acquire/notes"))["results"][0]["id"] == AK_ID
                 assert (await get(f"acquire/notes/{AK_ID}"))["body_hash"]
                 assert (await get("acquire/search?q=needle"))["count"] == 2
                 assert (await get("acquire/stats"))["sources_total"] == 1
-                assert (await get("acquire/graph"))["exists"]
+                assert (await get("acquire/graph"))["status"] == "valid"
                 assert (await get("acquire/graph/data"))["nodes"][0]["id"] == AK_ID
                 assert (await get("acquire/sources"))["results"][0]["id"] == SOURCE_ID
                 assert (await get(f"acquire/sources/{SOURCE_ID}"))["first_chunk"]["text"]
@@ -154,6 +157,7 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
                     result = await mutate("kg.memory.notes.body", body)
                     assert result["ok"] and result["result"]["body_hash"] != created["body_hash"]
                     assert notes_read(cm, CM_ID)["body"] == "updated"
+                    assert (await get("memory/graph"))["status"] == "stale"
                     stale = await mutate("kg.memory.notes.body", {**body, "body": "stale"})
                     assert stale["error"]["status"] == 409
                     conflict = json.loads(stale["error"]["message"])
@@ -189,7 +193,7 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
                 graph_path.unlink()
                 missing = await client.get(origin + prefix + "acquire/graph/data", headers=headers)
                 assert missing.status_code == 404 and missing.json()["error"] == "bundle_or_note_not_found"
-                assert (await get("acquire/graph")) == {"exists": False}
+                assert (await get("acquire/graph")) == {"exists": False, "status": "missing"}
                 outside = tmp_path / "outside.json"
                 outside.write_text('{"nodes":[],"links":[]}')
                 graph_path.symlink_to(outside)
@@ -203,5 +207,52 @@ async def test_native_kg_listener_contract(tmp_path: Path) -> None:
                                                     "agents": {"defaults": {"workspace": str(workspace)}}}))
                 assert (await client.get(origin + prefix + "memory/graph/data",
                                          headers=headers)).status_code == 403
+    finally:
+        await router.close()
+
+
+@pytest.mark.asyncio
+async def test_native_kg_health_distinguishes_uninitialized_bundle(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
+    from nanobot.access.credential import AccessCredential
+
+    AccessCredential(config_path.parent).set_password("fixture-crimson-forest-2026")
+    services = build_gateway_services(
+        config=WebSocketConfig(host="127.0.0.1", token_issue_secret="fixture-secret"),
+        bus=None, session_manager=None, static_dist_path=None,
+        workspace_path=workspace, config_path=config_path,
+        default_restrict_to_workspace=True, runtime_model_name=None,
+        runtime_surface="browser", runtime_capabilities_overrides=None,
+    )
+    router = WebUICommandRouter(_Transport(), services)
+
+    async def process(connection: ServerConnection, request: Any) -> Any:
+        return await services.endpoint.process_request(connection, request, is_allowed=lambda _: True)
+
+    async def messages(connection: ServerConnection) -> None:
+        async for _ in connection:
+            pass
+
+    try:
+        async with serve(messages, "127.0.0.1", 0, process_request=process) as server:
+            port = server.sockets[0].getsockname()[1]
+            origin = f"http://127.0.0.1:{port}"
+            async with httpx.AsyncClient(trust_env=False) as client:
+                denied = await client.get(origin + "/kg-interface/api/memory/healthz")
+                assert denied.status_code == 401
+                session = services.access.login("fixture-crimson-forest-2026", source="127.0.0.1")
+                bootstrap = (await client.get(origin + "/webui/bootstrap", headers={
+                    "Cookie": f"percival_session={session.session_id}",
+                })).json()
+                response = await client.get(
+                    origin + "/kg-interface/api/memory/healthz",
+                    headers={"Authorization": "Bearer " + bootstrap["api_token"]},
+                )
+                assert response.status_code == 503
+                assert response.json() == {"ok": False, "error": "bundle_uninitialized"}
+                assert not (workspace / ".collective-memory").exists()
     finally:
         await router.close()

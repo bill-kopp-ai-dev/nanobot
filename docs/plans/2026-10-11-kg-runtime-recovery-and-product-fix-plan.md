@@ -1,0 +1,118 @@
+# Plano de recuperação e correção do KG nativo do Percival
+
+- **Preparado em:** 2026-10-11. **Estado:** correção de código e instalação nova local executadas; gates de imagem/cutover final continuam abertos.
+- **Problema:** a SPA carrega, mas CM e AK aparecem *down*, listas/stats falham e Brain mostra HTTP 404. O [diagnóstico local](../reports/2026-10-11-kg-runtime-diagnosis.md) identificou dois bundles ausentes no workspace padrão do gateway Docker, erros mascarados pela UI e geração de grafo exclusivamente por rebuild explícito.
+- **Resultado esperado:** KG utilizável sobre um conjunto de dados **escolhido e autorizado**, com estado inteligível quando não configurado, leitura/escrita autenticada, grafo fiel às notas e atualização previsível após mudanças; evidência em runtime empacotado e, para dados reais, no ensaio B6/B7 do operador.
+- **Fontes de contrato:** [plano KG F0–F9](kg-integration-plan.md) (especialmente F6–F9), [ADR de operação](../Decisions/2026-10-06-native-kg-operations.md), [guia de migração](../kg-migration.md) e [governança B13](../percival-governance.md#b13-release-authority). Este plano revisa o tratamento F6 de root ausente (hoje 404 nas leituras) para evitar confundi-lo com nota ausente; registrar a revisão no plano KG durante a implementação. Não reabre automaticamente a paridade das 34 tools nem substitui os gates de release.
+
+## 1. Baseline observado e decisões a tomar
+
+| Evidência (2026-10-11) | Implicação para a execução |
+| --- | --- |
+| Imagem gateway declara SHA `c63b8b680d0f12ca1c2b6c271a56ea16ff4bd2d4`; container healthy; `/kg-interface/` devolve 200; rotas KG anônimas devolvem 401 JSON. | Listener, estáticos e proteção básica funcionam; `healthy` não implica bundles prontos. Não houve probe autenticado independente nesta análise. |
+| `docker exec nanobot-nanobot-gateway-1 nanobot kg doctor --json` falha para CM e AK nos paths `/home/nanobot/.nanobot/workspace/.collective-memory` e `.acquired-knowledge`; bind efetivo único é `~/.nanobot` do host. | Confirmar source de dados e root antes de iniciar, copiar ou configurar qualquer bundle. A ausência no workspace **não prova** inexistência de bundles fora dele. |
+| `nanobot/webui/kg_http.py::_root` usa `workspaces.default_scope()` e exige `notes/`; o CLI doctor exige também `.git/`. A SPA não escolhe workspace de sessão. | Unificar diagnóstico de integridade e documentar o escopo servido; um projeto selecionado no chat pode não coincidir com a SPA. |
+| `/healthz` resolve root antes de responder; leituras sem root viram 404; `healthAll` achata falhas; Home mostra `?? 0`. `/graph` apenas lê `graph.json`; somente o CLI faz rebuild. | Separar transporte, readiness, bundle vazio, grafo ausente e falha; testar invalidação e recuperação do grafo. |
+
+**Gate G0 — fonte e escopo, decisão do operador antes de dados reais:**
+
+1. **Decisão G0 do operador:** **B — instalação nova, sem notas**. A confirmação foi dada em 2026-10-11 durante a execução. `workspace/memory/` permanece separado e não foi importado. A ou C não foram escolhidas.
+2. **Qual escopo da SPA?** Recomendação para este reparo: workspace padrão do gateway, explicitamente indicado na UI/documentação, sem seleção de projeto por browser. Se a exigência for acompanhar a sessão/projeto do chat, abrir desenho e gate separados: seleção por identificador de escopo autorizado no gateway, mesma resolução para GET e WS, sem path arbitrário enviado pelo cliente. Isso altera segurança e fronteira de dados; não é um ajuste de CSS.
+3. Registrar modo `kg.mode`, precedência dos envs `COLLECTIVE_MEMORY_ROOT`/`ACQUIRED_KNOWLEDGE_ROOT` sobre `kg.cmRoot`/`kg.akRoot`, política `tools.restrictToWorkspace` e escritores legados ativos. Com modo `mcp`, o KG nativo está desativado; `both` não autoriza escritores concorrentes. O operador confirma destino real, ensaio B6/B7 e eventual cutover; nenhuma decisão está implícita nesta proposta.
+
+## 2. Fases, dependências e evidência de saída
+
+| Fase | Responsável | Dependências | Gate verificável |
+| --- | --- | --- | --- |
+| P0 — inventário e desenho | agente, read-only; operador decide G0 para dados reais | — | Matriz de roots/escopo/mode, fonte identificada ou decisão G0 pendente; contrato dos estados sintéticos definido. |
+| P1 — fixture operacional isolada | agente | inventário/contrato P0; decisão G0 sobre dados reais pode aguardar | Gateway + SPA em estado temporário provam ausente, vazio, notas com/sem grafo e root negado. |
+| P2 — status tipado no gateway | agente | P1 | HTTP/WS e CLI distinguem readiness, erros de acesso/nota e graph status; testes de listener. |
+| P3 — estados na SPA | agente | P2 | Não há zero fictício nem “Network error” para bundle não inicializado; ambos adapters e autenticação exercitados. |
+| P4 — atualização do grafo | agente | P1/P2; benchmark antes da estratégia final | Escrita confirmada não deixa grafo silenciosamente antigo; falhas/restart são recuperáveis. |
+| P5 — ensaio/cutover de dados | operador (B6/B7); agente dá suporte sob escopo aprovado | G0, P2–P4 validados em fixture; repetir em cópia real | Integridade/rollback em cópia real; decisão explícita de cutover e smoke no destino. |
+| P6 — gates e handoff | agente prepara evidência; operador assina release se aplicável | P2–P4; P5 para aceite real | Checks no SHA/imagem candidata e relatório com limitações; sem confundir aceite sintético com real. |
+
+### P0 — inventário read-only e contrato antes de alterar o runtime
+
+1. Fixar commit/imagem efetivos, Compose/volume, `config.json` **somente nos campos KG/workspace sem valores de segredos**, envs de root, acesso default WebUI, modo KG, existência/layout/permissões do parent e dos dois bundles do **host e do container**. Repetir `nanobot kg doctor --json` e `nanobot kg bundle path cm`/`ak` dentro do container; registrar paths esperados versus observados sem ler notas privadas. Inspecionar origens legadas só se o operador indicar paths/escopo. Não corrigir root por tentativa e erro em produção.
+2. Checar se as ferramentas `cm_*`/`ak_*` do agente usam o mesmo workspace que a SPA; documentar divergência esperada quando a sessão usa outro projeto. Verificar que `.git/`, `notes/` e a política de paths estão íntegros: o doctor e a bridge hoje divergem sobre bundle parcial.
+3. Especificar contrato estável em `tests/kg/` e `spa/src/lib/types.ts`: `GET /kg-interface/api/{memory|acquire}/healthz` preserva 200 `{ok:true,server}` quando ready; para indisponibilidade retorna JSON `{ok:false,error:<codigo>}` com 503 para `bundle_uninitialized`/`native_disabled`, 403 para `workspace_forbidden`, 401 sem bearer. `GET .../graph` mantém o campo `exists` e adiciona estado discriminado (`missing|valid|stale|invalid`); `GET .../graph/data` continua retornando node-link ou erro estruturado, sem HTML. Nota individual inexistente continua 404 próprio; CAS continua 409. Códigos e schemas finais devem ser fixados em teste **antes** de alterar a SPA; nunca incluir paths absolutos/segredos no payload ao browser.
+
+**Saída:** decisão G0 registrada ou pendência explícita para dados reais, tabela de estados/códigos e fixtures planejadas. P1–P4 podem avançar com fixtures sem decidir fonte real; P5 não. Se root externo for escolhido com escopo restrito, parar: `KgGatewayBridge._root` não aceita os grants das tools. Recomendação para o primeiro corte é parent sob workspace autorizado; ampliar grants na bridge exige design de autorização de leitura/escrita específico e testes de escape.
+
+### P1 — ensaio reproduzível sem dados do operador
+
+1. Usar diretório temporário separado de `~/.nanobot`, `~/.percival` e bundles reais; criar config e senha **fixture** sem impressão em log/repo. Subir listener gateway no mesmo origin da SPA distribuída e montar somente esse estado. Exercitar a matriz: CM/AK ausentes; só CM presente; ambos inicializados vazios por `nanobot kg bundle init` (com confirmação no scratch); notas de fixture sem grafo; rebuild CM/AK; grafo inválido; root fora do workspace restrito. `healthz` e lista de notas devem continuar coerentes mesmo quando só o artefato derivado falta.
+2. Capturar status HTTP/content-type/payload redigido, `doctor`, paths resolvidos, contagem de notas/nodes/links e duração de rebuild em conjuntos pequenos e representativos. **Não** apresentar números do scratch como medição do bundle real.
+3. Confirmar que um rebuild de bundle vazio gera grafo vazio válido e **não** recupera conteúdo de `workspace/memory/`; evitar “reparo” ilusório que apenas faz a tela parar de dar 404.
+
+**Gate:** cenário das capturas reproduzido e a distinção entre as quatro causas protegida por teste end-to-end local. Não autoriza P5 nem muda o estado persistente atual.
+
+### P2 — diagnóstico e leitura no gateway
+
+1. Extrair um verificador **read-only**, pequeno e tipado para root/layout/config/graph, compartilhado onde fizer sentido por `KgGatewayBridge` e `nanobot kg doctor`, preservando suas políticas diferentes quando necessário. Exigir `.git/` e `notes/` para declarar um bundle ready; apontar bundle parcial sem abrir dados indevidos. Autorização antecede qualquer detalhe operacional. Resolver roots por requisição/escopo e validar containment/symlinks para leitura e escrita separadamente; sem estado global de workspace em cache.
+2. Ajustar `kg_http.py` para não transformar root ausente em “nota ausente”, nem modo `mcp` em 503 genérico; manter allowlist WS, bearer em GET, limites de payload e `graph/data` de 8 MiB. Expor graph status sem reconstruir no GET. O contrato antigo `{exists:false}` pode continuar para ausência de artefato, mas clientes novos recebem motivo; corrupção e tamanho excessivo continuam erros distintos.
+3. Acrescentar em `tests/kg/test_gateway_f6.py` casos autenticados reais do listener para ausente/parcial/vazio/grafo ausente/corrompido/too large, ambos adapters, bearer ausente, workspace negado, modo mcp e 404 de nota. Exercitar `doctor` vs bridge com o **mesmo** root parcial; evitar testar só funções internas sem passar pelo listener.
+
+**Gate:** status e códigos do P0 estáveis; nenhum GET anônimo vaza informação e `/kg-interface/api/*` não devolve SPA HTML. Comparar com contrato de `spa/src/lib/types.ts` e documentar compatibilidade.
+
+### P3 — UX e transporte da SPA
+
+1. Em `src/lib/api.ts`, `types.ts`, `hooks/useHealth.tsx` e hooks de notas/stats, preservar status/código por adapter em vez de reduzir qualquer falha a `false`/`null`. Dar a `HomeView` estados `loading|ready-empty|ready-data|unavailable` e remover `?? 0` como substituto visual de erro; em `NotesList` e `StatsView`, diferenciar configuração, permissão, autenticação, contrato, timeout e rede genuína.
+2. Em `GraphView`, distinguir **bundle indisponível** de **bundle vazio**, **artefato ausente**, **stale**, **inválido** e **grafo com nós**. Se há notas mas falta artefato, indicar o rebuild CLI no workspace correto; se não há notas, explicar que a SPA é de leitura/edição limitada e que criação/ingest cabe ao agente ou ao fluxo autorizado. Não oferecer botão de init/rebuild remoto sem domínio de autorização e transação próprias.
+3. Manter bootstrap com cookie de sessão, bearer da API apenas no header de GET e mutações por WS autenticado; testar renovação de token, falha 401 e alternância CM/AK. Não usar senha/API bearer na URL nem persistir credenciais em `localStorage`; preservar o token efêmero no handshake WS previsto pelo gateway, sem logá-lo. Atualizar traduções pt-BR/en existentes e acesso por teclado/leitor de tela para estados de erro.
+4. Acrescentar testes Vitest de cada estado, inclusive CM ready/AK ausente, Home sem zero falso, Brain missing/stale e erro de contrato; ampliar `tests/kg/test_f7_browser.py` para um browser smoke de **ausente → login → mensagem de setup** e outro de **ready → grafo CM e AK**, com assets distribuídos e sem skips por falta de Chromium/snapshot no gate candidato.
+
+**Gate:** capturas equivalentes deixam claro o próximo passo sem reportar erro de rede inexistente; quem não tem bearer continua sem dados.
+
+### P4 — consistência do artefato após escritas
+
+1. Medir tempo e tamanho de rebuild no scratch e, se permitido pelo operador, em **cópia** representativa. Escolher antes da codificação entre rebuild síncrono pós-commit e job assíncrono; recomendação se o tempo for relevante: invalidar de forma durável e reconstruir em background, coalescido por bundle. Sem benchmark não prometer latência nem cadência.
+2. Garantir que **todas as mutações nativas relevantes** (tools CM/AK, ações WS, migração/CLI) passem pelo mesmo boundary de escrita: marcar `graphify-out` como dirty **antes** da transação sob o lock do bundle, ou outra técnica durável que não perca uma escrita confirmada num crash; após commit, agendar rebuild. Um write que falha pode deixar dirty conservador, mas não pode parecer atualizado. Não iniciar rebuild parcial durante transação nem segurar o event loop em Git/build síncrono.
+3. Rebuild sob o lock existente, com arquivo temporário e replace atômico (`maintenance.rebuild_graph` já tem essa base). Ao finalizar, limpar dirty somente se nenhuma geração de escrita posterior ficou pendente. Em falha, preservar último artefato válido e estado stale com diagnóstico; no restart, detectar pendências e retomá-las. Se não houver grafo ainda, mostrar missing enquanto reconstrói. Não ampliar limite `graph/data` de 8 MiB sem gate de custo e UX.
+4. Escritores legados/externos em `both` não passam pelo boundary nativo: manter aviso e rebuild explícito no ensaio; não prometer detecção automática de edições externas. Testar duas escritas concorrentes, rollback de commit, crash entre mark/commit/build, restart, arquivo inválido, notas removidas e grafo fiel a CM/AK após recuperação. Testes verificam `nodes`, `links`, dangling e preservação de conteúdo/Git, não só existência de arquivo.
+
+**Gate:** após writes pelo Percival, o usuário vê grafo atualizado ou estado explicitamente stale; nenhum caminho retorna grafo antigo como se fosse fresco. `doctor` e SPA concordam. Revisar custo/risco antes de habilitar rebuild automático em bundles grandes.
+
+### P5 — fonte real, migração/recuperação e cutover
+
+**Dono: operador, nos gates B6/B7.** O trabalho de engenharia P1–P4 pode avançar com fixtures enquanto este gate aguarda G0.
+
+- **Se A (legado):** operador inventaria origem e fornece/autoriza cópias anonimizadas; faz backup verificável de **bundle inteiro** (`.git`, `notes`, `sources`, `assets`, `_archive`, `log.md`, `graphify-out`, arquivos ocultos) e config redigida. Com escritores legados parados **na cópia**, aponta pais dos bundles via config/env e mounts de staging dentro do workspace autorizado; roda `doctor`, compara inventário de notas, arquivos binários, Git, links, P11, CAS, AK lateral em dry-run e rebuild. Qualquer `ak-migrate-lateral-links --apply` somente na cópia após revisão. Ensaia leitura de rollback legado sobre cópia pós-nativo ou restauração do snapshot, registrando writes que seriam perdidos. Só então escolhe janela e cutover; `kg.mode="native"` deve excluir escritores CM/AK legados.
+- **Se B (novo):** operador confirma ausência de fonte a preservar e parent do workspace efetivo; inicializa CM/AK com CLI e confirmação, valida layout e acesso do usuário do container, cria ao menos uma nota CM e uma Source/ExtractedNote AK de fixture autorizada e testa link/rebuild/navegação. Sem inventar conteúdo do usuário; bundles vazios devem ser explicitamente mostrados como vazios.
+- **Se C (conversão de `memory/`):** suspender cutover; produzir inventário e transformação revisável com consentimento de seleção, ID/dedupe, frontmatter/tipos, links, proveniência e rollback. Reexecutar P5 em cópia e só então avaliar implantação. Não renomear `memory/` para `.collective-memory`.
+
+**Retorno:** antes de trocar modo ou imagem, preservar snapshot e config; se o binário novo falhar, parar escritores nativos e voltar binário/config compatíveis. Se dados mudaram, rollback de binário **não** reverte notas: restaurar cópia íntegra quando necessário e reconciliar writes posteriores manualmente, sem sobrescrever backups. `both` não é rollback seguro com dois escritores.
+
+### P6 — validação do candidato e handoff
+
+1. Em ambiente Python funcional **separado** da `.venv` local hoje inválida/sem permissão (sem apagá-la), executar `pytest tests/kg` e browser smoke sem skip não justificado; depois `pytest`, `basedpyright nanobot`, `ruff check .`. No repo `~/Projects/spa`, executar `bun run test`, `bun run lint`, `bun run build`; não usar `ruff format`.
+2. Reproduzir snapshot SPA a partir de commit de fonte limpo; conferir `SOURCE.json`, hashes, sdist → wheel sem clone SPA irmão, instalação limpa e Chromium sobre o artefato instalado. Se o SPA for alterado, atualizar o snapshot do gateway **antes** do build Docker; registrar SHA do fork e SPA, image ID/digest e confirmar que o container testado tem o código candidato, não apenas uma tag `latest`. Testar restart/recreate sem perder bundles/status de rebuild.
+3. Testar matriz HTTP/WS, auth, UI e tools no container candidato, incluindo root restrito, root externo negado, ausência de um só bundle, nota não existente, grafo stale e 404 real em API/asset. Guardar evidência sem senhas, tokens, conteúdo de notas ou paths privados desnecessários; registrar limitações e gate VPS/CI separado quando aplicável.
+4. Consolidar documentação operacional/decisões, diferenças de escopo, resultados e próximos passos; revisão/assinatura humana B13 antes de tag/release/publicação. Com P5 pendente, declarar apenas **correção sintética pronta para ensaio**, nunca KG real validado.
+
+**Critério de conclusão do problema:** na instalação-alvo aprovada, CM e AK no parent correto respondem autenticados; Notes/Search/Stats reportam dados reais ou vazio verdadeiro; Brain mostra grafo derivado coerente para ambos, inclusive depois de um write e restart; acesso indevido continua negado; doctor, API e SPA concordam; backup/rollback em cópia e aceite B6/B7 são registrados. Capturas novas + status/API/doctor no mesmo SHA/imagem substituem as capturas de falha.
+
+## 3. Riscos, critérios de parada e agenda
+
+| Risco | Controle/critério de parada |
+| --- | --- |
+| Escrever no bundle errado ou confundir memória normal com KG | G0 obrigatório; conferir roots no host e no container, source e workspace default versus sessão; sem init/migração/rebuild real antes de decidir. |
+| Dois escritores ou rollback que perde writes | Parar escritores CM/AK legados, snapshot integral e ensaio B6/B7 pelo operador; `both` somente para diagnóstico controlado. |
+| Mount externo contorna política da bridge ou expõe outros projetos | Preferir parent sob workspace autorizado; sem grants implícitos, browser não envia path; testes de 403, symlink e contenção read/write. |
+| Grafo stale, rebuild caro ou perda em crash | Dirty durável, lock, replace atômico, retry no restart, benchmark em cópia e estado explícito para falhas; nenhum rebuild no GET. |
+| Testes verdes na fixture, mas snapshot/contêiner antigo | Verificar `SOURCE.json`, SHA/imagem/volumes e browser autenticado no artefato instalado; não usar suite histórica como evidência do novo candidato. |
+
+**Estimativa:** não há prazo ou custo confiável antes de G0, do benchmark de rebuild e do acesso a cópias reais. P1–P4 são trabalho de engenharia independente do ensaio B6/B7; P5 está na trilha crítica do aceite **em dados reais** e depende do operador. Reestimar após P0/P1, com responsável, duração e capacidade de ambiente por fase. A correção da UX/transportes altera código da SPA em `~/Projects/spa`, exige novo snapshot e imagem; a atualização do grafo adiciona escrita derivada e custo de processamento. Nenhuma execução de CI remoto, VPS, publicação ou mudança do estado real é consequência automática deste plano.
+
+## 4. Registro da execução (2026-10-11)
+
+- **G0/P0:** operador escolheu instalação nova. O gateway usa o workspace padrão `/home/nanobot/.nanobot/workspace` dentro do container, montado de `/home/bill/.nanobot/workspace`; `kg.mode=native`, sem roots CM/AK explícitos. Ambos os destinos estavam ausentes. Nenhuma nota ou conteúdo de `memory/` foi lido ou migrado. A SPA continua representando o workspace padrão do gateway.
+- **P1:** fixtures isoladas provaram leitura autenticada, 401 anônimo, bundle ausente como `503 bundle_uninitialized`, bundle pronto, grafo válido/ausente e transição stale após write. Browser smoke Chromium passou para os grafos CM e AK usando assets servidos pelo listener do gateway; não foi feito browser smoke anônimo para o aviso de bundle ausente.
+- **P2–P4:** `KgGatewayBridge` agora distingue bundle não inicializado/native desativado de nota ausente; exige `notes/` e `.git/`; health ready inclui estado do grafo. O metadata `/graph` mantém `exists` e informa `missing|valid|stale|invalid`. `maintenance.rebuild_graph` registra fingerprint SHA-256 de nomes/conteúdo das notas no artefato; mutações posteriores são detectadas como stale, inclusive edições externas, sem rebuild no GET. O rebuild continua manual via CLI; não foi habilitada reconstrução automática, pois falta benchmark representativo e política de custo.
+- **P3:** SPA distingue bundle indisponível, grafo ausente com notas, stale e inválido; Home não apresenta `0` quando stats falham. Estados de HTTP 503/403 são mapeados a mensagens de configuração/acesso, não a erro de rede genérico. Vitest cobre os casos.
+- **P5 — instalação nova executada:** com decisão B e destino confirmado pelo `bundle path`, `nanobot kg bundle init cm --yes` e `... ak --yes` criaram os dois bundles no workspace padrão; `nanobot kg graph rebuild cm/ak --json` produziu grafos vazios válidos (`0 nodes`, `0 edges`). `nanobot kg doctor --json` local e no container reporta ambos `ok`; fingerprint atual `valid` e `notes/` contém zero notas em CM e AK. Isso resolve o 404 de bundle ausente, mas o conteúdo do grafo é corretamente vazio até criação/ingestão autorizada de conhecimento.
+- **P6 local:** `pytest -q --tb=short`: **9349 passed, 49 skipped, 6 warnings**; `basedpyright nanobot`: **0 erros/avisos/notas**; `ruff check .`: passou. SPA: **254 testes**, lint e build passaram. Depois do commit SPA `8e6ad7910c2f0eb4ce87088e1c1476544a99afd1`, o snapshot foi reconstruído a partir de worktree limpo; `SOURCE.json` agora confirma essa revisão com `dirty=false` e hashes dos assets. `tests/kg/test_bundle.py tests/kg/test_f7_browser.py tests/kg/test_gateway_f6.py`: **7 passed, 1 skipped**, com Chromium. Nenhuma imagem Docker foi reconstruída/recriada, nenhum login humano foi exercitado e CI remoto/VPS não foram executados.
+- **Estado/runtime:** o container `nanobot-nanobot-gateway-1` continua na imagem anterior (SHA declarado `c63b8b680d0f12ca1c2b6c271a56ea16ff4bd2d4`); ele agora vê os bundles vazios e seu `doctor` retorna `ok`, mas não contém as correções novas de estado/staleness nem o snapshot SPA atualizado. Portanto o bug operacional de roots ausentes está removido no runtime local; a validação da UX/código novo no container candidato ainda depende de rebuild/recreate e smoke autenticado.
+
+**Próxima ação concreta:** revisar e versionar as mudanças do SPA e Percival; então construir e validar imagem candidata no runtime local sem remover volumes, executar login humano e confirmar mensagens/rotas autenticadas. Não criar conteúdo fictício: indicar uma fonte/nota CM e uma fonte/nota AK se o operador quiser um grafo populado. Gate VPS Engine 27.x permanece separado.

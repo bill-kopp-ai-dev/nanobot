@@ -18,6 +18,7 @@ from websockets.asyncio.client import connect
 
 from nanobot.agent.kg.ak.core import write_source_note
 from nanobot.agent.kg.cm.core import notes_write
+from nanobot.agent.kg.maintenance import init_bundle, rebuild_graph
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
 from nanobot.webui.gateway_services import build_gateway_services
@@ -48,18 +49,15 @@ async def test_packaged_spa_graph_in_browser(
     ak = workspace / ".acquired-knowledge"
     cm_id, ak_id = "20261006-120000", "20261006-120001"
     notes_write(cm, note_id=cm_id, body="browser fixture", frontmatter_patch={"title": "CM Graph"})
-    ak.mkdir()
+    init_bundle(ak, "ak")
     write_source_note(
         ak, source_id=ak_id, title="AK Graph", body="## Conteúdo extraído\n\nBrowser fixture\n",
         note_type="ExtractedNote", source_kind="document", file_path="",
         content_sha256="a" * 64, media_type="text/plain", size_bytes=15,
         chunks_total=1, parsed_chars=15, page_count=None, tags=[],
     )
-    for bundle, note_id, label in ((cm, cm_id, "CM Graph"), (ak, ak_id, "AK Graph")):
-        artifact = bundle / "graphify-out" / "graph.json"
-        artifact.parent.mkdir()
-        artifact.write_text(json.dumps({"directed": True, "multigraph": False, "graph": {},
-                                        "nodes": [{"id": note_id, "label": label}], "links": []}))
+    rebuild_graph(cm, "cm")
+    rebuild_graph(ak, "ak")
     config_path = tmp_path / "config.json"
     config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(workspace)}}}))
     webui = tmp_path / "webui"
