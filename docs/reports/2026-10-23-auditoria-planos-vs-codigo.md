@@ -248,9 +248,14 @@ está registrada, por se tratar de segredo legado inerte em repositório privado
 remediação dos 32 commits de `origin/main` permanece como risco residual aceito.
 **Não reproduzir o valor em documento versionado** — é exatamente o que o item evita.
 
-**D2 — proveniência. Válido, parcial por decisão.** O levantamento existe
-(`docs/reports/2026-10-10-f7-provenance-and-identity.md`); falta a decisão de atribuição, que é do
-operador.
+**D2 — proveniência. Válido, fechado em 2026-10-23.** O levantamento existe
+(`docs/reports/2026-10-10-f7-provenance-and-identity.md`); a decisão de atribuição
+foi tomada pelo operador e registrada na §2.2 do
+[plano de fechamento](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md):
+atribuição confirmada por vínculo com a API do GitHub, `.mailmap` aplicado nos
+sete repositórios sem reescrever objetos commit, identidades de automação
+preservadas e rebuild limpo dos seis MCPs a partir do HEAD, com smoke stdio 6/6.
+Promoção das imagens novas permanece em D8.
 
 **D3 — permissão do Khan. Válido, e o texto estava errado sobre uma das três opções.**
 O servidor expõe, no código, dezessete identificadores `khan_*`, dos quais ao menos sete são

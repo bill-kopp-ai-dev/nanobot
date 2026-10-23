@@ -3,14 +3,15 @@
 - **Preparado em:** 2026-10-23, por fusão dos dois planos de fechamento da padronização
   Docker: o [F4/F5](closed/2026-10-10-f4-f5-closure-plan.md) e o
   [F7 — aceite de operação](closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
-- **Estado / revisão pós-I1/I2 (2026-10-23):** D1 está **fechado** (rotação executada
-  pelo operador, inventário do agente em §2.1, decisão de histórico registrada);
-  D2–D12 continuam sem fechamento integral. I1 concluiu arquitetura/handoff
-  (`eb4e3555`) e I2 concluiu runtime 1 e conformance local Linux/amd64 (`0e7ff072`),
-  ambos commitados/enviados. A evidência reduz a lacuna core de D7, acrescenta seus
-  builds worktree ao resíduo de D8 e atualiza as entradas de D9/D11/D12. I3 foi adiado
-  pelo operador; I4–I9 permanecem pendentes. Restore/rollback F4 anteriores continuam
-  reaproveitáveis no seu escopo. A
+- **Estado / revisão pós-I1/I2 (2026-10-23):** D1 e D2 estão **fechados** (D1: inventário
+  do agente em §2.1, rotação e decisão de histórico do operador; D2: matriz de
+  proveniência em §2.2, atribuição confirmada, `.mailmap` aplicado nos sete repositórios
+  e rebuild limpo dos seis MCPs); D3–D12 continuam sem fechamento integral. I1 concluiu
+  arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
+  Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
+  core de D7, acrescenta seus builds worktree ao resíduo de D8 e atualiza as entradas
+  de D9/D11/D12. I3 foi adiado pelo operador; I4–I9 permanecem pendentes. Restore/rollback
+  F4 anteriores continuam reaproveitáveis no seu escopo. A
   [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md)
   §3.4 é o snapshot anterior a I1/I2; suas referências `arquivo:linha` e ferramentas
   externas exigem reconferência, não são observações novas desta revisão.
@@ -101,13 +102,13 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | # | Item | Critério de aceite | Origem | Resp. | Estado |
 | --- | --- | --- | --- | --- | --- |
 | D1 | Rotacionar a credencial `operator-admin` e avaliar a exposição no histórico | Rotação pela interface suportada, autenticação com o segredo novo e invalidação do anterior sem registrar nenhum dos dois; inventário de commits/arquivos afetados; decisão explícita sobre histórico privado/remoto. Sem este gate, nenhuma mutação autenticada em instância real | F7 P0 / Extra | operador (rotação) + agente (inventário) | **fechado em 2026-10-23** — inventário do agente em §2.1; rotação executada pelo operador (afirmação do operador: trocou a senha recentemente); decisão de histórico registrada pelo operador: manter o histórico exposto, por se tratar de segredo legado inerte e repositório privado. **O literal foi redigido da árvore nesta revisão** (`docs/reports/2026-10-10-f4-f5-closure-report.md:16`), mas permanece em 32 commits de `origin/main` — remediação de histórico não é parte deste fechamento. Correção do inventário anterior: exposição de 32 commits, não 5; o commit `07f08314` citado antes **não existe**; o valor exposto casa com o verificador legado `operator.json` e **não** com `auth/verifier.json`, a credencial de instância vigente, que nenhum código legado valida. **Não reproduzir o valor em documento versionado** |
-| D2 | Matriz de proveniência e política de identidade | Matriz repo → SHA → autor/committer bruto → atribuição confirmada → mapeamento aprovado → image ID/revision revisada; `.mailmap` apenas quando duas identidades forem comprovadamente a mesma pessoa; nenhuma reescrita de `main` publicado | F7 P1 (#10) | agente + operador | **parcial** — levantamento feito; falta decisão de atribuição |
+| D2 | Matriz de proveniência e política de identidade | Matriz repo → SHA → autor/committer bruto → atribuição confirmada → mapeamento aprovado → image ID/revision revisada; `.mailmap` apenas quando duas identidades forem comprovadamente a mesma pessoa; nenhuma reescrita de `main` publicado | F7 P1 (#10) | agente + operador | **fechado em 2026-10-23** — matriz completa em §2.2. Atribuição confirmada por vínculo com a API do GitHub (a API resolve o autor de cada commit para a conta que o assinou); `.mailmap` aplicado nos sete repositórios (Opção A), colapsando 3–5 grafias em `Bill Kopp <bill.kopp.dev@gmail.com>` por repo, sem reescrever nenhum objeto commit; identidades de automação e contribuições externas ficam sem mapeamento (D2-b Opção A); rebuild limpo dos seis MCPs a partir do HEAD, com SHA completo no label `revision` e smoke stdio 6/6 (D2-d Opção A). Defeito corrigido no caminho: `.mailmap` vazava para a imagem do Deep Research (`COPY . .`), corrigido em `e076f29`. **Restam fora deste fechamento:** promoção das imagens (D8, exige aprovação/canário/rollback), push dos `.mailmap` e a política de assinatura de commits, que segue aberta e independente |
 | D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **aberto, e o critério estava errado** — o servidor expõe 17 identificadores `khan_*` (7 de escrita, entre eles `khan_delete_event` e `khan_update_event`) enquanto o canário observou 12 tools: a discrepância precisa ser explicada. **Não existe modo somente leitura** no servidor (busca por `read_only`/`readonly` em `percival-khan-calendar/src/` não retorna nada), então "somente leitura ou subset" não é alternativa de configuração: ou se aceita a superfície, ou se implementa a restrição |
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **parcial, e o mapeamento já é ferramenta** — `nanobot/mcp_docker/inventory.py:136` coleta `containerId` e `:299` renderiza tabela com `percival.mcp-docker.owner`, `.managed-by`, `.server-id` e `.instance-id`. O que falta é o que o inventário não prova: ciclo de vida demonstrado e cardinalidade esperada documentada |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **aberto, confirmado** — **não existe** teste de protocolo: buscas por `tools/call`, `call_tool`, `ClientSession`, `stdio_client`, `jsonrpc` em `tests/` e `src/` do Khan não retornam nada, e todos os testes chamam a função por trás do tool (`tests/_helpers.py:24`-`:34`). O isolamento do calendário real está garantido (`tests/conftest.py:11` redireciona `DATA_DIR`/`DB_FILE` e desliga o lock). Versões em jogo: `mcp` 1.30.0 e `fastmcp` 3.4.4 (`uv.lock`), faixas `mcp[cli]>=1.28.1,<2.0.0` e `fastmcp>=3.2.0` (`pyproject.toml:13`-`:14`) |
 | D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
 | D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **parcial, com core comprovado localmente em I2** — 19 checks PASS cobrem gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM e crash/recreate/hydrate com fixture. Restam artefatos finais e contratos MCP por gestor. A auditoria pré-I2 encontrou tini em OSM/Deep e `--init` incondicional no consumidor Positronic, além de falta de contrato de imagem em Notes/Khan/AgentMail. I2 alterou o core Percival, não esses repositórios; não encerra esses achados nem certifica Positronic |
-| D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. Revalidar no candidato final. Sem promoção, rebuild limpo novo ou digest público nesta revisão |
+| D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito** — não há binário `positronic` no PATH, o CLI do fork é `packages/cli` (`@opencode-ai/cli`, bin `lildax`) e a busca por `install-local` em todo o TypeScript do fork, fora de `node_modules` e docs, **não retorna nada**: **não existe comando para corrigir**. O estado real é o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
 | D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
@@ -154,6 +155,79 @@ em repositório privado. Com isso o gate D1 fecha: rotação feita, inventário
 completo, decisão explícita registrada. A remediação do histórico nos 32 commits
 não faz parte deste fechamento e permanece como risco residual aceito; o literal
 foi redigido da árvore versionada corrente nesta revisão.
+
+### 2.2 D2 — matriz de proveniência e política de identidade (2026-10-23)
+
+Decisões do operador nesta data: **D2-a** atribuição das identidades do operador
+confirmada por vínculo com a API do GitHub; **D2-b** Opção A (identidades de
+automação permanecem no histórico, sem reescrita); **D2-c** Opção A (`.mailmap`
+aplicado agora); **D2-d** Opção A (rebuild limpo dos seis MCPs a partir do HEAD).
+
+**Atribuição confirmada (D2-a).** A API do GitHub resolve o autor de cada commit
+para a conta que o assinou, o que dá vínculo verificável onde não há assinatura
+GPG/SSH (173 commits da janela F0–F7 com `%G?` = `N`):
+
+| Identidade bruta | Vínculo verificado | Verificação |
+| --- | --- | --- |
+| `bill.kopp.dev@gmail.com` | conta `bill-kopp-ai-dev` (id 266513903) | `GET /repos/…/commits/beaccab99` → `author.login = bill-kopp-ai-dev` |
+| `whats.up.ai.chat@gmail.com` | conta `bill-kopp` (id 217495821), pessoal do operador | `GET /repos/…/commits/d2e9987` → `author.login = bill-kopp`; `bill-kopp/nanobot-webui` é fork de `Good0007/nanobot-webui` |
+| `bill-kopp-ai-dev@users.noreply.github.com` | login da conta de trabalho | identidade de login do próprio GitHub |
+| `bill@example.com`, `bill@percival.local`, `billkopp@example.com` | identidade local do próprio repositório (§1 do [relatório F7](../reports/2026-10-10-f7-provenance-and-identity.md)), enviada pela conta do operador | `GET /repos/HKUDS/nanobot/commits/c92f732` e `…/1e7518a` confirmam autoria sob esses endereiros; push events da conta do operador |
+
+O operador **corrigiu** a primeira lista apresentada: `bill.kopp@gmail.com` não
+existe em nenhum histórico, e `willkopp@gmail.com` também não (aparece apenas
+como destinatário em journals do Positronic). Ambos foram removidos.
+
+**`.mailmap` aplicado (D2-c, Opção A).** Um mapeamento por email cobre todas as
+grafias de nome (`bill`, `bill-kopp`, `bill-kopp-ai-dev`, `Bill Kopp`). Após a
+aplicação, cada um dos sete repositórios apresenta uma única identidade de
+operador:
+
+| Repo | HEAD com `.mailmap` | Identidade apresentada | Autor/committer brutos colapsados |
+| --- | --- | --- | --- |
+| `nanobot` | `7d2312a6` | `Bill Kopp <bill.kopp.dev@gmail.com>` | 5 |
+| `percival-notes-mcp` | `78c2810` | idem | 4 |
+| `percival-agentmail-mcp` | `54461f4` | idem | 3 |
+| `percival-weather-mcp` | `b5dd4eb` | idem | 5 |
+| `percival-khan-calendar` | `ce69267` | idem | 4 |
+| `percival-osm` | `55aa673` | idem | 4 |
+| `percival-deep-research` | `44ae8a1` | idem | 3 |
+
+Identidades de automação (`Positronic`, `Percival`, `Trae`, `positronic-bot`,
+`positronic-f1-bot`, `agente`) e contribuições externas (upstream HKUDS:
+`Xubin Ren`, `chengyongru`, `Daniel Nowak`) permanecem **sem mapeamento** e
+visíveis no histórico — decisão D2-b, Opção A. Nenhum objeto commit foi
+reescrito; os SHAs de `origin/main` permanecem idênticos.
+
+**Rebuild limpo (D2-d, Opção A).** `scripts/percival-docker-build.py` a partir do
+HEAD limpo de cada repo, `linux/amd64`, SHA completo no label `revision`, sem
+label de worktree sujo:
+
+| Serviço | HEAD | Tag | Image ID | `revision` | Versão | Smoke stdio |
+| --- | --- | --- | --- | --- | --- | --- |
+| Notes | `78c2810` | `percival-notes-mcp:0.1.5-78c2810` | `sha256:5a802a632fd2…` | `78c2810…` | 0.1.5 | initialize ok, 12 tools |
+| AgentMail | `54461f4` | `percival-agentmail-mcp:0.4.0-54461f4` | `sha256:7f8a2ab5b85b…` | `54461f4…` | 0.4.0 | initialize ok, 24 tools |
+| Weather | `b5dd4eb` | `percival-weather-mcp:0.9.0-b5dd4eb` | `sha256:6da5d43f2168…` | `b5dd4eb…` | 0.9.0 | initialize ok, 9 tools |
+| Khan | `ce69267` | `percival-khan-calendar:0.4.0-ce69267` | `sha256:b7d56ee4b313…` | `ce69267…` | 0.4.0 | initialize ok, 12 tools |
+| OSM | `55aa673` | `percival-osm:0.5.0-55aa673` | `sha256:bb88ae358e90…` | `55aa673…` | 0.5.0 | initialize ok, 37 tools |
+| Deep Research | `e076f29` | `percival-deep-research:3.0.1-e076f29` | `sha256:bad6defa8ce4…` | `e076f29…` | 3.0.1 | initialize ok, 5 tools |
+
+A discrepância de SHA do OSM relatada em 2026-10-10 (SHA curto no label) está
+corrigida: os seis labels carregam o SHA completo de 40 caracteres.
+
+**Defeito encontrado e corrigido durante o rebuild:** o `.mailmap` do Deep
+Research entrou na imagem em `/app/.mailmap`, porque o Dockerfile faz
+`COPY . .` e o `.dockerignore` não o excluía. Corrigido em `e076f29`
+(`.dockerignore` + `.mailmap`), com rebuild e verificação de ausência na imagem.
+
+**Limites desta execução:** nenhuma imagem foi promovida; os pins de runtime
+continuam apontando para os IDs antigos (`ef4082ef1390`, `e104ac754951`,
+`e75fdd4abc8a`, `55cd5a038d22`, `67f8ada63989`, `265891c14514`). Promoção exige
+aprovação, canário e rollback independentes (D8). Os `.mailmap` estão commitados
+localmente nos sete repositórios, sem push. Não há assinatura de commits:
+continuar sem assinatura enfraquece a proveniência mesmo com o mapeamento
+  aplicado — decisão de chave e de política de assinatura permanece aberta e
+  independente.
 
 **Complementos de aceite após a harmonização:**
 
@@ -335,3 +409,43 @@ sem reexecução de testes de produto ou containers.
   auditoria. Sem push, sem reescrita de histórico, sem rotação pelo agente.
 - **Estado:** **D1 fechado.** D2–D12 inalterados e abertos/parciais; o encerramento
   consolidado continua bloqueado por D2–D10 e pelos gates externos C1–C4 e A1–A9.
+
+**2026-10-23 — D2 fechado (decisões do operador; registro do agente).**
+- **Decisões:** D2-a (atribuição confirmada), D2-b Opção A, D2-c Opção A,
+  D2-d Opção A.
+- **Atribuição (D2-a):** verificada pela API do GitHub, que resolve o autor de
+  cada commit para a conta que o assinou — `bill.kopp.dev@gmail.com` →
+  `bill-kopp-ai-dev`, `whats.up.ai.chat@gmail.com` → `bill-kopp` (conta pessoal
+  do operador, confirmada pelo fork `bill-kopp/nanobot-webui`). Os endereços
+  placeholder eram a identidade local do próprio repositório e foram enviados
+  pela conta do operador. `bill.kopp@gmail.com` não existe em nenhum
+  histórico; `willkopp@gmail.com` foi removido pelo operador e também não
+  existe — aparece apenas como destinatário em journals do Positronic.
+- **`.mailmap` (D2-c):** commitado nos sete repositórios (`nanobot` `7d2312a6`,
+  `percival-notes-mcp` `78c2810`, `percival-agentmail-mcp` `54461f4`,
+  `percival-weather-mcp` `b5dd4eb`, `percival-khan-calendar` `ce69267`,
+  `percival-osm` `55aa673`, `percival-deep-research` `44ae8a1`). Um mapeamento
+  por email colapsa 3–5 grafias em `Bill Kopp <bill.kopp.dev@gmail.com>` por
+  repositório. Identidades de automação e contribuições externas ficam sem
+  mapeamento (D2-b). Nenhum objeto commit reescrito; SHAs de `origin/main`
+  intactos.
+- **Rebuild (D2-d):** `python3 scripts/percival-docker-build.py notes-mcp
+  agentmail-mcp weather-mcp khan-calendar osm deep-research` a partir do HEAD
+  limpo de cada repo. Resultado: seis imagens `linux/amd64` com SHA completo de
+  40 caracteres no label `revision`, sem `io.percival.build.worktree`. Smoke
+  stdio JSON-RPC **6/6** (`initialize` + `tools/list`): Notes 12, AgentMail 24,
+  Weather 9, Khan 12, OSM 37, Deep Research 5 tools.
+- **Defeito corrigido no caminho:** o `.mailmap` do Deep Research entrou na
+  imagem em `/app/.mailmap` (`COPY . .` sem exclusão no `.dockerignore`).
+  Corrigido em `e076f29`, com rebuild e verificação de ausência na imagem.
+- **Artefato de evidência:** §2.2 deste plano e §7 do
+  [relatório de proveniência](../reports/2026-10-10-f7-provenance-and-identity.md).
+- **Mutações:** `.mailmap` e `.dockerignore` commitados localmente nos repos MCP;
+  imagens construídas localmente. **Sem push, sem promoção, sem alteração de
+  instância ou de pin de runtime.**
+- **Limitações:** promoção das imagens novas depende de D8 (aprovação, canário e
+  rollback independentes); os pins de runtime seguem nos IDs antigos. Push dos
+  `.mailmap` não executado. Política de assinatura de commits continua aberta e
+  independente.
+- **Estado:** **D2 fechado.** D3–D12 inalterados; o encerramento consolidado
+  continua bloqueado por D3–D10 e pelos gates externos C1–C4 e A1–A9.

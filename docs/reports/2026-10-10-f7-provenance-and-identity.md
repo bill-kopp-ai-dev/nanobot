@@ -1,6 +1,6 @@
 # F7 — procedência e identidade dos commits (P1)
 
-- **Data:** 2026-10-10 UTC.
+- **Data:** 2026-10-10 UTC; **revisão de 2026-10-23** (atribuição confirmada, `.mailmap` aplicado, rebuild limpo dos seis MCPs — §7).
 - **Escopo:** pacote P1 do [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md), pendência #10 do plano principal.
 - **Método:** varredura read-only dos oito repos; comparação entre autor, committer e configuração Git local; mapeamento para identidades conhecidas. Nenhuma mutação em `main`, nenhum push, nenhuma alteração de configuração Git, nenhum `.mailmap` aplicado.
 - **Atenção:** este relatório não credita autoria por inferência. Identidades com nome/exemplo/domínio do agente são sinalizadas como automação local; só após decisão do operador e evidência de que a mesma pessoa é responsável é que se pode aplicar `.mailmap` ou reescrever commits.
@@ -72,3 +72,56 @@ Implicação: dos seis pinados, apenas Notes bate com o HEAD atual. Para os outr
 ## 6. Próximo passo sugerido
 
 Confirmar formalmente, com o operador: (a) quais identidades "Bill" representam o operador; (b) se as identidades de agente devem permanecer no histórico ou se é aceitável reescrevê-las antes de qualquer publicação; (c) se a rebuild + promoção dos cinco pins deve ser tratada como pré-condição para F4/F5 verdes. Sem essas respostas, `.mailmap` e F4/F5 ficam em modo "documentar sem resolver".
+
+## 7. Revisão de 2026-10-23 — atribuição confirmada e `.mailmap` aplicado
+
+O relatório acima é o snapshot de 2026-10-10 e descreve o estado **antes** das
+decisões do operador. Esta seção registra o resultado. A matriz completa está
+na §2.2 do [plano de fechamento F4/F5/F7](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
+
+### 7.1 Decisões do operador
+
+| Decisão | Escolha |
+| --- | --- |
+| D2-a (atribuição) | Identidades do operador: `bill.kopp.dev@gmail.com` e `willkopp@gmail.com` — o primeiro corrigido para `bill.kopp.dev@gmail.com`; `willkopp@gmail.com` removido depois, por não existir em nenhum histórico |
+| D2-b (identidades de agente) | Opção A — permanecem no histórico, sem reescrita |
+| D2-c (`.mailmap`) | Opção A — aplicado agora |
+| D2-d (imagem × HEAD) | Opção A — rebuild limpo a partir do HEAD |
+
+### 7.2 Base probatória da atribuição
+
+Nenhum commit da janela F0–F7 é assinado (`%G?` = `N` em 173 casos), então a
+atribuição não pode ser criptográfica. A evidência usada foi a **API do GitHub**,
+que resolve o autor de um commit para a conta que o assinou:
+
+| Identidade bruta | Conta resolvida | Verificação |
+| --- | --- | --- |
+| `bill.kopp.dev@gmail.com` | `bill-kopp-ai-dev` (id 266513903) | `GET /repos/bill-kopp-ai-dev/nanobot/commits/beaccab99` → `author.login = bill-kopp-ai-dev` |
+| `whats.up.ai.chat@gmail.com` | `bill-kopp` (id 217495821) | `GET /repos/bill-kopp-ai-dev/percival-notes-mcp/commits/d2e9987` → `author.login = bill-kopp`; `bill-kopp/nanobot-webui` é fork de `Good0007/nanobot-webui` |
+| `bill-kopp-ai-dev@users.noreply.github.com` | `bill-kopp-ai-dev` | identidade de login do GitHub |
+| `bill@example.com` | — | `GET /repos/HKUDS/nanobot/commits/c92f732` → `author: null`; vínculo pelo push event da conta do operador |
+| `bill@percival.local` | — | `GET /repos/bill-kopp-ai-dev/percival-notes-mcp/commits/03c7305` → `author: null`; era o `user.email` local do próprio repo (§1) |
+| `billkopp@example.com` | — | `GET /repos/HKUDS/nanobot/commits/1e7518a` → `author: null`; committer é `chengyongru` (contribuição externa) |
+
+### 7.3 Estado final
+
+- `.mailmap` commitado nos sete repositórios: `nanobot` `7d2312a6`,
+  `percival-notes-mcp` `78c2810`, `percival-agentmail-mcp` `54461f4`,
+  `percival-weather-mcp` `b5dd4eb`, `percival-khan-calendar` `ce69267`,
+  `percival-osm` `55aa673`, `percival-deep-research` `44ae8a1` (+ `e076f29`).
+- Cada repo passa a apresentar uma única identidade de operador. Objetos commit
+  intactos; os SHAs de `origin/main` não mudaram.
+- Identidades de automação e contribuições externas continuam sem mapeamento.
+- Rebuild limpo dos seis MCPs com SHA completo no label `revision`; smoke stdio
+  6/6. Defeito do `.mailmap` vazando para a imagem do Deep Research corrigido em
+  `e076f29`.
+
+### 7.4 O que permanece aberto
+
+- **Promoção** das seis imagens novas: depende de D8 (aprovação, canário,
+  rollback independentes). Os pins de runtime seguem nos IDs antigos.
+- **Push** dos `.mailmap`: commitados localmente, não enviados.
+- **Assinatura de commits**: nenhum commit é assinado; a política de assinatura
+  continua aberta e independente do mapeamento.
+- **`alternative-positronic`**: sem `.mailmap` — não é parte do conjunto
+  percival e não entrou na decisão do operador.
