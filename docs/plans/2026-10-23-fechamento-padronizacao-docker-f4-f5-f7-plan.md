@@ -3,10 +3,12 @@
 - **Preparado em:** 2026-10-23, por fusão dos dois planos de fechamento da padronização
   Docker: o [F4/F5](closed/2026-10-10-f4-f5-closure-plan.md) e o
   [F7 — aceite de operação](closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
-- **Estado / revisão pós-I1/I2 (2026-10-23):** D1 e D2 estão **fechados** (D1: inventário
+- **Estado / revisão pós-I1/I2 (2026-10-23):** D1, D2 e D3 estão **fechados** (D1: inventário
   do agente em §2.1, rotação e decisão de histórico do operador; D2: matriz de
   proveniência em §2.2, atribuição confirmada, `.mailmap` aplicado nos sete repositórios
-  e rebuild limpo dos seis MCPs); D3–D12 continuam sem fechamento integral. I1 concluiu
+  e rebuild limpo dos seis MCPs; D3: levantamento da superfície em §2.3, decisão do
+  operador e aplicação em §2.4 — 12 tools do Khan liberadas nos dois gestores,
+  prompts/resources registrados como limitação); D4–D12 continuam sem fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
   Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
   core de D7, acrescenta seus builds worktree ao resíduo de D8 e atualiza as entradas
@@ -103,14 +105,14 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | --- | --- | --- | --- | --- | --- |
 | D1 | Rotacionar a credencial `operator-admin` e avaliar a exposição no histórico | Rotação pela interface suportada, autenticação com o segredo novo e invalidação do anterior sem registrar nenhum dos dois; inventário de commits/arquivos afetados; decisão explícita sobre histórico privado/remoto. Sem este gate, nenhuma mutação autenticada em instância real | F7 P0 / Extra | operador (rotação) + agente (inventário) | **fechado em 2026-10-23** — inventário do agente em §2.1; rotação executada pelo operador (afirmação do operador: trocou a senha recentemente); decisão de histórico registrada pelo operador: manter o histórico exposto, por se tratar de segredo legado inerte e repositório privado. **O literal foi redigido da árvore nesta revisão** (`docs/reports/2026-10-10-f4-f5-closure-report.md:16`), mas permanece em 32 commits de `origin/main` — remediação de histórico não é parte deste fechamento. Correção do inventário anterior: exposição de 32 commits, não 5; o commit `07f08314` citado antes **não existe**; o valor exposto casa com o verificador legado `operator.json` e **não** com `auth/verifier.json`, a credencial de instância vigente, que nenhum código legado valida. **Não reproduzir o valor em documento versionado** |
 | D2 | Matriz de proveniência e política de identidade | Matriz repo → SHA → autor/committer bruto → atribuição confirmada → mapeamento aprovado → image ID/revision revisada; `.mailmap` apenas quando duas identidades forem comprovadamente a mesma pessoa; nenhuma reescrita de `main` publicado | F7 P1 (#10) | agente + operador | **fechado em 2026-10-23** — matriz completa em §2.2. Atribuição confirmada por vínculo com a API do GitHub (a API resolve o autor de cada commit para a conta que o assinou); `.mailmap` aplicado nos sete repositórios (Opção A), colapsando 3–5 grafias em `Bill Kopp <bill.kopp.dev@gmail.com>` por repo, sem reescrever nenhum objeto commit; identidades de automação e contribuições externas ficam sem mapeamento (D2-b Opção A); rebuild limpo dos seis MCPs a partir do HEAD, com SHA completo no label `revision` e smoke stdio 6/6 (D2-d Opção A). Defeito corrigido no caminho: `.mailmap` vazava para a imagem do Deep Research (`COPY . .`), corrigido em `e076f29`. **Restam fora deste fechamento:** promoção das imagens (D8, exige aprovação/canário/rollback), push dos `.mailmap` e a política de assinatura de commits, que segue aberta e independente |
-| D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **aberto, e o critério estava errado** — o servidor expõe 17 identificadores `khan_*` (7 de escrita, entre eles `khan_delete_event` e `khan_update_event`) enquanto o canário observou 12 tools: a discrepância precisa ser explicada. **Não existe modo somente leitura** no servidor (busca por `read_only`/`readonly` em `percival-khan-calendar/src/` não retorna nada), então "somente leitura ou subset" não é alternativa de configuração: ou se aceita a superfície, ou se implementa a restrição |
+| D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **fechado em 2026-10-23** — decisão do operador em §2.4: **superfície completa nos dois gestores**, prompts/resources como limitação aceita e registrada, aplicação autorizada ao agente. Superfície real: **12 tools + 6 prompts + 1 resource = 19** (§2.3), escrita efetiva em 5 tools. Aplicado: `allowedTools` do Khan no Positronic elevada de 1 para 12 via `positronic mcp server configure` (config `revision` 1→2, `configurationId` preservado, `network: none`, mount e env intactos, snapshot de rollback em `~/.local/state/positronic-d3-snapshots/`); o Percival já estava em 12 tools (`toolsDisabled: []`) e não foi mutado. Projeção verificada nos dois gestores: `discover` 12 tools, `preview` `refreshKey 10:9ee229c8-…:2`, `reconnect` `generation 777b633dce4cf9fa` (= hash da revisão 2), broker Percival `tools/list` 12 tools, log do gateway `connected, 12 capabilities registered`. **Limitação registrada:** prompts/resources não são cobertos por allowlist de tool no Positronic (viram comandos/resource), e não são expostos no Percival — assimetria por construção, não remediavel por configuração |
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **parcial, e o mapeamento já é ferramenta** — `nanobot/mcp_docker/inventory.py:136` coleta `containerId` e `:299` renderiza tabela com `percival.mcp-docker.owner`, `.managed-by`, `.server-id` e `.instance-id`. O que falta é o que o inventário não prova: ciclo de vida demonstrado e cardinalidade esperada documentada |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **aberto, confirmado** — **não existe** teste de protocolo: buscas por `tools/call`, `call_tool`, `ClientSession`, `stdio_client`, `jsonrpc` em `tests/` e `src/` do Khan não retornam nada, e todos os testes chamam a função por trás do tool (`tests/_helpers.py:24`-`:34`). O isolamento do calendário real está garantido (`tests/conftest.py:11` redireciona `DATA_DIR`/`DB_FILE` e desliga o lock). Versões em jogo: `mcp` 1.30.0 e `fastmcp` 3.4.4 (`uv.lock`), faixas `mcp[cli]>=1.28.1,<2.0.0` e `fastmcp>=3.2.0` (`pyproject.toml:13`-`:14`) |
 | D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
 | D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **parcial, com core comprovado localmente em I2** — 19 checks PASS cobrem gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM e crash/recreate/hydrate com fixture. Restam artefatos finais e contratos MCP por gestor. A auditoria pré-I2 encontrou tini em OSM/Deep e `--init` incondicional no consumidor Positronic, além de falta de contrato de imagem em Notes/Khan/AgentMail. I2 alterou o core Percival, não esses repositórios; não encerra esses achados nem certifica Positronic |
 | D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
-| D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito** — não há binário `positronic` no PATH, o CLI do fork é `packages/cli` (`@opencode-ai/cli`, bin `lildax`) e a busca por `install-local` em todo o TypeScript do fork, fora de `node_modules` e docs, **não retorna nada**: **não existe comando para corrigir**. O estado real é o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
+| D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito; agora parcialmente invalidada** — em 2026-10-23 o binário `positronic` **passou a existir** no PATH (`/home/bill/.local/bin/positronic`, wrapper do runtime nativo fixado) e expõe `mcp server configure <id> <revision> --tools <lista>`; os 11 comandos da skill **existem** no CLI atual. A afirmação anterior ("não há binário `positronic` no PATH", "não existe comando para corrigir") **não vale mais** — ver §2.3. Restam: reescrever a D10 à luz do CLI atual, confirmar na skill os nomes/flags reais (o `recover-transition` exige `--confirm`), e remover o workaround de edição direta do registry. O estado real continua sendo o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
 | D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
 | D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e risco residual; registrar **aceite local**, **aprovação B13**, **homologação pública** e **aceite VPS/deploy** como atos separados, na ordem I1 | F7 P5; I1.6 | operador (assina) + agente (consolida) | **encerramento consolidado bloqueado** por D1–D10, C1–C4 e A1–A9; evidência parcial I1/I2 incorporada, sem assinatura F7. Registro local não certifica VPS e publicação B13 não depende integralmente de I9/C3/C4 públicos; homologação pós-push é gate de promoção |
 
@@ -229,6 +231,224 @@ continuar sem assinatura enfraquece a proveniência mesmo com o mapeamento
   aplicado — decisão de chave e de política de assinatura permanece aberta e
   independente.
 
+### 2.3 D3 — levantamento da superfície efetiva do Khan (2026-10-23, agente)
+
+Read-only. Nenhuma mutação de configuração, registry, container, broker ou
+imagem. Objetivo: substituir o critério errado da D3 por evidência do protocolo
+e uma lista efetiva por gestor.
+
+**Correção do critério anterior.** O texto anterior da D3 afirmava "17
+identificadores `khan_*`, 7 de escrita". A contagem misturava tools e prompts.
+Levantamento por `tools/list`, `prompts/list`, `resources/list` e
+`resources/templates/list` contra o container em execução
+(`percival-khan-calendar:0.4.0-ce69267`, image `sha256:55cd5a038d22…`):
+
+| Superfície | Quantidade | Itens |
+| --- | --- | --- |
+| Tools | **12** | `khan_list_events`, `khan_search_events`, `khan_create_event`, `khan_update_event`, `khan_delete_event`, `khan_delete_event_safe`, `khan_get_event`, `khan_view_agenda`, `khan_view_calendar`, `khan_get_status`, `khan_list_calendars`, `khan_export_ics` |
+| Prompts | **6** | `khan_overview`, `khan_create_event_semantics`, `khan_update_workflow`, `khan_delete_with_confirmation`, `khan_search_strategy`, `khan_quick_action_quick_create` |
+| Resources | **1** | `khan://schema/main` |
+| Resource templates | 0 | — |
+
+Total 19, o que o próprio servidor documenta em
+`percival-khan-calendar/src/percival_khan_calendar/server.py:99` ("process to
+discover 12 tools, 6 prompts and 1 resource"). Escrita efetiva entre as 12
+tools: `khan_create_event`, `khan_update_event`, `khan_delete_event`,
+`khan_delete_event_safe`, `khan_export_ics` (5). Os 18 identificadores `khan_*`
+no source são tools + prompts; `khan_delete_event` remove sem preview, enquanto
+`khan_delete_event_safe` faz dry-run por padrão e só apaga com `confirm=True`
+(`tools/delete_event.py:30` e `:54`).
+
+**Superfície efetiva por gestor — os dois divergem.**
+
+| Gestor | Mecanismo | Lista efetiva do Khan | Efeito sobre prompts/resources |
+| --- | --- | --- | --- |
+| Percival | `toolsDisabled` em `tools.mcpDocker.servers["khan-calendar"]` → `enabled_tools` em [`nanobot/agent/tools/mcp.py:1451`](../../nanobot/agent/tools/mcp.py#L1451); poda client-side e no broker ([`broker.py:684`](../../nanobot/mcp_docker/broker.py#L684)) | **12 tools** (as 12 do servidor; `toolsDisabled: []` em `~/.nanobot/config.json`) | **Não expostos.** Com `enabled_tools` sem `"*"`, o cliente não registra resources/prompts ([`mcp.py:1282`](../../nanobot/agent/tools/mcp.py#L1282)); log do gateway: `skipping resource/prompt registration (enabledTools does not include '*')` e `connected, 12 capabilities registered` |
+| Positronic | `allowedTools` em `~/.positronic/mcp/servers/khan-calendar.json`, imposto no cliente em [`packages/opencode/src/mcp/index.ts:863`](../../../alternative-positronic/packages/opencode/src/mcp/index.ts#L863) e revalidado antes de cada chamada em [`packages/positronic-mcp-docker/src/managed.ts:620`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L620) | **1 tool** — `khan_get_status` | **Expostos.** `MCP.prompts` não consulta a allowlist: os **6 prompts** do Khan viram comandos no Positronic (`GET /command` → `khan-calendar:khan_overview`, `khan-calendar:khan_delete_with_confirmation`, …), e o **1 resource** aparece em `GET /experimental/resource` (`khan-calendar:khan://schema/main`) |
+
+Consequência: **a allowlist do gestor restringe tools, não prompts nem
+resources.** No Positronic, os prompts de escrita (`khan_update_workflow`,
+`khan_delete_with_confirmation`, `khan_create_event_semantics`) são alcançáveis
+mesmo com `allowedTools: ["khan_get_status"]`. Isso não é falha do Khan — é
+semântica do gestor, e vale para os demais MCPs.
+
+**O estado do Positronic mudou em 2026-10-20** e o [relatório F7 de
+2026-10-10](../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md) está
+desatualizado nesse ponto: ele registra `allowedTools` com 12 tools e
+`configurationId: fb8ba208-…`; hoje são 1 tool, `revision: 1`,
+`configurationId: 9ee229c8-…`. A mudança foi o gate humano de revisão de
+allowlist do smoke F3.0.1, que autorizou apenas a chamada segura
+`khan_get_status` (runbook `POSITRONIC_F3_F301_OPERATOR_RUNBOOK.md` §3.1.1,
+"tool que lê/modifica estado externo → **não** incluir"). Verificado pela
+interface suportada: `positronic mcp server show khan-calendar` → `allowedTools:
+["khan_get_status"]`, e pela API do servidor em execução
+(`GET /experimental/positronic/mcp/installed`).
+
+**`allowedProjects` não é permissão de tool** (critério da D3, confirmado):
+não existe em nenhum código do gateway; no registry do Positronic é `[]` com
+`scope: "global"` para os seis servidores; e no código do fork só aparece como
+filtro de **projeto** para servidores de escopo local
+([`managed.ts:614`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L614)),
+ao lado de `allowedTools`, que é o filtro de **tool**.
+
+**Correção factual adicional (D10).** O binário `positronic` **passou a
+existir** no PATH desde a última revisão deste plano
+(`/home/bill/.local/bin/positronic`, wrapper do runtime nativo fixado), e o
+fork expõe `mcp server configure <id> <revision> --tools <lista>` como
+caminho de alteração de allowlist suportado
+([`packages/opencode/src/cli/cmd/positronic-mcp-docker.ts:179`](../../../alternative-positronic/packages/opencode/src/cli/cmd/positronic-mcp-docker.ts#L179)).
+A afirmação anterior da D10 — "não há binário `positronic` no PATH" e "não
+existe comando para corrigir" — **não vale mais** e precisa ser reescrita. Os
+11 comandos listados na skill global `mcp-docker-workflow` **existem** no CLI
+atual (`install-local`, `configure`, `scope`, `projects`, `update-image`,
+`metadata`, `preview`, `discover`, `recover-runs`, `delete`, `restore`); o
+comando inexistente era `install-local` na revisão antiga do fork, e o
+`recover-transition` pede `--confirm` explícito.
+
+**Superfície no Percival — caminho suportado para restringir.** O `toolsDisabled`
+é um estado **negativo** (lista de tools desabilitadas), não uma allowlist:
+`enabled_tools` é calculado como `tools − toolsDisabled`. Restringir a 1 tool
+exige desabilitar 11 tools individualmente, via WebUI
+(`Per-tool access` → botão `Disable`, [`webui/src/components/McpDockerManagement.tsx:482`](../../webui/src/components/McpDockerManagement.tsx#L482))
+ou via `POST /api/settings/mcp-docker/disable-tool` (exige WebSocket
+autenticado). Não há allowlist positiva equivalente no Percival; introduzi-la
+seria mudança de contrato, não configuração.
+
+**Achado colateral (D4).** A duplicação de containers não é só do Khan: há
+**2 containers Positronic por servidor** para os 6 servidores (12 no total) e
+**1 container Percival por servidor** (6), todos `Up`. Os containers Positronic
+são `docker start --attach --interactive` de processo filho do `opencode serve`
+(PID 98403), com registro de ownership em
+`~/.positronic/mcp/executions/<run>/owner.json` (`state: "acquired"`, mesmo
+PID/boot/engine) — portanto **não são órfãos**: são uma instância por
+sessão ativa, e o segundo conjunto nasce de reativação dentro da mesma
+sessão. O container Percival (`percival-mcp-khan-calendar`) carrega
+`percival.mcp-docker.owner=percival`, `.managed-by=percival-broker`,
+`.server-id=khan-calendar` e `.instance-id=68fae821-…`. O `AutoRemove=true`
+nos containers Positronic confirma o descarte no encerramento da sessão.
+
+**Limites desta execução.** Nada foi alterado: `allowedTools` do Positronic,
+`toolsDisabled` do Percival, registry e containers seguem como estavam. A
+decisão de superfície por gestor, que é a parte que cabe ao operador, **não foi
+tomada** nesta etapa — foi tomada depois e registrada em §2.4, que também
+documenta a aplicação.
+
+### 2.4 D3 — decisão do operador e aplicação (2026-10-23)
+
+**Decisão do operador (2026-10-23), registrada antes de qualquer mutação:**
+
+| Eixo | Decisão |
+| --- | --- |
+| Superfície | **Completa nos dois gestores** — 12 tools do Khan liberadas em ambos |
+| Prompts e resources | **Limitação aceita e registrada** — sem cobertura por allowlist de tools |
+| Aplicação | **Agente aplica, com autorização explícita** |
+
+**O que foi aplicado.** Uma mutação, no Positronic: a `allowedTools` do Khan
+passou de 1 para 12 tools. O Percival **não foi mutado** — já estava em
+`toolsDisabled: []` com as 12 tools em `~/.nanobot/config.json`, que é
+exatamente a superfície decidida.
+
+**Rollback preparado antes da mutação.** `saveConfig` não cria backup próprio
+(o backup vive do fluxo de transição/delete), então foi feito snapshot privado
+da configuração anterior:
+
+```
+/home/bill/.local/state/positronic-d3-snapshots/
+  khan-calendar.json.rev1.20261023T220640Z.bak   (revision 1, allowedTools: ["khan_get_status"])
+```
+
+**Comando aplicado** (caminho suportado, sem edição direta do registry):
+
+```bash
+positronic mcp server configure khan-calendar 1 \
+  --network none \
+  --mount '/home/bill/.positronic-reports/f3-0-1-khan-workspace-20261020T172539Z|/data|rw' \
+  --env KHAN_WORKSPACE_DIR=/data \
+  --tools 'khan_list_events,khan_search_events,khan_create_event,khan_update_event,khan_delete_event,khan_delete_event_safe,khan_get_event,khan_view_agenda,khan_view_calendar,khan_get_status,khan_list_calendars,khan_export_ics'
+```
+
+O `1` é a revisão da **configuração**, não a do registry (que é 10). Todos os
+campos foram passados explicitamente porque o CLI tem default
+`--network bridge` e defaults vazios de `--mount`/`--env`
+([`positronic-mcp-docker.ts:184`](../../../alternative-positronic/packages/opencode/src/cli/cmd/positronic-mcp-docker.ts#L184)):
+omitir qualquer um deles sobrescreveria o isolamento em vez de preservá-lo.
+
+**Resultado — isolamento preservado, `configurationId` intacto:**
+
+| Campo | Antes | Depois |
+| --- | --- | --- |
+| `revision` (config) | 1 | **2** |
+| `configurationId` | `9ee229c8-c6ce-4d5c-b030-e39028fb6349` | **idêntico** |
+| `network` | `none` | `none` |
+| `mounts` | workspace sintético → `/data`, gravável | **idêntico** |
+| `env` | `KHAN_WORKSPACE_DIR=/data` | **idêntico** |
+| `allowedTools` | 1 (`khan_get_status`) | **12** |
+| registry `revision` | 10 | **10** (inalterado) |
+
+**Projeção efetiva verificada nos dois gestores.**
+
+| Verificação | Resultado |
+| --- | --- |
+| `positronic mcp server show khan-calendar` | 12 `allowedTools`, `revision: 2`, `network: none` |
+| `positronic mcp server discover khan-calendar` | **12 tools** pelo protocolo, contra o container em execução |
+| `positronic mcp server preview khan-calendar <projeto>` | `tools: 12`, `refreshKey: 10:9ee229c8-…:2` — a revisão nova entrou no ciclo de vida |
+| `POST /experimental/positronic/mcp/managed/inspect` | `configRevision: 2`, `configurationId` preservado, 12 `allowedTools`, `network: none`, mount e env intactos |
+| `POST …/managed/command {"action":"reconnect"}` | `{"khan-calendar":{"status":"ready","generation":"777b633dce4cf9fa"}}` |
+| `generation` × `Bun.hash(refreshKey)` | `777b633dce4cf9fa` = hash de `10:9ee229c8-…:2` (a revisão 1 daria `a06460b29a18bd0f`) — **o runtime absorveu a configuração nova** |
+| `GET /mcp` | `khan-calendar: connected` |
+| `GET /command` | **6 comandos de prompt** do Khan: `khan-calendar:khan_overview`, `khan_create_event_semantics`, `khan_update_workflow`, `khan_delete_with_confirmation`, `khan_search_strategy`, `khan_quick_action_quick_create` |
+| `GET /experimental/resource` | **1 resource**: `khan-calendar:khan://schema/main` |
+| Broker Percival, `tools/list` em `/mcp/khan-calendar` | **12 tools** (JSON-RPC completo, dentro do container do broker) |
+| Log do gateway Percival | `percival_docker_khan-calendar: connected, 12 capabilities registered` e `skipping resource/prompt registration (enabledTools does not include '*' — only tools allowed)` |
+
+**O que a verificação não prova.** O `/experimental/tool/ids` do Positronic
+lista **25 tools** e nenhuma delas é do Khan (`khan-calendar_*` ausente). Isso
+não é falha da allowlist: `registry.ids()` devolve apenas as tools **builtin e
+custom** do registry
+([`packages/opencode/src/tool/registry.ts:313`](../../../alternative-positronic/packages/opencode/src/tool/registry.ts#L313)),
+e as tools MCP entram por caminho distinto
+([`packages/opencode/src/session/tools.ts:390`](../../../alternative-positronic/packages/opencode/src/session/tools.ts#L390)).
+Portanto **não existe endpoint do runtime que enumere as tools MCP efetivas**;
+a prova da allowlist no Positronic é a composição de `preview` (lista efetiva
++ `refreshKey`), `discover` (12 tools pelo protocolo), `inspect` (config
+persistida) e `reconnect` (geração nova, hash compatível com a revisão 2).
+O `/experimental/tool` exige `provider` e `model`, e o runtime ativo está sem
+provedor configurado (`GET /api/provider` → `data: []`), o que impede essa
+segunda via.
+
+**Segundo portão, verificado por leitura de código.** A allowlist é aplicada
+duas vezes no Positronic: na composição da lista
+([`mcp/index.ts:863`](../../../alternative-positronic/packages/opencode/src/mcp/index.ts#L863))
+e na revalidação antes de cada chamada
+([`managed.ts:620`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L620)).
+Como a revalidação consulta a mesma `config.allowedTools`, as 11 tools
+liberadas passam pelos dois portões — não há uma segunda allowlist a
+atualizar.
+
+**Limitação registrada (aceita pelo operador).** Prompts e resources do Khan
+continuam **fora** de qualquer allowlist de tool no Positronic: os 6 prompts
+viram comandos e o resource é exposto, independentemente de `allowedTools`.
+Isso é semântica do gestor (`MCP.prompts`/`MCP.resources` não consultam a
+allowlist), vale para os demais MCPs e **não** é remediavel por configuração.
+No Percival o oposto ocorre: prompts e resources **não** são expostos, porque
+`enabled_tools` sem `"*"` suprime o registro de extras
+([`mcp.py:1282`](../../nanobot/agent/tools/mcp.py#L1282)) e o broker não
+encaminha `prompts/list`/`resources/list`
+([`broker.py:32`](../../nanobot/mcp_docker/broker.py#L32)). Os dois gestores
+têm, portanto, **superfícies assimétricas por construção**.
+
+**Auditoria.** `~/.positronic/logs/audit.jsonl` registrou
+`experimental.positronic.mcp.server.config` → `committed` para
+`khan-calendar` em `2026-10-23T22:06:48Z`, e eventos `lifecycle`/`tools-list`
+`succeeded` do Khan nas projeções seguintes.
+
+**Estado da D3.** **Fechada em 2026-10-23.** Decisão registrada, aplicada,
+verificada nos dois gestores e com rollback preparado. Não resta pendência
+local nesta linha. O que permanece fora do alcance desta linha, e segue em
+outros itens: **promoção** das imagens (D8), **duplicatas de container**
+(D4), **regressão `tools/call`** do Khan (D5) e a **reescrita da D10** à luz
+do CLI atual.
+
 **Complementos de aceite após a harmonização:**
 
 - **D7:** reaproveitar a matriz e execução I2 para o core sem repeti-las como tarefa
@@ -344,6 +564,76 @@ reduzidos ao que falta, D11 desmembrado em tarefas verificáveis.
 
 Quando D12 for assinado, o relatório único deve substituir os snapshots de pendência hoje
 dispersos entre o plano de fase, o relatório F4/F5 e os relatórios F7, mantendo os links.
+
+**2026-10-23 — D3: levantamento da superfície efetiva do Khan (agente; decisão do operador pendente).**
+Read-only. Nenhuma mutação de configuração, registry, container, broker ou imagem.
+Levantamento completo em §2.3. Verificações: `tools/list`, `prompts/list`,
+`resources/list` e `resources/templates/list` contra o container em execução
+(`percival-khan-calendar:0.4.0-ce69267`, image `sha256:55cd5a038d22…`); estado
+canônico do Percival (`~/.nanobot/config.json` → `tools.mcpDocker.servers["khan-calendar"]`);
+allowlist do Positronic (`~/.positronic/mcp/servers/khan-calendar.json`, via
+`positronic mcp server show khan-calendar`); API do Positronic em execução
+(`GET /experimental/positronic/mcp/installed`, `GET /mcp`,
+`GET /experimental/resource`, `GET /command`); log do gateway
+(`skipping resource/prompt registration` + `connected, 12 capabilities registered`);
+código dos dois consumidores (`nanobot/agent/tools/mcp.py`,
+`nanobot/mcp_docker/broker.py`, `packages/opencode/src/mcp/index.ts`,
+`packages/positronic-mcp-docker/src/managed.ts`); source do Khan
+(`src/percival_khan_calendar/server.py:99`, `tools/delete_event.py:30` e `:54`,
+`constants.py`).
+
+Achados que mudam o quadro: (1) o critério anterior da D3 estava errado — são
+**12 tools + 6 prompts + 1 resource = 19**, não "17 / 7 de escrita"; (2) os dois
+gestores **divergem** — Percival expõe 12 tools e nenhum prompt/resource,
+Positronic expõe **1 tool** (`khan_get_status`) mas **todos os 6 prompts e o
+resource**; (3) a allowlist do gestor restringe **tools**, nunca prompts nem
+resources; (4) `allowedProjects` é escopo de projeto, não permissão de tool;
+(5) o [relatório F7 de 2026-10-10](../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md)
+está desatualizado: a allowlist do Positronic mudou para 1 tool em 2026-10-20
+(gate humano do smoke F3.0.1); (6) **D10 está parcialmente invalidada** — o
+binário `positronic` passou a existir no PATH e os 11 comandos da skill
+existem no CLI atual.
+
+A D3 **não fecha** aqui: falta a decisão do operador sobre a superfície por
+gestor (§2.4) e a aplicação do reflexo dessa decisão nas configurações.
+
+**2026-10-23 — D3 fechado (decisão do operador; aplicação pelo agente).**
+- **Decisão do operador:** superfície **completa nos dois gestores** (12 tools do
+  Khan liberadas em ambos); prompts e resources **fora** de allowlist de tool
+  registrados como **limitação aceita**; aplicação autorizada ao agente.
+- **Mutação aplicada:** uma, no Positronic — `allowedTools` do Khan elevada de 1
+  (`khan_get_status`) para 12 via `positronic mcp server configure khan-calendar 1
+  --network none --mount … --env KHAN_WORKSPACE_DIR=/data --tools <12>`. Config
+  `revision` 1→2; `configurationId` `9ee229c8-…` **inalterado**; `network: none`,
+  mount do workspace sintético em `/data` e `env` preservados; registry
+  `revision` 10 inalterado. **O Percival não foi mutado** — já estava em
+  `toolsDisabled: []` com as 12 tools.
+- **Rollback:** snapshot privado da configuração anterior em
+  `~/.local/state/positronic-d3-snapshots/khan-calendar.json.rev1.20261023T220640Z.bak`
+  (`saveConfig` não cria backup próprio).
+- **Verificação da projeção (Positronic):** `server show` (12 tools, rev 2),
+  `server discover` (12 tools pelo protocolo), `server preview` (`tools: 12`,
+  `refreshKey 10:9ee229c8-…:2`), `POST …/managed/inspect` (config persistida),
+  `POST …/managed/command {"action":"reconnect"}` → `status: ready`,
+  `generation 777b633dce4cf9fa` (= `Bun.hash("10:9ee229c8-…:2")`; a revisão 1
+  daria `a06460b29a18bd0f`), `GET /mcp` (connected), `GET /command` (6 prompts
+  como comandos) e `GET /experimental/resource` (1 resource).
+- **Verificação da projeção (Percival):** `tools/list` JSON-RPC completo contra
+  o broker (12 tools, executado dentro do container do broker, onde a porta
+  18081 não é publicada) e log do gateway (`connected, 12 capabilities registered`;
+  `skipping resource/prompt registration`).
+- **Auditoria:** `~/.positronic/logs/audit.jsonl` → `experimental.positronic.mcp.server.config`
+  `committed` para `khan-calendar` em `2026-10-23T22:06:48Z`.
+- **Limitações registradas:** (1) prompts e resources do Khan **não** são
+  cobertos por allowlist de tool no Positronic e **não** são expostos no
+  Percival — assimetria por construção, não remediavel por configuração;
+  (2) não existe endpoint do runtime Positronic que enumere as tools MCP
+  efetivas (`registry.ids()` devolve só builtin/custom), então a prova é a
+  composição `preview` + `discover` + `inspect` + `reconnect`.
+- **Artefato de evidência:** §2.4 deste plano.
+- **Estado:** **D3 fechado.** Sem promoção de imagem, sem alteração do servidor
+  Khan, sem alteração do fork do Positronic. D4–D12 inalterados; o encerramento
+  consolidado continua bloqueado por D4–D10 e pelos gates externos C1–C4 e A1–A9.
 
 **2026-10-23 — harmonização IaC (não é execução).** Incluídas fronteiras de ownership,
 handoff de D7–D11, separação de aceite F7/I9 e dependências de layout e distribuição.
