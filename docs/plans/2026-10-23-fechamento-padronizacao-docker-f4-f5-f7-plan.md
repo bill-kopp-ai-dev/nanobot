@@ -3,11 +3,15 @@
 - **Preparado em:** 2026-10-23, por fusão dos dois planos de fechamento da padronização
   Docker: o [F4/F5](closed/2026-10-10-f4-f5-closure-plan.md) e o
   [F7 — aceite de operação](closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
-- **Estado:** abertura, com itens **reverificados contra o código em 2026-10-23**. A evidência de
-  restore e rollback de F4 existe; nenhum item abaixo foi executado por este plano. A reverificação
-  não fechou item algum, mas reduziu o escopo de D4, D7, D8, D9 e D11, corrigiu a premissa de D3 e
-  **reescreveu D10**, cujo objeto não existe nesta máquina. Veredictos e evidência `arquivo:linha`:
-  [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md) §3.4.
+- **Estado / revisão pós-I1/I2 (2026-10-23):** D1–D12 continuam sem fechamento
+  integral. I1 concluiu arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e
+  conformance local Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência
+  reduz a lacuna core de D7, acrescenta seus builds worktree ao resíduo de D8 e
+  atualiza as entradas de D9/D11/D12. I3 foi adiado pelo operador; I4–I9 permanecem
+  pendentes. Restore/rollback F4 anteriores continuam reaproveitáveis no seu escopo.
+  A [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md)
+  §3.4 é o snapshot anterior a I1/I2; suas referências `arquivo:linha` e ferramentas
+  externas exigem reconferência, não são observações novas desta revisão.
 - **Plano de fase de origem:** [padronização Docker](2026-10-09-docker-standardization-refactor-plan.md),
   seções F4, F5, F7 e F8. Este plano substitui os dois planos de fechamento e passa a ser a
   fonte de verdade do quadro de pendências, hoje desatualizado no plano de fase.
@@ -19,28 +23,43 @@
   consolidadas no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 - **Revisão IaC (2026-10-23):** [I1–I9](2026-10-23-iac-alignment-execution-plan.md)
   tratam distribuição, contratos e handoff IaC. D1–D12 continuam donos das pendências
-  locais abaixo; atualização de plano não é execução nem aceite público.
+  locais abaixo. [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md) e
+  [handoff](../iac-p0-contract-handoff.md) decidem o alvo; [runtime 1](../agent-runtime-contract.md)
+  e [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md) descrevem
+  a implementação local. Atualização de plano não é nova execução nem aceite público.
 
 ### Contratos de integração aplicáveis a D1–D12
 
 - Docker Hub é o alvo das imagens oficiais abertas, não escolha ainda livre de registry;
-  namespace/nomes públicos e publicação dependem de I1/I3/I5/B13. CI de conformance C1
-  não faz push. Tags locais/IDs permanecem úteis, sem substituir digest OCI publicado.
-- `0.1.0` é a primeira versão pretendida já decidida; metadado herdado `0.3.5` deve ser
-  alinhado em I1 antes da distribuição. D2/D8 preservam rastreabilidade, não renomeiam
-  pacote/paths nem reescrevem histórico.
-- Runtime real é gateway/manager + broker separado. Compose controla core; manager
-  controla MCPs e exporta `capabilities.lock`; tooling IaC controla `deployment.lock`.
+  I1 decidiu namespace `pbeanlabs`, imagens `percival-gateway`/`percival-mcp-broker`
+  e Weather/OSM como primeiros MCPs oficiais. Acesso/publicação/homologação dependem
+  de I3/I5/B13. CI de conformance C1 não faz push. Tags locais/IDs não são digests OCI.
+- I1 escolheu `pyproject.toml` como fonte de versão; I2 alinhou fonte/lock/fallback/
+  defaults/labels core a `0.1.0`, sem upgrades de dependências nem rename de
+  `nanobot-ai`/`nanobot`. D2/D8 preservam rastreabilidade e exigem candidato final
+  coerente; não tratam o metadado herdado `0.3.5` como versão atual ou nova release.
+- Runtime real é gateway/manager + broker separado, com API opt-in como alternativa
+  ao gateway no mesmo estado. CLI/API/gateway compartilham o bind inventariado;
+  setup mutável exige writers parados. Compose controla core; manager controla MCPs.
+  `capabilities.lock` (I7) e `deployment.lock` (I4) têm owners decididos, mas ainda
+  não estão implementados; não descrever export/deployment como funções já disponíveis.
   D4/D10/D11 devem preservar essa fronteira, sem duplicar gestão por Compose/WUD.
-- I4/C2 aprovam o destino de estado no layout `/srv/pblabs/`, mapeando `~/.nanobot` e
-  a proposta `.percival` sem migrar automaticamente. D7/D9 validam paths/UID/GID reais,
-  incluindo token e coberturas; `chmod 777` de fixture não é política de instalação.
+- I1 definiu raiz monolítica de referência `/srv/pblabs/config/agent/`, montada em
+  `/home/nanobot/.nanobot`, com token dentro da raiz inventariada. I4/C2 validam o
+  mapeamento real de `~/.nanobot`/proposta `.percival`, UID/GID e coberturas antes de
+  migrar. P0 suporta uma instância Percival por daemon; projeto Compose diferente
+  não isola nomes MCP. `chmod 777` de fixture não é política de instalação.
 - D6 exige avaliação do candidato exato, não contagem de vulnerabilidades de imagem
   antiga. Fechar triagem F3 não concede waiver nem revoga a política Critical/High.
   D7 verifica usuário efetivo e probes por modo; não exige HTTP healthcheck na CLI.
 - D9 cobre o manual MCP; I8 cobre recuperação do core e estado completo, incluindo
   auth/KG/workspace/locks. Aceite local D12 não fecha integração IaC I9, publicação ou
   gates de outro produto. Se um contrato mudar, revalidar só as evidências afetadas.
+- I1 escolheu índice JSON estático em GitHub e aquisição por extensão restrita do
+  broker. I6/I7 ainda implementam aquisição/schema 2/export; runtime 1 mantém schema 1,
+  `local-image`/`pinned-image` e spawn `--pull=never`, sem `repository`/`trustedCatalogs`.
+  Novos installs de catálogo exigirão consentimento e começarão sem binds/rede;
+  registros existentes não recebem migração de permissões implícita.
 
 ## 1. Evidência já produzida (não refazer sem mudança de artefato)
 
@@ -53,12 +72,24 @@
 | Inventário de proveniência em 8 repos, 6 identidades distintas, sem `.mailmap` e sem reescrita | [proveniência e identidade](../reports/2026-10-10-f7-provenance-and-identity.md) | F7 P1 |
 | Diagnóstico do Khan e das duplicatas (sem órfãos confirmados no snapshot) | [Khan e duplicatas](../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md) | F7 P2 |
 | Bloqueios de runtime, segurança e CI | [P4/P5 blockers](../reports/2026-10-10-f7-p4-p5-blockers.md) | F7 P4/P5 |
+| Identidades, versão-fonte, aquisição restrita, consentimento, single-writer, layout e sequência B13/publicação/homologação/VPS decididos | [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md) e [handoff](../iac-p0-contract-handoff.md); fonte `eb4e3555` | I1.1–I1.7; entradas de D2/D7–D12 |
+| Metadata core `0.1.0`, bind CLI/API/gateway unificado, API opt-in, UID/GID efetivos, root-drop fail-closed, init único e probes por modo | [runtime 1](../agent-runtime-contract.md) e [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md); resultado fonte em `0e7ff072` | I2.1–I2.4; parte core de D7 |
+| Startup com broker atrasado, crash/hydrate, persistência e recriação conjunta; 19 checks PASS em Engine 27.5.1 rootful/amd64, com MCP fixture real | relatório I2, §§2–4, `i2-5atl75uj/results.json` no diretório privado ali referenciado | I2.5; parte local de D7, não VPS nem recovery em carga |
+| Gateway atual/broker baseline real e caller v1 independente/broker atual; protocolo WebUI 1/schema MCP 1 preservados; CI usa runner isolado e arquiva `results.json` | runtime 1, §5, e relatório I2, §§2/4 | I2.6; compatibilidade core, sem fechar B3/C1 |
 
-**Lacunas residuais dessa evidência** (que os itens abaixo precisam fechar): a prova Khan usa
+**Lacunas residuais de F4/F7** (que os itens abaixo precisam fechar): a prova Khan usa
 verificação em filesystem/stderr como proxy, não chamada MCP real; os builds locais de
 Notes/AgentMail carregam diff pré-commit na label e não reproduzem o HEAD dos commits atuais;
 o stack F7 usou overlay local de Engine 29, que não prova o gate VPS Engine 27.x; e as fixtures
 A/B foram removidas ao final do ensaio, então não há par de rollback retido.
+
+**Limites de I2:** seu daemon isolado era Server 27.5.1, sem override Engine 29, mas
+isso não certifica VPS. A fixture stdio não homologa Khan nem os seis MCPs reais.
+Os builds executados foram baseline `eb4e3555` + diff explícito `-dirty-i2`; o commit
+posterior `0e7ff072` não os transforma em builds de checkout limpo. Image IDs estão
+no relatório, sem digest OCI público. I2 não produziu scan/SBOM novo, run Actions,
+teste Render como serviço ou recovery de trabalho em voo. Compatibilidade wire com
+broker antigo não autoriza usar a probe nova que aquele artefato não contém.
 
 ## 2. Itens abertos
 
@@ -72,27 +103,35 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **aberto, e o critério estava errado** — o servidor expõe 17 identificadores `khan_*` (7 de escrita, entre eles `khan_delete_event` e `khan_update_event`) enquanto o canário observou 12 tools: a discrepância precisa ser explicada. **Não existe modo somente leitura** no servidor (busca por `read_only`/`readonly` em `percival-khan-calendar/src/` não retorna nada), então "somente leitura ou subset" não é alternativa de configuração: ou se aceita a superfície, ou se implementa a restrição |
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **parcial, e o mapeamento já é ferramenta** — `nanobot/mcp_docker/inventory.py:136` coleta `containerId` e `:299` renderiza tabela com `percival.mcp-docker.owner`, `.managed-by`, `.server-id` e `.instance-id`. O que falta é o que o inventário não prova: ciclo de vida demonstrado e cardinalidade esperada documentada |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **aberto, confirmado** — **não existe** teste de protocolo: buscas por `tools/call`, `call_tool`, `ClientSession`, `stdio_client`, `jsonrpc` em `tests/` e `src/` do Khan não retornam nada, e todos os testes chamam a função por trás do tool (`tests/_helpers.py:24`-`:34`). O isolamento do calendário real está garantido (`tests/conftest.py:11` redireciona `DATA_DIR`/`DB_FILE` e desliga o lock). Versões em jogo: `mcp` 1.30.0 e `fastmcp` 3.4.4 (`uv.lock`), faixas `mcp[cli]>=1.28.1,<2.0.0` e `fastmcp>=3.2.0` (`pyproject.toml:13`-`:14`) |
-| D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, e é o de maior severidade** — o runtime do gateway é `ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb2281…` (`Dockerfile:11`) e instala `openssh-client=1:10.0p1-7+deb13u4` (`Dockerfile:32`), abaixo do exigido; `openssh-server` não é instalado e o OpenVEX declara `not_affected` por `component_not_present`, restrito ao image ID do gateway e **sem** qualquer declaração sobre esta CVE. A triagem de F3 classificou como "Critical não resolvido" e propôs waiver **não aprovado** (`2026-10-10-f3-remediation-triage.md:168`). Não há waiver, build em base corrigida nem teste dentro da imagem; o "OpenSSH Forky 10.5p1 testado fora da imagem" do plano de fase **não** substitui o build do gateway |
-| D7 | Consolidar evidência de runtime nos artefatos finais | SIGTERM/PID 1 sem init duplicado (F6 relatou dois inits em Deep Research), stdio sem porta/TTY, healthcheck só em serviço HTTP, falha fechada e auth; evidência nos SHAs/imagens finais | F4/F5 closure, item 2 | agente | **parcial, e dividido entre dois caminhos que se contradizem** — cumprido e testado: tini como PID 1 em OSM (`Dockerfile:146`) e Deep Research (`:155`), ENTRYPOINT em forma exec nos seis, healthcheck desabilitado no servidor stdio de OSM (`:142`, `test_d6_docker.py:54`) e ausência de healthcheck em Deep Research (`tests/test_docker.py:226`). **Defeito de código, não de evidência:** o consumidor Positronic passa `--init` incondicional (`alternative-positronic/packages/positronic-mcp-docker/src/managed.ts:640`), empilhando `docker-init` sobre o tini — é o achado de F6 (`2026-10-10-f6-local-cutover.md:49`) ainda vivo. O broker do Percival não faz isso (`percival_mcp_broker_f0.py:370`). **Falta de teste:** Notes, Khan e AgentMail não têm contrato de imagem |
-| D8 | Reconciliar pins com builds de checkout limpo e promover | Rebuilder Notes/AgentMail (e qualquer candidato alterado) a partir de commit limpo, sem diff pré-commit na label; promover por gestor só com aprovação, canário e rollback independentes; reter o último bom e um par A/B de rollback conhecido | F7 P4.1 (#4, #6) | agente + operador | **parcial, e metade do critério já existe** — o gateway **já tem** o guard pedido: `scripts/percival-docker-build.py:71` lê `git rev-parse HEAD`, `:75` detecta árvore suja rastreada, `:96`/`:98` **recusam** o build inconsistente e `:157` rotula `io.percival.build.worktree=dirty`. Nenhum dos seis MCP tem guard equivalente. **Defeito novo, fora de qualquer plano:** o OSM grava SHA curto na label (`percival-osm/scripts/docker-build.sh:80`) enquanto o verificador exige igualdade com o SHA completo (`write_docker_ci_manifest.py:28`) — o build do OSM não passa na verificação de provenance se a CI passar `$GITHUB_SHA`. Não há manifest ou digest commitado nos seis, logo não há prova versionada de rebuild limpo |
-| D9 | Exercitar o manual operacional e assinar a retenção | Walkthrough em fixture descartável de update, rollback, restore e falsa falha de health, comparando o texto do manual com os comandos e APIs instalados; política de retenção de imagens e revisão trimestral assinada | F7 P3 (#2, #5) | agente (redige) + operador (aprova) | **parcial** — [manual criado](../operations/mcp-docker-local-runbook.md) e vinculado, e a **consistência texto↔comando foi verificada**: o runbook referencia `nanobot auth init` e `nanobot mcp-docker doctor`, ambos registrados (`nanobot/cli/auth.py:50`, `nanobot/cli/mcp_docker_f1.py:23`, grupo montado em `nanobot/cli/commands.py:108`). Falta o walkthrough em fixture e a retenção assinada; a tabela de revisão trimestral que o próprio runbook exige (`:111`) não foi produzida |
+| D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
+| D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **parcial, com core comprovado localmente em I2** — 19 checks PASS cobrem gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM e crash/recreate/hydrate com fixture. Restam artefatos finais e contratos MCP por gestor. A auditoria pré-I2 encontrou tini em OSM/Deep e `--init` incondicional no consumidor Positronic, além de falta de contrato de imagem em Notes/Khan/AgentMail. I2 alterou o core Percival, não esses repositórios; não encerra esses achados nem certifica Positronic |
+| D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. Revalidar no candidato final. Sem promoção, rebuild limpo novo ou digest público nesta revisão |
+| D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito** — não há binário `positronic` no PATH, o CLI do fork é `packages/cli` (`@opencode-ai/cli`, bin `lildax`) e a busca por `install-local` em todo o TypeScript do fork, fora de `node_modules` e docs, **não retorna nada**: **não existe comando para corrigir**. O estado real é o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
-| D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, com a matriz mensurável** — não existe skill de gestão para o Percival (as globais são `docker-desktop`, `mcp-docker-workflow` — do Positronic —, `journaling-*`, `memory-*`, `project-bootstrap`, `skill-creator`), e a única de containers é justamente a que o plano de fase manda comparar antes de decidir extensão ou skill separada: **essa decisão ainda não foi tomada**. `AGENTS.md`: global, raiz do Percival e do consumidor presentes; Khan, Weather, OSM e Deep Research presentes; **Notes e AgentMail ausentes** na raiz — exatamente os dois que o gate exige criar. A raiz do Percival não menciona MCP Docker |
-| D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e declaração de risco residual; **aceite local**, **aceite VPS/deploy** e **aprovação B13 de release** registrados como atos separados | F7 P5 | operador (assina) + agente (consolida) | **bloqueado** por D1–D10, C1–C4 e A1–A9 |
+| D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
+| D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e risco residual; registrar **aceite local**, **aprovação B13**, **homologação pública** e **aceite VPS/deploy** como atos separados, na ordem I1 | F7 P5; I1.6 | operador (assina) + agente (consolida) | **encerramento consolidado bloqueado** por D1–D10, C1–C4 e A1–A9; evidência parcial I1/I2 incorporada, sem assinatura F7. Registro local não certifica VPS e publicação B13 não depende integralmente de I9/C3/C4 públicos; homologação pós-push é gate de promoção |
 
 **Complementos de aceite após a harmonização:**
 
-- **D7:** separar receita Compose de desenvolvimento de deployment e os modos
-  gateway/API/CLI/broker (I2/I4). Preservar um init por processo e inspecionar `user:`
-  efetivo; a imagem iniciar como root com drop fail-closed não prova execução como root
-  no Compose. Exceções/alterações de permissões precisam de justificativa e teste.
+- **D7:** reaproveitar a matriz e execução I2 para o core sem repeti-las como tarefa
+  inédita. Gateway/API não podem ser writers simultâneos; API é opt-in. Health do
+  gateway pode passar sem verifier, enquanto bootstrap protegido retorna 401;
+  health do broker autentica e exige `ready: true`. `doctor` e tools/call são provas
+  adicionais, não equivalentes a TCP aberto. Gateway/broker devem ser recriados
+  juntos quando muda o namespace. I4 ainda entrega deployment/preflight; D7/C1
+  comprovam os artefatos finais. Aplicar a matriz de compatibilidade: broker
+  baseline exige seu próprio bundle/probe, não a probe I2 inexistente nele.
+  Registrar channels incluídos no build: `.venv` é mutável por UID 1000 no startup,
+  não por UID alternativo. Deployment imutável/offline exige dependências dos
+  channels habilitados pré-instaladas; digest sozinho não fixa mutações posteriores.
 - **D8:** para candidatos locais, manter o build limpo e ID verificável; para os
   publicados, aquisição homologada por digest em I3/I5/I6, registrando tag, digest OCI
-  e image ID separadamente. Promover só pelo manager, não via capabilities Compose.
+  e image ID separadamente. MCPs são promovidos pelo manager; o par core é atualizado
+  por tooling externo de deployment, nunca por capabilities Compose ou pelo agente.
   Retenção inclui imagem/configuração/dados compatíveis; rebuild não é instalação padrão
   no VPS. Corrigir a discrepância de SHA do OSM antes de alegar proveniência conforme.
-- **D9:** acrescentar ao walkthrough o handoff para I4/I8: `deployment.lock` pelo tooling
-  de deploy, `capabilities.lock` pelo manager, backup/retorno de estado completo e
+- **D9:** acrescentar ao walkthrough o handoff para I4/I8: `deployment.lock` futuro pelo tooling
+  de deploy, `capabilities.lock` futuro pelo manager, backup/retorno de estado completo e
   classificação de migrações. Não alegar que rollback MCP substitui recovery do core.
 - **D10/D11:** comandos por gestor precisam ser verificados no checkout/launcher instalado,
   sem copiar o CLI proposto de outro documento. Catálogo/manifest não é script autorizado;
@@ -100,13 +139,17 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
   diretamente. Revisão/ativação de skill permanece no fluxo próprio de D11.
 - **D12:** anexar o status dos contratos I1/I2/I4 aplicáveis ao candidato. Sign-off local
   pode avançar sem catálogo público pronto; sign-off IaC I9 requer suas próprias provas.
+  I1/I2 estão entregues, I4 pendente. B13 requer fonte/candidato revisados e gates
+  locais/Actions/segurança aplicáveis; pull anônimo/homologação são posteriores ao
+  push e anteriores à promoção. Não usar a assinatura consolidada de D12 para criar
+  ciclo B13 → publicação → VPS/I9 → B13.
 
 ## 3. Itens transferidos (fora de escopo, com dono)
 
 | Gate | Dono |
 | --- | --- |
 | Actions remotas nos sete SHAs candidatos; inventário do VPS; migração/rollback para destino aprovado em I4/C2 no Engine 27.x; novo aceite do risco no alvo | [plano integrado, C1–C4](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
-| Distribuição OCI, bootstrap/Compose de deployment, índice, aquisição e locks | [integração IaC, I1–I9](2026-10-23-iac-alignment-execution-plan.md); não duplica D/C |
+| Distribuição OCI, bootstrap/Compose de deployment, índice, aquisição e locks | [integração IaC, I1–I9](2026-10-23-iac-alignment-execution-plan.md); I1 decidido, I2 local concluído, I3 adiado e I4–I9 pendentes; não duplica D/C |
 | Browser WebUI + gateway + broker, matriz end-to-end das oito famílias, testes de UI e acessibilidade | [plano integrado, B1–B6](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
 | Autenticação de senha única: ensaio em Engine 27.x, elevação, proxy TLS, expiração, cutover real | [fechamento de senha única, A1–A9](2026-10-11-single-password-acceptance-closure-plan.md) |
 | KG nativo: dados reais, ensaio B6/B7, release dos repositórios legados | [plano integrado, A1–A7](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
@@ -126,15 +169,24 @@ D11 (skill F8) — independente, pode correr em qualquer momento
 C1–C4 (Actions/VPS) ───────────────→ D12
 ```
 
+O diagrama resume dependências do **encerramento consolidado**, não a ordem inteira
+de publicação. I1/I2 são entradas já disponíveis; I3 continua adiado e nenhuma
+implementação é iniciada por esta revisão. Na retomada, I3.1–I3.3 não exigem push
+token; bill prepara o secret Docker Hub `pbeanlabs` no ambiente protegido para
+I3.4/I5.3. Pull público é anônimo, sem login local. A migração para `p-bean-labs`
+foi recomendada antes de I3.4 para fixar labels de origem antes do digest público;
+decisão/execução do operador, sem transferência realizada por I1/I2.
+
 - **D1 é pré-requisito** de qualquer mutação autenticada em instância real.
 - **D3** bloqueia a projeção efetiva do Khan e, junto com **D5**, o item 2 do aceite. Se a decisão
   for restringir a superfície, ela vira trabalho de engenharia: não há modo somente leitura.
 - **D6** bloqueia F7 e a publicação da primeira versão 0.1.0, e é hoje o item de maior severidade da
   lista: um Critical conhecido no candidato local do gateway. Não há evidência aqui de
   publicação dessa imagem em registry; reavaliar o finding no candidato final.
-- **D7** tem uma parte que é **defeito de código** (o `--init` do consumidor Positronic) e outra que
-  é teste faltante (contrato de imagem em Notes, Khan e AgentMail). A parte de código não espera
-  decisão do operador.
+- **D7** reaproveita I2 no core; o defeito `--init` do consumidor Positronic e os
+  contratos MCP faltantes pertencem aos respectivos repositórios, fora da execução
+  I2. Reconfirmar o checkout/consumidor antes de corrigi-los; não fechar o defeito
+  Positronic com uma prova do broker Percival.
 - **D9** e **D10** são executáveis localmente, sem dependência externa. **D10** passou a ser
   verificação de caminho suportado e correção de documentação, não correção de handler.
 - **D11** não bloqueia F7, mas fica fechado no mesmo plano por pertencer à mesma padronização; exige
@@ -149,8 +201,9 @@ C1–C4 (Actions/VPS) ───────────────→ D12
 | `chmod 777` de fixture local virar política de produção | registrar modo e owner reais no inventário antes de qualquer promoção |
 | Estender o VEX do gateway aos MCPs | reavaliar findings por imagem e escopo; sem extensão automática |
 | Reescrever `main` publicado | `mailmap` altera apresentação, não objetos nem SHA; reescrita é ato separado com autorização específica |
-| Evidência de Engine 29 ser lida como gate de Engine 27.x | o overlay local não prova o alvo; o gate VPS é C2–C4, fora deste plano |
-| Preservar `local-only` como veto permanente à proposta IaC | manter o baseline de execução e exigir I1 para o aditamento de contrato; I3/I5 têm publicação separada e B13 continua obrigatório |
+| Prova local ser lida como aceite VPS | I2 usou Server 27.5.1 isolado; F7 histórico usou overlay Engine 29. Nenhum prova o host alvo: inventário e aceite VPS são C2–C4 |
+| Preservar `local-only` como veto permanente à proposta IaC | I1 já aditou o contrato e escolheu índice JSON/aquisição restrita; runtime atual ainda é local-only e I6 implementa a evolução. I3/I5 e B13 mantêm gates próprios |
+| Commit de I2 ser confundido com release limpa ou scan atual | conservar identidade dos worktree builds e checks originais; candidato limpo e scan/SBOM próprios em D8/I3, Actions em C1 e digest público só após push |
 
 **Parar e escalar** se a credencial exposta ainda der acesso, se uma duplicata não puder ser
 atribuída com confiança, se uma imagem de retorno não existir, se a observação divergir da
@@ -184,3 +237,21 @@ persistência, testes e gates, com links aos planos ativos. Isso resolve a ausê
 dessas orientações na raiz citada no snapshot D11, mas **D11 continua parcial**:
 matriz dos demais repositórios, decisão de skill, fixture/dry-run e ativação ainda
 exigem suas próprias evidências. A revisão não fecha F8 nem altera runtime.
+
+**2026-10-23 — reconciliação após I1/I2 (revisão documental sobre `ca19cab9`).**
+Incorporadas ADR/handoff I1 (`eb4e3555`), contrato/relatório I2 e fonte executável
+do core (`0e7ff072`): metadata 0.1.0, API opt-in, single-writer/bind comum,
+UID/caps/init/probes, compatibilidade e recovery local. D7 permanece parcial com
+essa cobertura core comprovada; D8 inclui explicitamente os builds core worktree;
+D9 passa a consumir runtime 1; D11 não repete a lacuna já corrigida no `AGENTS.md`.
+D6 permanece aberto, sem scan novo. D12 distingue encerramento consolidado de
+aprovação pré-publicação e homologação/aceite no alvo posteriores, conforme I1.6.
+I3 permanece adiado por decisão do operador; nenhum item D foi executado ou fechado
+integralmente por esta revisão. Relatórios históricos e SHAs/imagens originais
+foram preservados; alterações só nos dois planos Docker, sem mutação de instância,
+credencial, imagem, repositório externo ou publicação.
+Verificação desta revisão: 84 links locais/2 fragmentos e estrutura Markdown nos
+dois planos; F0–F8 e D1–D12 preservados; checkers do plano IaC e dos sete docs I2
+passaram; `git diff --check` limpo. `sha256sum --check` confirmou os 38 inputs de
+I2, inclusive o relatório e os resultados brutos: evidência original reaproveitada,
+sem reexecução de testes de produto ou containers.
