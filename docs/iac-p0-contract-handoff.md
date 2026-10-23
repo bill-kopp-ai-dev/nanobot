@@ -12,7 +12,8 @@
   e a tabela de metadata abaixo preservam o baseline **de I1**, não o estado após I2.
   Fonte/lock/fallback/defaults agora usam `0.1.0`; versões futuras/schemas continuam
   com seus gates. O push SSH da documentação I1 foi verificado em `eb4e3555`;
-  permissões de publicação/Actions/Docker Hub não foram comprovadas por isso.
+  o commit/push do resultado de I2 foi verificado em `0e7ff072`; permissões de
+  publicação/Actions/Docker Hub não foram comprovadas por isso.
 
 ## 1. Inventário de checkouts e entregáveis
 
@@ -44,9 +45,10 @@ Nenhum checkout externo foi modificado nesta execução.
 
 | Recurso | Estado conhecido | Dono / consumidor bloqueado |
 | --- | --- | --- |
-| GitHub local | operador informou acesso ainda não configurado; sem tentativa de login nesta execução | bill configura quando necessário; C1/I3/I5 remoto e criação/migração de repos |
+| GitHub local | acesso por SSH funcional (push de I1/I2 verificado); sem `gh` nem sessão web nesta máquina | bill configura o que falta; C1/I3/I5 remoto e criação/migração de repos |
 | Docker Hub `pbeanlabs` | conta informada; autorização/names/publicidade não verificadas | bill confirma controle e habilita publicação protegida em I3/I5 |
-| Credencial de publicação | não provisionada/verificada; nunca necessária para pull público | bill, ambiente protegido do Actions; não colocar push token no runtime/VPS |
+| Credencial de publicação | não provisionada/verificada; nunca necessária para pull público | bill, ambiente protegido do Actions; não colocar push token no runtime/VPS. Push é exigido só em I3.4 e I5.3; I3.5/I4/I6/I8 usam pull anônimo |
+| Transferência de owner para `p-bean-labs` | destino informado pelo operador; existência e controle não verificados nesta execução | decisão do operador; recomendada antes de I3.4 porque as labels OCI de origem dos Dockerfiles entram no digest publicado. Ainda não executada |
 | Workspaces IaC/índice/template | ausentes nos paths inventariados; nomes e dono decididos | bill; criação local/remota e implementação pertencem I4/I5 |
 | VPS/staging | alvo e transporte de artefatos ainda não definidos | bill; C2/C3/C4 e prova no alvo I8/I9 |
 | MCP Registry oficial | posse de namespace/schema externo não verificada | bill/I5; verificar `server.json` e nomes reais antes de publicar, sem derivar `io.github.*` do Docker Hub |
@@ -235,10 +237,14 @@ por perguntas explícitas nesta sessão e confirmou `percival` como repo públic
 Isso encerra I1 no escopo **arquitetura e handoff**; os testes V01–V24 continuam
 planejados. Apenas checks documentais/estáticos foram executados nesta campanha.
 
-**Próximo passo técnico:** I2, começando por alinhar metadata e documentar a matriz
-runtime atual; diagnóstico e fixtures locais não dependem de login. Configurar acessos
-e workspaces é tarefa de bill em paralelo quando os consumidores remotos precisarem.
-Não há estimativa de prazo/custo baseada só nesta decisão.
+**Próximo passo técnico (atualizado após I2):** I2 foi concluído, commitado e enviado
+em `0e7ff072`; o operador adiou **I3** em 2026-10-23 e nenhum work package inicia sem
+nova autorização. Antes de I3.4, a preparação de acessos fica a cargo de bill: token de
+push do namespace Docker Hub `pbeanlabs` no ambiente de release do repositório que
+hospeda o pipeline — pull anônimo não exige login local — e transferência do
+reposititório para `p-bean-labs`, recomendada por causa das labels OCI de origem que
+entram no digest publicado. Diagnóstico e fixtures locais não dependem de login. Não
+há estimativa de prazo/custo baseada só nesta decisão.
 
 ### Verificação documental de I1
 

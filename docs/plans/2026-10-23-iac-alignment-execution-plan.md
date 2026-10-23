@@ -2,8 +2,9 @@
 
 - **Preparado em:** 2026-10-23, a pedido do operador, para harmonizar os planos de
   implementação com a proposta IaC. **Estado atual:** I1 concluído no escopo de
-  arquitetura/handoff e I2 concluído em conformance local Linux/amd64 em 2026-10-23;
-  I3–I9 pendentes.
+  arquitetura/handoff e I2 concluído em conformance local Linux/amd64 em 2026-10-23,
+  commitado e enviado em `0e7ff072`; **I3 adiado por decisão do operador em 2026-10-23**,
+  com pré-requisitos de acesso registrados no §10; I4–I9 pendentes e não iniciados.
 - **Resultado pretendido:** Percival consumível pela IaC Docker-first, com distribuição
   pública verificável, implantação por digest e MCP Manager integrado ao índice público,
   preservando os contratos e as evidências do runtime existente.
@@ -12,8 +13,9 @@
 - **Autoridade:** a revisão dos planos e execução de I1 autorizam estas edições documentais, não publicação,
   push, instalação no host, alteração de credenciais reais, cutover ou escrita remota.
   Aprovação de arquitetura não é autorização operacional de deploy/release.
-  Pedido posterior de bill autorizou implementar/ensaiar I2 localmente; não houve
-  nova autorização de commit/push, publicação ou deploy nesta campanha.
+  Pedido posterior de bill autorizou implementar/ensaiar I2 localmente e, depois, o
+  commit/push do resultado em `main` (`0e7ff072`); publicação, credencial de registry,
+  criação ou migração de repositório e deploy continuam sem autorização.
 - **Revisão de detalhamento:** 2026-10-23, sobre `a299da09` (árvore inicialmente limpa).
   Naquela revisão I1–I9 ficaram pendentes. A execução posterior de I1 está registrada
   no §11 e na [ADR decidida](../Decisions/2026-10-23-open-iac-contracts.md), com
@@ -144,8 +146,8 @@ F0–F8, D1–D12, C1–C4 e A1–A9 dos planos existentes conservam seus própr
 | ID / fase | Entrega e dono lógico | Dependências | Critério de aceite / evidência |
 | --- | --- | --- | --- |
 | **I1 / P0-A** | Contratos e arbitragem — bill decide/revisa; agente prepara | Fontes e decisões atuais; confirmações do operador nesta sessão | **Concluído em 2026-10-23 — arquitetura/handoff.** [ADR](../Decisions/2026-10-23-open-iac-contracts.md), [matriz de contratos/compatibilidade](../iac-p0-contract-handoff.md) e snapshot com hashes. Contas/names, fonte de versão, aquisições, consentimento, topologia, C1–C8 e ordem B13/público/VPS decididos. Metadata executável é I2 antes do candidato; acesso/publicação/schemas/API e demais gates continuam pendentes |
-| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | **Concluído localmente em 2026-10-23.** [Runtime contract 1](../agent-runtime-contract.md) e [relatório por I2.1–I2.6](../reports/2026-10-23-i2-runtime-contract-conformance.md): metadata/lock/fallback/defaults `0.1.0`; modos/writers/UID/GID/init/probes; bind CLI/API/gateway unificado, API opt-in; root-com-drop/Render flag fail-closed e sinais; startup/recreate/crash/persistência, matriz com broker baseline e cliente v1. 19 checks de containers em Engine 27.5.1 rootful `linux/amd64`; pytest focado, lint/typecheck passaram. Builds worktree, não release; ARM64/Render serviço/Actions/VPS não certificados |
-| **I3 / P0-B** | Distribuição das imagens core — CI dos repositórios de produto | I1/I2 para preparar pipeline; I6/I7 quando incluídos no candidato final; D2/D6/D7/D8/C1 aplicáveis e B13 antes de publicar | PR build/test/scan sem push. Release aprovada via workflow protegido Buildx, permissões mínimas e token de push só no CI; capturar digest OCI e plataforma por imagem, SBOM/scan/proveniência. Pull anônimo com configuração Docker limpa + smoke independente; registro fonte→versão→digest→plataforma. Publicação não dispara deploy. Estado: **pendente** |
+| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | **Concluído localmente em 2026-10-23.** [Runtime contract 1](../agent-runtime-contract.md) e [relatório por I2.1–I2.6](../reports/2026-10-23-i2-runtime-contract-conformance.md): metadata/lock/fallback/defaults `0.1.0`; modos/writers/UID/GID/init/probes; bind CLI/API/gateway unificado, API opt-in; root-com-drop/Render flag fail-closed e sinais; startup/recreate/crash/persistência, matriz com broker baseline e cliente v1. 19 checks de containers em Engine 27.5.1 rootful `linux/amd64`; pytest focado, lint/typecheck passaram. Builds worktree, não release; ARM64/Render serviço/Actions/VPS não certificados. Resultado commitado e enviado em `0e7ff072` (`origin/main`), por autorização do operador |
+| **I3 / P0-B** | Distribuição das imagens core — CI dos repositórios de produto | I1/I2 para preparar pipeline; I6/I7 quando incluídos no candidato final; D2/D6/D7/D8/C1 aplicáveis e B13 antes de publicar | PR build/test/scan sem push. Release aprovada via workflow protegido Buildx, permissões mínimas e token de push só no CI; capturar digest OCI e plataforma por imagem, SBOM/scan/proveniência. Pull anônimo com configuração Docker limpa + smoke independente; registro fonte→versão→digest→plataforma. Publicação não dispara deploy. Estado: **pendente, não iniciado — adiado por decisão do operador em 2026-10-23**; pré-requisitos de Docker Hub e de owner GitHub registrados no §10 |
 | **I4 / P0-C** | Handoff de deployment — contratos Percival aqui; bootstrap/Compose/locks/OpenTofu no workspace IaC separado | I1/I2; I3 para instalação pública; C2 antes de escrita em VPS | Receita de deploy sem `build:`/`:dev`, referências core por tag+digest, broker sidecar/namespace de rede preservados; config agregada validada no diretório-base real. Preflight resolve UID/GID/socket/data-root/token/nome real do gateway, paths protegidos e versões Engine/CLI. Bootstrap idempotente e caminho manual; `deployment.lock` cobre as duas imagens e compatibilidade do core, com exclusão mútua/gravação atômica após validação. Instalação limpa bem-sucedida cria lock; falha não o avança. Layout/backup/retorno ensaiados em fixture; validação estática OpenTofu antes de qualquer plan/apply autorizado. Estado: **pendente** |
 | **I5 / P0-D, P0-E, P0-G** | MCPs oficiais, template e índice — mantenedores dos MCPs e workspace do índice | I1 para identidades/schema; F2–F5/D5/D7/D8/C1 para candidatos selecionados | Weather primeiro e OSM segundo, selecionados em I1. Pipelines replicáveis com protocolo real, `server.json` no schema oficial aplicável, complemento operacional e README coerentes; publicar/homologar dois MCPs no Docker Hub, pull anônimo, digest/plataforma comprovados. Índice curado por PR com Markdown/YAML→JSON determinístico, schema versionado e pelo menos um comunitário upstream sem reatribuição/mirror. URL real ou raw em commit pinado; Pages opcional. Estado: **pendente** |
 | **I6 / P0-F** | Adapter de catálogo e aquisição autorizada — Percival gateway/manager + executor broker | I1, I5a/I5b para primeira prova; I5c para aceite completo; operações/contratos existentes da trilha B | Busca/inspeção/instalação configuram somente artefato homologado por digest/plataforma sob policy/consentimento local. Evoluir API tipada do broker se necessário; nenhuma tool Docker genérica, socket/CLI no gateway ou comando de Markdown executado. Aquisição explícita pode preceder spawn `--pull=never`; testar mismatch, imagem ausente, origem não confiável, permissão negada, timeout/429 e concorrência. E2E por transporte real com `initialize`, `tools/list` e tool segura. Manter compatibilidade local-image/pinned-image e versões antigas de cliente/host (B3); não ativar `source.type: repository`/`trustedCatalogs` porque B20 os previa como futuros. Estado: **pendente** |
@@ -829,15 +831,33 @@ nova. Evidências finais precisam existir e ser recuperáveis, não apenas nomea
 
 **Quadro inicial da revisão:** I1–I9 pendentes; nenhuma subtarefa de implementação ou
 caso V01–V24 executado por aquela revisão. **Estado atual:** I1 concluído como
-arquitetura/handoff; I2 concluído localmente, I3–I9 pendentes. V01 coberto no escopo
+arquitetura/handoff; I2 concluído localmente, commitado e enviado em `0e7ff072`;
+**I3 adiado por decisão do operador em 2026-10-23**; I4–I9 pendentes e não iniciados.
+V01 coberto no escopo
 local; V02/V03/V04 têm evidência local e extensões I4/I8/C1/B3 abertas; V05–V24 pendentes.
 Registrar avanço e fechar cada I com
 seu aceite; I9 exige evidência e assinatura, não percentuais estimados de completude.
 
-**Próxima ação concreta:** I3, preparando conformance/publicação protegida do par core
-a partir do runtime 1; I4 pode ensaiar handoff local sem esperar publicação pública.
-bill prepara acessos GitHub/Docker Hub e criação de workspaces quando I3/I4/I5/C1
-precisarem deles. Nomes decididos não comprovam controle, disponibilidade ou publicação.
+**Próxima ação concreta:** nenhuma etapa de implementação em curso; o ciclo encerra em
+I2 por decisão do operador em 2026-10-23. I3 continua sendo o próximo work package
+quando houver nova autorização, e então começa por I3.1–I3.3 (build/test/scan sem
+push), que não exigem credencial de registry. Preparação a cargo de bill antes de I3.4:
+
+1. **Docker Hub** — namespace `pbeanlabs` com permissão de push e token de escopo
+   mínimo guardado como secret no ambiente de release do repositório onde o pipeline
+   roda. Credencial é necessária apenas no **push** de I3.4 (imagens core) e I5.3
+   (MCPs oficiais); I3.5, I4, I6 e I8 usam pull anônimo, sem login local.
+2. **Owner GitHub** — recomendação de não publicar `0.1.0` antes da transferência de
+   `bill-kopp-ai-dev/nanobot` para `p-bean-labs`: as labels
+   `org.opencontainers.image.source`/`documentation` fixadas nos Dockerfiles entram no
+   digest da imagem, e o plano proíbe reaproveitar tag SemVer já publicada para
+   apontar a bytes diferentes; corrigir a origem depois exigiria nova versão e nova
+   homologação I3. A decisão de migrar é do operador e ainda não foi executada.
+3. **Workspaces** — `pblabs-iac`, `pblabs-mcp-index`, `mcp-server-template` e o repo
+   público `percival`, criados diretamente no owner final, para não amarrar URLs de
+   catálogo a `bill-kopp-ai-dev`.
+
+Nomes decididos não comprovam controle, disponibilidade ou publicação.
 
 ## 11. Histórico de revisão documental
 
@@ -917,5 +937,29 @@ PASS incluindo baseline broker real e cliente v1 independente; nenhum estado viv
 alterado. Suites focadas: 167 PASS (core/auth/MCP/compatibilidade), 69 PASS
 (API/metadata/probe, três casos repetidos); Ruff e typecheck passaram. O relatório
 registra os IDs locais realmente executados, artefatos brutos, falhas intermediárias,
-correções e limites. I2.1–I2.6 concluídos no escopo local; sem commit/push, release,
-Actions remoto, ARM64, Render serviço ou VPS nesta campanha.
+correções e limites. I2.1–I2.6 concluídos no escopo local; sem commit/push, release, Actions remoto, ARM64,
+Render serviço ou VPS **naquela execução** (commit/push posterior registrado na entrada
+seguinte).
+
+### 2026-10-23 — fechamento do ciclo em I2 e adiamento de I3
+
+Decisão do operador: encerrar o ciclo de execução em I2 e **adiar I3**; nenhum work
+package de implementação inicia sem nova autorização. bill aprovou o commit e o push do
+resultado de I2 em `main` (`0e7ff072`; `origin/main` reconferido por `ls-remote`).
+Publicação, credencial de registry, criação ou migração de repositório e deploy seguem
+sem autorização.
+
+Duas perguntas do operador foram respondidas a partir do plano e do código, e ficam
+registradas como pré-requisitos de I3: (a) o Docker Hub só é usado com credencial no
+**push** de I3.4 e I5.3 — I3.5/I4/I6/I8 seguem com pull anônimo, e os workflows atuais
+(`ci.yml`, `tui-release.yml`, `kg-platform.yml`) não têm etapa de push; (b) a
+transferência para `p-bean-labs` foi **recomendada antes de I3.4**, porque as labels OCI
+de origem fixadas nos Dockerfiles entram no digest publicado e a transferência também
+muda o regime de secrets/environments do pipeline de release. Nenhuma das duas ações
+foi executada.
+
+**Limites:** apenas edição documental nesta rodada; sem build, container, rede, registry,
+publicação, deploy, criação de repositório ou alteração de credencial. Os resultados de
+I2 seguem valendo com a identidade do commit `0e7ff072`; esta alteração não toca
+código, contratos nem artefatos do ensaio, portanto não exige reexecução do runner I2
+(`.agent/workflow.md`).

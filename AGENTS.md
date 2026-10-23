@@ -3,7 +3,8 @@
 Percival is an independent project derived from HKUDS/nanobot. Development
 currently takes place in a private repository; a separate public Percival
 repository is planned after the agreed features and gates are complete. The
-`nanobot-ai` metadata is aligned locally to 0.1.0 by I2; neither metadata nor
+`nanobot-ai` metadata is aligned locally to 0.1.0 by I2 (committed at
+`0e7ff072`); neither metadata nor
 upstream documentation constitutes a Percival release. The intended first version is 0.1.0; its Python
 package name remains undecided. The proposed open distribution uses Docker/OCI
 as described below. Read the [project governance
@@ -17,6 +18,13 @@ The private development remote stays `bill-kopp-ai-dev/nanobot`; the separately 
 public source repository is named `percival`. Account migration and public disclosure
 are separate actions. Read the [contract handoff](docs/iac-p0-contract-handoff.md) for
 owners, schemas, source snapshots and downstream implementation gates.
+
+On 2026-10-23 the operator deferred I3, so no implementation work package is open.
+Before the first public publication (I3.4), migrate the repository to `p-bean-labs`:
+the `org.opencontainers.image.source` label is baked into the published image digest,
+and the plan forbids repointing an already published SemVer tag at different bytes.
+Docker Hub push credentials belong to the protected release environment; anonymous
+pull needs no local login.
 
 The Python gateway owns agent execution, sessions, tools, memory, and security policy. WebUI and TUI share that runtime; keep execution and policy out of the clients.
 
