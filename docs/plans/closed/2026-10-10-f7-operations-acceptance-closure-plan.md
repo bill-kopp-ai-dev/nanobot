@@ -94,4 +94,9 @@ O quadro de pendências no plano principal registra snapshots anteriores. Atuali
 
 **Registro de encerramento recomendado:** um relatório F7 único com tabela `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, links ao manual e aos relatórios F4/F5/F3, inventário pós-cutover sem segredos, URLs dos runs e declaração de risco residual. A aprovação final de B13 para release é ato separado do fechamento técnico local.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](../closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](../2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.
+**Sucessão corrigida em 2026-10-23:** D1–D12 têm dono no
+[fechamento Docker](../2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md);
+CI/VPS em C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+Distribuição e contratos novos são I1–I9 do
+[plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
+Ver o [mapa dos arquivados](README.md); contratos e relatos acima permanecem históricos.

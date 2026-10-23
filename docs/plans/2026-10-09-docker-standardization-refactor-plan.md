@@ -1,13 +1,23 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-09 / v0.9 (F0/F1 concluídos; F2 implementada com gate de
-  rebuild limpo pendente; F3 implementada com gate aberto; F4/F5 implementadas,
-  com gates de runtime e CI remota ainda abertos).
+- **Revisão:** 2026-10-23 / v1.0 — harmonização com a proposta IaC aberta PBLabs.
+  F0–F8 e seus relatos permanecem como histórico de execução; o rastreio atual dos
+  gates locais está em D1–D12/C1–C4. Integração IaC, distribuição e catálogo passam
+  a I1–I9 do [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
+  Esta revisão documental não fecha gates de implementação ou aceite.
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
-- **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks, CI, gestão local das imagens do Percival e dos seis servidores MCP (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research), e orientação operacional nos `AGENTS.md` aplicáveis.
-- **Estado de partida:** diagnóstico e builds de auditoria locais concluídos; não houve cutover nem alteração dos seis repositórios. Há alterações locais preexistentes em alguns MCPs; devem ser preservadas e revisadas separadamente antes de qualquer edição.
+- **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks,
+  CI, gestão local das imagens do Percival e dos seis MCPs (Notes, AgentMail, Weather,
+  Khan Calendar, OSM e Deep Research), com contratos de handoff para a IaC aberta.
+  Entregas de distribuição/IaC têm dono em I1–I9; F0–F8 não são renumeradas.
+- **Estado de partida histórico (2026-10-09):** diagnóstico e builds locais, antes do
+  cutover. Houve execução posterior e canário dos seis MCPs nos dois gestores, registrados
+  abaixo. Antes de novas edições, reverificar os checkouts e preservar trabalho existente;
+  não usar o snapshot inicial como inventário atual.
 - **Execução F0:** baseline read-only e decisões do operador registrados em [inventário F0](../reports/2026-10-09-f0-docker-baseline-inventory.md) e [ADR de padronização](../Decisions/2026-10-09-docker-standardization.md). Gate F0 concluído; investigar causa das instâncias duplicadas Positronic antes de cutover/cleanup que as afete.
-- **Resultado pretendido:** imagens reproduzíveis e rastreáveis, contratos de execução previsíveis para stdio/HTTP, menor risco de colisões/falsos unhealthy e um caminho verificável da fonte até uma imagem executada localmente.
+- **Resultado pretendido:** imagens reproduzíveis e rastreáveis, contratos previsíveis
+  stdio/HTTP e um caminho verificável fonte→candidato local→release OCI→deployment
+  validado. O aceite local continua distinto da homologação de distribuição e de VPS.
 - **Autoridade:** o operador decide convenções de produto, riscos e cutover. Este plano não autoriza commit/push, publicação em registry/Catalog, tag/release, limpeza de imagens fora da lista aprovada ou deploy em VPS.
 
 ## 1. Objetivo, escopo e limites
@@ -29,29 +39,41 @@ Um operador deve conseguir responder para qualquer container MCP local:
 - Os seis repositórios MCP listados acima, sem forçar Dockerfiles ou dependências idênticos quando houver justificativa de domínio.
 - Execução local em Docker Compose e spawn stdio por clientes MCP/broker.
 - Compatibilidade do pin ID/RepoDigest já usado pelo broker; o identificador de conteúdo continua autoridade para execução.
+- Adequação dos contratos do produto para imagem publicada, override Compose por produto,
+  persistência e operação pela IaC, conforme I2–I4. Bootstrap/OpenTofu e índice vivem em
+  workspaces próprios, não como cópia do código Percival neste repositório.
 
 ### Fora desta primeira refatoração
 
-- Publicar imagens, escolher registry público, ingressar no Docker MCP Catalog ou promover um release.
+- Executar publicação/deploy/release dentro de F0–F8. Docker Hub já é o alvo da proposta
+  para imagens oficiais abertas; namespace/org/nomes públicos e publicação continuam
+  sujeitos a I1/I3/B13. Docker MCP Catalog é opcional, nunca gate obrigatório.
 - Trocar o broker próprio do Percival pelo Docker MCP Gateway externo.
 - Alterar contratos de tools/resources/prompts MCP sem migração compatível.
-- Mudar os controles aprovados de acesso ao host do broker MCP (B14–B25), sua semântica ampla de acesso a arquivos, as coberturas de segurança ou o pin local por ID/RepoDigest.
+- Mudar implicitamente os controles B14–B25, o acesso amplo ao host, as coberturas ou
+  os pins atuais. I1/I6 tratam separadamente a aquisição por digest e permissões da loja,
+  com aditamento explícito do contrato; esta revisão não altera o runtime.
 - Remover em massa containers/imagens pelo nome, idade, status `unhealthy` ou `docker system prune`.
-- Renomear o diretório local `~/Projects/nanobot`, package PyPI, histórico git ou configurar distribuição pública. O identificador **Docker-facing** deve migrar para Percival; os demais nomes são decisão separada.
+- Renomear `~/Projects/nanobot`, pacote PyPI ou histórico git. O identificador
+  **Docker-facing** deve refletir Percival; nomes públicos finais são I1, sem exigir
+  renomeação do código/paths internos para cumprir o contrato externo.
 
 ## 2. Decisões e invariantes de projeto
 
 ### Invariantes a preservar
 
 - Gateway Percival continua sem Docker socket/CLI; somente o broker separado controla o daemon, de acordo com B16/B23.
-- O broker continua fixando imagens locais por ID completo ou RepoDigest validado e usa `--pull=never`; tags mutáveis não substituem o pin.
+- No runtime atual e nos ensaios locais, o broker fixa ID completo ou RepoDigest já
+  presente e usa `--pull=never`; tags mutáveis não substituem o pin. Esse é o baseline
+  B20, não veto permanente à distribuição OCI. Aquisição explícita por digest tem gate
+  próprio em I1/I6; o spawn pode continuar sem pull implícito.
 - Servidores MCP stdio reservam stdout para JSON-RPC; Compose e comandos smoke não devem alocar TTY.
 - Um container stdio lançado sob demanda não deve ser tratado como serviço HTTP persistente nem receber um healthcheck HTTP.
 - Valor efetivo de segurança/persistência deve ser observado; configuração solicitada, imagem/tag ou container `Up` não bastam como prova.
 - Dados de notas, calendários, cache, logs/reports e estado do gateway têm mounts explícitos e separados por finalidade, com ownership e backup documentados.
 - Não alterar arquivos `.gitignore`, `.positronic`, `uv.lock`, `.venv`, tags ou imagens nos seis repositórios sem examinar o estado local e preservar alterações existentes.
 
-### Decisões F0 aprovadas
+### Decisões F0 aprovadas (baseline local de 2026-10-09)
 
 As decisões de produto estão formalizadas em
 [`docs/Decisions/2026-10-09-docker-standardization.md`](../Decisions/2026-10-09-docker-standardization.md):
@@ -59,8 +81,10 @@ As decisões de produto estão formalizadas em
 1. Tags locais imutáveis `<semver>-<shortsha>` e alias `:dev` somente para
    desenvolvimento; repositórios Docker-facing `percival-<service>`,
    `percival-gateway` e `percival-mcp-broker`. Manter IDs/API MCP atuais.
-2. Operação local; registry remoto/pull/push/release/Catalog ficam sem decisão e
-   sem autorização neste plano.
+2. F0 aprovou operação local e não autorizou pull/push/release/Catalog. A proposta IaC
+   posterior escolhe Docker Hub como alvo público; a transição documental/contratual é
+   I1, e execução/publicação continua dependente de I3/B13. Não ler a ADR local como
+   proibição arquitetural permanente nem como autorização de publicação.
 3. `linux/amd64` apenas nesta refatoração; ARM64 fora do escopo atual.
 4. Rastrear `uv.lock` no Percival e usar instalação locked, incluindo estratégia
    reproduzível para dependências de canal (implementar em F3).
@@ -72,6 +96,48 @@ As decisões de produto estão formalizadas em
 7. Preservar `percival.mcp-docker.server-id` e acrescentar labels owner,
    managed-by e instance-id; cada gestor rotula as próprias instâncias. Detalhar
    nomes/semântica das novas labels em F2.
+
+### Contrato-alvo IaC e handoff das fases
+
+Referência corrente: [plano de integração IaC, §§1–3](2026-10-23-iac-alignment-execution-plan.md).
+Ele registra as cinco fontes de 2026-10-19, precedência, decisões ainda pendentes e
+responsáveis por repositório. O relatório comparativo é diagnóstico, não aceite.
+
+| Camada | Dono e limite | Handoff deste plano |
+| --- | --- | --- |
+| Fonte/build/release | Repositório do produto ou MCP + GitHub Actions; Docker Hub para oficiais, OCI upstream homologado para terceiros | F2/F3/F5 fornecem labels/locks/SBOM/testes; I1/I3/I5 acrescentam publicação protegida, digest pós-push e pull anônimo |
+| Host | OpenTofu + cloud-init/bootstrap idempotente no workspace IaC | Declarar Engine/CLI aprovados, data-root, socket/GID, UID/GID, paths e secrets reais; não instalar o agente nativamente |
+| Core | Compose + tooling externo; gateway/API quando aplicável, CLI de administração e broker sidecar | Override Percival preserva duas imagens, namespace de rede e probes reais; I2/I4 validam compatibilidade e receita de deploy sem build na VPS |
+| MCPs nativos | Gateway/MCP Manager com executor broker restrito | Fases existentes continuam base; I6/I7 acrescentam catálogo/aquisição/export, sem reimplementar o broker ou segundo dono Compose/WUD |
+| Estado | Host persiste; tooling de deploy escreve `deployment.lock`; manager exporta `capabilities.lock` | I4 mapeia paths e lock core; I7 reaproveita `tools.mcpDocker`/CAS/journal sem segundo registry editável |
+
+**Distinções obrigatórias para as próximas fases:**
+
+- Candidato local usa ID de imagem e tag `<semver>-<shortsha>`; produção usa release
+  SemVer + digest OCI verificado. `0.1.0` já é a versão inicial pretendida, não `0.3.5`
+  herdado. Não fabricar RepoDigest a partir de image ID ou promover `:dev`/`unknown`.
+- `deployment.yaml` é intenção; `deployment.lock` só avança após pull, startup,
+  readiness e persistência validados, com escrita atômica/exclusão mútua. Cobrir o
+  conjunto gateway/broker compatível, não somente uma imagem genérica `agent`.
+- `/srv/pblabs/` é layout-alvo de host. I4/C2 decidem o mapeamento do estado atual e da
+  proposta `.percival` para ele, preservando o path interno real até migração ensaiada.
+  Não copiar paths `/workspace`/`/config` ilustrativos nem mudar estado automaticamente.
+- `capabilities.lock` é export do manager, sem secrets; IaC/WUD não escreve nem recria
+  seus MCPs. Recipes Compose dos MCPs são fixtures/manuais ou `externally-managed`
+  explicitamente, nunca uma segunda receita de produção para o mesmo container.
+- Aquisição por digest autorizada e spawn `--pull=never` são etapas distintas. I1/I6
+  devem resolver o contrato sem abrir execução Docker genérica ao LLM. Catálogo remoto
+  não concede privilégios e não ativa automaticamente o tipo reservado `repository`.
+- Core update é externo ao agente, não atualização silenciosa pela publicação de tag.
+  Classificar migração de dados e ensaiar recuperação do conjunto imagem/config/auth/dados;
+  rollback de imagem não desfaz migração. I8 cobre estado completo e falhas.
+- Socket só no broker é fronteira existente, não garantia de isolamento total. Medir e
+  registrar risco indireto B23–B25; mudança de policy Full exige decisão, não herança
+  implícita de manifest. `:ro` em socket não restringe comandos da API Docker.
+
+**Compatibilidade de instruções:** o baseline local das ADRs de 2026-10-09 é preservado;
+I1 prepara aditamento com limites exatos da evolução. A política de vulnerabilidades
+continua vigente: triagem documental F3 não aprova Critical/High nem waiver automático.
 
 ## 3. Fases, dependências e gates
 
@@ -149,6 +215,9 @@ consumidores históricos não foram alterados. O cutover permanece em F6.
 
 - Definir OCI labels comuns: `title`, `description`, `source`, `documentation`, `licenses`, `version`, `revision`, `vendor`; sobrescrever explicitamente labels herdadas de imagens-base.
 - Gerar VERSION de `pyproject.toml` e revision do checkout; falhar imagem candidata se `0.0.0`, `unknown` ou `local` for usado como identificador de release.
+- Para release pública, I1 deve alinhar a fonte de versão e todos os metadados com a
+  primeira versão Percival `0.1.0`; extrair hoje `0.3.5` do pacote herdado não fecha
+  esse contrato. Preservar o vínculo SHA limpo→versão→image ID/digest→plataforma.
 - Usar nomes/aliases Docker com Percival, separando alias de desenvolvimento (`:dev`) de tag imutável (`<version>-<shortsha>`); local build sem registry continua possível.
 - Preservar pin broker por image ID/RepoDigest, mantendo tag legível sincronizada para operador; não traduzir tag para digest implicitamente nem puxar imagens.
 - Acrescentar container labels que identifiquem origem/owner/gestor e instância nos containers criados pelo broker. Não usar nomes aleatórios como única forma de gestão; não adicionar `container_name` global fixo que impeça duas instâncias.
@@ -193,6 +262,9 @@ mutação dos consumers, cutover ou cleanup.
 - Confirmar `.dockerignore` não exclui por engano arquivos necessários (`README`, `LICENSE`, `docs` embarcados ou manifest) e testar contexto em clean checkout.
 - Gerar SBOM e scan de vulnerabilidade para imagem de candidato; definir antes da CI a política de severidade/waiver e owner de atualização. Scanner informa risco, não substitui pins nem revisão.
 - Guardar manifest de build com source SHA, platform, base digests, dependency lock hash, image ID/RepoDigest, args não secretos e testes.
+- O gate de distribuição I3/I5 requer scan/SBOM do candidato exato e digest real
+  publicado, com scanner/DB registrados. Findings/waivers antigos não se transferem
+  automaticamente entre builds; manter a política de postura e o dono da remediação.
 
 **Gate F3:** mesmo source+lock+base digests gera o mesmo conjunto resolvido (ou diferenças explicadas por platform); build clean funciona em builder CI; contexto não contém estado local/secret; SBOM/scan registrados e exceções têm owner/expiração. Se exact image digest reproducibility não for alcançável, declarar qual nível de repeatability foi comprovado.
 
@@ -278,7 +350,12 @@ compose alterados, alteração de consumers nem cutover.
 - **Config/secrets:** env prefix específico por servidor, env_file opcional/obrigatório explicitado, valores default seguros; nunca imprimir secrets em `compose config` logs ou inventário.
 - **Persistência:** volumes somente para dados necessários (por exemplo `/vault`, calendar data, OSM cache, Deep Research reports/logs) com caminho, read/write e UID/GID declarados; testar read-only root quando compatível.
 - **Khan:** escolher e implementar uma opção: instalar `khal` com dependências no container, ou manter explicitamente host-dependent e restringir os claims de Docker-first às ferramentas suportadas. Testar tools individualmente.
-- **Percival main Compose:** decidir se `nanobot-api` vai para profile opcional ou torna `api_key` obrigatório; bind 8765 seguro como padrão; evitar restart loop sem segredo; avaliar healthcheck gateway/API e inicialização recursiva de ownership.
+- **Percival main Compose:** preservar a decisão F0 da API com `api_key` obrigatória,
+  bind seguro e falha fechada; mudar disponibilidade/profile exige decisão explícita.
+  I2/I4 separam a receita de desenvolvimento da de deployment por digest e validam
+  gateway/API/CLI/broker nos modos reais, sem `HEALTHCHECK` HTTP indiscriminado na CLI.
+  Validar usuário efetivo, ownership preparado pelo host, drop fail-closed se usado,
+  capabilities necessárias e restart/recreate do namespace compartilhado do sidecar.
 
 **Gate F4:** `docker compose config` de cada receita passa com estado limpo; stdio não publica porta/não aloca TTY; HTTP health somente em serviço HTTP; API e volumes falham fechados com mensagem útil; duas instâncias do mesmo servidor não colidem por container name.
 
@@ -311,7 +388,11 @@ nenhum consumer/container real foi alterado.
 - Matriz de architecture só inclui target aprovado e comprovado. F1–F5 do plano MCP Docker first-class (WebUI+gateway+broker, Docker operations, recovery, VPS/Engine, owner acceptance) continuam gates separados; este plano não os fecha.
 - Avaliar reusable workflow ou checklist central reutilizável sem fazer os seis repos dependerem de uma publicação/ação externa não aprovada. Cada repo deve buildar no seu SHA exato.
 
-**Gate F5:** todos os seis repositórios executam build + conformance smoke em CI no branch/candidato; main project CI verifica Compose e broker; artefatos guardam manifest/SBOM; nenhum job publica imagem. Gates remotos GitHub Actions no SHA candidato devem passar antes de alegar CI fechado.
+**Gate F5:** todos os seis repositórios executam build + conformance smoke em CI no
+branch/candidato; CI principal verifica Compose e broker; artefatos guardam manifest/SBOM.
+Jobs de conformance/PR não publicam imagens. O futuro pipeline protegido de release é
+I3/I5, separado e condicionado a B13; não enfraquecer F5 para habilitá-lo. Gates remotos
+no SHA candidato são C1 e devem passar antes de alegar CI fechado.
 
 **Execução 2026-10-09 — implementação revisada, commitada e enviada a `main`;
 gate remoto aberto:** os sete repositórios receberam workflows/conformance steps próprios.
@@ -337,6 +418,9 @@ foi executado.
 ### F6 — Migração local controlada e cutover por serviço
 
 **Depende de:** F2–F5 aprovados e referências dos consumidores mapeadas em F0.
+F6 continua cutover **local**; a exceção histórica não autoriza outra promoção.
+No caminho publicado, aplicar o mesmo canário a artefatos adquiridos/verificados por
+I3/I5/I6, sob o manager correto; não construir fonte na VPS como instalação padrão.
 
 Executar um serviço por vez, inicialmente Deep Research e OSM (corrigindo falsos unhealthy), depois AgentMail, Weather, Khan e Notes. Para cada serviço:
 
@@ -372,7 +456,10 @@ Evidência detalhada:
 
 - Aprovar manual de build/update/rollback e procedimento de incidente/health false-positive.
 - Definir revisão trimestral de bases/dependências, atualização urgente por vulnerabilidade, retention de tags locais e limite de imagens intermediárias.
-- Depois de cutover local, atualizar o relatório de inventário; para o VPS, executar gates e migração do plano `2026-10-06-mcp-docker-first-class-execution-plan.md` incluindo engine/mount/GID/UID e aceite de risco específico.
+- Depois do cutover local, atualizar o inventário. No VPS, C2–C4 do
+  [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+  consomem I4 (layout/receita/locks) e I8 (recovery), incluindo Engine/mount/GID/UID e
+  novo aceite específico; o plano MCP Docker arquivado é origem histórica, não dono ativo.
 - Release/publicação segue governança B13: aprovação explícita no SHA candidato, histórico/licenças/proveniência e sem publicação implícita neste plano.
 
 **Sessão F7 — 2026-10-10 UTC:** o operador pediu um registro explícito das
@@ -437,7 +524,7 @@ Evidência completa em
 | 8 | **Duplicatas Positronic AgentMail/Deep Research.** Causa da duplicação ainda não identificada. | [`F0 inventory`](../reports/2026-10-09-f0-docker-baseline-inventory.md) | Origem da segunda instância documentada; consumer identificado. | agente. | Logs de spawn/Positronic, rótulos faltantes. | Documentação de observabilidade; pode bloquear F7 se houver instâncias órfãs. |
 | 9 | **Falta padronização de F8 (skill + AGENTS.md).** | [`F8 seção abaixo`](#f8--skill-de-gestão-e-instruções-operacionais-nos-agentsmd) | Matriz dos `AGENTS.md` efetiva; skill revisada com dry-run/fixture. | agente; operador (ativação). | Skill em workshop, dry-run logs. | Bloqueia F8, mas F7 é independente. |
 | 10 | **Identity mismatch nos commits.** `percival-notes-mcp` ficou com `bill@percival.local`; demais repositórios com `bill-kopp-ai-dev@users.noreply.github.com`. | journal de 2026-10-10 | Commits do `percival-notes-mcp` reescritos ou reatribuídos via política `mailmap`. | agente; operador. | `git log --pretty=format:'%h %an <%ae>' -n 5` em cada repo; `mailmap` aplicado. | Não bloqueia F7 funcionalmente, mas afeta a proveniência exigida por B13. |
-| 11 | **Resíduo F3 — OpenSSH `CVE-2026-60002` no gateway e ausência de Actions remotas.** Item #1 ficou fechado pela documentação; restam (a) corrigir ou waverar o `openssh-client 1:10.0p1-7+deb13u4` no gateway (teste Forky com `OpenSSH_10.5p1` já fez conexão client/server local; falta build do gateway em base Forky, regressão Percival Remote SSH na imagem, e aprovação do operador caso se opte por waiver individual), e (b) reproduzir o conjunto de scans/VEX e os fluxos F0–F3 em `linux/amd64` via Actions remotas (`gh auth status: not logged into any GitHub hosts` em 2026-10-10). | [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md), [`F3 OpenVEX`](../reports/2026-10-10-f3-openvex.json) e [`F5 report`](../reports/2026-09-f5-ci-conformance.md) | (a) gateway build Forky com OpenSSH >=10.4 ou waiver individual do operador; (b) login GitHub e Actions verdes nos SHAs candidatos. | operador (waiver, login); agente (build Forky, scans remotos, ADR/VEX). | Logs do build Forky, `tests/webui/test_remote_*` verdes, ADR/VEX aprovados, URLs de runs, manifest/SBOM arquivados. | Bloqueia F7 e a publicação da primeira versão 0.1.0 do Percival enquanto o Critical ou os CVEs base não tiverem reprodutibilidade no builder CI. |
+| 11 | **Resíduo F3 — OpenSSH `CVE-2026-60002` no gateway e ausência de Actions remotas.** Item #1 ficou fechado pela documentação; restam (a) corrigir ou waverar o `openssh-client 1:10.0p1-7+deb13u4` no gateway (teste Forky com `OpenSSH_10.5p1` já fez conexão client/server local; falta build do gateway em base Forky, regressão Percival Remote SSH na imagem, e aprovação do operador caso se opte por waiver individual), e (b) reproduzir o conjunto de scans/VEX e os fluxos F0–F3 em `linux/amd64` via Actions remotas (`gh auth status: not logged into any GitHub hosts` em 2026-10-10). | [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md), [`F3 OpenVEX`](../reports/2026-10-10-f3-openvex.json) e [`F5 report`](../reports/2026-10-09-f5-ci-conformance.md) | (a) gateway build Forky com OpenSSH >=10.4 ou waiver individual do operador; (b) login GitHub e Actions verdes nos SHAs candidatos. | operador (waiver, login); agente (build Forky, scans remotos, ADR/VEX). | Logs do build Forky, `tests/webui/test_remote_*` verdes, ADR/VEX aprovados, URLs de runs, manifest/SBOM arquivados. | Bloqueia F7 e a publicação da primeira versão 0.1.0 do Percival enquanto o Critical ou os CVEs base não tiverem reprodutibilidade no builder CI. |
 
 #### Ações necessárias para liberar o aceite F7
 
@@ -534,6 +621,10 @@ independentes nem o sign-off final.
 
 - Inventariar antes de agir: source SHA/worktree, image ID/RepoDigest, alias, labels `owner`/`managed-by`/`server_id`/`instance_id`, referências dos consumidores, transporte, portas, mounts, volumes/dados persistentes e rollback. Não inferir dono pelo nome ou estado `unhealthy`.
 - Build e promoção com versão/revisão verificáveis e pin imutável por ID/RepoDigest; tags são aliases. Não fazer pull, substituir pin ou mudar simultaneamente clientes Percival e Positronic por efeito colateral.
+- Distinguir build local de distribuição: Docker Hub para oficiais, registry upstream
+  homologado para terceiros, digest OCI real e aquisição explícita autorizada em I6.
+  Skill não substitui policy do manager, não edita locks/config manualmente e não
+  transforma README/manifest remoto em shell ou autorização. Core e MCPs têm donos distintos.
 - Stdio: stdout só JSON-RPC, sem TTY, portas ou health HTTP; validar `initialize`/`tools/list`. HTTP: serviço/profile separado, auth/bind explícitos e probe apropriada. Um init por processo e evidência de parada/restart; diferenciar liveness Docker, readiness HTTP e disponibilidade MCP.
 - Broker é o único componente do Percival com socket Docker; gateways e MCPs comuns não recebem socket. Respeitar limites efetivos de mounts/rede e modelo aprovado de acesso ao host, sem estreitar ou ampliar B14–B25 implicitamente; não expor secrets em env dump, logs, inventários ou snippets.
 - Mudanças por instância/consumidor com prévia, backup de config/dados quando aplicável, smoke, janela de observação e rollback confirmado. Identificar containers por labels+ID antes de parar/recriar; preservar containers externos e dados; nunca limpar por nome, idade, tag órfã ou `unhealthy` isolado. Destruição, push, deploy e publicação exigem autorização específica.
@@ -569,7 +660,7 @@ independentes nem o sign-off final.
 | Build reprodutível congela CVEs | Pins com cadence de update e caminho urgente; scans com severity owner/waiver. |
 | Rename Docker quebra configs MCP ou dados | Primeiro renomear imagem/compose labels; nomes MCP/package/state são migração compatível e trabalho separado. |
 | Main Compose expõe listener/token ou API fica em loop | Bind local por padrão, API opt-in ou auth necessária, smoke com config vazia e de auth. |
-| Cutover no VPS conflita com gates existentes | Este plano não substitui migração `.nanobot` → `.percival`, Engine 27.x, Browser F3/F4/F5 nem aceite de risco do plano MCP Docker. |
+| Cutover no VPS conflita com gates existentes | I4/C2 resolvem paths `~/.nanobot`/`.percival`/`/srv/pblabs`; C3 ensaia migração/rollback e Engine aprovado. Browser e aceite de risco continuam gates próprios. |
 | Instruções antigas ou skill de outro gestor aplicadas ao Percival | Matriz de `AGENTS.md` efetivos, delimitação de APIs/CLIs por gestor, revisão da skill existente e validação de exemplos em fixture; nenhuma mutação implícita. |
 
 ## 5. Critérios globais de conclusão
@@ -587,6 +678,11 @@ Não considerar a padronização local completa até que:
 - F8 cubra os `AGENTS.md` efetivos do fluxo (global, Percival, Positronic e seis MCPs), com instruções específicas verificadas, e a skill recomendada tenha revisão, exercício isolado e decisão explícita de ativação;
 - operações de VPS, registry, publicação e release tenham gates/aprovação próprios, sem inferência de autorização a partir deste plano.
 
+**Conclusão de integração IaC é separada:** os critérios locais acima alimentam I2–I8,
+mas não fecham I9, a publicação pública ou o P0 conjunto dos dois produtos. O aceite IaC
+exige imagens reais por digest, instalação limpa, locks sob seus donos, catálogo e
+aquisição MCP autorizada, update/restore e evidência do alvo; consultar I1–I9.
+
 ## 6. Verificação e governança do plano
 
 - No Percival, executar `pytest`, `basedpyright nanobot`, `ruff check .` (não `ruff format`) e gates WebUI/CI afetados em cada alteração pertinente. Usar as canonical checks próprias de cada servidor MCP conforme seus AGENTS/CI; não propagar convenções de lint de um repo a outro.
@@ -598,16 +694,15 @@ Não considerar a padronização local completa até que:
 
 ## 7. Próxima ação proposta
 
-Triar e resolver os findings Critical/High F3, priorizando dependências com
-versão corrigida disponível e os pacotes base reportados; registrar owner e
-expiração antes de qualquer waiver. Depois, repetir builds/scan em checkouts
-limpos no builder CI e fechar F3 somente com evidência do conjunto resolvido.
-F2 ainda depende de rebuilds canônicos limpos; F4 requer os smokes restantes de
-persistência/restore. Consultar GitHub Actions em cada SHA exato, verificar jobs
-e artefatos e fechar F5 somente depois de todos passarem. Para continuar F6
-após o desvio autorizado, preparar uma stack local de gateway/broker com segredo
-privado de token e bind loopback, então migrar OSM/Weather em sequência pelo
-domínio do broker, mantendo rollback por image ID. Não iniciar a cópia antiga
-do gateway com bind não-loopback.
+Preparar I1 (aditamento contratual e arbitragem) e I2 (runtime real), mantendo os
+trabalhos locais D/B independentes executáveis. As próximas execuções de padronização
+devem usar D1–D12 do [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
+C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+e A1–A9 de [senha única](2026-10-11-single-password-acceptance-closure-plan.md).
+Não repetir o cutover dos seis MCPs apenas porque um snapshot antigo o dizia pendente;
+revalidar o candidato e executar somente a lacuna remanescente.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.
+**Estado deste documento:** ativo como plano de fases e contrato local. Não foi
+substituído pela refatoração de senha única. O quadro histórico de F7 não é tracker
+corrente; os quatro planos vinculados acima (incluindo I1–I9 de integração IaC) têm os
+donos dos gates. Nenhuma fase ganhou aceite por esta harmonização.

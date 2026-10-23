@@ -17,6 +17,30 @@
 - **Numeração:** neste documento, F4/F5/F7 designam sempre as fases do plano de **padronização**
   Docker. As fases homônimas do plano MCP Docker first-class (arquivado) são outras e estão
   consolidadas no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+- **Revisão IaC (2026-10-23):** [I1–I9](2026-10-23-iac-alignment-execution-plan.md)
+  tratam distribuição, contratos e handoff IaC. D1–D12 continuam donos das pendências
+  locais abaixo; atualização de plano não é execução nem aceite público.
+
+### Contratos de integração aplicáveis a D1–D12
+
+- Docker Hub é o alvo das imagens oficiais abertas, não escolha ainda livre de registry;
+  namespace/nomes públicos e publicação dependem de I1/I3/I5/B13. CI de conformance C1
+  não faz push. Tags locais/IDs permanecem úteis, sem substituir digest OCI publicado.
+- `0.1.0` é a primeira versão pretendida já decidida; metadado herdado `0.3.5` deve ser
+  alinhado em I1 antes da distribuição. D2/D8 preservam rastreabilidade, não renomeiam
+  pacote/paths nem reescrevem histórico.
+- Runtime real é gateway/manager + broker separado. Compose controla core; manager
+  controla MCPs e exporta `capabilities.lock`; tooling IaC controla `deployment.lock`.
+  D4/D10/D11 devem preservar essa fronteira, sem duplicar gestão por Compose/WUD.
+- I4/C2 aprovam o destino de estado no layout `/srv/pblabs/`, mapeando `~/.nanobot` e
+  a proposta `.percival` sem migrar automaticamente. D7/D9 validam paths/UID/GID reais,
+  incluindo token e coberturas; `chmod 777` de fixture não é política de instalação.
+- D6 exige avaliação do candidato exato, não contagem de vulnerabilidades de imagem
+  antiga. Fechar triagem F3 não concede waiver nem revoga a política Critical/High.
+  D7 verifica usuário efetivo e probes por modo; não exige HTTP healthcheck na CLI.
+- D9 cobre o manual MCP; I8 cobre recuperação do core e estado completo, incluindo
+  auth/KG/workspace/locks. Aceite local D12 não fecha integração IaC I9, publicação ou
+  gates de outro produto. Se um contrato mudar, revalidar só as evidências afetadas.
 
 ## 1. Evidência já produzida (não refazer sem mudança de artefato)
 
@@ -56,11 +80,33 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, com a matriz mensurável** — não existe skill de gestão para o Percival (as globais são `docker-desktop`, `mcp-docker-workflow` — do Positronic —, `journaling-*`, `memory-*`, `project-bootstrap`, `skill-creator`), e a única de containers é justamente a que o plano de fase manda comparar antes de decidir extensão ou skill separada: **essa decisão ainda não foi tomada**. `AGENTS.md`: global, raiz do Percival e do consumidor presentes; Khan, Weather, OSM e Deep Research presentes; **Notes e AgentMail ausentes** na raiz — exatamente os dois que o gate exige criar. A raiz do Percival não menciona MCP Docker |
 | D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e declaração de risco residual; **aceite local**, **aceite VPS/deploy** e **aprovação B13 de release** registrados como atos separados | F7 P5 | operador (assina) + agente (consolida) | **bloqueado** por D1–D10, C1–C4 e A1–A9 |
 
+**Complementos de aceite após a harmonização:**
+
+- **D7:** separar receita Compose de desenvolvimento de deployment e os modos
+  gateway/API/CLI/broker (I2/I4). Preservar um init por processo e inspecionar `user:`
+  efetivo; a imagem iniciar como root com drop fail-closed não prova execução como root
+  no Compose. Exceções/alterações de permissões precisam de justificativa e teste.
+- **D8:** para candidatos locais, manter o build limpo e ID verificável; para os
+  publicados, aquisição homologada por digest em I3/I5/I6, registrando tag, digest OCI
+  e image ID separadamente. Promover só pelo manager, não via capabilities Compose.
+  Retenção inclui imagem/configuração/dados compatíveis; rebuild não é instalação padrão
+  no VPS. Corrigir a discrepância de SHA do OSM antes de alegar proveniência conforme.
+- **D9:** acrescentar ao walkthrough o handoff para I4/I8: `deployment.lock` pelo tooling
+  de deploy, `capabilities.lock` pelo manager, backup/retorno de estado completo e
+  classificação de migrações. Não alegar que rollback MCP substitui recovery do core.
+- **D10/D11:** comandos por gestor precisam ser verificados no checkout/launcher instalado,
+  sem copiar o CLI proposto de outro documento. Catálogo/manifest não é script autorizado;
+  nenhuma skill assume capacidade de pull ainda inexistente nem edita registry/locks
+  diretamente. Revisão/ativação de skill permanece no fluxo próprio de D11.
+- **D12:** anexar o status dos contratos I1/I2/I4 aplicáveis ao candidato. Sign-off local
+  pode avançar sem catálogo público pronto; sign-off IaC I9 requer suas próprias provas.
+
 ## 3. Itens transferidos (fora de escopo, com dono)
 
 | Gate | Dono |
 | --- | --- |
-| Actions remotas nos sete SHAs candidatos; inventário do VPS; migração/rollback de `~/.nanobot` → `.percival` no Engine 27.x; novo aceite do risco no alvo | [plano integrado, C1–C4](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
+| Actions remotas nos sete SHAs candidatos; inventário do VPS; migração/rollback para destino aprovado em I4/C2 no Engine 27.x; novo aceite do risco no alvo | [plano integrado, C1–C4](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
+| Distribuição OCI, bootstrap/Compose de deployment, índice, aquisição e locks | [integração IaC, I1–I9](2026-10-23-iac-alignment-execution-plan.md); não duplica D/C |
 | Browser WebUI + gateway + broker, matriz end-to-end das oito famílias, testes de UI e acessibilidade | [plano integrado, B1–B6](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
 | Autenticação de senha única: ensaio em Engine 27.x, elevação, proxy TLS, expiração, cutover real | [fechamento de senha única, A1–A9](2026-10-11-single-password-acceptance-closure-plan.md) |
 | KG nativo: dados reais, ensaio B6/B7, release dos repositórios legados | [plano integrado, A1–A7](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
@@ -84,7 +130,8 @@ C1–C4 (Actions/VPS) ───────────────→ D12
 - **D3** bloqueia a projeção efetiva do Khan e, junto com **D5**, o item 2 do aceite. Se a decisão
   for restringir a superfície, ela vira trabalho de engenharia: não há modo somente leitura.
 - **D6** bloqueia F7 e a publicação da primeira versão 0.1.0, e é hoje o item de maior severidade da
-  lista: um Critical conhecido em imagem publicada.
+  lista: um Critical conhecido no candidato local do gateway. Não há evidência aqui de
+  publicação dessa imagem em registry; reavaliar o finding no candidato final.
 - **D7** tem uma parte que é **defeito de código** (o `--init` do consumidor Positronic) e outra que
   é teste faltante (contrato de imagem em Notes, Khan e AgentMail). A parte de código não espera
   decisão do operador.
@@ -103,6 +150,7 @@ C1–C4 (Actions/VPS) ───────────────→ D12
 | Estender o VEX do gateway aos MCPs | reavaliar findings por imagem e escopo; sem extensão automática |
 | Reescrever `main` publicado | `mailmap` altera apresentação, não objetos nem SHA; reescrita é ato separado com autorização específica |
 | Evidência de Engine 29 ser lida como gate de Engine 27.x | o overlay local não prova o alvo; o gate VPS é C2–C4, fora deste plano |
+| Preservar `local-only` como veto permanente à proposta IaC | manter o baseline de execução e exigir I1 para o aditamento de contrato; I3/I5 têm publicação separada e B13 continua obrigatório |
 
 **Parar e escalar** se a credencial exposta ainda der acesso, se uma duplicata não puder ser
 atribuída com confiança, se uma imagem de retorno não existir, se a observação divergir da
@@ -125,3 +173,14 @@ reduzidos ao que falta, D11 desmembrado em tarefas verificáveis.
 
 Quando D12 for assinado, o relatório único deve substituir os snapshots de pendência hoje
 dispersos entre o plano de fase, o relatório F4/F5 e os relatórios F7, mantendo os links.
+
+**2026-10-23 — harmonização IaC (não é execução).** Incluídas fronteiras de ownership,
+handoff de D7–D11, separação de aceite F7/I9 e dependências de layout e distribuição.
+Preservadas as evidências existentes e o estado aberto de D1–D12.
+
+**2026-10-23 — instruções do Percival atualizadas.** O `AGENTS.md` raiz agora cobre
+responsabilidades IaC/produto/índice, ownership core/MCP, aquisição por digest, locks,
+persistência, testes e gates, com links aos planos ativos. Isso resolve a ausência
+dessas orientações na raiz citada no snapshot D11, mas **D11 continua parcial**:
+matriz dos demais repositórios, decisão de skill, fixture/dry-run e ativação ainda
+exigem suas próprias evidências. A revisão não fecha F8 nem altera runtime.

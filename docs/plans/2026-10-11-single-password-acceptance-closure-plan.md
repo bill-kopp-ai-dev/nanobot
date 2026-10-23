@@ -3,10 +3,12 @@
 - **Preparado em:** 2026-10-11; plano solicitado antes de retomar os gates pendentes.
 - **Estado:** P0 concluído para fixação do candidato e preparação; P1 concluído e snapshot publicado em `d3b29843`. P2 adiado pelo operador; P3 aguarda autenticação do GitHub CLI; P4 aguarda seleção de VPS/staging. Closure global permanece aberta. Em 2026-10-23 as pendências A1–A9 foram reverificadas contra o código: **nenhum item foi executado**, mas os mecanismos de A2, A4 e A5 já existem no código e o baseline de Docker/`gh` estava desatualizado (§1 e §1.2). Ver
   [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md) §3.5. Desde 2026-10-23 este plano também é o **único dono das pendências de aceite** da refatoração de senha única, cujo plano foi arquivado em `closed/` (ver §1.2).
-- **Objetivo:** fechar, com evidência reproduzível, a proveniência do KG SPA embutido, a integração gateway+broker em Docker Server 27.x e os gates remotos de Actions/VPS da refatoração de senha única.
+- **Objetivo:** fechar a proveniência do KG SPA embutido, a integração gateway+broker
+  em Docker Server 27.x e os gates Actions/VPS de senha única, com persistência e
+  deployment compatíveis com o [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
 - **Autoridade:** o operador autorizou prosseguir com as pendências. Essa autorização não converte Engine 29.x em Engine 27.x, não autoriza enfraquecer o gate do broker, não seleciona um VPS ainda não identificado e não autoriza tag, release, publicação ou cutover de dados MCP reais.
 - **Fora de escopo nesta closure:** implementar o login interativo do browser-proxy SSH remoto. Por decisão do operador, ele permanece fail-closed (`remote_auth_required`) e deve ser acompanhado como trabalho separado.
-- **Plano de implementação de referência (arquivado):** [refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md); as etapas de implementação A–E estão concluídas e evidenciadas, e as pendências de aceite foram transferidas para a §1.2 deste plano em 2026-10-23. Gates F7 e VPS permanecem também sujeitos ao [plano F7](closed/2026-10-10-f7-operations-acceptance-closure-plan.md) e ao [plano MCP Docker](closed/2026-10-06-mcp-docker-first-class-execution-plan.md).
+- **Plano de implementação de referência (arquivado):** [refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md); implementação A–E e evidências preservadas, pendências em §1.2. Donos ativos: F7 no [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), CI/VPS em C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) e contratos/distribuição em [I1–I9](2026-10-23-iac-alignment-execution-plan.md). Os planos arquivados são origem histórica, não donos concorrentes.
 
 ## 1. Baseline observado
 
@@ -42,10 +44,38 @@
 | A6 | Recriação de contêiner mantendo volume, e Compose após o corte | Mesmo volume e login sem recadastro; broker continua segregado; gateway sem socket nem CLI Docker; estado MCP, CAS e logs redigidos conferidos | P2 item 5 (recriar) e P5 | **aberto** — coberto por P2 |
 | A7 | Cutover da instância real com backup e retorno preservados | Identificar volume e arquivos de credenciais **sem exibir conteúdo**; cópia privada do estado anterior; se o ensaio final falhar, restaurar a combinação **inteira** imagem/configuração/credenciais em ambiente privado, sem executar binário antigo sobre estado parcialmente convertido | P2-F | **aberto** — a execução de 2026-10-11 usou estado descartável |
 | A8 | GitHub Actions no SHA final | Jobs obrigatórios verdes no SHA publicado, com `headSha` conferido; artefatos baixados e confrontados com fonte, locks e digests | P3 | **bloqueado** — `gh` instalado (2.102.1) e **sem login**; ação `gh auth login` |
-| A9 | Inventário read-only e gate VPS | Inventário datado e redigido, Engine 27.x demonstrado no alvo, staging end-to-end aprovado, relatório separado do aceite local | P4 | **bloqueado** — sem host/staging identificado; `~/.percival` não existe |
+| A9 | Inventário read-only e gate VPS | Inventário datado e redigido, Engine 27.x demonstrado, destino/persistência definidos por I4/C2, staging end-to-end aprovado; relatório separado do aceite local e da publicação | P4, compartilhando C2–C4 | **bloqueado** — sem host/staging identificado; ausência de `~/.percival` não determina o layout IaC final |
 
 **Fora de escopo herdado:** o login interativo do browser-proxy SSH remoto permanece fail-closed
 (`remote_auth_required`) e não é reaberto por esta transferência.
+
+## 1.3. Handoff para a IaC — revisão de planejamento 2026-10-23
+
+- O ensaio local P2 continua descartável e não espera namespace/registry/host real.
+  Gateway/manager e broker já existem; preservar autenticação, CAS e fronteira do
+  socket, sem tratar a integração IaC como motivo para reimplementar o broker.
+- P3/A8 e C1 verificam conformance remota do candidato; o CI de release/push/pull
+  anônimo é I3, com B13 próprio. Usar Docker Hub como alvo não autoriza divulgar o
+  repositório privado, seus commits ou credenciais.
+- I2/I4 devem disponibilizar CLI de `auth init/change/status` no mesmo contrato de
+  imagem e volume de runtime. O bootstrap não cria senha default nem copia a
+  credencial real da máquina de desenvolvimento; o operador fornece-a pela interface
+  suportada, e a aplicação deve ler os arquivos de secret realmente montados.
+- I4/C2 mapeiam o estado atual `~/.nanobot` e a proposta histórica `.percival` para
+  `/srv/pblabs/` ou destino homologado. `/home/nanobot/.nanobot` continua o path interno
+  até migração explícita. P4/P2-F não renomeiam nem fragmentam estado automaticamente.
+- Verificador de senha, token de emissão e token broker persistem em paths protegidos
+  fora de imagens/locks públicos; `deployment.lock` e `capabilities.lock` registram
+  identidades/versões/status, nunca seus valores. I8 cobre backup privado/restauração
+  da combinação imagem/configuração/auth/dados, além do rollback da fixture MCP.
+- P2/A6 deve provar que o login e a auditoria continuam após recriar gateway **e**
+  sidecar no namespace compartilhado. Testar não-root/ownership efetivos, sem usar
+  `chmod 777` ou UID presumido para resolver falhas de persistência.
+- Para instalação pública em P4, consumir receita por tag+digest e imagens I3
+  homologadas; build/save/load de P2 é só rehearsal. `--pull=never` do spawn atual não
+  é modificado pelo teste de senha; aquisição por catálogo é trabalho I1/I6.
+- Aceites de autenticação, F7 local, IaC I9, VPS e publicação permanecem distintos.
+  Esta revisão não fecha A1–A9 nem modifica o contrato de senha.
 
 ## 2. Estratégia e ordem de execução
 
@@ -55,7 +85,9 @@
 
 1. Registrar `nanobot` HEAD/remote e `spa` HEAD/remote; validar que o candidato é `d773f8b5` e a fonte SPA é `8e4ff73` ou commits posteriores explicitamente aprovados.
 2. Confirmar o digest do `docker:27.5.1-dind`, os checksums dos Dockerfiles/imagens gateway e broker e os SHAs das fixtures Weather/OSM. Confrontar com os pins já registrados em F1/F2; não reutilizar uma imagem somente pelo nome de tag.
-3. Definir uma pasta scratch nova, única e descartável para checkout SPA, estado de gateway, token de broker, logs redigidos e arquivos de Compose. Nenhum caminho `~/.nanobot`, `~/.percival`, `~/.positronic` ou volume real pode ser montado no ensaio.
+3. Definir scratch novo e descartável para checkout SPA, estado, token broker, logs
+   redigidos e Compose. Não montar `~/.nanobot`, `~/.percival`, `~/.positronic`,
+   `/srv/pblabs/` real ou outro volume/segredo de instalação no ensaio.
 4. Confirmar que a execução interna Docker 27 será isolada: DIND sem rede externa e sem portas publicadas no host; nenhum bind do socket Docker do host dentro do DIND. Dentro do DIND, apenas o container broker recebe o socket do daemon DIND.
 
 **Saída:** registro de baseline contendo SHA, digest e caminhos temporários; se o digest não corresponder, parar antes de iniciar qualquer daemon.
@@ -124,21 +156,37 @@ separado por item.
 
 ### P4 — Inventário read-only e gate VPS
 
-**Responsáveis:** operador fornece/seleciona o host; agente prepara relatório e executa somente os passos autorizados. **Dependência:** P2 aprovado e VPS identificado.
+**Responsáveis:** operador fornece/seleciona o host; agente prepara relatório e executa
+somente os passos autorizados. **Dependência:** P2 aprovado e VPS identificado.
+Inventário compartilha C2; antes de provisionar staging, adotar o contrato I4 e o
+candidato aprovado. Para deployment público, exigir imagem homologada I3 e os ensaios
+locais de recuperação I8. Não esperar a publicação para fazer inventário read-only.
 
 1. Antes de conectar, confirmar hostname/alias SSH, conta, projeto Compose, diretório persistente, proxy TLS, janela, responsável operacional e se o alvo é staging descartável ou deployment ativo. Registrar backup/retorno esperado. A autorização geral para prosseguir não identifica, por si só, um destino remoto.
 2. No primeiro acesso, executar apenas `scripts/percival-vps-inventory.sh` em modo read-only. Capturar separadamente Client/Server, data-root, socket/GID, submounts, portas, proxy e existência de diretórios; não transferir `.env`, config, token, `docker inspect` integral ou valores de secrets para relatório versionado.
-3. Comparar Server.Version ao gate 27.x, bind/TLS, mount/GID/UID, Compose, persistência e protected paths com o plano F0/F7. Se qualquer requisito não bater, parar e pedir uma decisão; não usar Engine 29 como substituto nem editar mounts/firewall do host.
-4. Se o alvo aprovado for **staging**, provisionar um projeto e volume descartáveis em porta privada, transferir apenas imagens candidatas fixadas e repetir o ensaio gateway+broker+WebUI/MCP, incluindo restart/recreate e rollback do próprio fixture. Validar HTTPS/proxy apenas com configuração representativa aprovada; não colocar senha/token em URL/log.
+3. Comparar Server.Version ao gate 27.x, bind/TLS, mount/GID/UID, Compose, persistência
+   e protected paths com I4/C2 e os contratos F0/F7. Registrar o destino absoluto real,
+   não inferi-lo do nome `.percival`. Se divergir, pedir decisão; não usar Engine 29
+   como substituto nem editar mounts/firewall do host.
+4. Se o alvo aprovado for **staging**, usar projeto/volume descartáveis e porta privada.
+   Consumir a receita I4 e imagens candidatas por digest verificadas (I3 no fluxo
+   público), sem build na VPS; repetir gateway+broker+WebUI/MCP, restart/recreate,
+   persistência de login e rollback da fixture. Validar HTTPS/proxy representativo;
+   não colocar senha/token em URL/log nem avançar lock de deployment em falha.
 5. Não migrar o volume real `~/.nanobot`/`.percival`, não atualizar servidores MCP reais e não iniciar cutover de produção como parte do smoke. Isso exige plano de retorno próprio, backup verificado, inventário e confirmação específica do operador imediatamente antes da escrita.
 
 **Critério de conclusão:** inventário datado e redigido, Engine 27.x demonstrado, staging end-to-end aprovado e relatório de VPS separado do aceite local. Se não houver hostname/acesso ou staging, o gate permanece bloqueado por dependência externa.
 
 ### P5 — Consolidação e handoff
 
-1. Atualizar a seção de execução deste plano e o plano arquivado da refatoração de senha única (`closed/2026-10-11-percival-single-password-auth-refactor-plan.md`, sem reabertura) com SHAs, `SOURCE.json`, image IDs, `Server.Version`, comandos, URLs de Actions, resultados, skips, warnings e limites, marcando cada item A1–A9 da §1.2 como fechado ou ainda aberto.
+1. Atualizar o registro **deste** plano com SHAs, `SOURCE.json`, image IDs/digests,
+   `Server.Version`, comandos, URLs de Actions, resultados, skips/warnings e limites;
+   marcar A1–A9 com evidência. O plano arquivado permanece snapshot e aponta para este
+   dono ativo, sem reescrever sua execução passada.
 2. Atualizar o quadro F7 apenas nos itens cobertos por evidência; separar `local source/browser`, `DIND Server 27`, `GitHub Actions`, `VPS staging` e `production cutover`. Não declarar release-ready sem B13.
-3. Revisar `git status`, `git diff --check`, branch/remotes e commits; commit/push dos resultados de source snapshot/docs/test harness em commits Conventional Commits separados. Nenhuma tag/release/publicação autorizada.
+3. Revisar `git status`, `git diff --check`, branch/remotes e commits; preparar resultados
+   separados de snapshot/docs/harness. Commit/push só quando explicitamente solicitados;
+   nenhuma tag/release/publicação é autorizada pelo fechamento deste plano.
 4. Declarar concluído somente se P1–P4 alcançarem seus critérios. Caso um gate remoto permaneça bloqueado, entregar o restante com o blocker, dono e próxima ação explícitos.
 
 ## 3. Critérios globais de parada

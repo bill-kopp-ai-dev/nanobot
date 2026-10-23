@@ -1,7 +1,8 @@
 # Auditoria de planos — status de conclusão
 
 - **Data:** 2026-10-23.
-- **Escopo:** os 9 documentos em `docs/plans/` (nenhum já arquivado; `closed/` estava vazia).
+- **Escopo original:** snapshot dos 9 documentos então em `docs/plans/`, antes das
+  consolidações/arquivamentos abaixo. Não é a contagem nem o status corrente dos planos.
 - **Método:** para cada plano, as fases/gates explícitos do próprio documento foram
   pontuados como **concluído** (100), **implementado com gate aberto** (55–75, conforme
   o que resta ser local ou depender de terceiro), **parcial** (30–50) ou **não iniciado**
@@ -10,6 +11,36 @@
   quando confirmado por relatório de execução versionado.
 - **Aviso:** porcentagem alta **não** equivale a plano concluído. Três documentos proíbem
   explicitamente declarar-se fechados antes de gates externos (Actions, Engine 27.x, VPS).
+
+## Leitura corrente após a harmonização IaC — 2026-10-23
+
+As porcentagens e recomendações originais abaixo são **históricas**, não medem o
+escopo IaC acrescentado e não devem disparar execução de passos já substituídos.
+O rastreamento ativo é:
+
+| Plano | Papel / dono |
+| --- | --- |
+| [Padronização Docker v1.0](2026-10-09-docker-standardization-refactor-plan.md) | F0–F8 como fases e baseline; contrato-alvo/handoff IaC harmonizado |
+| [Fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12: lacunas locais, runtime/proveniência, F7/F8 |
+| [Integração KG/MCP](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | A1–A7 KG, B1–B7 MCP/browser, C1 CI e C2–C4 alvo VPS |
+| [Senha única](2026-10-11-single-password-acceptance-closure-plan.md) | A1–A9 de autenticação; rehearsal e handoff de persistência/segredos |
+| [Integração IaC](2026-10-23-iac-alignment-execution-plan.md) | I1–I9: arbitragem, runtime, Docker Hub/CI de release, bootstrap/layout/locks, índice e aquisição MCP, recuperação e aceite IaC |
+
+**Mudanças de planejamento:** Docker Hub como alvo oficial aberto (namespace pendente),
+GitHub Actions como publicador e índice GitHub curado; Compose só core + broker,
+manager nativo só seus MCPs. `local-only`/`--pull=never` permanecem baseline de runtime,
+não proibição da integração OCI futura. Aquisição explícita por digest, compatibilidade
+e policy são I1/I6; o antigo catálogo OCI compartilhado não é dependência obrigatória.
+
+I4/C2 reconciliam `~/.nanobot`, `.percival` e `/srv/pblabs/` antes de migrar; não há rename
+automático. `deployment.lock` pertence ao deploy externo; `capabilities.lock` é export
+do manager. `0.1.0` já é a primeira versão pretendida; alinhar o metadado herdado não é
+uma nova decisão de versão. Broker existente não é reimplementado, e sua existência
+não equivale a isolamento total/aceite VPS. Os sete planos em `closed/` continuam
+histórico, com [mapa de sucessores](closed/README.md).
+
+Nenhum item foi executado ou fechado por esta revisão; estimativas anteriores não
+foram recalculadas. Publicação, deploy, aceite local e release B13 continuam separados.
 
 ## Situação consolidada
 

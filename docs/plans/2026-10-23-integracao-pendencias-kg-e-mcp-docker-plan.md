@@ -6,6 +6,11 @@
   pendência abaixo foi executada; a auditoria não encontrou item integralmente concluído, mas
   corrigiu premissas erradas e dependências não declaradas. Veredictos e evidência:
   [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+- **Revisão IaC (2026-10-23):** contratos de distribuição/deployment e novos trabalhos têm
+  dono em I1–I9 do [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
+  C1 continua dono da evidência remota de conformance; C2–C4 continuam donos dos gates
+  no alvo. Catálogo antigo e migração obrigatória para `.percival` deixam de ser
+  pressupostos futuros; ver C2/C3 e §4. Nenhum item foi fechado por esta revisão.
 - **Autoridade:** este plano consolida, não amplia, escopo. Não autoriza tag, release,
   publicação, escrita em VPS, cutover de dados reais nem mudança de compatibilidade do broker.
   Cada item preserva o critério de aceite e o responsável do plano de origem.
@@ -28,6 +33,12 @@ mantém a **Trilha A (KG)** e a **Trilha B (MCP Docker)** com fechamentos indepe
 às duas.
 
 ## 2. O que já está entregue e não é refeito
+
+O broker/manager existente é a base da integração P0-F da IaC, não trabalho a
+reimplementar. As evidências abaixo não provam isolamento total: o risco indireto
+B23–B25 (host R/W e acesso ao broker a partir do gateway) continua explícito e precisa
+de reavaliação no alvo. Adapter de índice, aquisição autorizada por digest e export
+de `capabilities.lock` são lacunas distintas, em I6/I7.
 
 | Origem | Entregas fechadas | Evidência |
 | --- | --- | --- |
@@ -74,10 +85,10 @@ padronização Docker, para que exista **um único dono por gate**. O detalhe op
 
 | # | Pendência | Origem | Critério de aceite | Resp. | Estado |
 | --- | --- | --- | --- | --- | --- |
-| C1 | GitHub Actions verde no SHA candidato | MCP Docker first-class (B21/F5), padronização F7 P4.3 e F4/F5 closure 4b (#3) | Jobs obrigatórios verdes nos **sete** repos (gateway/broker + 6 MCPs), `headSha` conferido, manifest/SBOM baixados e confrontados com fonte, lock e digest de base. Fixar o SHA candidato por repo **após** D2/D3/D4, para não promover imagem de candidata errada. O CI já está implementado no repositório; falta a evidência remota | operador (`gh auth`) + agente | **bloqueado, causa corrigida** — o `gh` **existe e executa** (2.102.1): `auth status` responde "not logged into any GitHub hosts". O atalho `~/.local/bin/gh` falha antes, porque o mise recusa `~/.config/mise/config.toml` como não confiável. A ação é `gh auth login` (ou `mise trust`), não instalar o CLI |
-| C2 | Inventário real do VPS | MCP Docker first-class (B24), padronização F7 P5 | `scripts/percival-vps-inventory.sh > vps-inventory.json` executado no host e anexado ao [relatório F0](../reports/2026-10-07-mcp-docker-f0-inventory-and-feasibility.md) §7.3; Client/Server, data-root, socket/GID, submounts, portas, proxy e diretórios capturados separadamente; divergência relevante (GID do socket, data-root não-canônico, portas já publicadas) vira decisão de produto. Não transferir `.env`, config, token, `docker inspect` integral ou valores de secret para relatório versionado | operador + agente | **bloqueado** — sem VPS identificada; `~/.percival`, destino de C3, não existe |
-| C3 | Migração, rollback e topologia no VPS | MCP Docker first-class (B23/B24), padronização F7 P5 | Backup verificado de `~/.nanobot` → `.percival` com rollback ensaiado; Compose no **Engine 27.x** com socket apenas no broker, mounts/UID/GID/token e persistência `.percival`; browser WebUI + gateway + broker reais; restore/journal, boot/recreate e as oito famílias no alvo. O overlay local de Engine 29 não prova compatibilidade no VPS | operador + agente | **bloqueado** — depende de C2 |
-| C4 | Novo aceite formal do operador para o deploy | MCP Docker first-class (B24), padronização F7 P5 | Aceite **no alvo**, distinto do aceite local de B25, cobrindo risco indireto residual, mounts/UID/GID, persistência `.percival` e rollback; reconciliação pós-cutover de instâncias por gestor, pins e dados, com checklist de resultado, hashes/URLs, limitações e decisões. Nenhum deploy sem autorização específica e plano de retorno próprio | operador | **bloqueado** — exige C2/C3 |
+| C1 | GitHub Actions verde no SHA candidato | MCP Docker first-class (B21/F5), padronização F7 P4.3 e F4/F5 closure 4b (#3) | Jobs obrigatórios verdes nos **sete** repos (gateway/broker + 6 MCPs), `headSha` conferido, manifest/SBOM baixados e confrontados com fonte, lock e digest de base. Fixar candidatos finais após decisões D2/D3/D4 e mudanças I1/I2 que os afetem; rodar conformance intermediária sem esperar essas decisões, revalidando o candidato alterado. Conformance não publica: publicação/digest OCI/pull anônimo são I3/I5 | operador (`gh auth`) + agente | **bloqueado no baseline** — `gh` 2.102.1 instalado e sem login; o atalho via mise também exige configuração confiável. Reverificar autenticação antes da execução, sem registrar credenciais |
+| C2 | Inventário real do VPS e mapeamento de layout | MCP Docker first-class (B24), padronização F7 P5; handoff I4 | Inventário read-only por `scripts/percival-vps-inventory.sh` anexado ao [relatório F0](../reports/2026-10-07-mcp-docker-f0-inventory-and-feasibility.md) §7.3; Client/Server, data-root, socket/GID, submounts, portas, proxy e diretórios separados. Confirmar destino absoluto e mapping entre estado atual `~/.nanobot`, proposta histórica `.percival` e layout IaC `/srv/pblabs/`; preservar path interno suportado. Divergência relevante vira decisão; não copiar `.env`, config, token ou inspect integral para relatório versionado | operador + agente | **bloqueado** — sem VPS identificada; layout final depende de I1/I4 e do inventário, não da mera existência de `~/.percival` |
+| C3 | Implantação/migração, rollback e topologia no VPS | MCP Docker first-class (B23/B24), padronização F7 P5; I4/I8 | Backup/restauração do estado completo para o destino aprovado em C2/I4, sem rename automático nem divisão em paths internos não suportados; retorno ensaiado. Compose de deployment por tag+digest, **sem build no VPS**, gateway+broker compatíveis, socket só no broker, UID/GID/token/coberturas e persistência verificados. Engine Server **27.x** continua gate atual; fixar versão homologada pelo host tooling, sem usar overlay Engine 29. Browser + gateway + broker, journal/restore/boot/recreate/oito famílias no alvo; locks sob seus donos, sem avanço em falha | operador + agente | **bloqueado** — depende de C2 e I4; deploy público exige I3/I8 aplicáveis ao candidato |
+| C4 | Novo aceite formal do operador para o deploy | MCP Docker first-class (B24), padronização F7 P5 | Aceite **no alvo**, distinto de B25 e da publicação, cobrindo risco indireto residual, mounts/UID/GID, destino real aprovado, locks, backup e retorno; reconciliação pós-cutover por gestor, pins/dados e digests core, hashes/URLs, limitações e decisões. Nenhum deploy sem autorização específica e plano de retorno próprio | operador | **bloqueado** — exige C2/C3 |
 
 ## 4. Sobreposições com planos ativos (quem é dono de quê)
 
@@ -88,7 +99,8 @@ Nenhum item deve ser duplicado nem perdido quando dois planos talkam do mesmo ga
 | C1 (Actions) e C2–C4 (VPS, migração, aceite) | este plano | absorveram em 2026-10-23 os passos de CI e VPS dos dois planos de fechamento da padronização Docker; o [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) não os repete. O [plano de fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md) mantém P3/P4 próprios para o candidato de autenticação; uma execução de Actions ou de VPS pode satisfazer todos, desde que cada plano registre sua própria evidência e aponte para o run/inventário comum |
 | Credencial `operator-admin` exposta, proveniência/identidade, permissão do Khan, duplicatas, OpenSSH, walkthrough do manual, skill F8 | [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | itens D1–D11; a assinatura F7 (D12) depende deste plano e da autenticação |
 | A1–A9 (autenticação: Engine 27.x, elevação, proxy TLS, expiração, senha alterada, cutover real) | [fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md) | já transferido do plano de senha única; não repetir aqui |
-| Catálogo OCI compartilhado (`source.type: "repository"`, `trustedCatalogs`) | fase posterior | B20 reserva o schema e rejeita o tipo em v1; fora de escopo |
+| Índice público PBLabs e aquisição OCI (`static-json` + digest) | [integração IaC, I1/I5/I6/I7](2026-10-23-iac-alignment-execution-plan.md) | Substitui como alvo a dependência futura de `positronic-mcp-catalog` OCI. B20 continua baseline local: tipo `repository` reservado/rejeitado em v1 e `trustedCatalogs` não são APIs prontas; migração/compatibilidade exigem contrato explícito. Docker MCP Catalog é opcional, não substituto do manager |
+| Bootstrap/Compose de referência, `deployment.yaml`/`.lock`, `/srv/pblabs/` | [integração IaC, I4/I8](2026-10-23-iac-alignment-execution-plan.md) | Tooling externo controla core; manager exporta `capabilities.lock`. C2–C4 verificam o alvo e consomem esses contratos, sem criar outro dono de locks/MCPs |
 | `remote_auth_required` no browser-proxy SSH | decisão de escopo | permanece fail-closed, acompanhamento separado |
 
 ## 5. Ordem de execução e dependências
@@ -101,8 +113,8 @@ A6 depende de A5            └── exige C2 (inventário) antes de qualquer e
 A7 depende de release estável + A6
 ```
 
-- **Ondas A e B** não dependem de nada externo e podem correr em paralelo, com fixtures
-  descartáveis. São o caminho de menor perturbação e devem começar por **B2** e **B3**, que são
+- **Itens locais independentes das ondas A e B** podem avançar com fixtures descartáveis;
+  A2/A4–A7 mantêm suas dependências de dados/provedor/operador. Começar por **B2** e **B3**, que são
   executáveis hoje em componente e domínio; **B1** deixa de ser o ponto de partida porque não é
   executável antes do harness de browser.
 - **Harness de browser para a WebUI (dependência nova, 2026-10-23).** B1, B4 e B6 — e também A1 e
@@ -115,8 +127,13 @@ A7 depende de release estável + A6
 - **A2 depende de A5**: o benchmark exige conjunto representativo, e A5 é o que o cria. Medido em
   fixture vazia, o resultado não decide política.
 - **A5 → A6** é a única cadeia de dados que depende do operador; ela não trava as ondas A/B.
-- **C1** só espera autenticação do GitHub CLI; **C2–C4** esperam um host identificado.
-- Não há prazo ou custo confiável até C2 e A5; reestimar depois da primeira execução de A/B.
+- **C1** espera autenticação e candidatos verificáveis; não é gate de publicação I3/I5.
+  **C2** espera host identificado; **C3** também espera contrato/receita I4 e, para o
+  deployment público, imagem I3 e ensaios **locais** de recuperação I8. A parte de I8
+  no alvo é produzida junto de C3/C4, sem dependência circular. O ensaio DIND local
+  não precisa aguardar registry/namespace nem host remoto.
+- Não há prazo ou custo confiável até C2, A5 e contratos I1; reestimar após inventário
+  e primeira execução dos itens locais. Escopo KG não muda por integrar a IaC.
 
 ## 6. Riscos e critérios de parada
 
@@ -129,6 +146,8 @@ A7 depende de release estável + A6
 | Rebaixar o gate de Engine para forçar teste | o broker aceita Client 27.x/29.x mas **exige** Server 27.x; se o alvo não for 27.x, registrar divergência e parar |
 | Congelar dados reais durante ensaio | B6/B7 e A6 operam sobre cópia; backup verificado antes de qualquer mudança de modo |
 | Perder rastreabilidade ao arquivar | cada item mantém origem, critério e responsável; a consolidação não apaga histórico dos planos |
+| IaC vira segundo dono de MCP/estado | Compose atualiza apenas core; manager mantém `tools.mcpDocker`/CAS e exporta seu lock; descoberta remota não altera permissões por si só |
+| Mudar layout sem proteger o novo estado | I4/C2 aprovam caminhos absolutos e aliases; testar máscaras de todos os paths reais de estado/segredos e data-root antes do spawn |
 
 **Parar e escalar** se um item exigir waiver implícito, `docker rm` em massa, edição manual de
 `config.json`/journal, exposição de segredo em log ou artefato, ou se a topologia do alvo
@@ -146,3 +165,8 @@ com o repositório e com o host; veredictos e evidência `arquivo:linha` em
 executado. Três premissas foram corrigidas: B5 apontava para o repositório errado; A2 era medível sem
 A5; B1/B4/B6 eram executáveis sem harness de browser. Sete defeitos novos, fora de qualquer plano,
 estão listados em §5 do relatório.
+
+**2026-10-23 — harmonização IaC (planejamento, sem execução).** C2/C3 passam a
+consumir o layout/receita I4 em vez de impor rename `.nanobot`→`.percival`; C1
+distingue conformance de publicação I3/I5. Índice e aquisição OCI têm dono em I5–I7,
+sem reabrir o catálogo antigo nem duplicar o broker. Gates e aceites continuam abertos.

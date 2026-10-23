@@ -310,4 +310,8 @@ Os Itens 1 a 7 são propostas sujeitas à validação visual, funcional e contra
 
 O plano não autoriza publicação, release, alteração de deployment ou execução de mutações em servidores MCP reais. A implementação deve ser verificada em ambiente controlado, usando fixture de UI/gestão e broker isolado; `deep-research` pode servir de fixture visual/read-only quando apropriado, sem reinstalá-lo nem alterar seu acesso, secrets, rede ou imagem real. Alterações de host/rede devem usar servidor descartável e gates Browser + gateway + broker, mantendo os gates VPS/deploy separados.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](../closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](../2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.
+**Sucessão corrigida em 2026-10-23:** pendências da UI/MCP têm dono no
+[plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), não
+na refatoração de senha única. Novos contratos de catálogo/aquisição pertencem ao
+[plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
+Ver o [mapa dos arquivados](README.md); contratos e relatos acima permanecem históricos.

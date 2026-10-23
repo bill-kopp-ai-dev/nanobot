@@ -129,4 +129,8 @@ Persistência: pasta .percival no host --> /home/nanobot/.nanobot no gateway
 - Relatório final: SHA candidato, versões de SDK/Engine/CLI, fontes e digests das fixtures, rede/mounts efetivos redigidos, métricas de inicialização/chamada, testes positivos/negativos e falhas/mitigações, caminhos **diretos** negados e riscos **indiretos** aceitos, persistência `.percival`, decisão do gate e aceite do operador. Evidência sintética não substitui ensaio no deployment alvo.
 - Cronograma/custo continuam indefinidos até F1. `main`/CI verdes não equivalem a tag, publicação ou versão 0.1.0 pronta; seguir [governança de release](../../percival-governance.md) e sign-off do operador no SHA exato.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](../closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](../2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.
+**Sucessão corrigida em 2026-10-23:** gates MCP/browser/CI/VPS têm dono no
+[plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), não
+na refatoração de senha única. Evolução de distribuição/catálogo/locks pertence ao
+[plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
+Ver o [mapa dos arquivados](README.md); contratos e relatos acima permanecem históricos.
