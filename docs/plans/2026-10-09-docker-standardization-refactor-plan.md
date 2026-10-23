@@ -396,6 +396,27 @@ exige autorização específica e a sua própria evidência.
 
 **Plano de fechamento 2026-10-10 (histórico):** [F7 — aceite de operação e manutenção](closed/2026-10-10-f7-operations-acceptance-closure-plan.md). O quadro abaixo contém snapshots anteriores; o plano de fechamento confronta seus itens com os relatórios F4/F5 e o runtime observado antes de atualizar cada status.
 
+**Reverificação de 2026-10-23 (resultado; o quadro acima não muda).** Os onze itens foram
+confrontados com o código e com as imagens. Nenhum está integralmente concluído, e três foram
+corrigidos em premissa. Mapa item → dono atual → situação:
+
+| # | Item (resumo) | Dono hoje | Situação em 2026-10-23 |
+| --- | --- | --- | --- |
+| 1 | F3 findings sem waiver | — | **encerrado** pelo próprio critério "documentação e triagem completas"; o resíduo Crítico migrou para #11 |
+| 2 | Provisionar stack gateway/broker | — | **encerrado**; o canário F7 provou 6 MCPs nos dois gestores |
+| 3 | Rotacionar a credencial exposta | D1 | **aberto** — arquivo de credencial existe, rotação adiada pelo operador |
+| 4 | Concluir F4 e F5 | D7, D8, C1 | **parcial** — restore e rollback provados; falta runtime nos artefatos finais, pins por checkout limpo e Actions |
+| 5 | Identidade e procedência | D2 | **aberto** — levantamento feito, decisão de atribuição pendente |
+| 6 | Manual de operação/rollback | D9 | **parcial** — manual criado e consistência com comandos verificada; walkthrough e retenção pendentes |
+| 7 | Allowlist do Khan e duplicatas | D3, D4 | **aberto** — e o critério de D3 estava errado: não há modo somente leitura |
+| 8 | Fechar o portão de release B13 | D12 | **aberto** — dependente de D1–D10, C1–C4 e A1–A9 |
+| 9 | Skill de gestão F8 e `AGENTS.md` | D11 | **parcial** — decisão extensão-vs-skill não tomada; `Notes` e `AgentMail` sem `AGENTS.md` |
+| 10 | Proveniência de commits | D2 | **aberto** — número de identidade verificado; política pendente |
+| 11 | Resíduo OpenSSH e VEX | D6 (OpenSSH), C1 (Actions) | **aberto, maior severidade** — gateway ainda em `openssh-client` 10.0p1; waiver não aprovado |
+
+Evidência completa em
+[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+
 **Progresso do plano de fechamento 2026-10-10 UTC** (relatórios e artefatos produzidos nesta sessão; sem mutações em `main`/registry/remoto):
 
 - **P1 — Procedência e identidade (parcial):** [relatório de procedência](../reports/2026-10-10-f7-provenance-and-identity.md). Mapeamento de 6 identidades distintas em 8 repos; nenhum `.mailmap` aplicado; nenhuma reescrita de commit; sem push. Decisão de `.mailmap` × reescrita × publicação exige confirmação do operador; nenhum commit está assinado por GPG/SSH.

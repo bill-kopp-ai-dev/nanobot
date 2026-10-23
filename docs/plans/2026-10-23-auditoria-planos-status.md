@@ -210,6 +210,35 @@ execução registrada; plano superado pelo de senha única.
    afirma 19 testes em `mcp-containers.test.tsx`; o arquivo atual tem 17 (2 removidos por
    `58d4a193` com o plano de senha única). Obsolescência documental, não lacuna de escopo.
 
+## Reverificação contra o código — 2026-10-23
+
+As porcentagens acima são uma estimativa de leitura documental. No mesmo dia, cada pendência foi
+confrontada com o código, os testes, as imagens e o host, em
+[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+
+**Nenhum item foi encontrado integralmente executado**, o que confirma a leitura: quase todo item
+aberto tem um componente de execução — rodar, no alvo, com registro — que teste local não substitui.
+O que a reverificação mudou foi a **correção de premissas**, que era o risco maior de um plano que
+fala em percentuais:
+
+| Achado | Efeito no plano |
+| --- | --- |
+| D10 descreve um bug em `positronic mcp server install-local`, **que não existe** nesta máquina | item reescrito: o problema real é a skill global documentar 11 comandos inexistentes e o caminho suportado não estar registrado |
+| B1, B4 e B6 (e A1, e a falsa falha de health de D9) exigem browser real, e a WebUI **não tem** ferramenta de browser | nova dependência explícita: harness de browser, com prior art no KG (CDP) |
+| A2 exige medição em conjunto representativo, que A5 cria | dependência A2 → A5 declarada; medição em fixture vazia não decide política |
+| D7: o broker do Percival está correto, mas o consumidor Positronic passa `--init` sobre imagens que já usam tini | D7 passa a ter uma parte que é **defeito de código**, não falta de evidência |
+| D3 oferece "somente leitura" como alternativa; o servidor Khan **não tem** modo somente leitura | a restrição passa a ser escolha entre aceitar a superfície ou implementar o mecanismo |
+| B5 aponta a chave i18n no repositório `spa`; ela está em `nanobot/webui/` | auditoria no repositório errado concluiria que a chave não existe |
+| Baseline do plano de senha única: Engine 29.7.2 e "`gh` não instalado" | hoje é **29.9.1** e `gh` 2.102.1 **instalado e sem login**; a ação é `gh auth login` |
+| D4 (mapa container→ID) e D8 (guard de árvore suja) já têm metade da evidência | escopo reduzido ao que falta; o guard do gateway já existe (`percival-docker-build.py:96`) |
+| B2: cobertura real de UI é **1 dos 11** casos | item passa a ser lista com estado, planejável |
+
+Sete defeitos novos, que **não constavam de nenhum plano**, estão em §5 do relatório: `--init`
+duplicado pelo consumidor (N1), label em SHA curto no OSM incompatível com o verificador de
+manifesto (N2), skill documentando comandos inexistentes (N3), três MCP sem contrato de imagem
+(N4), chave i18n morta em 10 locales (N5), `Notes` e `AgentMail` sem `AGENTS.md` (N6) e o atalho
+`gh` bloqueado por configuração `mise` não confiável (N7).
+
 ## Encaminhamento recomendado
 
 1. Tratar o grupo 1 como **pronto para aceite**, não para arquivo: o ensaio em Engine 27.x
