@@ -440,12 +440,45 @@ sem reexecução de testes de produto ou containers.
   Corrigido em `e076f29`, com rebuild e verificação de ausência na imagem.
 - **Artefato de evidência:** §2.2 deste plano e §7 do
   [relatório de proveniência](../reports/2026-10-10-f7-provenance-and-identity.md).
-- **Mutações:** `.mailmap` e `.dockerignore` commitados localmente nos repos MCP;
-  imagens construídas localmente. **Sem push, sem promoção, sem alteração de
-  instância ou de pin de runtime.**
+- **Mutações:** `.mailmap` e `.dockerignore` commitados nos repos MCP; imagens
+  construídas localmente. Sem promoção, sem alteração de instância ou de pin de
+  runtime. Push para `origin/main` executado depois, com autorização explícita do
+  operador (registrado abaixo).
 - **Limitações:** promoção das imagens novas depende de D8 (aprovação, canário e
-  rollback independentes); os pins de runtime seguem nos IDs antigos. Push dos
-  `.mailmap` não executado. Política de assinatura de commits continua aberta e
-  independente.
+  rollback independentes); os pins de runtime seguem nos IDs antigos. Política de
+  assinatura de commits continua aberta e independente.
 - **Estado:** **D2 fechado.** D3–D12 inalterados; o encerramento consolidado
   continua bloqueado por D3–D10 e pelos gates externos C1–C4 e A1–A9.
+
+**2026-10-23 — push de D1/D2 para `origin/main` nos sete repositórios
+(autorização explícita do operador).**
+- **Commits enviados:** `nanobot` `5b38c3b1..1fc7903d` (três commits: D1,
+  `.mailmap`, D2), `percival-notes-mcp` `78c2810`,
+  `percival-agentmail-mcp` `54461f4`, `percival-weather-mcp` `b5dd4eb`,
+  `percival-khan-calendar` `ce69267`, `percival-osm` `55aa673`,
+  `percival-deep-research` `e076f29` (dois commits: `.mailmap` e
+  `.dockerignore`). Após o push, todos reportam `ahead=0 behind=0`.
+- **Nenhum workflow publica imagem em push de `main`:** os seis MCPs só constroem
+  candidato local (`percival-osm:ci`) e publicam sob tag `v*`. O push disparou
+  apenas CI de build/test, sem publicação em registry.
+- **CI disparado nos seis MCPs:** AgentMail e Khan **verdes**; Notes, Weather e
+  OSM **vermelhos**, com as mesmas causas e nos mesmos passos já vermelhos em
+  2026-10-10 (antes deste trabalho): Notes "Inspect identity and privilege
+  posture", Weather "Resolve image metadata", OSM "Run `uv sync --locked`".
+  Deep Research reprovou em "Lint and check formatting". **Nenhuma dessas
+  falhas foi introduzida pelos commits do D2** — os passos falhos são os mesmos
+  e os repos já estavam vermelhos em `origin/main` antes do push.
+- **`nanobot` não gerou run:** o CI do core tem `paths-ignore` para `docs/**`, e
+  os três commits enviados só tocam `docs/**` mais `.mailmap` na raiz. Nenhum
+  check-run foi registrado para `8e052162`, `7d2312a6` nem `1fc7903d`. O
+  gate de conformance do core continua sem evidência nova neste SHA; disparar
+  `workflow_dispatch` autenticado é decisão do operador.
+- **Ressalva de visibilidade:** a API do GitHub reporta os sete repositórios
+  como `private=false` / `visibility=public`, e o fetch anônimo responde HTTP
+  200. Isso diverge do pressuposto de "repositório privado de desenvolvimento"
+  do [AGENTS.md do projeto](../../AGENTS.md) e da
+  [decisão de governança](../percival-governance.md). **Este achado não foi
+  tratado aqui**: alterar visibilidade e a política de disclosure é ato do
+  operador, fora do escopo do D2, e precisa ser reconciliado antes de I3.4.
+- **Estado:** **D2 fechado e enviado.** Sem promoção de imagem, sem mudança de
+  pin de runtime, sem tag e sem publicação em registry.
