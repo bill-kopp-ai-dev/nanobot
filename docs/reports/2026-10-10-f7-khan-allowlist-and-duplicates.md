@@ -1,7 +1,7 @@
 # F7 — Khan allowlist e duplicatas Positronic (P2, diagnóstico)
 
 - **Data:** 2026-10-10 UTC.
-- **Escopo:** pacotes P2 do [plano de fechamento F7](../plans/2026-10-10-f7-operations-acceptance-closure-plan.md), pendências #7 e #8 do plano principal.
+- **Escopo:** pacotes P2 do [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md), pendências #7 e #8 do plano principal.
 - **Método:** leitura read-only de configurações Positronic e Percival, mapeamento de containers MCP por PID pai e por janela de início, comparação com clientes ativos. Nenhuma mutação em registries, em containers, no broker ou nos pinos.
 - **Limitação:** a atribuição por PID pai é uma inferência estrutural. Containers órfãos seriam PIDs cujo pai já morreu; no snapshot atual, todos os PIDs pai estão vivos, então não há evidência de órfão. O encerramento dos clientes MCP é o que reciclaria os containers `--rm`; enquanto a sessão Positronic (PID 3758) estiver ativa, esses containers persistem por design.
 

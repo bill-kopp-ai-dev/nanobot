@@ -64,7 +64,7 @@ isolada em Python 3.12:
 - SHA candidato, destino de distribuição e sign-off final indefinidos.
 
 Gate de publicação: seguir [checklist Percival](releasing.md),
-[F9](plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release),
+[F9](plans/closed/kg-integration-plan.md#f9--skills-documentação-migração-e-release),
 smoke de wheel/sdist isolado, ensaio em **cópias de bundles reais**,
 validação operacional do áudio e CI Linux no SHA candidato. O agente redige
 changelog, limitações e referências; o operador assina a versão final antes

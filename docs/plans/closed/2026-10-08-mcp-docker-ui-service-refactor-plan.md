@@ -1,7 +1,8 @@
 # Plano de refatoração — UI e serviço de servidores MCP Docker
 
+- **ARQUIVADO em 2026-10-23.** As etapas de implementação deste plano estão concluídas e evidenciadas; as pendências remanescentes foram **consolidadas** no [plano integrado de pendências](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), que é o único dono dos gates em aberto. Este documento não é reaberto: mantém o histórico de decisões, contratos e execução, e as decisões do operador (B* / D*) continuam vigentes. Mudança de escopo pertence ao plano integrado ou a um sucessor. Ver também a [auditoria de planos](../2026-10-23-auditoria-planos-status.md).
 - **Revisão:** 2026-10-08 / revisão de executabilidade após análise das 15 capturas e do código atual.
-- **Estado:** implementação local em andamento; evidências e gates abertos em [relatório de execução](../reports/2026-10-08-mcp-docker-ui-refactor-execution.md).
+- **Estado:** implementação local em andamento; evidências e gates abertos em [relatório de execução](../../reports/2026-10-08-mcp-docker-ui-refactor-execution.md).
 - **Objetivo:** tornar a instalação e a gestão de servidores MCP Docker claras e previsíveis na WebUI, mantendo alinhados os fluxos do gateway, domínio e broker.
 - **Contexto:** a capability MCP Docker possui UI de leitura e gestão das oito famílias operacionais, com F3/F4/F5 implementadas localmente. O gate Browser WebUI + gateway + broker continua aberto; este plano de refatoração não substitui nem fecha os gates de deployment do plano principal.
 - **Plano de execução relacionado:** [MCP Docker first-class no Percival](2026-10-06-mcp-docker-first-class-execution-plan.md).
@@ -309,4 +310,4 @@ Os Itens 1 a 7 são propostas sujeitas à validação visual, funcional e contra
 
 O plano não autoriza publicação, release, alteração de deployment ou execução de mutações em servidores MCP reais. A implementação deve ser verificada em ambiente controlado, usando fixture de UI/gestão e broker isolado; `deep-research` pode servir de fixture visual/read-only quando apropriado, sem reinstalá-lo nem alterar seu acesso, secrets, rede ou imagem real. Alterações de host/rede devem usar servidor descartável e gates Browser + gateway + broker, mantendo os gates VPS/deploy separados.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](2026-10-11-percival-single-password-auth-refactor-plan.md).
+Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](../closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](../2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.

@@ -1,7 +1,7 @@
 # F7 — procedência e identidade dos commits (P1)
 
 - **Data:** 2026-10-10 UTC.
-- **Escopo:** pacote P1 do [plano de fechamento F7](../plans/2026-10-10-f7-operations-acceptance-closure-plan.md), pendência #10 do plano principal.
+- **Escopo:** pacote P1 do [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md), pendência #10 do plano principal.
 - **Método:** varredura read-only dos oito repos; comparação entre autor, committer e configuração Git local; mapeamento para identidades conhecidas. Nenhuma mutação em `main`, nenhum push, nenhuma alteração de configuração Git, nenhum `.mailmap` aplicado.
 - **Atenção:** este relatório não credita autoria por inferência. Identidades com nome/exemplo/domínio do agente são sinalizadas como automação local; só após decisão do operador e evidência de que a mesma pessoa é responsável é que se pode aplicar `.mailmap` ou reescrever commits.
 

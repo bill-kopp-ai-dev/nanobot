@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-11.
 - **Tipo:** diagnóstico e recomendações para a futura infraestrutura de instalação; não é decisão de publicação nem aceite de release.
-- **Escopo examinado:** `Dockerfile`, `entrypoint.sh`, `docker-compose.yml`, `docker-compose.mcp-broker.yml`, `nanobot/cli/auth.py`, `nanobot/access/credential.py`, `nanobot/webui/gateway_auth.py`, `webui/src/App.tsx`, `docs/deployment.md` e o [plano de senha única](../plans/2026-10-11-percival-single-password-auth-refactor-plan.md).
+- **Escopo examinado:** `Dockerfile`, `entrypoint.sh`, `docker-compose.yml`, `docker-compose.mcp-broker.yml`, `nanobot/cli/auth.py`, `nanobot/access/credential.py`, `nanobot/webui/gateway_auth.py`, `webui/src/App.tsx`, `docs/deployment.md` e o [plano de senha única](../plans/closed/2026-10-11-percival-single-password-auth-refactor-plan.md).
 
 ## Conclusão
 

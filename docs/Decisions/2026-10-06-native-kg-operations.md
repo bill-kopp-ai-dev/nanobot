@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-06
 - **Status:** decisão de implementação; autorização de release pendente
-- **Escopo:** [plano KG, F9](../plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release)
+- **Escopo:** [plano KG, F9](../plans/closed/kg-integration-plan.md#f9--skills-documentação-migração-e-release)
 
 ## Decisão
 

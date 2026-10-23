@@ -15,7 +15,7 @@ Para Notes e Khan, em ambos os gestores (Positronic e Percival):
 - **Positronic:** instalação via CLI `install-local` falhou silenciosamente (yargs 18 + bug `console.log` no handler; o valor literal `local` do default `--scope=local` é o único output). Workaround usado: criar entradas diretas em `~/.positronic/mcp/registry.json` com UUIDs e deixar o CLI `configure` e `update-image` aplicarem o resto. O comando `install-local` continua falhando — bug separado, não corrigido nesta sessão.
 - **Percival:** as mutações passaram pelo `helpers/deploy_mcp.py` via WebSocket com `operator-password` (`meusMCPs` validado contra `operator.json`), com `expected_revision` (config) e `expected_server_revision` (per-server) ambos enviados.
 - **Notas** passou tanto em `get_stats` (verificação leve que detecta o arquivo de fixture) quanto em `notes_read` (verificação de conteúdo).
-- **Khan** sofre de um bug separado: o handler `call_tool` do FastMCP 3.4.4 não devolve o frame JSON-RPC ao cliente, ainda que `khal` retorne código 0 em <2s. A verificação foi feita no nível do filesystem + stderr (khal.db/khal.conf preservados, khal call com returncode 0). Esse comportamento está documentado em [khan fixture test #56-58](../plans/2026-10-10-f4-f5-closure-plan.md).
+- **Khan** sofre de um bug separado: o handler `call_tool` do FastMCP 3.4.4 não devolve o frame JSON-RPC ao cliente, ainda que `khal` retorne código 0 em <2s. A verificação foi feita no nível do filesystem + stderr (khal.db/khal.conf preservados, khal call com returncode 0). Esse comportamento está documentado em [khan fixture test #56-58](../plans/closed/2026-10-10-f4-f5-closure-plan.md).
 
 Resultado (item 2):
 

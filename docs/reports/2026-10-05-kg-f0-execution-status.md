@@ -1,7 +1,7 @@
 # KG integration execution: F0 transport checkpoint
 
 Date: 2026-10-05. Scope: partial F0 of
-[`../plans/kg-integration-plan.md`](../plans/kg-integration-plan.md). This is
+[`../plans/kg-integration-plan.md`](../plans/closed/kg-integration-plan.md). This is
 **not** an F0 exit or a native KG release.
 
 ## Evidence acquired
@@ -65,7 +65,7 @@ component call sites, not just the optional TS adapter parameter.
    `flock` in a local test. The Percival release is **Linux-only** (operator
    decision 2026-10-06, §B4): the `msvcrt` backend remains in the vendor for
    Windows developers but is no longer exercised by CI, smoke scripts or
-   release gates; macOS support is removed from `docs/plans/kg-integration-plan.md`
+   release gates; macOS support is removed from `docs/plans/closed/kg-integration-plan.md`
    and `.github/workflows/kg-platform.yml`.
 2. Register and compare 20 CM + 14 AK operational contracts, with workspace
    authorization at all read/write entry points and strict bundle selection
@@ -294,7 +294,7 @@ were adapted as built-in skills, not registered as additional operational tools.
 Evidence on 2026-10-06: `tests/kg` **31 passed, 2 skipped**; full `pytest -q`
 **9136 passed, 49 skipped, 1 warning** (355.80 seconds); `basedpyright nanobot`
 zero errors and `ruff check .` passed. A real-key smoke was not run. See the
-[F3 implementation note](../plans/kg-integration-plan.md#f3--cm-enrich-e-guidance-1-tool)
+[F3 implementation note](../plans/closed/kg-integration-plan.md#f3--cm-enrich-e-guidance-1-tool)
 for operational limits. The F0 gates above remain open; F9 skill usage and
 graph CLI validation remain pending.
 
@@ -771,7 +771,7 @@ commit is:
    critical path.
 3. **B4** — Linux-only documented support → closed by operator decision
    2026-10-06. `.github/workflows/kg-platform.yml`, `tests/kg/test_bundle.py`,
-   `docs/plans/kg-integration-plan.md` §2 item 7 and F0 bullet, `docs/kg-release-notes.md`
+   `docs/plans/closed/kg-integration-plan.md` §2 item 7 and F0 bullet, `docs/kg-release-notes.md`
    distribution/plataformas, `docs/kg-migration.md` install notes, and the F0
    report (above) all reflect Linux-only. The `msvcrt` backend remains in the
    vendor as a courtesy for local Windows development; it is not part of any

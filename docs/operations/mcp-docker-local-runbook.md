@@ -3,7 +3,7 @@
 - **Preparado em:** 2026-10-10 UTC; revisão 0.1.
 - **Escopo:** procedimentos de operação, atualização, rollback, incidente, revisão e retenção para os servidores MCP Docker que o Percival consome (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research) e para o gateway/broker. Este manual **não** substitui o [runbook de migração de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md), apenas convive com ele.
 - **Autoridade:** qualquer mutação real (instalar/atualizar/rollback/parar/remover) exige a interface suportada do gestor correspondente e a aprovação específica do operador. Nada aqui é executado implicitamente.
-- **Estado da padronização:** o documento nasce no fechamento F7. Os contratos F0–F5 que ele referencia estão registrados no [plano de padronização](../plans/2026-10-09-docker-standardization-refactor-plan.md) e no [plano de fechamento F7](../plans/2026-10-10-f7-operations-acceptance-closure-plan.md).
+- **Estado da padronização:** o documento nasce no fechamento F7. Os contratos F0–F5 que ele referencia estão registrados no [plano de padronização](../plans/2026-10-09-docker-standardization-refactor-plan.md) e no [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
 
 ## 1. Princípios
 
@@ -132,10 +132,10 @@
 ## 6. Links e procedimentos vizinhos
 
 - [Plano de padronização Docker](../plans/2026-10-09-docker-standardization-refactor-plan.md) — contratos F0–F5 e pendências numeradas.
-- [Plano de fechamento F7](../plans/2026-10-10-f7-operations-acceptance-closure-plan.md) — pacotes P0–P5 que precedem este manual.
+- [Plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md) — pacotes P0–P5 que precedem este manual.
 - [Runbook F5 — migração/recuperação de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md) — procedimento de cutover do estado Compose sidecar.
 - [Governança B10–B13](../percival-governance.md) — upstream/CI/release.
-- [Plano MCP Docker first-class](../plans/2026-10-06-mcp-docker-first-class-execution-plan.md) — gates VPS/Engine 27.x independentes.
+- [Plano MCP Docker first-class](../plans/closed/2026-10-06-mcp-docker-first-class-execution-plan.md) — gates VPS/Engine 27.x independentes.
 - [Relatório F4/F5](../reports/2026-10-10-f4-f5-closure-report.md) — restore/rollback já exercitados em fixture.
 - [Relatório F3 remediation/triage](../reports/2026-10-10-f3-remediation-triage.md) — base de findings e VEX.
 

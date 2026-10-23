@@ -385,7 +385,16 @@ exige autorização específica e a sua própria evidência.
 
 #### Pendências abertas
 
-**Plano de fechamento 2026-10-10:** [F7 — aceite de operação e manutenção](2026-10-10-f7-operations-acceptance-closure-plan.md). O quadro abaixo contém snapshots anteriores; o plano de fechamento confronta seus itens com os relatórios F4/F5 e o runtime observado antes de atualizar cada status.
+> **Fonte de verdade a partir de 2026-10-23:** o quadro abaixo e as seções de fase **não** são
+> mais o rastreamento corrente das pendências. O acompanhamento passou para o
+> [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+> (itens D1–D12), com os passos de Actions e VPS em C1–C4 do
+> [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
+> preservado como registro de 2026-10-10 e **não** deve ser atualizado item a item: as linhas
+> #2, #4, #5 e #6 já tinham evidência parcial posterior, e #11 foi dividida entre D6 (OpenSSH) e
+> C1 (Actions).
+
+**Plano de fechamento 2026-10-10 (histórico):** [F7 — aceite de operação e manutenção](closed/2026-10-10-f7-operations-acceptance-closure-plan.md). O quadro abaixo contém snapshots anteriores; o plano de fechamento confronta seus itens com os relatórios F4/F5 e o runtime observado antes de atualizar cada status.
 
 **Progresso do plano de fechamento 2026-10-10 UTC** (relatórios e artefatos produzidos nesta sessão; sem mutações em `main`/registry/remoto):
 
@@ -472,8 +481,12 @@ exige autorização específica e a sua própria evidência.
     verificação de SIGTERM/init no runtime efetivo e Actions com manifests/SBOM
     nos SHAs finais. `gh` continua sem autenticação nesta sessão. Antes de
     novos testes autenticados, conter a credencial `operator-admin` exposta em
-    documentos versionados. Sequência e critérios de aceite:
-    [`plano de fechamento F4/F5`](2026-10-10-f4-f5-closure-plan.md).
+    documentos versionados. Restore byte a byte e rollback A→B→A já foram
+    evidenciados em [F4/F5 closure report](../reports/2026-10-10-f4-f5-closure-report.md);
+    o que resta é C1 (Actions), D7 (runtime nos artefatos finais) e D8 (promoção dos pins).
+    Critérios de aceite: itens D7, D8, D12 do
+    [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+    e C1 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 5. **Documentar identidade e procedência dos commits** — uniformizar o
    committer em todos os repositórios via `mailmap` ou reescrevendo o commit
    do `percival-notes-mcp`, garantindo a proveniência exigida por B13.
@@ -576,4 +589,4 @@ privado de token e bind loopback, então migrar OSM/Weather em sequência pelo
 domínio do broker, mantendo rollback por image ID. Não iniciar a cópia antiga
 do gateway com bind não-loopback.
 
-Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](2026-10-11-percival-single-password-auth-refactor-plan.md).
+Superseded by [`2026-10-11-percival-single-password-auth-refactor-plan.md`](closed/2026-10-11-percival-single-password-auth-refactor-plan.md) (arquivado em `closed/` em 2026-10-23). As pendências de aceite de autenticação migraram para o [plano de fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md); os gates de MCP Docker, CI e VPS deste documento permanecem abertos e sem dono ativo.

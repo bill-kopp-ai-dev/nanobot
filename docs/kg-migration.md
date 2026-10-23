@@ -3,7 +3,7 @@
 **Estado em 2026-10-06:** roteiro para cópias e preflight; ainda não prova
 upgrade/rollback de bundles reais. O pacote atual é `nanobot-ai` 0.3.5;
 `percival-ai` não foi publicado. Interface nativa no
-[`plano F9`](plans/kg-integration-plan.md#f9--skills-documentação-migração-e-release).
+[`plano F9`](plans/closed/kg-integration-plan.md#f9--skills-documentação-migração-e-release).
 
 **SHA candidato Percival:** a definir. A prova em checkout limpo no commit
 F9 histórico consta das [notas candidatas](kg-release-notes.md) e deverá
