@@ -3,13 +3,15 @@
 - **Preparado em:** 2026-10-23, por fusão dos dois planos de fechamento da padronização
   Docker: o [F4/F5](closed/2026-10-10-f4-f5-closure-plan.md) e o
   [F7 — aceite de operação](closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
-- **Estado / revisão pós-I1/I2 (2026-10-23):** D1–D12 continuam sem fechamento
-  integral. I1 concluiu arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e
-  conformance local Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência
-  reduz a lacuna core de D7, acrescenta seus builds worktree ao resíduo de D8 e
-  atualiza as entradas de D9/D11/D12. I3 foi adiado pelo operador; I4–I9 permanecem
-  pendentes. Restore/rollback F4 anteriores continuam reaproveitáveis no seu escopo.
-  A [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md)
+- **Estado / revisão pós-I1/I2 (2026-10-23):** D1 está **fechado** (rotação executada
+  pelo operador, inventário do agente em §2.1, decisão de histórico registrada);
+  D2–D12 continuam sem fechamento integral. I1 concluiu arquitetura/handoff
+  (`eb4e3555`) e I2 concluiu runtime 1 e conformance local Linux/amd64 (`0e7ff072`),
+  ambos commitados/enviados. A evidência reduz a lacuna core de D7, acrescenta seus
+  builds worktree ao resíduo de D8 e atualiza as entradas de D9/D11/D12. I3 foi adiado
+  pelo operador; I4–I9 permanecem pendentes. Restore/rollback F4 anteriores continuam
+  reaproveitáveis no seu escopo. A
+  [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md)
   §3.4 é o snapshot anterior a I1/I2; suas referências `arquivo:linha` e ferramentas
   externas exigem reconferência, não são observações novas desta revisão.
 - **Plano de fase de origem:** [padronização Docker](2026-10-09-docker-standardization-refactor-plan.md),
@@ -23,7 +25,7 @@
   consolidadas no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 - **Revisão IaC (2026-10-23):** [I1–I9](2026-10-23-iac-alignment-execution-plan.md)
   tratam distribuição, contratos e handoff IaC. D1–D12 continuam donos das pendências
-  locais abaixo. [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md) e
+  locais abaixo (D1 fechado em 2026-10-23). [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md) e
   [handoff](../iac-p0-contract-handoff.md) decidem o alvo; [runtime 1](../agent-runtime-contract.md)
   e [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md) descrevem
   a implementação local. Atualização de plano não é nova execução nem aceite público.
@@ -98,7 +100,7 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 
 | # | Item | Critério de aceite | Origem | Resp. | Estado |
 | --- | --- | --- | --- | --- | --- |
-| D1 | Rotacionar a credencial `operator-admin` e avaliar a exposição no histórico | Rotação pela interface suportada, autenticação com o segredo novo e invalidação do anterior sem registrar nenhum dos dois; inventário de commits/arquivos afetados; decisão explícita sobre histórico privado/remoto. Sem este gate, nenhuma mutação autenticada em instância real | F7 P0 / Extra | operador (rotação) + agente (inventário) | **parcial, com o inventário feito** — o literal foi redigido da árvore em `07f28314`, que registra que o valor segue no histórico e no arquivo em disco; `~/.nanobot/mcp-docker/operator-password` **existe** (9 bytes, 0600) e o histórico contém o literal removido em ao menos `07f08314`, `07f28314`, `824b1db0`, `c17a4e23`, `a9ad9bf9`. Falta a rotação, adiada pelo operador (`f7-p4-p5-blockers.md:15`). **Não reproduzir o valor em documento versionado** |
+| D1 | Rotacionar a credencial `operator-admin` e avaliar a exposição no histórico | Rotação pela interface suportada, autenticação com o segredo novo e invalidação do anterior sem registrar nenhum dos dois; inventário de commits/arquivos afetados; decisão explícita sobre histórico privado/remoto. Sem este gate, nenhuma mutação autenticada em instância real | F7 P0 / Extra | operador (rotação) + agente (inventário) | **fechado em 2026-10-23** — inventário do agente em §2.1; rotação executada pelo operador (afirmação do operador: trocou a senha recentemente); decisão de histórico registrada pelo operador: manter o histórico exposto, por se tratar de segredo legado inerte e repositório privado. **O literal foi redigido da árvore nesta revisão** (`docs/reports/2026-10-10-f4-f5-closure-report.md:16`), mas permanece em 32 commits de `origin/main` — remediação de histórico não é parte deste fechamento. Correção do inventário anterior: exposição de 32 commits, não 5; o commit `07f08314` citado antes **não existe**; o valor exposto casa com o verificador legado `operator.json` e **não** com `auth/verifier.json`, a credencial de instância vigente, que nenhum código legado valida. **Não reproduzir o valor em documento versionado** |
 | D2 | Matriz de proveniência e política de identidade | Matriz repo → SHA → autor/committer bruto → atribuição confirmada → mapeamento aprovado → image ID/revision revisada; `.mailmap` apenas quando duas identidades forem comprovadamente a mesma pessoa; nenhuma reescrita de `main` publicado | F7 P1 (#10) | agente + operador | **parcial** — levantamento feito; falta decisão de atribuição |
 | D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **aberto, e o critério estava errado** — o servidor expõe 17 identificadores `khan_*` (7 de escrita, entre eles `khan_delete_event` e `khan_update_event`) enquanto o canário observou 12 tools: a discrepância precisa ser explicada. **Não existe modo somente leitura** no servidor (busca por `read_only`/`readonly` em `percival-khan-calendar/src/` não retorna nada), então "somente leitura ou subset" não é alternativa de configuração: ou se aceita a superfície, ou se implementa a restrição |
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **parcial, e o mapeamento já é ferramenta** — `nanobot/mcp_docker/inventory.py:136` coleta `containerId` e `:299` renderiza tabela com `percival.mcp-docker.owner`, `.managed-by`, `.server-id` e `.instance-id`. O que falta é o que o inventário não prova: ciclo de vida demonstrado e cardinalidade esperada documentada |
@@ -110,6 +112,48 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito** — não há binário `positronic` no PATH, o CLI do fork é `packages/cli` (`@opencode-ai/cli`, bin `lildax`) e a busca por `install-local` em todo o TypeScript do fork, fora de `node_modules` e docs, **não retorna nada**: **não existe comando para corrigir**. O estado real é o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
 | D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
 | D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e risco residual; registrar **aceite local**, **aprovação B13**, **homologação pública** e **aceite VPS/deploy** como atos separados, na ordem I1 | F7 P5; I1.6 | operador (assina) + agente (consolida) | **encerramento consolidado bloqueado** por D1–D10, C1–C4 e A1–A9; evidência parcial I1/I2 incorporada, sem assinatura F7. Registro local não certifica VPS e publicação B13 não depende integralmente de I9/C3/C4 públicos; homologação pós-push é gate de promoção |
+
+### 2.1 D1 — inventário de exposição (reexecutado em 2026-10-23, agente)
+
+Método: leitura do working tree, `git grep` sobre todos os commits alcançáveis e
+comparação dos dois verificadores por scrypt, sem imprimir o valor em nenhum
+registro. Nenhuma mutação de credencial, de instância, de imagem ou de remoto.
+
+| Fato | Verificação |
+| --- | --- |
+| O literal ainda estava na árvore atual | `docs/reports/2026-10-10-f4-f5-closure-report.md:16` — redigido nesta revisão. `07f28314` removeu o literal de três arquivos, mas não deste |
+| Exposição real | **32 commits**, todos ancestrais de `origin/main` (`git rev-list --all` = 4854 commits; os 32 estão em `origin/main`) |
+| Arquivos atingidos no histórico | `docs/reports/2026-10-10-f4-f5-closure-report.md` (presente em todos os 32), `docs/reports/2026-10-10-f7-local-stack-provisioning.md`, `docs/reports/2026-10-10-f7-canary-execution.md`, `docs/plans/2026-10-09-docker-standardization-refactor-plan.md` (estes três, apenas em `beaccab9` e `0e90fa2a`) |
+| Primeiro commit com o literal | `beaccab9` (2026-10-10) |
+| Referência errada do plano anterior | `07f08314` **não existe** no repositório (`git cat-file -t` falha) |
+| Entropia do valor exposto | 8 caracteres, **abaixo** do mínimo de 15 da política vigente ([`nanobot/access/password.py`](../../nanobot/access/password.py), `MIN_PASSWORD_CHARS = 15`). Era o segredo do esquema legado, anterior a `auth init`; hoje a política o rejeitaria |
+| O literal exposto é a credencial viva? | **Não.** Ele casa com o verificador legado `~/.nanobot/mcp-docker/operator.json` (`scrypt$32768$8$1$…`, mesmo salt/digest) e **não** com `~/.nanobot/auth/verifier.json`, que é a credencial de instância vigente |
+| O verificador legado ainda é lido? | **Não.** Nenhum código vigente abre `operator.json`; a única menção em `nanobot/access/credential.py:4` é docstring. A mutação autenticada de MCP Docker passa por sessão do gateway + elevação (`helpers/deploy_mcp.py:137`-`:147`) |
+| Arquivos em disco | `~/.nanobot/mcp-docker/operator-password` (9 bytes, 0600) e `operator.json` (98 bytes, 0600) existem; `audit.jsonl` e `config.json` estão limpos. O `operator-password` é o **texto plano** que casa com o verificador legado |
+| Arquivos em disco dentro do container | Ambos existem em `/home/nanobot/.nanobot/mcp-docker/` no gateway em execução (bind mount de `~/.nanobot`) — presença, não uso |
+| Superfície externa | O `operator.token` do Positronic (`~/.positronic/mcp/operator.token`, 64 hex) **não** é o literal exposto e não é derivado dele |
+| Repos irmãos | Nenhum outro repositório sob `/home/bill/Projects/` contém o literal |
+
+**Consequências para o gate:**
+
+1. A rotação de que D1 fala é a do **segredo de instância** (`auth/verifier.json`),
+   pelo caminho suportado `nanobot auth change` — não do verificador legado já
+   inerte. `auth change` exige a senha atual; `auth reset` é a via de recuperação
+   local e exige autorização explícita do operador.
+2. A rotação sozinha **não** fecha a exposição no histórico: o literal continua em
+   32 commits de `origin/main`. Fechar isso é reescrita de histórico publicado,
+   ato do operador, com decisão sobre repositório privado/remoto. Enquanto o
+   repositório for privado e o valor não autenticar nada vigente, o risco
+   residuo é disclosure do segredo legado inerte.
+3. Revogação: o valor legado não concede acesso hoje, porque nenhum caminho
+   vigente o valida. Isto **não** substitui a rotação pedida no critério.
+
+**Decisão do operador (2026-10-23):** rotação da senha executada pelo operador e
+decisão de **manter o histórico exposto**, por se tratar de segredo legado inerte
+em repositório privado. Com isso o gate D1 fecha: rotação feita, inventário
+completo, decisão explícita registrada. A remediação do histórico nos 32 commits
+não faz parte deste fechamento e permanece como risco residual aceito; o literal
+foi redigido da árvore versionada corrente nesta revisão.
 
 **Complementos de aceite após a harmonização:**
 
@@ -255,3 +299,39 @@ dois planos; F0–F8 e D1–D12 preservados; checkers do plano IaC e dos sete do
 passaram; `git diff --check` limpo. `sha256sum --check` confirmou os 38 inputs de
 I2, inclusive o relatório e os resultados brutos: evidência original reaproveitada,
 sem reexecução de testes de produto ou containers.
+
+**2026-10-23 — D1 executado no escopo do agente (inventário; D1 permanece aberto).**
+- **Responsável:** agente. **Operador:** ação de rotação e decisão de histórico pendentes.
+- **SHA base:** `5b38c3b1` (`main`, igual a `origin/main` no início). **Sem commit e sem push.**
+- **Comandos:** `git grep -l -F` sobre `git rev-list --all` com o literal carregado de
+  arquivo temporário; `git rev-list origin/main`; comparação scrypt dos dois
+  verificadores com `hashlib`; `docker ps`/`docker inspect` para mounts; leitura da
+  imagem em execução via `docker exec`.
+- **Resultado:** inventário refeito e corrigido (§2.1). O literal **ainda estava na
+  árvore atual** (`docs/reports/2026-10-10-f4-f5-closure-report.md:16`) e foi
+  redigido nesta revisão; a exposição real é de **32 commits**, todos em
+  `origin/main`, não os 5 listados antes. O commit `07f08314`, citado no plano
+  anterior, **não existe** no repositório. O valor exposto casa com o verificador
+  **legado** `operator.json` e **não** com a credencial de instância vigente
+  `auth/verifier.json`; nenhum código vigente valida o legado.
+- **Artefato de evidência:** §2.1 deste plano; linha D1 da tabela de §2.
+- **Mutações:** apenas a redação documental do literal na árvore de trabalho
+  (`git diff --check` limpo). Nenhuma credencial rotacionada, nenhuma instância,
+  imagem, container, repositório externo ou publicação tocados.
+- **Limitações:** não reproduz o valor em documento versionado; a rotação depende
+  do operador; a exposição em 32 commits de `origin/main` permanece até decisão
+  do operador sobre reescrita. D1 **não** está fechado.
+
+**2026-10-23 — D1 fechado (decisão do operador; registro do agente).**
+- **Rotação:** executada pelo operador (afirmação do operador: trocou a senha
+  recentemente). Registrada por declaração do operador; o agente não executou nem
+  pode executar a rotação, e nenhum valor de senha foi registrado.
+- **Decisão de histórico:** o operador decide **manter** o histórico exposto — o
+  literal é de um esquema legado que nenhum código vigente valida, e o repositório
+  de desenvolvimento é privado. Remediação dos 32 commits de `origin/main` fica
+  como risco residual aceito, fora do escopo deste fechamento.
+- **Inventário:** §2.1 deste plano, já produzido acima.
+- **Mutações desta etapa:** apenas o estado documental do plano e do relatório de
+  auditoria. Sem push, sem reescrita de histórico, sem rotação pelo agente.
+- **Estado:** **D1 fechado.** D2–D12 inalterados e abertos/parciais; o encerramento
+  consolidado continua bloqueado por D2–D10 e pelos gates externos C1–C4 e A1–A9.

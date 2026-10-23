@@ -229,16 +229,24 @@ verificação local ainda menos equivalente ao alvo.
 
 ### 3.4 Fechamento F4/F5/F7 (D1–D12)
 
-**D1 — credencial exposta. Válido, e agora com o inventário que o item exige.**
-O valor foi redigido da árvore corrente em `07f28314`, que também registra que "The value remains
-in Git history and in the operator-password file on disk". O arquivo
-`~/.nanobot/mcp-docker/operator-password` **existe** (9 bytes, modo 0600, 2026-10-10). O histórico
-Git contém o literal removido em ao menos quatro commits
-(`07f08314`, `07f28314`, `824b1db0`, `c17a4e23`, `a9ad9bf9`, `17ef2815`). A rotação foi adiada
-explicitamente pelo operador (`docs/reports/2026-10-10-f7-p4-p5-blockers.md:15`).
-*Correção:* registrar que o inventário de commits e o caminho do arquivo estão identificados; o que
-falta é a rotação, que é do operador, e a decisão sobre histórico. **Não reproduzir o valor em
-documento versionado** — é exatamente o que o item evita.
+**D1 — credencial exposta. Válido, com o inventário refeito em 2026-10-23 (D1 continua aberto).**
+O inventário desta auditoria **estava incompleto**: `07f28314` removeu o literal de três
+arquivos, mas ele **permanecia na árvore corrente** em
+`docs/reports/2026-10-10-f4-f5-closure-report.md:16`; a exposição real é de **32 commits**,
+todos ancestrais de `origin/main`, e o commit `07f08314`, citado aqui, **não existe** no
+repositório. O arquivo `~/.nanobot/mcp-docker/operator-password` **existe** (9 bytes, modo
+0600, 2026-10-10).
+*Correção aplicada:* o literal foi redigido da árvore de trabalho; o inventário completo está
+em [plano de fechamento, §2.1](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
+Fato novo e decisivo: o valor exposto casa com o verificador **legado**
+`~/.nanobot/mcp-docker/operator.json` e **não** com `~/.nanobot/auth/verifier.json`, que é a
+credencial de instância vigente; nenhum código atual valida o legado, e a mutação autenticada
+de MCP Docker passa por sessão do gateway + elevação.
+*O que falta:* nada — **D1 foi fechado em 2026-10-23**. A rotação foi executada pelo
+operador (por declaração do operador) e a decisão de **manter** o histórico exposto
+está registrada, por se tratar de segredo legado inerte em repositório privado. A
+remediação dos 32 commits de `origin/main` permanece como risco residual aceito.
+**Não reproduzir o valor em documento versionado** — é exatamente o que o item evita.
 
 **D2 — proveniência. Válido, parcial por decisão.** O levantamento existe
 (`docs/reports/2026-10-10-f7-provenance-and-identity.md`); falta a decisão de atribuição, que é do
