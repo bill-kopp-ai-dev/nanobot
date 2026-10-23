@@ -2,7 +2,7 @@ FROM docker:29.9.0-cli-alpine3.24@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b
 
 FROM python:3.12-alpine3.23@sha256:1fd55c2f838c4f76262f9eeed899ff9168ea96ac383c61667d6f204325e1f169
 
-ARG VERSION=0.3.5
+ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.title="Percival MCP Broker" \
       org.opencontainers.image.description="Docker daemon broker for Percival-managed MCP containers" \
@@ -22,9 +22,11 @@ RUN python3 -m venv /opt/broker-venv && \
 WORKDIR /app
 COPY nanobot/__init__.py nanobot/config_base.py nanobot/
 COPY nanobot/mcp_docker/__init__.py nanobot/mcp_docker/contracts.py \
-     nanobot/mcp_docker/mount_policy.py nanobot/mcp_docker/broker.py nanobot/mcp_docker/
+     nanobot/mcp_docker/mount_policy.py nanobot/mcp_docker/broker.py \
+     nanobot/mcp_docker/probe.py nanobot/mcp_docker/
 RUN chmod -R a+rX /app/nanobot
 
 ENV PATH="/opt/broker-venv/bin:$PATH" PYTHONUNBUFFERED=1
 USER 65532:65532
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["python3", "-m", "nanobot.mcp_docker.broker"]

@@ -2,7 +2,8 @@
 
 - **Preparado em:** 2026-10-23, a pedido do operador, para harmonizar os planos de
   implementação com a proposta IaC. **Estado atual:** I1 concluído no escopo de
-  arquitetura/handoff em 2026-10-23; I2–I9 pendentes.
+  arquitetura/handoff e I2 concluído em conformance local Linux/amd64 em 2026-10-23;
+  I3–I9 pendentes.
 - **Resultado pretendido:** Percival consumível pela IaC Docker-first, com distribuição
   pública verificável, implantação por digest e MCP Manager integrado ao índice público,
   preservando os contratos e as evidências do runtime existente.
@@ -11,6 +12,8 @@
 - **Autoridade:** a revisão dos planos e execução de I1 autorizam estas edições documentais, não publicação,
   push, instalação no host, alteração de credenciais reais, cutover ou escrita remota.
   Aprovação de arquitetura não é autorização operacional de deploy/release.
+  Pedido posterior de bill autorizou implementar/ensaiar I2 localmente; não houve
+  nova autorização de commit/push, publicação ou deploy nesta campanha.
 - **Revisão de detalhamento:** 2026-10-23, sobre `a299da09` (árvore inicialmente limpa).
   Naquela revisão I1–I9 ficaram pendentes. A execução posterior de I1 está registrada
   no §11 e na [ADR decidida](../Decisions/2026-10-23-open-iac-contracts.md), com
@@ -141,7 +144,7 @@ F0–F8, D1–D12, C1–C4 e A1–A9 dos planos existentes conservam seus própr
 | ID / fase | Entrega e dono lógico | Dependências | Critério de aceite / evidência |
 | --- | --- | --- | --- |
 | **I1 / P0-A** | Contratos e arbitragem — bill decide/revisa; agente prepara | Fontes e decisões atuais; confirmações do operador nesta sessão | **Concluído em 2026-10-23 — arquitetura/handoff.** [ADR](../Decisions/2026-10-23-open-iac-contracts.md), [matriz de contratos/compatibilidade](../iac-p0-contract-handoff.md) e snapshot com hashes. Contas/names, fonte de versão, aquisições, consentimento, topologia, C1–C8 e ordem B13/público/VPS decididos. Metadata executável é I2 antes do candidato; acesso/publicação/schemas/API e demais gates continuam pendentes |
-| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | Alinhar metadata/lock/fallback/defaults a `0.1.0`, com `pyproject.toml` como autoridade, antes de fixar candidato. Documentar gateway, API e CLI na imagem principal + broker; comandos, shutdown/init, usuário efetivo/UID/GID e writers. Validar Compose não-root e root-com-drop fail-closed/Render, probes reais/autenticação; matriz gateway↔broker com startup/recreate/falha. `linux/amd64` comprovado; ARM64 só com evidência própria. Estado: **pendente**, com base existente reutilizável |
+| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | **Concluído localmente em 2026-10-23.** [Runtime contract 1](../agent-runtime-contract.md) e [relatório por I2.1–I2.6](../reports/2026-10-23-i2-runtime-contract-conformance.md): metadata/lock/fallback/defaults `0.1.0`; modos/writers/UID/GID/init/probes; bind CLI/API/gateway unificado, API opt-in; root-com-drop/Render flag fail-closed e sinais; startup/recreate/crash/persistência, matriz com broker baseline e cliente v1. 19 checks de containers em Engine 27.5.1 rootful `linux/amd64`; pytest focado, lint/typecheck passaram. Builds worktree, não release; ARM64/Render serviço/Actions/VPS não certificados |
 | **I3 / P0-B** | Distribuição das imagens core — CI dos repositórios de produto | I1/I2 para preparar pipeline; I6/I7 quando incluídos no candidato final; D2/D6/D7/D8/C1 aplicáveis e B13 antes de publicar | PR build/test/scan sem push. Release aprovada via workflow protegido Buildx, permissões mínimas e token de push só no CI; capturar digest OCI e plataforma por imagem, SBOM/scan/proveniência. Pull anônimo com configuração Docker limpa + smoke independente; registro fonte→versão→digest→plataforma. Publicação não dispara deploy. Estado: **pendente** |
 | **I4 / P0-C** | Handoff de deployment — contratos Percival aqui; bootstrap/Compose/locks/OpenTofu no workspace IaC separado | I1/I2; I3 para instalação pública; C2 antes de escrita em VPS | Receita de deploy sem `build:`/`:dev`, referências core por tag+digest, broker sidecar/namespace de rede preservados; config agregada validada no diretório-base real. Preflight resolve UID/GID/socket/data-root/token/nome real do gateway, paths protegidos e versões Engine/CLI. Bootstrap idempotente e caminho manual; `deployment.lock` cobre as duas imagens e compatibilidade do core, com exclusão mútua/gravação atômica após validação. Instalação limpa bem-sucedida cria lock; falha não o avança. Layout/backup/retorno ensaiados em fixture; validação estática OpenTofu antes de qualquer plan/apply autorizado. Estado: **pendente** |
 | **I5 / P0-D, P0-E, P0-G** | MCPs oficiais, template e índice — mantenedores dos MCPs e workspace do índice | I1 para identidades/schema; F2–F5/D5/D7/D8/C1 para candidatos selecionados | Weather primeiro e OSM segundo, selecionados em I1. Pipelines replicáveis com protocolo real, `server.json` no schema oficial aplicável, complemento operacional e README coerentes; publicar/homologar dois MCPs no Docker Hub, pull anônimo, digest/plataforma comprovados. Índice curado por PR com Markdown/YAML→JSON determinístico, schema versionado e pelo menos um comunitário upstream sem reatribuição/mirror. URL real ou raw em commit pinado; Pages opcional. Estado: **pendente** |
@@ -315,6 +318,14 @@ coerentes com `0.1.0`, sem renomear pacote/import/CLI nem alterar dependências 
 **Saída:** contrato runtime no produto (arquivo a fixar em I1) e ensaio `linux/amd64`
 com matriz preenchida. Falha de processo/estado bloqueia promoção do candidato; limitar
 suporte é decisão explícita, não motivo para ocultar teste falho. ARM64 tem gate próprio.
+
+**Executado em 2026-10-23:** I2.1–I2.6 entregues em
+[`docs/agent-runtime-contract.md`](../agent-runtime-contract.md), com resultados,
+imagens, comandos e limites no [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md).
+V01 coberto localmente; V02/V03/V04 têm provas locais e conservam as extensões
+I4/I8/C1/B3. Sem verifier, recusa é 401 em bootstrap/WS protegido, não proibição
+de todo listener de login; documentação corrigida conforme comportamento medido.
+Nenhum gate de publicação/CI remoto/VPS encerrado por este ensaio.
 
 ### 5.3 I3 — CI e distribuição das duas imagens core
 
@@ -818,11 +829,13 @@ nova. Evidências finais precisam existir e ser recuperáveis, não apenas nomea
 
 **Quadro inicial da revisão:** I1–I9 pendentes; nenhuma subtarefa de implementação ou
 caso V01–V24 executado por aquela revisão. **Estado atual:** I1 concluído como
-arquitetura/handoff; I2–I9 e V01–V24 pendentes. Registrar avanço e fechar cada I com
+arquitetura/handoff; I2 concluído localmente, I3–I9 pendentes. V01 coberto no escopo
+local; V02/V03/V04 têm evidência local e extensões I4/I8/C1/B3 abertas; V05–V24 pendentes.
+Registrar avanço e fechar cada I com
 seu aceite; I9 exige evidência e assinatura, não percentuais estimados de completude.
 
-**Próxima ação concreta:** executar I2 com o contrato decidido: alinhar metadata antes
-do candidato, levantar matriz runtime e provar modos/permissões/processo/compatibilidade.
+**Próxima ação concreta:** I3, preparando conformance/publicação protegida do par core
+a partir do runtime 1; I4 pode ensaiar handoff local sem esperar publicação pública.
 bill prepara acessos GitHub/Docker Hub e criação de workspaces quando I3/I4/I5/C1
 precisarem deles. Nomes decididos não comprovam controle, disponibilidade ou publicação.
 
@@ -889,3 +902,20 @@ metadata do código atual até I2 alinhar o candidato; a ADR não o rebatiza com
 originais e HEADs dos oito checkouts conferidos. C1–C8, I1.1–I1.7, 55 subtarefas,
 M0–M6 e V01–V24 íntegros; `git diff --check` passou. O handoff registra os comandos
 locais reproduzíveis. Não são provas de implementação/runtime ou de acesso remoto.
+
+### 2026-10-23 — execução I2: runtime 1 e conformance local
+
+Pedido posterior do operador para seguir I2, sobre `eb4e3555` + worktree I2. Metadata
+`0.1.0` alinhada sem rename ou upgrades incidentais; runtime 1 documentado; CLI/API
+recebem o mesmo bind de estado do gateway no overlay, API vira opt-in. Corrigidas
+permissões de leitura/traversal dos artefatos, ownership tmpfs, encaminhamento de
+SIGTERM no root init restrito e probe autenticada do broker. O runner isolado
+substitui o smoke F5 antigo no CI; o ponto de entrada shell permanece como wrapper.
+
+Ensaio final: Engine 27.5.1 descartável, CLI broker 29.9.0, `linux/amd64`, 19 checks
+PASS incluindo baseline broker real e cliente v1 independente; nenhum estado vivo
+alterado. Suites focadas: 167 PASS (core/auth/MCP/compatibilidade), 69 PASS
+(API/metadata/probe, três casos repetidos); Ruff e typecheck passaram. O relatório
+registra os IDs locais realmente executados, artefatos brutos, falhas intermediárias,
+correções e limites. I2.1–I2.6 concluídos no escopo local; sem commit/push, release,
+Actions remoto, ARM64, Render serviço ou VPS nesta campanha.

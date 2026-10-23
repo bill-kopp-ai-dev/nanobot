@@ -8,12 +8,25 @@ services:
     environment:
       PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
 
+  # One-shot setup and the optional API must see the same instance as the gateway.
+  nanobot-cli:
+    volumes:
+      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+    environment:
+      PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
+
+  nanobot-api:
+    volumes:
+      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+    environment:
+      PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
+
   percival-mcp-broker:
     build:
       context: .
       dockerfile: Dockerfile.mcp-broker
       args:
-        VERSION: ${PERCIVAL_IMAGE_VERSION:-0.3.5}
+        VERSION: ${PERCIVAL_IMAGE_VERSION:-0.1.0}
         GIT_SHA: ${PERCIVAL_IMAGE_REVISION:-unknown}
     image: ${PERCIVAL_MCP_BROKER_IMAGE:-percival-mcp-broker:dev}
     user: "65532:65532"
@@ -26,7 +39,7 @@ services:
       - nanobot-gateway
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python3", "-c", "import socket; from nanobot.mcp_docker.broker import ready; ready(); socket.create_connection(('127.0.0.1', 18081), timeout=3).close()"]
+      test: ["CMD", "python3", "-m", "nanobot.mcp_docker.probe"]
       interval: 60s
       timeout: 90s
       start_period: 45s
@@ -35,7 +48,7 @@ services:
     security_opt: [no-new-privileges:true]
     read_only: true
     tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,mode=0700
+      - /tmp:rw,noexec,nosuid,nodev,mode=0700,uid=65532,gid=65532
     volumes:
       - type: bind
         source: /var/run/docker.sock

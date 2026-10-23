@@ -3,8 +3,8 @@
 Percival is an independent project derived from HKUDS/nanobot. Development
 currently takes place in a private repository; a separate public Percival
 repository is planned after the agreed features and gates are complete. The
-current `nanobot-ai` metadata and upstream documentation do not constitute a
-Percival release. The intended first Percival version is 0.1.0; its Python
+`nanobot-ai` metadata is aligned locally to 0.1.0 by I2; neither metadata nor
+upstream documentation constitutes a Percival release. The intended first version is 0.1.0; its Python
 package name remains undecided. The proposed open distribution uses Docker/OCI
 as described below. Read the [project governance
 decision](docs/percival-governance.md) before sync, contribution, CI or
@@ -12,7 +12,7 @@ publication work.
 
 I1's [open IaC decision](docs/Decisions/2026-10-23-open-iac-contracts.md) fixes the
 current GitHub owner as `bill-kopp-ai-dev`, future owner as `p-bean-labs`, and Docker
-Hub namespace as `pbeanlabs` (operator-confirmed; access not yet configured/verified).
+Hub namespace as `pbeanlabs` (operator-confirmed; publication access not yet verified).
 The private development remote stays `bill-kopp-ai-dev/nanobot`; the separately reviewed
 public source repository is named `percival`. Account migration and public disclosure
 are separate actions. Read the [contract handoff](docs/iac-p0-contract-handoff.md) for
@@ -33,6 +33,7 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
 | Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker standardization phases](docs/plans/2026-10-09-docker-standardization-refactor-plan.md) |
+| Core runtime modes, UID/init/probes or gateway↔broker compatibility | [Runtime contract 1](docs/agent-runtime-contract.md), [I2 local conformance](docs/reports/2026-10-23-i2-runtime-contract-conformance.md) |
 | Docker runtime, provenance, MCP/browser or VPS acceptance | [Docker closure (D1–D12)](docs/plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), [integrated backlog (A/B/C)](docs/plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
 | Instance authentication or persistent credentials | [Single-password acceptance](docs/plans/2026-10-11-single-password-acceptance-closure-plan.md) |
 
@@ -76,7 +77,8 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   Image IDs are not manifest digests. Image CI must distinguish PR conformance without
   push from approved publication, recording source/version/platform/SBOM/scan and a
   clean anonymous pull/smoke. I1 chooses `pyproject.toml` as product version authority;
-  I2 aligns inherited metadata/locks/defaults with Percival 0.1.0 before the candidate.
+   I2 aligned inherited metadata/locks/defaults with Percival 0.1.0 locally; a release
+   candidate still needs its exact clean SHA and I3 evidence.
 - I1 limits initial P0 support to one Percival instance per Docker daemon. New catalog
   installs require explicit local consent; missing mounts never inherit Full. Existing
   configured servers retain their settings. Unsupported mandatory isolation is rejected,

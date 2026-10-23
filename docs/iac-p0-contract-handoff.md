@@ -7,6 +7,12 @@
   nesta sessão; agente prepara as mudanças. Não há alegação de revisão independente.
 - **Evidência de entrada:** [snapshot/hashes das fontes](references/2026-10-23-iac-source-snapshot.md).
   O plano IaC já tinha revisão local não commitada; foi preservada e complementada.
+- **Atualização posterior I2:** [runtime 1 entregue](agent-runtime-contract.md) e
+  [conformance local](reports/2026-10-23-i2-runtime-contract-conformance.md). O inventário
+  e a tabela de metadata abaixo preservam o baseline **de I1**, não o estado após I2.
+  Fonte/lock/fallback/defaults agora usam `0.1.0`; versões futuras/schemas continuam
+  com seus gates. O push SSH da documentação I1 foi verificado em `eb4e3555`;
+  permissões de publicação/Actions/Docker Hub não foram comprovadas por isso.
 
 ## 1. Inventário de checkouts e entregáveis
 

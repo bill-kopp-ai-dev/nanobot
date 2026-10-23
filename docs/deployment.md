@@ -1,5 +1,11 @@
 # Deployment
 
+For Percival's verified mode/UID/state/probe boundaries, read the
+[Agent Runtime Contract](agent-runtime-contract.md) and [I2 local evidence](reports/2026-10-23-i2-runtime-contract-conformance.md).
+Compose gateway + broker is canonical; API is an alternative opt-in runtime (`api`
+profile). Do not start another gateway/API/service writer on the same instance state.
+The Render entrypoint was exercised locally; this is not a Render deployment certification.
+
 Use this page after `nanobot agent -m "Hello!"` works locally. Deployment keeps long-running surfaces online: WebUI, chat apps, heartbeat, Dream, cron jobs, and channel connections.
 
 ## Before You Deploy
@@ -26,7 +32,7 @@ Restart the deployed process after editing `config.json`. Long-running processes
 | Docker Compose | Repeatable container runs on Linux servers or workstations | Bind-mount `~/.nanobot` to `/home/nanobot/.nanobot` | `docker compose run --rm nanobot-cli agent -m "Hello!"` |
 | Docker CLI | Manual container testing or small one-off hosts | Bind-mount `~/.nanobot` to `/home/nanobot/.nanobot` | `docker run -v ~/.nanobot:/home/nanobot/.nanobot --rm nanobot status` |
 | systemd user service | Linux user-level gateway that restarts automatically | Host user's `~/.nanobot` unless you pass explicit paths | `systemctl --user status nanobot-gateway` |
-| macOS LaunchAgent | macOS gateway that starts after login | Host user's `~/.nanobot` unless the plist passes explicit paths | `launchctl list | grep ai.nanobot.gateway` |
+| macOS LaunchAgent | macOS gateway that starts after login | Host user's `~/.nanobot` unless the plist passes explicit paths | `launchctl list \| grep ai.nanobot.gateway` |
 
 ## Render
 
@@ -67,7 +73,7 @@ If deployment fails, open the service **Logs** page first. A missing model key f
 > Official Docker usage currently means building from this repository with the included `Dockerfile`. Docker Hub images under third-party namespaces are not maintained or verified by HKUDS/nanobot; do not mount API keys or bot tokens into them unless you trust the publisher.
 
 > [!IMPORTANT]
-> The gateway and WebSocket channel default to `host: "127.0.0.1"` in `config.json` (set in `nanobot/config/schema.py`). Docker `-p` port forwarding cannot reach a container's loopback interface, so for the host or LAN to reach the exposed ports you must set both binds to `0.0.0.0` in `~/.nanobot/config.json` before starting the container. To serve the bundled WebUI from Docker, bind the WebSocket channel externally. The bind-to-`0.0.0.0` validator checks for `auth/verifier.json` instead of a static secret:
+> The gateway and WebSocket channel default to `host: "127.0.0.1"` in config. Docker `-p` cannot reach container loopback. Compose sets `PERCIVAL_DOCKER_GATEWAY_HOST=0.0.0.0` for both listeners at runtime, while publishing to host loopback. For plain Docker without that override, configure both binds explicitly:
 >
 > ```json
 > {
@@ -129,9 +135,9 @@ NANOBOT_UID=$(id -u) NANOBOT_GID=$(id -g) docker compose up -d
 
 When the override is missing or the values are wrong, the container refuses
 to start with an actionable error and the fix is the same export above.
-`entrypoint.sh` still falls back to the root+privilege-drop path for the
-broker sidecar (which is fixed to UID 65532) and for Render deploys, which
-mount the persistent disk root-owned.
+The main image's `entrypoint.sh` retains the root+privilege-drop path for
+plain Docker and Render's root-owned disk. The broker is a separate image,
+fixed to UID 65532, and does not run that entrypoint.
 
 ```bash
 # Run these from the directory containing docker-compose.yml.
@@ -146,8 +152,9 @@ Compose publishes the WebUI and gateway ports on host loopback by default. The
 gateway listens on its container interface for Docker forwarding. WebUI
 authentication is backed by the verifier at `~/.nanobot/auth/verifier.json`,
 created by `nanobot auth init`; the gateway no longer reads
-`PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` and refuses to bind `0.0.0.0`
-until the verifier exists. Keep `.env` private and reuse the same instance
+`PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE`. Without a verifier, the
+sign-in page can listen, but protected bootstrap and WebSocket access reject
+unauthenticated requests. Keep `.env` private and reuse the same instance
 password across restarts.
 
 ```bash
@@ -156,9 +163,10 @@ docker compose logs -f nanobot-gateway                   # view logs
 docker compose down                                      # stop
 ```
 
-The default Compose file drops all Linux capabilities except `CHOWN`, `SETUID`, and
-`SETGID`, which the root entrypoint needs to fix bind-mount ownership and become UID
-1000. It also enables `no-new-privileges`, so the non-root process cannot regain those
+The default Compose file drops all Linux capabilities except `CHOWN`, `SETUID`,
+`SETGID` and `KILL`: the first three support root bootstrap, and `KILL` allows a
+root init to forward signals after the child becomes UID 1000. The agent child
+retains no effective capabilities. It also enables `no-new-privileges`, so the non-root process cannot regain those
 bootstrap capabilities through setuid binaries or file capabilities. Docker's default
 AppArmor/seccomp profiles remain enabled. If you explicitly set
 `"tools.exec.sandbox": "bwrap"` in `~/.nanobot/config.json`, add the bwrap

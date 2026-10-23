@@ -12,20 +12,21 @@ x-common-config: &common-config
     dockerfile: Dockerfile
     args:
       NANOBOT_CHANNELS: ${NANOBOT_CHANNELS:-whatsapp}
-      VERSION: ${PERCIVAL_IMAGE_VERSION:-0.3.5}
+      VERSION: ${PERCIVAL_IMAGE_VERSION:-0.1.0}
       GIT_SHA: ${PERCIVAL_IMAGE_REVISION:-unknown}
   volumes:
     - ~/.nanobot:/home/nanobot/.nanobot
   cap_drop:
     - ALL
-  # When `user:` is not honoured (e.g., the broker sidecar on a future
-  # override) these capabilities let entrypoint.sh chown the bind mount and
+  # With an explicit root-start override these capabilities let entrypoint.sh chown the bind mount and
   # drop privileges. They are intentionally minimal and combined with
-  # `no-new-privileges` below.
+  # `no-new-privileges` below. KILL lets a root init forward signals after
+  # the entrypoint drops the child to UID 1000; the child retains no effective caps.
   cap_add:
     - CHOWN
     - SETGID
     - SETUID
+    - KILL
   # Prevent the non-root process from regaining capabilities through setuid
   # binaries or file capabilities left inside the container image.
   security_opt:
@@ -43,6 +44,7 @@ services:
     environment:
       PERCIVAL_DOCKER_GATEWAY_HOST: 0.0.0.0
     init: true
+    stop_grace_period: 60s
     restart: unless-stopped
     ports:
       - "127.0.0.1:18790:18790"
@@ -64,9 +66,12 @@ services:
 
   nanobot-api:
     <<: *common-config
+    # Alternate runtime, not a second writer started beside the gateway by default.
+    profiles: [api]
     command:
       ["serve", "--host", "0.0.0.0", "-w", "/home/nanobot/.nanobot/api-workspace"]
     init: true
+    stop_grace_period: 60s
     # The API reads its mandatory bearer key from config.json. Do not create a
     # restart loop when that key is absent or invalid.
     restart: "no"

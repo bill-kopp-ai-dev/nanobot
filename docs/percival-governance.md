@@ -4,9 +4,9 @@
 from HKUDS/nanobot. Development continues in the current private repository;
 after the planned changes and validation, the operator will create a separate
 public Percival repository. A public release, repository creation and transfer
-of private history require separate operator approval. `nanobot-ai` 0.3.5 is
-the current package metadata, **not** a published Percival release; Percival's
-intended first version is 0.1.0. The future Python distribution name remains undecided;
+of private history require separate operator approval. I2 aligns local `nanobot-ai`
+metadata to 0.1.0; **no published Percival release** follows from that change.
+The inherited 0.3.5 remains historical artifact metadata. The future Python distribution name remains undecided;
 open Docker/OCI distribution and the account/naming contracts are decided in the
 [I1 ADR](Decisions/2026-10-23-open-iac-contracts.md).
 
@@ -54,7 +54,7 @@ concentra inventário seguro, build, atualização, rollback, backup/restore de
 Notes/Khan, contenção de incidentes (falso `unhealthy` em stdio, SIGTERM/PID 1),
 revisão trimestral, gatilho urgente por CVE e política de retenção de imagens
 intermediárias. Este manual não substitui o [runbook F5 de migração/recuperação
-de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md); os dois
+de estado `~/.nanobot`→`~/.percival`](mcp-docker-f5-runbook.md); os dois
 convivem. O aceite F7 não fecha sem que o manual esteja revisado e vinculado
 a partir deste parágrafo.
 
@@ -79,6 +79,10 @@ do not assume that all private commits will be published.
 Docker Hub uses `pbeanlabs`, independently of that future GitHub migration.
 Local access is not configured yet, per the operator; permissions and image/repository
 availability have not been checked remotely.
+
+Subsequent evidence: the private repository's SSH commit/push to `main` succeeded
+for `eb4e3555` (I1 documentation). This does not verify Actions credentials,
+Docker Hub push authorization, public repository creation or registry availability.
 
 The private development repository stays `bill-kopp-ai-dev/nanobot`. The separate
 reviewed public source repository will be named `percival`, under the current owner

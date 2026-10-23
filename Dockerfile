@@ -10,7 +10,7 @@ RUN mkdir -p /app/nanobot/web && npm run build
 
 FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb228142f776ed8df9e51fba89ee31f018c04a0452645c014783546b164c03 AS runtime
 
-ARG VERSION=0.3.5
+ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.description="Percival Python gateway and WebUI" \
@@ -87,6 +87,9 @@ COPY render-config.json ./
 # Create the non-root user and hand ownership of the writable virtualenv to it.
 RUN useradd -m -u 1000 -s /bin/bash nanobot && \
     mkdir -p /home/nanobot/.nanobot && \
+    chmod 755 /home/nanobot && \
+    chmod -R a+rX /app/nanobot /app/scripts /app/channel-locks /app/.venv && \
+    chmod a+r /app/pyproject.toml /app/uv.lock && \
     chown -R nanobot:nanobot /home/nanobot /app/.venv
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -111,4 +114,5 @@ ENV PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1
 EXPOSE 18790 8765
 
 ENTRYPOINT ["entrypoint.sh"]
+STOPSIGNAL SIGTERM
 CMD ["status"]
