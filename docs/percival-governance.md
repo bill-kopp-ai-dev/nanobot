@@ -6,7 +6,9 @@ after the planned changes and validation, the operator will create a separate
 public Percival repository. A public release, repository creation and transfer
 of private history require separate operator approval. `nanobot-ai` 0.3.5 is
 the current package metadata, **not** a published Percival release; Percival's
-intended first version is 0.1.0. Distribution name and format are undecided.
+intended first version is 0.1.0. The future Python distribution name remains undecided;
+open Docker/OCI distribution and the account/naming contracts are decided in the
+[I1 ADR](Decisions/2026-10-23-open-iac-contracts.md).
 
 ## B10: contributions to HKUDS/nanobot
 
@@ -47,7 +49,7 @@ that implementation gap.
 
 ## Manual de operação e manutenção
 
-O [manual operacional dos MCPs Docker locais](../operations/mcp-docker-local-runbook.md)
+O [manual operacional dos MCPs Docker locais](operations/mcp-docker-local-runbook.md)
 concentra inventário seguro, build, atualização, rollback, backup/restore de
 Notes/Khan, contenção de incidentes (falso `unhealthy` em stdio, SIGTERM/PID 1),
 revisão trimestral, gatilho urgente por CVE e política de retenção de imagens
@@ -69,3 +71,36 @@ documentation update. Unfinished planned features are not advertised as
 shipped. The public repository should use reviewed history, with secrets,
 private data, dependency licenses and provenance checked before publication;
 do not assume that all private commits will be published.
+
+## I1: open distribution contracts and release sequencing
+
+**Operator confirmations:** 2026-10-23. The current GitHub owner is
+`bill-kopp-ai-dev`; the future Positronic Bean Labs owner is `p-bean-labs`.
+Docker Hub uses `pbeanlabs`, independently of that future GitHub migration.
+Local access is not configured yet, per the operator; permissions and image/repository
+availability have not been checked remotely.
+
+The private development repository stays `bill-kopp-ai-dev/nanobot`. The separate
+reviewed public source repository will be named `percival`, under the current owner
+if published before migration, then under `p-bean-labs`. A migration of ownership is
+not approval to disclose private history or publish an image. The decision creates
+no remote repository and changes no remote URL.
+
+The [ADR](Decisions/2026-10-23-open-iac-contracts.md) and
+[handoff](iac-p0-contract-handoff.md) fix the P0 contracts, restricted broker acquisition,
+catalog consent, one-instance-per-daemon limit and the bill-owned contract reviews.
+They add to the historical local-only/B20 decisions without activating repository
+sources, changing current server permissions or implementing the new schemas/API.
+
+For the first public release, B13 reviews the exact final source/version, completed
+scope, applicable local/Actions evidence, image scans and recovery plan **before**
+publication. Public anonymous pulls and registry smoke tests necessarily follow
+publication and gate **homologation/promotion**, not permission to publish. A published
+image failing those checks is not homologated and cannot enter the deployment bundle.
+No Critical/High waiver or bypass of candidate-specific product gates is implied.
+
+Public C3/C4 and I9 are not prerequisites for the first publication; they remain
+distinct target-specific deployment/acceptance gates after homologation. Any required
+earlier private staging/transfer needs its own authorization. Source publication,
+image publication, registry homologation and real-data cutover keep separate evidence
+and approvals. No operational release/deploy authorization was granted by I1.

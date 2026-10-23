@@ -4,6 +4,10 @@
 - **Status:** decisões de produto confirmadas pelo operador; implementação
   pendente das fases do [plano de refatoração](../plans/2026-10-09-docker-standardization-refactor-plan.md)
 - **Evidência de baseline:** [inventário F0](../reports/2026-10-09-f0-docker-baseline-inventory.md)
+- **Aditamento 2026-10-23:** a [ADR I1](2026-10-23-open-iac-contracts.md) decide
+  registry/naming e evolução P0 de aquisição/índice. O item 2 abaixo conserva o escopo
+  histórico desta refatoração; a nova decisão não autoriza publicação/deploy nem
+  altera o spawn `--pull=never` ou os registros existentes.
 
 ## Decisões confirmadas
 

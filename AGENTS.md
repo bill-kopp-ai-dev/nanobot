@@ -10,6 +10,14 @@ as described below. Read the [project governance
 decision](docs/percival-governance.md) before sync, contribution, CI or
 publication work.
 
+I1's [open IaC decision](docs/Decisions/2026-10-23-open-iac-contracts.md) fixes the
+current GitHub owner as `bill-kopp-ai-dev`, future owner as `p-bean-labs`, and Docker
+Hub namespace as `pbeanlabs` (operator-confirmed; access not yet configured/verified).
+The private development remote stays `bill-kopp-ai-dev/nanobot`; the separately reviewed
+public source repository is named `percival`. Account migration and public disclosure
+are separate actions. Read the [contract handoff](docs/iac-p0-contract-handoff.md) for
+owners, schemas, source snapshots and downstream implementation gates.
+
 The Python gateway owns agent execution, sessions, tools, memory, and security policy. WebUI and TUI share that runtime; keep execution and policy out of the clients.
 
 ## Task-specific guidance
@@ -24,16 +32,17 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | WebUI/host compatibility | [`.agent/review-guide.md`](.agent/review-guide.md) |
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
-| Docker/IaC architecture, distribution, or deployment contracts | [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker standardization phases](docs/plans/2026-10-09-docker-standardization-refactor-plan.md) |
+| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker standardization phases](docs/plans/2026-10-09-docker-standardization-refactor-plan.md) |
 | Docker runtime, provenance, MCP/browser or VPS acceptance | [Docker closure (D1–D12)](docs/plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), [integrated backlog (A/B/C)](docs/plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
 | Instance authentication or persistent credentials | [Single-password acceptance](docs/plans/2026-10-11-single-password-acceptance-closure-plan.md) |
 
 ## Docker-first IaC boundaries
 
 - Treat the [IaC integration plan](docs/plans/2026-10-23-iac-alignment-execution-plan.md)
-  as the map of target contracts, source references and pending decisions. Separate
-  approved direction, proposed interfaces and verified implementation. Examples are
-  not real endpoints, namespaces, schemas or digests. Reports are evidence, not ADRs.
+  as the map of target contracts, source references and remaining implementation.
+  I1's ADR/handoff decide P0 conflicts; separate approved direction, target interfaces
+  and verified implementation. Examples are not real endpoints, namespaces, schemas
+  or digests. Reports are evidence, not ADRs.
 - This repository owns Percival code, production Dockerfiles/entrypoints, runtime
   contracts, tests and image CI. A separate IaC workspace owns OpenTofu, host bootstrap,
   deployment Compose, schemas and deploy/recovery tooling; the MCP index and individual
@@ -41,8 +50,10 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   code or assumptions that Percival and Positronic have identical paths/CLIs.
 - Target distribution: GitHub holds source/IaC/curation; protected GitHub Actions
   publishes approved releases once the I3/I5 pipelines are implemented and validated.
-  Docker Hub is the target primary registry for official open images; confirm the
-  organization, namespace and image names in I1. Curated third parties use their
+  Docker Hub is the target primary registry for official open images:
+  `docker.io/pbeanlabs/percival-gateway` and `docker.io/pbeanlabs/percival-mcp-broker`.
+  Weather and OSM are the first selected official MCPs; I3/I5 still must verify account
+  permissions, publication and actual digests. Curated third parties use their
   verified upstream OCI registry, without mandatory mirroring. The GitHub MCP index
   is separate from Docker MCP Catalog; Catalog and GitHub Pages are optional.
 - OpenTofu provisions infrastructure; idempotent cloud-init/bootstrap prepares the host;
@@ -56,14 +67,21 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   privileges. Socket separation does not prove total isolation: retain B23–B25's
   indirect-risk limits and target-specific acceptance.
 - Current MCP execution accepts local IDs or locally present RepoDigests and uses
-  `--pull=never`. I1/I6 own explicit digest-verified acquisition before spawn; do not
-  enable arbitrary pulls, reserved `repository` sources or catalog trust implicitly.
+  `--pull=never`. I1 selects restricted broker acquisition; I6 implements and verifies
+  it before spawn. Do not enable arbitrary pulls, reserved `repository` sources or
+  catalog trust implicitly.
   Preserve current clients/pins/policies until a compatible change is approved.
 - Local builds/worktree candidates and `:dev` are development artifacts. Production
   consumes approved version tags plus real OCI digests, not builds from a VPS checkout.
   Image IDs are not manifest digests. Image CI must distinguish PR conformance without
   push from approved publication, recording source/version/platform/SBOM/scan and a
-  clean anonymous pull/smoke. Align inherited metadata with Percival 0.1.0 before release.
+  clean anonymous pull/smoke. I1 chooses `pyproject.toml` as product version authority;
+  I2 aligns inherited metadata/locks/defaults with Percival 0.1.0 before the candidate.
+- I1 limits initial P0 support to one Percival instance per Docker daemon. New catalog
+  installs require explicit local consent; missing mounts never inherit Full. Existing
+  configured servers retain their settings. Unsupported mandatory isolation is rejected,
+  not claimed as enforced. Render/install-service stay separate compatibility paths;
+  never run a second gateway writer on the Compose instance's state.
 - I4/C2 map `~/.nanobot`, the historical `.percival` proposal and host layout
   `/srv/pblabs/`; preserve supported internal paths until explicit migration. Never
   rename/split state automatically or copy live config/fixture paths into templates.
@@ -79,6 +97,8 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   migration-bearing changes; preserve compatible image/config/auth/data backups and
   rehearse restore. Image rollback does not undo data migration. Existing vulnerability
   policy applies to the exact candidate; documented triage is not a waiver.
+  I1 separates pre-publication B13 approval from post-publication anonymous pull/smoke
+  homologation; only homologated artifacts enter deployment. VPS C2–C4/I9 remain separate.
 - P0 is open infrastructure only; premium GCP, entitlement, billing, marketplace,
   Kubernetes, private customer delivery and a proprietary registry need separate scope.
   Track new integration work in I1–I9 and residual product gates in their linked plans.
