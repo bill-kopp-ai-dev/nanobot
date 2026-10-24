@@ -180,7 +180,9 @@ e broker `sha256:c6e370a5d56c74e0362f2adecd501b575c4246439a22e1451a800fb30f30b32
 O par B local, construído do mesmo SHA `3daabe20f4c6a7b5f26f2158b97dc2591905507b`,
 é gateway `sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f`
 e broker `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d`.
-Os image IDs locais não são digests OCI publicados. O core B não foi enviado.
+Os image IDs locais não são digests OCI publicados. O core B foi enviado em
+`297d4295` (precedido por `ce31e526` e `3daabe20`); o envio da **fonte** não
+publica nem promove **imagem**.
 
 **Retenção atual:** manter A e B localmente, sem retag destrutivo ou prune.
 O gateway `percival-gateway:0.1.0-b49dd8b` no container nomeado
@@ -195,7 +197,9 @@ I3 foi adiado; aquisição por catálogo/digest não está implementada. Portant
 B não é atualmente elegível para instalar. Depois de novos candidatos aprovados,
 o operador deve confirmar a janela, CAS atual, backup/configuração/dados
 compatíveis e rollback A→B→A em fixture independente antes de autorizar
-canário. Nenhum comando de mutação é fornecido neste snapshot.
+canário. Nenhum comando de mutação é fornecido neste snapshot. A sequência de
+correção e a matriz de prontidão B1–B6 estão no
+[plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md).
 
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.
 

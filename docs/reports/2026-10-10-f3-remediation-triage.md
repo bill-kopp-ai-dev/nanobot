@@ -413,8 +413,9 @@ gates antes de qualquer promoção.
 - Os seis repositórios MCP estão limpos, em `main` igual a `origin/main`, e os
   labels de revisão das imagens coincidem com os SHAs completos listados acima.
   Os seis commits foram enviados a `origin/main` sob autorização anterior do
-  operador. O par core foi construído limpo no SHA `3daabe20…`, mas permanece
-  local; não houve push do core.
+  operador. O par core foi construído limpo no SHA `3daabe20…`; a **fonte** foi
+  enviada em `297d4295` (com `ce31e526` e `3daabe20` ancestrais de `origin/main`),
+  mas as **imagens** do par core permanecem locais, sem publicação.
 - O contrato D7 corrigido passou nos cinco MCPs sem precondição externa: quatro
   medições por imagem (Percival/Positronic × EOF/SIGTERM), sem violações, init
   único, EOF com exit 0 e SIGTERM com exit 143. Smokes MCP stdio sequenciais de
@@ -439,3 +440,15 @@ scans/SBOMs/OpenVEX por imagem e retenção A/B registrados. A D8 continua
 aberta por findings corrigíveis, smoke autenticado de AgentMail, CI remoto e
 gates I3/B13. Nenhum candidato foi promovido ou publicado; nenhum comando de
 promoção foi preparado.
+
+**Plano de fechamento:** o
+[plano D8 de prontidão de promoção](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md)
+detalha as fases de correção dos pins Python nos seis MCPs, a troca de base do
+runtime do broker (a base Alpine 3.24 já em uso no estágio `docker-cli` traz
+`zlib-1.3.2-r1` e `musl-1.2.6-r3`, acima das versões corrigidas exigidas),
+rebuild/rescan/reemissão dos OpenVEX por image ID, smoke autenticado do
+AgentMail, verificação do CI remoto, retenção e reconciliação documental.
+
+**Correção de estado (2026-10-24):** a afirmação anterior de que o core não
+tinha sido enviado está superada. O core foi enviado em `297d4295`, precedido
+por `ce31e526` e `3daabe20`. Nenhuma imagem foi publicada ou promovida.
