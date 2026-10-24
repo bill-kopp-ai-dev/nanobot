@@ -1,0 +1,23 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:d8:openevex:2026-10-24:gateway",
+  "author": "Percival D8 technical assessment (draft)",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-24T18:50:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2026-49138"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f",
+          "name": "percival-gateway:0.1.0-3daabe2"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The finding is attributed to nanobot-ai metadata 0.1.0, but the redirect-time SSRF behavior described by the advisory is not present in this candidate's web_fetch path. The fix commit 545294c62c0947da40eb5b65288aaf02b5fdf632 is an ancestor of the candidate revision 3daabe20f4c6a7b5f26f2158b97dc2591905507b; comparison confirms nanobot/agent/tools/web.py and nanobot/security/network.py are unchanged since the D6 assessment. Redirects remain manual, each hop is validated, and requests use the pinned-DNS transport.",
+      "action_statement": "This assessment applies only to this image ID. Re-evaluate if the web_fetch redirect or DNS-pinning code changes, or if the image is rebuilt from a different source revision."
+    }
+  ]
+}

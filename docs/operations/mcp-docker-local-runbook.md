@@ -127,6 +127,49 @@
 | Transitions/Audit | Indefinido enquanto o servidor existir | — |
 | Volumes Positronic/Percival | Preservar enquanto a configuração for válida; remover só com aprovação após migração confirmada | — |
 
+### 5.1 Snapshot de retenção D8 (2026-10-24)
+
+Este é um inventário, não uma autorização nem um procedimento de promoção. A
+coluna **A** é o pin atualmente observado nos dois gestores; **B** é o candidato
+Forky local. Nenhuma revisão de servidor foi alterada. As revisões abaixo são
+apenas a fotografia desta data: antes de qualquer operação aprovada, reler a
+revisão/CAS e o `configurationId` pelo gestor e interromper se diferirem.
+
+O Percival estava em `schemaVersion=1`, revisão global `18`. O Positronic
+mantém um `configurationId` por servidor. Os seis pins A e candidatos B são:
+
+| Servidor | A: Percival image ID / revisão | A: Positronic image ID / revisão / `configurationId` | B: candidato image ID |
+| --- | --- | --- | --- |
+| AgentMail | `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104` / `1` | mesmo ID / `16` / `84327292-15c1-4b92-8e14-4facb0614e90` | `sha256:b8ed6f58fe6ae1c64f98ee6ebe3dd5cbaa70f043d79278eeb89f48b83273208b` |
+| Weather | `sha256:e75fdd4abc8a0e34a76ff7fea790bffc4b4a7681396cccc393038b6478600aa6` / `1` | mesmo ID / `4` / `0e909f92-915c-494f-9fc3-5c45e3438654` | `sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4` |
+| OSM | `sha256:67f8ada639897af9ca4ca8f02e38932376f73f454db76028a3920f076011cfeb` / `1` | mesmo ID / `4` / `8fb5cdec-f04a-4085-b9d2-f62265464bb0` | `sha256:286fdfeb8327cdbec597c7089eb6e58e59b0b68148c3f48a3a9404daff989369` |
+| Deep Research | `sha256:265891c14514c809e9c05587549631426ef080219c03fde21e5d703623d3793d` / `1` | mesmo ID / `16` / `a766c34f-4166-4553-a7b5-293ab5fd5f3e` | `sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003` |
+| Notes | `sha256:ef4082ef13905cdaa0da23830bcc6c5b88ca3beb30074e11d56593d11a097460` / `4` | mesmo ID / `19` / `1d0880b8-d1f5-4e7f-8b04-19d66ea4f91c` | `sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64` |
+| Khan Calendar | `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914` / `4` | mesmo ID / `10` / `9ee229c8-c6ce-4d5c-b030-e39028fb6349` | `sha256:020200378c995ddfb086315331ad07818d888cf69859869e6e60d8f44588700b` |
+
+O Percival core ativo observado continua usando gateway
+`sha256:d06d8eedcc4e41136119c154b8e0c9786d1aba3aed0a1b9726f822c7dda7bbc9`
+e broker `sha256:c6e370a5d56c74e0362f2adecd501b575c4246439a22e1451a800fb30f30b32c`.
+O par B local, construído do mesmo SHA `3daabe20f4c6a7b5f26f2158b97dc2591905507b`,
+é gateway `sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f`
+e broker `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d`.
+Os image IDs locais não são digests OCI publicados. O core B não foi enviado.
+
+**Retenção atual:** manter A e B localmente, sem retag destrutivo ou prune.
+O gateway `percival-gateway:0.1.0-b49dd8b` no container nomeado
+`d6-nopip` também foi observado ativo; é um fixture preexistente, não o gateway
+do Compose, e permanece fora de qualquer limpeza. Os resultados do scanner e
+os smoke/limites de cada B estão no [registro D8](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
+
+**Gates antes de qualquer promoção:** findings `affected` do OpenVEX precisam
+ser corrigidos e reconstruídos, os `under_investigation` resolvidos, CI remoto
+confirmado e o smoke AgentMail autorizado com credencial/upstream válidos.
+I3 foi adiado; aquisição por catálogo/digest não está implementada. Portanto
+B não é atualmente elegível para instalar. Depois de novos candidatos aprovados,
+o operador deve confirmar a janela, CAS atual, backup/configuração/dados
+compatíveis e rollback A→B→A em fixture independente antes de autorizar
+canário. Nenhum comando de mutação é fornecido neste snapshot.
+
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.
 
 ## 6. Links e procedimentos vizinhos

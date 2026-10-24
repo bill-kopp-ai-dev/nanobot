@@ -1,0 +1,22 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:d8:openevex:2026-10-24:agentmail",
+  "author": "Percival D8 technical assessment (draft)",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-24T18:50:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2026-59951"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:b8ed6f58fe6ae1c64f98ee6ebe3dd5cbaa70f043d79278eeb89f48b83273208b",
+          "name": "percival-agentmail-mcp:0.4.0-6c71497"
+        }
+      ],
+      "status": "affected",
+      "impact_statement": "Trivy reports mcp 1.28.1 in this exact image; the fixed release line begins at 1.30.0. The advisory concerns streamable HTTP server session memory exhaustion; this image is consumed over stdio, but no reachability assessment is used to suppress the finding.",
+      "action_statement": "Upgrade the locked mcp dependency to a compatible fixed release, rerun tests and the authenticated image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+    }
+  ]
+}

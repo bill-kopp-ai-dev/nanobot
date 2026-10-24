@@ -1,0 +1,34 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:d8:openevex:2026-10-24:notes",
+  "author": "Percival D8 technical assessment (draft)",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-24T18:50:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2026-4539"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64",
+          "name": "percival-notes-mcp:0.1.5-713e95e"
+        }
+      ],
+      "status": "affected",
+      "impact_statement": "Trivy reports Pygments 2.19.2 in this exact image; the fixed version is 2.20.0. Application-level reachability of the affected AdlLexer was not assessed.",
+      "action_statement": "Upgrade the locked Pygments dependency, verify the Notes tests and image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+    },
+    {
+      "vulnerability": {"name": "CVE-2026-28684"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64",
+          "name": "percival-notes-mcp:0.1.5-713e95e"
+        }
+      ],
+      "status": "affected",
+      "impact_statement": "Trivy reports python-dotenv 1.1.1 in this exact image; the fixed version is 1.2.2. Whether the vulnerable symlink-following path is reachable in the Notes service was not assessed.",
+      "action_statement": "Upgrade the locked python-dotenv dependency, verify the Notes tests and image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+    }
+  ]
+}

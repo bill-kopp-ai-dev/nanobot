@@ -47,7 +47,7 @@ SIGTERM_BIT = 1 << 14
 # The flags each manager actually uses when it launches an MCP.
 MANAGER_FLAGS: dict[str, list[str]] = {
     # nanobot/mcp_docker/broker.py:_spawn
-    "percival": ["--cap-drop=ALL", "--security-opt=no-new-privileges"],
+    "percival": ["--init", "--cap-drop=ALL", "--security-opt=no-new-privileges"],
     # alternative-positronic/packages/positronic-mcp-docker/src/managed.ts
     "positronic": ["--init"],
 }

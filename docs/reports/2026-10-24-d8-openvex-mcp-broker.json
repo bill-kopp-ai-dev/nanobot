@@ -1,0 +1,34 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:d8:openevex:2026-10-24:mcp-broker",
+  "author": "Percival D8 technical assessment (draft)",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-24T18:50:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {"name": "CVE-2026-107891"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d",
+          "name": "percival-mcp-broker:0.1.0-3daabe2"
+        }
+      ],
+      "status": "under_investigation",
+      "impact_statement": "Trivy reports musl 1.2.5-r23 and musl-utils 1.2.5-r23 in the broker image with UNKNOWN severity and fixed version 1.2.5-r24. The advisory impact and reachability have not yet been independently established.",
+      "action_statement": "Review the Alpine advisory and package changelog, upgrade the pinned Docker CLI base when compatible, and rescan this exact image. Do not treat UNKNOWN severity as not affected."
+    },
+    {
+      "vulnerability": {"name": "CVE-2026-85091"},
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d",
+          "name": "percival-mcp-broker:0.1.0-3daabe2"
+        }
+      ],
+      "status": "affected",
+      "impact_statement": "Trivy reports zlib 1.3.2-r0 in this exact image; the fixed version is 1.3.2-r1. No reachability exception is claimed.",
+      "action_statement": "Update the digest-pinned Docker CLI base to a release with fixed zlib, verify Docker CLI compatibility, rebuild and rescan the broker. This statement is not a waiver."
+    }
+  ]
+}

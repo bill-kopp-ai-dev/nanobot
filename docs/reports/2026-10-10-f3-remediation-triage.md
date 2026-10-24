@@ -1,5 +1,10 @@
 # F3 — remediação local e triagem de findings
 
+> **Leitura temporal:** as contagens e avaliações abaixo são snapshots dos
+> image IDs examinados em 2026-10-10 e na D6. A seção D8 ao final registra os
+> candidatos Forky atuais; ela complementa os snapshots sem reescrever sua
+> proveniência ou estender avaliações entre image IDs.
+
 - **Data:** 2026-10-10 UTC.
 - **Estado:** candidatos reconstruídos e triados localmente; **a pendência #1
   do plano é fechada pelo critério "documentação e triagem completas"** — o
@@ -324,3 +329,113 @@ qualquer avaliação final exige reconstrução a partir de commit limpo.
   `certifi`. A reavaliação do `CVE-2026-49138` está registrada como
   statement `not_affected` no OpenVEX do image ID final, e a versão do
   pacote pode ser elevada em release própria, fora deste plano.
+
+## Reconciliação D8 — candidatos Forky (2026-10-24)
+
+Esta seção substitui, **somente para os image IDs abaixo**, as avaliações
+históricas dos seis MCPs da §2.8.5. Não altera nem amplia OpenVEX de outro
+produto. As imagens são candidatos locais `linux/amd64`, construídos de
+checkouts limpos; tag local, image ID e digest OCI são identidades distintas.
+Os scans JSON e SBOMs originais permanecem em `/tmp/d8-evidence/`; seus hashes
+estão registrados abaixo e os documentos OpenVEX são rascunhos versionados.
+
+### Receita e pins verificados
+
+Os seis Dockerfiles usam runtime
+`debian:forky-slim@sha256:4cee6ff3ebc49e32d55a857e25164ef8e5f8fecff2a186c6393f7e8bd8c23b53`,
+com snapshot Debian `20261020T000000Z`. O Python standalone é 3.12 nos cinco
+MCPs correspondentes e 3.11 no Deep Research. A inspeção de execução em cada
+imagem confirmou `ssl.OPENSSL_VERSION = OpenSSL 3.6.5 29 Sep 2026`, isto é, o
+interpretador construído na etapa Trixie carrega o OpenSSL do runtime Forky.
+No Python do venv de cada servidor, `certifi==2026.10.23` e `pip` não está
+importável. Deep Research também confirmou `pillow==13.0.0`,
+`brotli==1.2.1`, `filelock==4.2.1` (override autorizado pelo operador) e
+`pypdf==6.21.2`. A verificação usa o Python do `PATH` de runtime, não apenas
+os metadados dos locks.
+
+### Imagens, Trivy e SBOM
+
+Trivy 0.67.2 foi executado sobre os image IDs finais. Os oito relatórios
+CycloneDX foram gerados por Syft 1.55.0. “Componentes” abaixo conta entradas
+com PURL; hashes SHA-256 identificam os artefatos brutos, que não foram
+copiados para o repositório.
+
+| Candidato local | Revisão (`org.opencontainers.image.revision`) | Image ID | C/H/M/L/U | Componentes | SHA-256 scan JSON | SHA-256 SBOM |
+|---|---|---|---:|---:|---|---|
+| Notes `0.1.5-713e95e` | `713e95ef147abdc07b7efa388fd7cb08c1ce84dd` | `sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64` | 0/0/1/1/0 | 144 | `a260bcae30c7d35773fa18dd6271b6d0bb79d74e89e5fe15211f2f393d84766e` | `c861a8a8ed41de2444731d3158da5d61f401e7fc03ea10679088ae26e24744b3` |
+| AgentMail `0.4.0-6c71497` | `6c71497fa2a028d34e408dab1cf97bc0fe5d78c4` | `sha256:b8ed6f58fe6ae1c64f98ee6ebe3dd5cbaa70f043d79278eeb89f48b83273208b` | 0/0/1/0/0 | 146 | `118fff8639e4e5530a3d9b40a334c55b08e8ffff58f301fd894860b3f809c97f` | `bb6ab327eb3d6bf0a75c4dba271de5016ddd2c83fcef976b1d64b2aaa6af5d25` |
+| Weather `0.9.0-89993a4` | `89993a4f31ef7c7f423f9e046117dc9b50eb3d2c` | `sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4` | 0/0/1/1/0 | 145 | `dd989ebd63fab049d5a0791713b8b2eae98d70f2a3b7676d04e742c1a53183e4` | `29a629ef7af062db8e1b2b4b94ca1169c33fdf0c7ef19787144b04fd8767fa37` |
+| Khan Calendar `0.4.0-2d75c05` | `2d75c0547c66b4925427ab6920d889c0d8ffce02` | `sha256:020200378c995ddfb086315331ad07818d888cf69859869e6e60d8f44588700b` | 0/0/3/0/0 | 189 | `82ab2eff8cb0e5cc4a750f07459d16e901e3f3266e05ac3474d0304a4bb2cfae` | `3e016ed838a5a6d8091bcaf09e91a1110eedcf0062be5510f634312397ad919b` |
+| OSM `0.5.0-bf78fa4` | `bf78fa4f4cf906cfad4c18efbd6f487a630510a0` | `sha256:286fdfeb8327cdbec597c7089eb6e58e59b0b68148c3f48a3a9404daff989369` | 0/0/2/1/0 | 146 | `e3e8cf4ba243435aeece45fcdd4b2c77220a2502208019ecfbebea08a9982228` | `689cf05bb6ebed7adbc258734b46a4d883f11f2b55f80c225f7d9e3788a1271c` |
+| Deep Research `3.0.1-61ae512` | `61ae51274a10468a6c0edb25978afcb8d32e01be` | `sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003` | 0/0/5/1/0 | 334 | `8266b47cfedabd380c829c52e23f65de6702338d4d1f85ea911b1342587de32a` | `b9e2df333f4243786e83e5be9579c03930b0563bba7403a71909ad9dc804639d` |
+| Gateway `0.1.0-3daabe2` | `3daabe20f4c6a7b5f26f2158b97dc2591905507` | `sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f` | 0/0/1/0/0 | 389 | `a6e8c144375d8a8b7b78276f9bc66477838724a89904196e00b2016e88b4475e` | `50532a5bdcd78278b2b1554291f7582888453d5578d1acd8cc4e157ab1ea11ba` |
+| MCP broker `0.1.0-3daabe2` | `3daabe20f4c6a7b5f26f2158b97dc2591905507` | `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d` | 0/0/1/0/2 | 46 | `0f232256a4000b38ead91d41f779b28230aab8eb6739144104543dc2a6e99998` | `54878741230530e16f64ebb36a0895169f85c1325a62b05550b38ac221e4094b` |
+
+Os seis MCPs somam 13 findings Medium e 4 Low, todos no resultado `python-pkg`;
+os resultados de pacotes Debian Forky não contêm vulnerabilidades. Não há
+Critical nem High. Os findings Python remanescentes, sem alegação de
+não-aplicabilidade, são:
+
+- Notes: `python-dotenv 1.1.1` (`CVE-2026-28684`, fix 1.2.2) e
+  `Pygments 2.19.2` (`CVE-2026-4539`, fix 2.20.0).
+- AgentMail: `mcp 1.28.1` (`CVE-2026-59951`, fix 1.30.0).
+- Weather: `python-dotenv 1.1.1` e `Pygments 2.19.1`, com os mesmos fixes.
+- Khan Calendar: `fastmcp`/`fastmcp-slim 3.4.4`
+  (`GHSA-7xgj-8392-5q4r`, fix 3.4.10) e
+  `opentelemetry-api 1.44.0` (`CVE-2026-114603`, fix 1.45.1).
+- OSM: `python-dotenv 1.0.1` (fix 1.2.2), `Pygments 2.19.1` (fix 2.20.0)
+  e `pydantic-settings 2.13.1` (`GHSA-4xgf-cpjx-pc3j`, fix 2.14.2).
+- Deep Research: FastMCP 3.4.4, `litellm 1.93.0` (fix 1.93.2),
+  `multidict 6.7.1` (fix 6.9.1), `opentelemetry-api 1.44.0` e
+  `setuptools 83.0.0` (fix 84.1.0).
+
+No par core, o gateway tem um finding Medium `CVE-2026-49138` do metadado
+`nanobot-ai 0.1.0`; a avaliação `not_affected` está restrita ao image ID em
+[`OpenVEX do gateway D8`](2026-10-24-d8-openvex-gateway.json). O broker tem
+`zlib 1.3.2-r0` Medium com fix `1.3.2-r1` e `musl`/`musl-utils 1.2.5-r23`
+com severidade `UNKNOWN` e fix `1.2.5-r24`; o OpenVEX deixa o primeiro como
+`affected` e o segundo `under_investigation`
+([`OpenVEX do broker D8`](2026-10-24-d8-openvex-mcp-broker.json)).
+
+As avaliações OpenVEX restantes são drafts, cada uma limitada a um único
+image ID e sem aprovação/assinatura do operador:
+[`Notes`](2026-10-24-d8-openvex-notes.json),
+[`AgentMail`](2026-10-24-d8-openvex-agentmail.json),
+[`Weather`](2026-10-24-d8-openvex-weather.json),
+[`Khan Calendar`](2026-10-24-d8-openvex-khan-calendar.json),
+[`OSM`](2026-10-24-d8-openvex-osm.json) e
+[`Deep Research`](2026-10-24-d8-openvex-deep-research.json). Findings
+`affected` não são waivers; os upgrades fixados e novos builds continuam sendo
+gates antes de qualquer promoção.
+
+### Runtime, proveniência e limites
+
+- Os seis repositórios MCP estão limpos, em `main` igual a `origin/main`, e os
+  labels de revisão das imagens coincidem com os SHAs completos listados acima.
+  Os seis commits foram enviados a `origin/main` sob autorização anterior do
+  operador. O par core foi construído limpo no SHA `3daabe20…`, mas permanece
+  local; não houve push do core.
+- O contrato D7 corrigido passou nos cinco MCPs sem precondição externa: quatro
+  medições por imagem (Percival/Positronic × EOF/SIGTERM), sem violações, init
+  único, EOF com exit 0 e SIGTERM com exit 143. Smokes MCP stdio sequenciais de
+  `initialize` + `tools/list` passaram para Notes (12 tools), Weather (9),
+  Khan (12), OSM (37) e Deep Research (5).
+- AgentMail não está homologado por runtime/protocolo: sem credencial válida e
+  upstream autorizado, o servidor não inicia a sessão MCP; os resultados do
+  harness são falhas de pré-condição, não evidência de defeito funcional. Não
+  foram lidos nem inventados segredos.
+- O smoke D-in-D descartável do par core passou 18 verificações em Engine
+  27.5.1. Não é aceite VPS nem CI remoto.
+- `gh auth status` confirmou que não há sessão GitHub autenticada; Actions dos
+  seis SHAs não puderam ser confirmadas nesta execução.
+- Leitura final de `docker ps` confirmou que ambos os gestores seguem usando
+  os image IDs A anteriores registrados na §5.1 do runbook. Nenhum pin,
+  configuração, container de produto, canário, cutover, registry ou estado
+  persistente foi alterado.
+
+**Estado D8:** execução local parcial concluída: pins críticos anteriores
+foram atualizados, Forky/OpenSSL/pip verificados no runtime, builds limpos,
+scans/SBOMs/OpenVEX por imagem e retenção A/B registrados. A D8 continua
+aberta por findings corrigíveis, smoke autenticado de AgentMail, CI remoto e
+gates I3/B13. Nenhum candidato foi promovido ou publicado; nenhum comando de
+promoção foi preparado.
