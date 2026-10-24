@@ -1,6 +1,6 @@
 # Manual de operação e manutenção — MCP Docker Percival
 
-- **Preparado em:** 2026-10-10 UTC; revisão 0.1.
+- **Revisado em:** 2026-10-24 UTC; revisão 0.2 (D9).
 - **Escopo:** procedimentos de operação, atualização, rollback, incidente, revisão e retenção para os servidores MCP Docker que o Percival consome (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research) e para o gateway/broker. Este manual **não** substitui o [runbook de migração de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md), apenas convive com ele.
 - **Autoridade:** qualquer mutação real (instalar/atualizar/rollback/parar/remover) exige a interface suportada do gestor correspondente e a aprovação específica do operador. Nada aqui é executado implicitamente.
 - **Estado da padronização:** o documento nasce no fechamento F7. Os contratos F0–F5 que ele referencia estão registrados no [plano de padronização](../plans/2026-10-09-docker-standardization-refactor-plan.md) e no [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
@@ -17,15 +17,15 @@
 
 ## 2. Posições de execução
 
-| Posição | Função | Endereço típico | Exposição |
+| Posição | Função | Bind/estado | Escrita e exposição |
 | --- | --- | --- | --- |
-| `nanobot-gateway` (Compose) | Gateway Python | 127.0.0.1:8765 (HTTP), 127.0.0.1:18790 (WS) | Loopback; opt-in explícito para expor |
-| `nanobot-percival-mcp-broker-1` | Broker MCP (Compose sidecar) | 127.0.0.1:18081 dentro do namespace do gateway (`network_mode: service:nanobot-gateway`) | Loopback via gateway; sem porta no host |
-| Containers `percival-mcp-*` | MCPs do Percival | Rede do gateway | Sem portas publicadas |
-| Containers Positronic (sem label) | MCPs do Positronic | Ponte | Sem portas publicadas |
-| Engine local | 29.7.2 (overlay descartável) | — | Fora do gate VPS Engine 27.x |
+| Gateway Compose | Gateway/WebUI e manager | Health em `127.0.0.1:18790/health`; estado em `~/.nanobot` | Um writer do estado; loopback por padrão, exposição exige decisão própria |
+| API (`--profile api`) | API alternativa ao gateway | Health em `127.0.0.1:8900/health`; mesma raiz `~/.nanobot` | Iniciar em lugar do gateway, nunca como segundo writer simultâneo; requests protegidos exigem bearer API distinto da senha da instância |
+| Broker MCP (sidecar) | Único cliente do Docker Engine | `127.0.0.1:18081` no namespace do gateway (`network_mode: service:nanobot-gateway`) | Token privado; sem porta publicada no host |
+| Containers `percival-mcp-*` | MCPs gerenciados pelo Percival | Stdio sob demanda; sem porta publicada | Um init fornecido pelo gestor; nenhum healthcheck HTTP para stdio |
+| Containers Positronic (sem label Percival) | MCPs gerenciados pelo Positronic | Conforme o runtime do Positronic | São outro owner; não operar pela configuração Percival |
 
-`docker.sock` está montado **apenas** no broker. A autenticação da WebUI é feita pelo verificador em `~/.nanobot/auth/verifier.json` (criado por `nanobot auth init`); o gateway aceita `POST /auth/login` com a senha da instância e troca a sessão por tokens de WebSocket/API de via `/webui/bootstrap`. O entrypoint não toca em segredos humanos; `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` foi removido.
+CLI, gateway e API usam o bind de estado inventariado do mesmo deploy. **Somente um processo escritor** (gateway ou API) pode operar por vez. A API é um modo alternativo, não um segundo serviço a iniciar ao lado do gateway. `docker.sock` está montado apenas no broker. `nanobot auth init` cria o verificador em `~/.nanobot/auth/`; isso permite autenticação humana da WebUI, mas não configura provider nem prova readiness do modelo. A API exige sua própria chave para rotas protegidas; não reutilizar a senha humana. O antigo `PERCIVAL_DOCKER_GATEWAY_TOKEN_ISSUE_SECRET_FILE` foi removido.
 
 ## 3. Procedimentos por cenário
 
@@ -53,23 +53,25 @@
 
 ### 3.4 Atualização de servidor em Percival
 
-- Pela UI/API autenticada, abrir o detalhe do servidor. Confirmar revisão atual e imagem atual.
-- `update-image` para o ID novo, com `expected_revision`. O broker aplica CAS, registra `preparing`→`committed`/`failed` em `transitions/<id>.json` e move o container.
-- Validar `tools/list`, ler `~/.nanobot/mcp-docker/audit.jsonl` (modo 0600) e reconciliar com a expectativa.
-- Em caso de falha observada, o broker expõe o estado pendente. A correção usa a página de restore ou um novo `update-image` (ver §3.5).
+- Confirmar que há exatamente um writer Percival para `~/.nanobot`: gateway Compose ou API alternativa. Não iniciar a API ao lado do gateway. `nanobot auth init` e `nanobot mcp-docker doctor` são passos de autenticação/diagnóstico, não autorização para mutar nem prova de MCP pronto.
+- Pela UI/API autenticada suportada, abrir o detalhe do servidor e reler a revisão global, a revisão do servidor, o image ID e a configuração. Interromper se o CAS/configuração mudou desde a janela aprovada.
+- Solicitar `update-image` com o image ID imutável e a revisão esperada. O gateway serializa a intenção; o broker executa a ação tipada e registra `preparing`→`committed`/`failed` em `transitions/<id>.json`. Não escrever `config.json`, transitions ou audit à mão.
+- Verificar `initialize`→`tools/list` e uma chamada MCP de leitura segura pela mesma interface gestora. Ler `~/.nanobot/mcp-docker/audit.jsonl` (modo 0600), sem imprimir env/tokens, e reconciliar o resultado.
+- Em falha, não inferir sucesso de health Docker. Preserve o pin A e use `update-image` para voltar ao ID A ou restore suportado de backup (com revisão/checksum/confirmação exigidos); depois repita handshake e chamada segura.
 
 ### 3.5 Rollback A→B→A
 
 - **Fixture obrigatória:** manter, em host ou registro de fixture, dois image IDs imutáveis por servidor (A e B) já validados. A restauração dos quatro IDs antigos removidos no F6 não é recuperável sem reconstrução; registre essa limitação.
 - **Positronic:** `update-image A→B`, `configure` com `expected_revision` atual, `tools/list` e leitura de fixture; depois `update-image B→A`, `configure`, `tools/list` e re-leitura. Esperar a revisão esperada antes de cada mutação.
-- **Percival:** pela UI/API, `update-image` com `expected_revision`, ou `restore` a partir de backup (operator-admin, `configurationId` digitado, checksum, recusa de sobrescrita). Confirmar `tools/list` e estado do dado.
+- **Percival:** `update-image` pela mutação WebUI autenticada/elevada usa a revisão esperada. Para restore, primeiro exclua o servidor pelo gestor e preserve o backup. A mutação `restore` exige sessão WebUI elevada, `backup_id`, `expected_revision` global atual e `expected_confirmation` igual ao ID do servidor; valida checksum, só aceita backup direto sob `mcp-docker/backups/` e recusa sobrescrever servidor existente. A rota trata restore como mutação WebSocket autenticada; não use edição direta nem invoque endpoint anônimo.
+- Em ambos os gestores, confirme `initialize`, `tools/list` e uma chamada segura depois do rollback/restore. O restore recupera configuração/pin, mas não baixa uma imagem ausente localmente.
 - Não editar `config.json`, `transitions/`, `audit.jsonl` ou `registry.json` à mão. Use apenas a interface suportada; qualquer hand-edit invalida o gate.
 
 ### 3.6 Backup e restore de Notes/Khan
 
 - Notes: o vault Positronic fica em `~/.positronic/mcp/data/notes-vault`; o Percival em `~/.local/share/percival-test-mcp/notes-vault`. Backup com checksum (sha256) preserva a hierarquia; restaurar somente em fixture antes de aplicar no vault real. Validar leitura com `notes_get_stats`/`notes_read`.
 - Khan: o calendário fica em `~/.local/share/positronic-test-mcp/khan-calendar` e `~/.local/share/percival-test-mcp/khan-calendar`. Backup do diretório (khal.db, khal.conf, eventos `.ics`). Validar com `khal list` (CLI) e `khan_get_status` (MCP) em fixture.
-- O gateway expõe uma UI de restore que exige autorização, nome do servidor digitado, checksum, revisão atual, e recusa sobrescrita. Esse é o caminho suportado.
+- O restore Percival é uma mutação WebUI autenticada com elevação de sessão; o payload usa `backup_id`, `expected_revision` e `expected_confirmation` (server ID). A implementação valida o checksum do manifest e recusa overwrite; depois revalide o runtime. A fixture D9 exercitou a transação de domínio/broker com esses mesmos invariantes; a rota WebUI mantém sua própria autenticação/elevation.
 - Restore **não** baixa imagem; o image ID anterior deve estar disponível localmente.
 
 ### 3.7 Containers órfãos
@@ -80,21 +82,25 @@
 
 ### 3.8 Incidente: falso `unhealthy` em stdio
 
-- **Causa típica:** healthcheck HTTP aplicado a container stdio. Stdio não tem HTTP, então qualquer probe HTTP resulta em `unhealthy` falso.
-- **Diagnóstico:** `docker inspect <id> --format '{{.State.Health.Status}} {{.Config.Healthcheck.Test}}'`. Se `Health.Test` contém `curl http`, e o serviço é declarado `stdio`, a receita precisa de `stdin_open: true; tty: false` e `healthcheck: []` (ausente), e o container real não deve receber `--health-cmd` HTTP.
-- **Correção:** alterar a receita Compose para separar o profile HTTP do serviço stdio. O serviço stdio é invocado sob demanda por `docker compose run --rm -T` (ou equivalente do cliente MCP). Reiniciar o container não conserta a receita; consertar a receita é o que evita reincidência.
+- **Sinal observado:** `docker inspect` mostra `State.Health.Status=unhealthy`, mas isso isoladamente não determina a readiness do MCP. Na walkthrough D9, uma imagem fixture stdio com probe HTTP falsa ficou `unhealthy` enquanto `initialize`/`tools/list` e `ping` MCP passaram.
+- **Diagnóstico seguro:** `docker inspect <id> --format '{{json .Config.Healthcheck}} {{.State.Health.Status}}'` (não imprimir `Config.Env` nem `Mounts`). Confirme no contrato do servidor se o transporte é `stdio`; então execute o handshake e uma chamada segura através do gestor dono. Um healthcheck HTTP não tem semântica para stdio.
+- **Ação:** remova a probe HTTP da imagem/receita stdio e mantenha `stdin_open: true`, `tty: false`, sem portas publicadas. Não reinicie nem altere o estado salvo para mascarar o resultado. Se o handshake falhar, investigue o MCP/broker; se passar, registre a probe como inválida e corrija a receita na próxima imagem aprovada.
 
-### 3.9 Incidente: readiness HTTP falha mesmo com `healthy`
+### 3.9 Composição de probes e readiness
 
-- HTTP `healthy` no Docker ≠ readiness do MCP. Em `http://127.0.0.1:18081/v1/...` (loopback) o broker responde, mas o MCP só está pronto quando o handshake MCP (`initialize`, `tools/list`) passa.
-- Procedimento: `docker logs <id> --tail 50` (redigido); `tools/list` via cliente MCP; se passar, marcar `state=running` no registry/config e seguir.
-- Em Percival, o `doctor` (`nanobot mcp-docker doctor`) confirma token, transporte autenticado, Engine e política de host, sem subir containers. Se `doctor` passa mas o MCP não responde, o problema é da imagem, não do gateway/broker.
+- Gateway `GET /health` prova processo e WebSocket requerido; não prova login, credenciais do provider, broker, tools ou KG.
+- API `GET /health` prova processo; bearer `GET /v1/models` prova o caminho protegido da API, não uma completion nem acesso pago a provider. A chave API é distinta da senha humana.
+- A probe sidecar `python3 -m nanobot.mcp_docker.probe` autentica `/v1/health` do broker e verifica Engine/política; um TCP aberto ou `doctor` aprovado não prova uma tool do MCP.
+- Para readiness de MCP, execute `initialize`→`tools/list` e uma `tools/call` segura via o manager dono. Não escreva `state=running` manualmente. O manager observa e projeta o estado; mantenha falha de probe e falha de handshake como evidências distintas.
+- `nanobot mcp-docker doctor` verifica token, transporte autenticado, Engine e política do host sem subir MCPs; ele não executa mutações nem prova readiness de cada servidor.
 
-### 3.10 Incidente: SIGTERM não para o container
+### 3.10 Encerramento por modo e SIGTERM
 
-- Esperado: o container responde a SIGTERM, sai em ≤ 10s e `docker ps` mostra `Exited (143)`. Não usar `SIGKILL` por padrão.
-- Diagnóstico: o processo é o PID 1; se houver `tini` e `init: true` juntos, o init duplicado pode mascarar o sinal. Conferir `docker inspect --format '{{.Config.Init}}'` e `docker inspect <image> --format '{{json .Config.Entrypoint}}'`. Manter apenas um.
-- Se o MCP travar, encerrar a sessão cliente (que para o `docker run --rm`) é a primeira ação; só então considerar o container.
+- **Gateway/API idle:** Compose envia SIGTERM; a observação local foi exit 0. Isso não garante drain completo durante trabalho ativo. `gateway` e `api` compartilham o estado, portanto pare o writer atual antes de iniciar o outro.
+- **Broker:** SIGTERM encerra com exit 143. Não prometa drain de chamadas em voo; o store do broker é volátil, enquanto MCPs persistentes pertencentes ao Percival não são removidos pelo stop do broker. Para mudança de identidade/rede do gateway, recrie o par gateway+broker.
+- **MCP stdio:** EOF fecha a sessão; o gestor fornece exatamente um `--init`/`init: true`, e a imagem não embute outro init. Sem TTY, sem porta e sem healthcheck HTTP. No Positronic, seu próprio manager é o owner; não aplique o procedimento Percival.
+- **Diagnóstico:** `docker inspect <id> --format '{{.Config.Init}} {{.Config.StopSignal}} {{.State.ExitCode}}'`; leia `Entrypoint` separadamente se necessário. A prova é o comportamento observado: broker 143, gateway/API 0 em idle, fixture stdio por EOF 0; `SigCgt=0` do `docker-init` é normal porque ele encaminha o sinal.
+- Não use SIGKILL como primeira ação nem interprete 143 como prova de drain. Em MCP persistente, interrompa pelo gestor dono e confirme estado/protocolo após a retomada.
 
 ## 4. Revisão trimestral e atualização urgente por vulnerabilidade
 
@@ -105,7 +111,11 @@
 - **Trivy e SBOM.** Reexecutar scans com DB atualizado. O [relatório F3 remediation/triage](../reports/2026-10-10-f3-remediation-triage.md) é a base: severidades bloqueadoras não recebem waiver implícito.
 - **Inventário de imagens intermediárias.** Listar tags `:dev`, `:f3`, `:f7`, `:smoke`, etc. e decidir retenção. IDs sem container referenciando e sem expectativa de rollback são candidatos a remoção aprovada (lista explícita por image ID).
 - **Capacidade do host.** Verificar `docker system df`, volumes órfãos, espaço em `~/.nanobot`, `~/.positronic`. Sem `docker system prune` em lote; somente itens com lista aprovada.
-- **Saída da revisão:** tabela `imagem-base | digest antes | digest proposto | impacto | owner | janela` e ações aprovadas. Sem aprovação, nada muda.
+- **Saída e assinatura:** preencher a tabela abaixo, registrar decisão/owner/data e obter aprovação do operador antes de qualquer mutação. Revisar também a retenção §5; sem aprovação, nada muda.
+
+| Repo/serviço | base/dependência | digest/versão atual | proposta | impacto/scan/SBOM | owner/janela | decisão do operador |
+| --- | --- | --- | --- | --- | --- | --- |
+| `<repo>` | `<item>` | `<atual>` | `<proposta>` | `<evidência>` | `<owner/data>` | `<aprovar/adiar/rejeitar + data>` |
 
 ### 4.2 Vulnerabilidade urgente (owner: operador)
 
@@ -172,6 +182,17 @@ canário. Nenhum comando de mutação é fornecido neste snapshot.
 
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.
 
+### 5.2 Aprovação e calendário D9
+
+A política de retenção da tabela §5 foi aprovada pelo operador nesta execução de D9, por solicitação explícita nesta sessão em **2026-10-24**. Este é um registro de aprovação textual; não representa assinatura criptográfica. A aprovação autoriza a política, **não** a remoção de imagens, containers, volumes ou dados. Nenhum prune ou cleanup foi executado.
+
+| Registro | Data | Owner da decisão | Executor da revisão | Estado |
+| --- | --- | --- | --- | --- |
+| Aprovação inicial da política de retenção | 2026-10-24 | Operador | Agente | Aprovada; nenhuma limpeza autorizada |
+| Próxima revisão trimestral | até 2027-01-24 | Operador | Agente | Pendente |
+
+Em cada revisão, anexar tabela §4.1, inventário por image ID/digest, referências em pins/config/containers/volumes, decisão explícita de retenção e aprovação do operador. Não remova automaticamente artefatos fora do limite: apresente uma lista nominal e aguarde aprovação específica para cada limpeza.
+
 ## 6. Links e procedimentos vizinhos
 
 - [Plano de padronização Docker](../plans/2026-10-09-docker-standardization-refactor-plan.md) — contratos F0–F5 e pendências numeradas.
@@ -181,9 +202,10 @@ canário. Nenhum comando de mutação é fornecido neste snapshot.
 - [Plano MCP Docker first-class](../plans/closed/2026-10-06-mcp-docker-first-class-execution-plan.md) — gates VPS/Engine 27.x independentes.
 - [Relatório F4/F5](../reports/2026-10-10-f4-f5-closure-report.md) — restore/rollback já exercitados em fixture.
 - [Relatório F3 remediation/triage](../reports/2026-10-10-f3-remediation-triage.md) — base de findings e VEX.
+- [Walkthrough D9 (runtime 1)](../reports/2026-10-24-d9-runbook-walkthrough.md) — update, rollback, health falso, restore e retenção assinada.
 
 ## 7. Limites desta revisão
 
 - Procedimentos cobertos: build, atualização, rollback, backup/restore, incidentes de health/SIGTERM, revisão trimestral, urgência, retenção.
 - Procedimentos fora: deploy em VPS, mudança de Engine, migração real de estado, rotação da credencial `operator-admin`, reescrita de histórico, publicação, release B13. Cada um tem plano próprio.
-- Limitações conhecidas: (a) `mcp server install-local` Positronic falha silenciosamente; workaround usado em F4 é edição direta do registry, e este manual recomenda investigar o handler antes de usar em produção. (b) Khan `tools/call` no FastMCP 3.4.4 não devolve frame JSON-RPC; verificação no nível de filesystem + stderr é proxy até fix. (c) Engine local 29.7.2 com overlay `docker-compose.engine29-override.yml`; gate VPS Engine 27.x é independente.
+- A walkthrough D9 usa engine 27.5.1 dentro de Docker-in-Docker descartável e imagens locais do core; a fixture de update/rollback/restore é sintética, não promove nem homologa os seis MCPs de produção. CI GitHub, release/publicação, VPS e Engine do host continuam gates próprios. A retenção aprovada não autoriza prune nem cutover.
