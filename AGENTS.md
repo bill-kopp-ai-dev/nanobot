@@ -147,3 +147,7 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   personally owned by the operator. Local acceptance, IaC integration, VPS deployment
   and public release are distinct gates; a requested source commit/push authorizes
   that operation only, not image publication, deployment or real-data cutover.
+
+## MCP Docker operations
+
+Use the [local operations runbook](docs/operations/mcp-docker-local-runbook.md) for Percival-managed MCPs. Identify ownership from manager state and labels; the Positronic TUI/CLI owns its own servers. Keep stdio (JSON-RPC stdout, no HTTP probe) separate from HTTP profiles, use manager CAS/revisions and immutable image IDs, preserve data and rollback, and redact secrets. The broker alone gets Docker access. Do not hand-edit state or run cleanup. Diagnostic health/doctor does not prove MCP readiness; verify `initialize`, `tools/list`, and a safe call through the owning manager.

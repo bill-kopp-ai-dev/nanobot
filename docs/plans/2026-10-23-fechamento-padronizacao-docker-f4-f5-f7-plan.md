@@ -23,7 +23,7 @@
   corrigido, regressão Remote SSH real 5/5 dentro da imagem, scan do candidato
   final 0 Critical/0 High/1 Medium, SBOM e OpenVEX reemitidos, análise por
   imagem dos seis MCPs sem estender o VEX do gateway; a promoção, o canário, o
-  rollback e a publicação limpa permanecem na D8); D8 permanece parcial; **D9 fechou em 2026-10-24** (§2.10); D10 fechou em 2026-10-24 (§2.11); D11 e D12 continuam sem fechamento integral. I1 concluiu
+  rollback e a publicação limpa permanecem na D8); D8 permanece parcial; **D9 fechou em 2026-10-24** (§2.10); D10 fechou em 2026-10-24 (§2.11); D11 executada parcialmente em 2026-10-24 (§2.12): matriz e instruções alinhadas, skill incorporada ao catálogo Built-in do Percival e confirmação visual Built-in+Enabled pelo operador; diagnóstico estruturado do agente permaneceu read-only e não concluiu o rehearsal; [plano de fechamento D11](2026-10-24-d11-skill-operations-closure-plan.md) define os gates restantes. D12 continua sem fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
   Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
   core de D7, acrescenta seus builds worktree ao resíduo de D8 e atualiza as entradas
@@ -130,7 +130,7 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core e candidatos alterados com SHA/versão/labels coerentes; promover somente após aprovação, canário e rollback independentes; reter último bom e par A/B compatível | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial em 2026-10-24** — §2.9 e [relatório F3, reconciliação D8](../reports/2026-10-10-f3-remediation-triage.md): oito candidatos locais limpos com labels/SHA coerentes; seis MCPs Forky e pins críticos verificados no runtime, par core local no SHA `3daabe20…`; scans/SBOMs/OpenVEX individuais registrados. Os scans não têm Critical/High, mas restam findings Medium/Low no Python dos MCPs, findings no broker e dois assessments sem conclusão/aceite. AgentMail ainda exige smoke autenticado; CI remoto não verificável sem sessão GitHub. Retenção A/B documentada. Promoção, canário, cutover, publicação e push do core não ocorreram; os gates I3/B13 permanecem. |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **fechada em 2026-10-24** — §2.10 e [walkthrough](../reports/2026-10-24-d9-runbook-walkthrough.md). 22/22 checks passaram em Engine 27.5.1 descartável com os builds core locais `0.1.0-3daabe2`: update A→B e rollback B→A com CAS via gateway/broker; chamada MCP validou cada pin; health HTTP falsa produziu `unhealthy` enquanto `ping` stdio passou; exclude/backup/restore validou checksum, revisão, confirmação nominal e chamada após recuperação. Procedimentos do manual alinhados a single-writer gateway/API, bind comum/token, limites das probes, init e sinais por modo. Retenção §5 assinada textualmente pelo operador nesta solicitação (2026-10-24); revisão seguinte até 2027-01-24. Só dind/estado sintético; nenhum pin, imagem do host, container de produto, volume, publicação ou deploy foi alterado. D10 mantém dono dos comandos Positronic; C1–C4/I3/B13 e D8 continuam independentes.
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **fechada em 2026-10-24** — §2.11. Caminho de recuperação confirmado: `delete <id> <revision> --confirm <id>` gera backup privado e `restore <backup>` restaura instalação + configurações, desde que a imagem local continue disponível. O fluxo delete/restore passou na CLI nativa isolada e preservou imagem, revisão/configuração e allowlist. Skill global alinhada ao CLI real: remove `allow-project` (inexistente), registra `projects`, `recover-transition --confirm <id>` e proíbe edição direta do registry. `install-local` aparece no help, mas o smoke atual não criou registro; a skill encaminha instalação nova pela TUI `/mcp` → Installed até correção e reexercício desse comando. Nenhum estado MCP vivo foi alterado.
-| D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
+| D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial em 2026-10-24 (§2.12)** — matriz dos 9 escopos confirmada; Notes e AgentMail ganharam instruções raiz; demais instruções alinhadas por gestor; skill `mcp-docker-operations` incorporada como Built-in em `nanobot/skills/`, cópia Custom removida e UI confirmada pelo operador como Built-in+Enabled. Diagnóstico do agente: 8 PASS, 1 parcial, 3 FAIL, 4 bloqueados, sem mutações; os bloqueios de contexto/runtime e o rehearsal faltante estão classificados no [plano D11](2026-10-24-d11-skill-operations-closure-plan.md). Exercício A→B→A pelo agente em fixture ainda pendente; nenhum MCP real foi alterado |
 | D12 | Assinatura F7 e registro de encerramento único | Relatório único com `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, inventário pós-cutover sem segredos, URLs dos runs e risco residual; registrar **aceite local**, **aprovação B13**, **homologação pública** e **aceite VPS/deploy** como atos separados, na ordem I1 | F7 P5; I1.6 | operador (assina) + agente (consolida) | **encerramento consolidado bloqueado** por D8, D11, C1–C4 e A1–A9; evidência parcial I1/I2 incorporada, sem assinatura F7. Registro local não certifica VPS e publicação B13 não depende integralmente de I9/C3/C4 públicos; homologação pós-push é gate de promoção |
 
 ### 2.1 D1 — inventário de exposição (reexecutado em 2026-10-23, agente)
@@ -2322,3 +2322,76 @@ image IDs não são digests OCI publicados.
   o CLI `restore` foi exercitado com um shim de `docker image inspect` e ID de
   imagem sintética registrado no estado temporário. Sem mutação de instalação,
   pin, container, imagem ou credencial MCP de produto.
+
+### 2.12 D11 — skill de gestão F8 e instruções operacionais (2026-10-24)
+
+**Decisão de escopo:** manter `mcp-docker-workflow` como skill Global do
+consumidor Positronic, pois ela descreve sua TUI/CLI e inventário. Criar uma
+skill **Local** `mcp-docker-operations` para o projeto Percival, por causa do
+broker, CAS/auditoria, API/UI autenticada e contratos próprios. A proposta foi
+submetida ao Skill Workshop para revisão do operador; não foi ativada, copiada
+para destino aprovado ou tornada global.
+
+**Matriz efetiva — arquivo → escopo/dono → atualização:**
+
+| Arquivo efetivo | Escopo e owner | Orientação D11 |
+| --- | --- | --- |
+| `~/.positronic/AGENTS.md` | Global Positronic; operador | roteia por dono, leitura inicial read-only, runbook e aprovação antes de mutações |
+| `nanobot/AGENTS.md` | Percival; gateway/manager | runbook, ownership, CAS, image ID, stdio/HTTP e broker único |
+| `alternative-positronic/positronic/AGENTS.md` | Consumidor Positronic | TUI/CLI do Positronic; proíbe aplicar comandos/registry Percival |
+| `percival-notes-mcp/AGENTS.md` | Notes | stdio, vault persistente, restore isolado e testes canônicos |
+| `percival-agentmail-mcp/AGENTS.md` | AgentMail | stdio, segredo/API paga, CI e live smoke opt-in |
+| `percival-weather-mcp/AGENTS.md` | Weather | perfis stdio/HTTP, probe correta e bind/token HTTP |
+| `percival-khan-calendar/AGENTS.md` | Khan Calendar | stdio e calendário fixture para mutações |
+| `percival-osm/AGENTS.md` | OSM | transporte, owner, chamadas externas e redaction |
+| `percival-deep-research/AGENTS.md` | Deep Research | transporte, credenciais provider e smoke opt-in |
+
+Os outros arquivos encontrados (`nanobot/templates/AGENTS.md`, templates de
+identidade e instruções em subpastas internas do monorepo Positronic) não são
+carregados no caminho de gestão dos MCPs. Nenhum workspace/template, cache,
+dependência vendorizada ou repositório fora desses nove escopos foi alterado.
+O `AGENTS.md` do Weather permanece ignorado pelo Git conforme a política do
+próprio repositório; os demais arquivos raiz são rastreáveis.
+
+**Skill proposta e revisão:** a proposta fica em escopo local Percival e
+encaminha procedimentos detalhados ao runbook D9. Ela separa dono/API e evita
+prometer CLI Percival inexistente; distingue diagnóstico de readiness, chama
+CAS com revisões atuais e exige imagem A para rollback. Exemplos proíbem
+hand-edit de state, mutação sem aprovação, cleanup genérico e exposição de
+secrets. A skill de Positronic não foi ampliada nem duplicada. Proposta
+`53035f7d-1a57-4c70-a96d-6e6eaf54d26e` está `staged`, escopo `project`, no
+Workshop em `$POSITRONIC_HOME/agents/operator/workshop/`; conteúdo e metadata
+foram relidos. O CLI instalado apresentou incompatibilidade de escopo; o
+patch no checkout Positronic mapeia CLI `local` para Workshop `project`, e o
+teste E2E da proposta local passou (15/15 testes do package).
+
+**Dry-run/fixture:** o runbook ganhou um exemplo de inventário dry-run baseado
+nas imagens sintéticas D9, sem ação do manager. Nesta sessão foram lidos apenas
+arquivos locais, status dos checkouts e metadata da proposta; não houve inventário
+Docker do host nem consulta/mutação de estado MCP real. O runner
+D9 descartável em Engine 27.5.1 exercitou update A→B→A por CAS, handshake e
+chamada MCP real `ping`, falsa probe HTTP em servidor stdio (`unhealthy` junto
+de `ping` bem-sucedido), backup/exclude/restore com checksum e confirmação:
+22/22 checks. O artefato anterior é reaproveitado; não foi reexecutado na D11.
+Evidência: [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md),
+artefato bruto em `/tmp/positronic-d9/i2-pl3_0wgl/results.json`. Esta fixture
+valida o diagnóstico falso de stdio e rollback; não homologa o profile HTTP de
+cada MCP nem candidatos D8.
+
+O runbook agora inclui em §3.1 um exemplo explicitamente `DRY-RUN`, com
+owner, pin A/B, revisões, transporte, dados redigidos, checks, rollback e
+ausência de autorização. Na Positronic, corrigido no source o adaptador de
+escopo da criação Local (`local` → `project` no contrato do Workshop); o teste
+E2E do CLI/workshop passou 15/15 no package `packages/opencode`. A CLI nativa
+instalada ainda exige release para receber essa correção.
+
+**Deploy no Percival:** em 2026-10-24 o conteúdo aprovado pelo operador foi
+incorporado ao catálogo Built-in em `nanobot/skills/mcp-docker-operations/SKILL.md`;
+SHA-256 `d17c78c3eb0c8fb41260c297c6cdbc98970cee6c07d35d76919de50f0351d60c`. A cópia Custom em `~/.nanobot/workspace/skills/` foi
+removida para evitar duplicidade. O Workshop Positronic mantém sua proposta
+`staged` porque seu destino é o consumidor Positronic, runtime separado. A confirmação visual da UI pelo operador ocorreu em 2026-10-24 (Built-in e
+Enabled). O diagnóstico estruturado seguinte foi read-only: 8 PASS, 1 PARCIAL,
+3 FAIL e 4 BLOQUEADO. O agente não executou o rehearsal A→B→A; nenhum MCP real
+foi alterado. A classificação ST-01–ST-16, o tratamento do contexto `/app`, do
+GID, do `restore-f1`, do read-model e de `allowRemoteAdmin`, e os critérios de
+fechamento estão no [plano D11](2026-10-24-d11-skill-operations-closure-plan.md).

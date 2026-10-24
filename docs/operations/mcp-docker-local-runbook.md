@@ -37,6 +37,23 @@ CLI, gateway e API usam o bind de estado inventariado do mesmo deploy. **Somente
 - `git -C <repo> rev-parse HEAD; git -C <repo> status --short` em todos os repos de runtime envolvidos. Anotar a divergência.
 - **Não imprimir** env, tokens, segredos ou o conteúdo de `Config.Env`/`Mounts`. Apenas os rótulos e paths públicos.
 
+
+#### Exemplo de dry-run (fixture D9; sem mutação)
+
+```text
+mode: DRY-RUN — no manager action issued
+owner: Percival (fixture `i2fixture`; confirm in manager before real work)
+source: local fixture / synthetic images A and B
+pin: image ID A → image ID B; revisions: reread from manager at execution time
+transport: stdio; mounts/data: synthetic only; secrets: omitted
+checks: MCP initialize → tools/list → safe ping; rollback image A retained
+approval: not requested; next step: review plan, then request approval separately
+```
+
+This output is a planning record, not an authorization. For an HTTP-profile
+operation, record bind/auth/probe separately and validate with an isolated HTTP
+fixture; never infer MCP readiness from health alone.
+
 ### 3.2 Build de uma imagem
 
 - Para o gateway/broker: `python scripts/percival-docker-build.py` no checkout Percival; passar `--worktree-candidate` quando a fonte incluir diff não commitado. Não usar `:dev` como release.
