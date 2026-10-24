@@ -2304,17 +2304,24 @@ image IDs não são digests OCI publicados.
   falha do candidato.
 - **Retenção/estado vivo:** a §5.1 do runbook registra pins A, revisões/CAS,
   configuration IDs e image IDs B, com a coluna B substituída pelos candidatos
-  vigentes. A releitura final de `docker ps` confirmou os dois gestores ainda nos
-  IDs A; nenhuma configuração, pin, container, volume ou dado foi alterado.
+  vigentes. A releitura final de `docker ps` confirmou os doze containers MCP
+  dos dois gestores ainda nos IDs A. **O core exige uma ressalva:** o par core
+  ativo **não** é o A da D8 — o Compose roda o par do deploy D11 (`29a482ce`,
+  image IDs `ac62466dfd99` e `6ea63b38852c`), e o par A/B da D8
+  (`3daabe2` → `50e6ebd0`) está retido localmente, sem estar ativo; um
+  eventual rollback do core tem de voltar ao A da D8
+  (`2a0e5c342504…`/`c6784ebbc29a…`), não ao par `29a482c`/`c63b8b68`. A
+  redação anterior da §5.1 do runbook afirmava o contrário e foi corrigida.
+  Nenhuma configuração, pin, container, volume ou dado foi alterado.
 - **Matriz de prontidão B1–B6:**
 
   | Gate | Condição | Estado em 2026-10-24 |
   | --- | --- | --- |
   | B1 — imagem | build limpo, SHA/labels coerentes, 0 Critical/High, Medium/Low corrigidos ou avaliados por image ID | **atendido** — oito candidatos limpos, SHA integral no label `revision`, 0 Critical/High, zero findings nos seis MCPs e no broker, um Medium no gateway com avaliação `not_affected` reancorada |
   | B2 — runtime | contrato D7 e smokes verdes no image ID final de cada serviço | **atendido** — D7 4/4 em cinco MCPs, smokes com contagens no baseline (12/24/9/12/37/5), AgentMail autenticado com HTTP 200 |
-  | B3 — rollback | par A/B retido e verificável, com caminho de retorno ao image ID A reidratado por gestor | **atendido** — par A/B registrado na §5.1 do runbook, A reconfirmado por `docker ps` e caminho de retorno exercitado no walkthrough D9 em fixture independente |
-  | B4 — retenção | snapshot aprovado; A e B preservados sem prune | **atendido** — §5 do runbook aprovada textualmente pelo operador em 2026-10-24; A e B preservados localmente, sem prune; nenhum comando de limpeza fornecido |
-  | B5 — CI | Actions remotas verdes nos SHAs candidatos | **não atendido** — seis runs MCP vermelhos; cinco idênticos ao anterior, o delta do OSM diagnosticado como flake preexistente do harness legado; core sem run por workflows desabilitados no fork |
+  | B3 — rollback | par A/B retido e verificável, com caminho de retorno ao image ID A reidratado por gestor | **atendido** — par A/B registrado na §5.1 do runbook; para os seis MCPs, A reconfirmado por `docker ps` nos doze containers dos dois gestores; para o core, o par A/B da D8 (`3daabe2` → `50e6ebd0`) está retido mas **não ativo** — o Compose roda o par do deploy D11, e o rollback do core tem de voltar ao A da D8 (`2a0e5c342504…`/`c6784ebbc29a…`). Caminho de retorno exercitado no walkthrough D9 em fixture independente |
+  | B4 — retenção | snapshot aprovado; A e B preservados sem prune | **atendido** — a **política** de retenção da §5 do runbook foi aprovada textualmente pelo operador em 2026-10-24; a §5.1 foi atualizada depois com a correção factual do estado do core, sem alterar a política. A e B preservados localmente, sem prune; nenhum comando de limpeza fornecido |
+  | B5 — CI | Actions remotas verdes nos SHAs candidatos | **não atendido** — seis runs MCP vermelhos; a comparação step a step mostra cinco falhando no **mesmo step** do run anterior, sem relação com os pins; o delta do OSM diagnosticado como flake preexistente do harness legado; core sem run (`total_count: 0`) por workflows desabilitados no fork |
   | B6 — distribuição | digest OCI publicado, aquisição homologada e B13 aprovado | **fora do escopo local** — depende de I3/I5, de publicação e de autorização do operador; nenhum digest OCI existe para estes image IDs |
 
 - **Gates:** sem promoção, canário, cutover ou publicação; **nenhum comando de

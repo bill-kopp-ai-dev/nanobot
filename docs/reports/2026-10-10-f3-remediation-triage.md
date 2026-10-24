@@ -467,7 +467,7 @@ rascunhos técnicos: não são waivers nem aprovação do operador.
   Actions e **todos terminam em failure**. A comparação foi feita **step a
   step** pela API pública de Actions, contra o run imediatamente anterior de
   cada repo: **cinco MCPs falham no mesmo step, com o mesmo nome**, o que
-  exclui regressão dos pins. Detalhe em §7.4 do
+  exclui regressão dos pins. Detalhe em §7.5 do
   [plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md). O
   OSM é o único delta real: o job `build (linux/amd64)` passou e falhou no
   step 6, no `docker-smoke-test.sh`. A causa foi diagnosticada com prova: o
@@ -490,10 +490,17 @@ rascunhos técnicos: não são waivers nem aprovação do operador.
   CI foi feita pela API pública de Actions e, após o rate limit dessa API,
   pelas páginas HTML do `github.com`. Não houve publicação, promoção nem
   canário.
-- Leitura final de `docker ps` confirmou que ambos os gestores seguem usando
-  os image IDs A anteriores registrados na §5.1 do runbook. Nenhum pin,
-  configuração, container de produto, canário, cutover, registry ou estado
-  persistente foi alterado.
+- Leitura final de `docker ps` confirmou que os doze containers MCP dos dois
+  gestores seguem usando os image IDs A anteriores registrados na §5.1 do
+  runbook. **O core é uma exceção e foi corrigido nesta rodada:** o par core
+  ativo **não** é o A da D8 — o Compose roda o par do deploy D11
+  (`29a482ce`, image IDs `ac62466dfd99` e `6ea63b38852c`), e o par A/B da D8
+  (`3daabe2` → `50e6ebd0`) está retido localmente, sem estar ativo. Um
+  eventual rollback do core tem de voltar ao A da D8
+  (`2a0e5c342504…`/`c6784ebbc29a…`), não ao par `29a482c`/`c63b8b68`. A
+  redação anterior da §5.1 do runbook, que afirmava o contrário, foi corrigida.
+  Nenhum pin, configuração, container de produto, canário, cutover, registry ou
+  estado persistente foi alterado.
 
 **Estado D8 (2026-10-24, fechamento local):** G1 (13 Medium + 4 Low nos pins
 Python) e G2 (`zlib`/`musl` do broker) **fechados** — os seis MCPs e o broker

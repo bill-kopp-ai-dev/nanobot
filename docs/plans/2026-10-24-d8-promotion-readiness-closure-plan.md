@@ -334,7 +334,29 @@ os artefatos brutos não foram copiados para o repositório.
 Os oito candidatos são **locais**. Tag local, image ID e digest OCI são
 identidades distintas; nenhum digest OCI existe para estes artefatos.
 
-### 7.2 Critérios C1–C15
+### 7.2 Estado vivo e par A/B (reconciliado em 2026-10-24)
+
+Leitura de `docker ps`, `docker inspect` e dos labels OCI:
+
+- **Seis MCPs:** os doze containers (seis do Percival e seis do Positronic)
+  seguem nos image IDs A da §5.1 do runbook. Nenhum pin, revisão, `configurationId`
+  ou allowlist foi alterado.
+- **Core:** o par **ativo** no Compose **não** é o A da D8. O Compose roda
+  gateway `sha256:ac62466dfd99…` e broker `sha256:6ea63b38852c…`, ambos com o
+  label de revisão `29a482cec88506e579c4d5c0b32c6aec16e3fc55` e versão
+  `0.3.5` — o par do deploy local da D11, que é uma gate independente. O par
+  pré-D11 (`d06d8eedcc4e…`/`c6e370a5d56c…`, revisão `29a482ce`/`c63b8b68`)
+  está preservado pelos snapshots `rollback-d11-20261024` e
+  `rollback-d11-broker-before-fix`.
+- **Par A/B da D8:** A = `3daabe20…` (`2a0e5c342504…`/`c6784ebbc29a…`), B =
+  `50e6ebd0…` (`25f4ac0774e9…`/`1988f1771ab8…`). Ambos retidos localmente,
+  **nenhum ativo**.
+- **Consequência operacional:** um eventual rollback do core tem de voltar ao
+  **A da D8** (`2a0e5c342504…`/`c6784ebbc29a…`), não ao par `29a482c`/`c63b8b68`
+  do deploy D11. A §5.1 do runbook foi corrigida nesta rodada, porque
+  afirmava que o core ativo usava os image IDs do par pré-D11.
+
+### 7.3 Critérios C1–C15
 
 | Critério | Estado | Evidência |
 | --- | --- | --- |
@@ -347,25 +369,25 @@ identidades distintas; nenhum digest OCI existe para estes artefatos.
 | C7 — Contrato D7 | **atendido** | 4/4 medições em cinco MCPs (EOF com exit 0, SIGTERM com exit 143, zero violações). No AgentMail o harness D7 usa `--network=none` por desenho, o que bloqueia o EOF porque o lifespan exige upstream: 2/4 no harness (SIGTERM conforme) e o EOF provado conforme fora do isolamento de rede |
 | C8 — Smoke | **atendido** | 12/24/9/12/37/5 tools, idênticos ao baseline |
 | C9 — AgentMail | **atendido** | Smoke autenticado: 24 tools e `mail_get_inbox_info` respondendo HTTP 200, com redação de segredos |
-| C10 — CI | **não atendido** | Comparação **step a step** dos runs candidato e anterior registrada na §7.4. Os seis SHAs MCP têm run e **todos em failure**; cinco falham no **mesmo step** do run anterior. O core `50e6ebd0` tem `total_count: 0` — workflows desabilitados no fork por limite de uso do GitHub Actions |
+| C10 — CI | **não atendido** | Comparação **step a step** dos runs candidato e anterior registrada na §7.5. Os seis SHAs MCP têm run e **todos em failure**; cinco falham no **mesmo step** do run anterior. O core `50e6ebd0` tem `total_count: 0` — workflows desabilitados no fork por limite de uso do GitHub Actions |
 | C11 — Core | **atendido** | Broker sem `zlib` afetado e sem `UNKNOWN` de `musl` (`zlib 1.3.2-r1`, `musl 1.2.6-r3`); smoke D-in-D do par core verde (18 checks, Engine 27.5.1) |
-| C12 — Retenção | **atendido** | Snapshot A/B vigente na §5.1 do runbook; pins A intactos nos dois gestores, reconfirmados por `docker ps`; nenhum prune |
+| C12 — Retenção | **atendido** | Snapshot A/B vigente na §5.1 do runbook; pins A dos seis MCPs intactos nos dois gestores, reconfirmados por `docker ps`; par core A/B da D8 retido e distinto do par ativo do deploy D11; nenhum prune |
 | C13 — Não mutação | **atendido** | Nenhuma configuração, pin, revisão, allowlist, credencial, container de produto, volume ou registry alterado |
 | C14 — Documentação | **atendido** | §2.9 e linha D8 do plano mestre, relatório F3 e runbook §5.1 reconciliados com o estado real |
 | C15 — Autoridade | **atendido** | Nenhum comando de promoção entregue; nenhuma promoção, canário, cutover ou publicação executada |
 
-### 7.3 Matriz de prontidão B1–B6
+### 7.4 Matriz de prontidão B1–B6
 
 | Gate | Estado | Fundamento |
 | --- | --- | --- |
 | B1 — imagem | **atendido** | Oito candidatos limpos; 0 Critical/High; zero findings nos seis MCPs e no broker; um Medium no gateway com avaliação por image ID |
 | B2 — runtime | **atendido** | Contrato D7 4/4 em cinco MCPs; smokes no baseline; AgentMail autenticado com HTTP 200 |
-| B3 — rollback | **atendido** | Par A/B registrado; A reconfirmado por `docker ps`; caminho de retorno exercitado no walkthrough D9 em fixture independente |
-| B4 — retenção | **atendido** | §5 do runbook aprovada textualmente pelo operador em 2026-10-24; A e B preservados, sem prune |
-| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco falham no **mesmo step** do run anterior (§7.4); o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run (`total_count: 0`) por bloqueio de infraestrutura do fork |
+| B3 — rollback | **atendido** | Par A/B registrado. Para os seis MCPs, A reconfirmado por `docker ps` nos doze containers dos dois gestores. Para o core, o par A/B da D8 (`3daabe2` → `50e6ebd0`) está retido mas **não está ativo**: o Compose roda o par do deploy D11 (`29a482c`), e um rollback do core tem de voltar ao A da D8, `2a0e5c342504…`/`c6784ebbc29a…`. Caminho A→B→A exercitado no walkthrough D9 em fixture independente |
+| B4 — retenção | **atendido** | A **política** de retenção da §5 do runbook foi aprovada textualmente pelo operador em 2026-10-24; a §5.1 foi atualizada depois com a correção factual do core (§7.2), sem alterar a política. A e B preservados, sem prune; preservados também o par core ativo do D11 e o par pré-D11 |
+| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco falham no **mesmo step** do run anterior (§7.5); o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run (`total_count: 0`) por bloqueio de infraestrutura do fork |
 | B6 — distribuição | **fora do escopo local** | Digest OCI publicado, aquisição homologada e B13 aprovado dependem de I3/I5 e de autorização do operador |
 
-### 7.4 Comparação step a step do CI remoto
+### 7.5 Comparação step a step do CI remoto
 
 Coleta pela API pública de Actions (`runs` e `runs/<id>/jobs`), com
 `head_sha` do candidato. Os runs candidatos são os de 2026-10-24T21:15Z; o
@@ -411,7 +433,7 @@ Leitura da tabela:
   também na imagem antiga (3 PASS / 3 FAIL em 6 execuções, contra 3 PASS / 2
   FAIL em 5 execuções na imagem nova).
 
-### 7.5 Resíduo
+### 7.6 Resíduo
 
 - **B5 permanece aberto.** A correção do `docker-smoke-test.sh` do repo OSM é um
   defeito **preexistente** do harness, não do candidato; tratá-la exige decisão

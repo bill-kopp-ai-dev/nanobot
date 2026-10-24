@@ -179,25 +179,49 @@ pelos candidatos reconstruídos após a reconciliação dos pins Python e a troc
 da base do runtime do broker. Os image IDs B anteriores (`b8ed6f58fe6a`,
 `e3537f2d2983`, `286fdfeb8327`, `af9c6fa28863`, `1bc3417de299`,
 `020200378c99`, `2a0e5c342504`, `c6784ebbc29a`) estão **superados** e não
-podem ser reutilizados como par B. A coluna A é a foto inicial e foi
-reconfirmada por `docker ps` em 2026-10-24: os doze containers MCP dos dois
-gestores e o par core seguem nos image IDs A.
+podem ser reutilizados como par B. A coluna A é a foto inicial dos seis MCPs e
+foi reconfirmada por `docker ps` em 2026-10-24: os doze containers MCP dos dois
+gestores seguem nos image IDs A.
 
-O Percival core ativo observado continua usando gateway
-`sha256:d06d8eedcc4e41136119c154b8e0c9786d1aba3aed0a1b9726f822c7dda7bbc9`
-e broker `sha256:c6e370a5d56c74e0362f2adecd501b575c4246439a22e1451a800fb30f30b32c`.
-O par B local, construído do mesmo SHA `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6`,
-é gateway `sha256:25f4ac0774e985378e9b8ac09b5eb851915a817fd0e6be2929276fbbab0a50c5`
-e broker `sha256:1988f1771ab84b952e301cd1aa931af4e24e116c7a6fb8851b95be566c5be1c7`.
-Os image IDs locais não são digests OCI publicados. O core B foi enviado em
-`50e6ebd0` (precedido por `297d4295`, `ce31e526` e `3daabe20`); o envio da
-**fonte** não publica nem promove **imagem**.
+**Correção de estado do core (2026-10-24):** a redação anterior desta seção
+afirmava que o core ativo usava gateway `sha256:d06d8eedcc4e…` e broker
+`sha256:c6e370a5d56c…`. Isso **não é mais verdade**: o deploy local da D11
+substituiu o par core, e ambos os image IDs citados passaram a ser snapshots de
+rollback preservados, não imagens ativas. O estado real, lido de `docker ps` e
+dos labels OCI em 2026-10-24:
+
+| Papel | Image ID | Revision (label) | Versão | Estado |
+| --- | --- | --- | --- | --- |
+| Gateway do Compose (ativo) | `sha256:ac62466dfd99ca60006890479d052550287609ec7726bdae81d1976393f289c6` | `29a482cec88506e579c4d5c0b32c6aec16e3fc55` | `0.3.5` | ativo (`percival-gateway:0.3.5-29a482c-d11-builtin-20261024`) |
+| Broker do Compose (ativo) | `sha256:6ea63b38852cca47943562cfc695a08d23c68849a1d7cb97418766f88f324bd8` | `29a482cec88506e579c4d5c0b32c6aec16e3fc55` | `0.3.5` | ativo (`percival-mcp-broker:local`) |
+| Gateway pré-D11 (rollback) | `sha256:d06d8eedcc4e41136119c154b8e0c9786d1aba3aed0a1b9726f822c7dda7bbc9` | `29a482cec88506e579c4d5c0b32c6aec16e3fc55` | `0.3.5` | preservado (`percival-gateway:rollback-d11-20261024`) |
+| Broker pré-D11 (rollback) | `sha256:c6e370a5d56c74e0362f2adecd501b575c4246439a22e1451a800fb30f30b32c` | `c63b8b680d0f12ca1c2b6c271a56ea16ff4bd2d4` | `0.3.5` | preservado (`percival-mcp-broker:rollback-d11-broker-before-fix`) |
+
+O par **A/B da D8** é outro e continua **retido localmente, sem estar ativo**:
+A é o par do SHA `3daabe20f4c6a7b5f26f2158b97dc2591905507b` — gateway
+`sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f` e
+broker `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d`
+— e B é o par do SHA `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6` — gateway
+`sha256:25f4ac0774e985378e9b8ac09b5eb851915a817fd0e6be2929276fbbab0a50c5` e
+broker `sha256:1988f1771ab84b952e301cd1aa931af4e24e116c7a6fb8851b95be566c5be1c7`.
+Consequência para a D8: o par core ativo **não** é o A da D8, portanto um
+eventual rollback do core **tem** de voltar ao image ID `2a0e5c342504…`/`c6784ebbc29a…`
+(A da D8), e não ao par `29a482c`/`c63b8b68` do deploy D11. O caminho A→B→A
+foi exercitado no [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md)
+em fixture descartável, com os builds `0.1.0-3daabe2`. Os image IDs locais
+não são digests OCI publicados. O core B foi enviado em `50e6ebd0` (precedido
+por `297d4295`, `ce31e526` e `3daabe20`); o envio da **fonte** não publica nem
+promove **imagem**.
 
 **Retenção atual:** manter A e B localmente, sem retag destrutivo ou prune.
-O gateway `percival-gateway:0.1.0-b49dd8b` no container nomeado
-`d6-nopip` também foi observado ativo; é um fixture preexistente, não o gateway
-do Compose, e permanece fora de qualquer limpeza. Os resultados do scanner e
-os smoke/limites de cada B estão no [registro D8](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
+Retêm-se também o par core ativo do deploy D11
+(`ac62466dfd99`/`6ea63b38852c`) e o par pré-D11
+(`d06d8eedcc4e`/`c6e370a5d56c`), preservados pelos snapshots
+`rollback-d11-20261024` e `rollback-d11-broker-before-fix`. O gateway
+`percival-gateway:0.1.0-b49dd8b` no container nomeado `d6-nopip` também foi
+observado ativo; é um fixture preexistente, não o gateway do Compose, e
+permanece fora de qualquer limpeza. Os resultados do scanner e os
+smoke/limites de cada B estão no [registro D8](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
 
 **Gates antes de qualquer promoção (2026-10-24):** os findings Python dos
 seis MCPs e do broker foram corrigidos — os sete image IDs B reportam zero
