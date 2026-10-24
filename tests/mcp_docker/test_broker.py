@@ -71,7 +71,7 @@ def test_minimum_access_spawn_checks_effective_binds(monkeypatch: pytest.MonkeyP
     calls: list[tuple[str, ...]] = []
     monkeypatch.setattr(broker, "docker", lambda *args: calls.append(args))
     monkeypatch.setattr(broker, "_running", lambda _server: True)
-    inspected = {"HostConfig": {"NetworkMode": "none"}, "Mounts": []}
+    inspected = {"HostConfig": {"NetworkMode": "none", "Init": True}, "Mounts": []}
     monkeypatch.setattr(broker, "_inspect", lambda _server: inspected)
     server = broker.ManagedServer("weather", broker.DockerImageSource(
         type="local-image", reference="sha256:" + "a" * 64), broker.DockerHostConfig(mounts=[]))
@@ -135,7 +135,8 @@ def test_reconcile_starts_owned_stopped_container_without_replacing_it(monkeypat
                                   "percival.mcp-docker.managed-by": "percival-broker"},
                        "Env": ["TEST=value"]},
             "HostConfig": {"NetworkMode": "none", "Mounts": None, "Tmpfs": None,
-                           "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"]},
+                           "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"],
+                           "Init": True},
         }
 
     monkeypatch.setattr(broker, "ready", lambda: NoBinds())
@@ -154,7 +155,8 @@ def test_reconcile_starts_owned_stopped_container_without_replacing_it(monkeypat
     assert not any(args[0] in {"rm", "run"} for args in calls)
 
 
-@pytest.mark.parametrize("drift", ["image", "network", "mounts", "covers", "labels", "env", "capabilities"])
+@pytest.mark.parametrize("drift", ["image", "network", "mounts", "covers", "labels", "env",
+                                    "capabilities", "init"])
 def test_reconcile_rejects_stopped_container_with_configuration_drift(
     monkeypatch: pytest.MonkeyPatch, drift: str,
 ) -> None:
@@ -166,7 +168,8 @@ def test_reconcile_rejects_stopped_container_with_configuration_drift(
                               "percival.mcp-docker.managed-by": "percival-broker"},
                    "Env": ["TEST=value"]},
         "HostConfig": {"NetworkMode": "none", "Mounts": [], "Tmpfs": {},
-                       "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"]},
+                       "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"],
+                       "Init": True},
     }
     if drift == "image":
         container["Image"] = "sha256:" + "b" * 64
@@ -180,6 +183,8 @@ def test_reconcile_rejects_stopped_container_with_configuration_drift(
         container["Config"]["Labels"]["percival.mcp-docker.owner"] = "other"
     elif drift == "capabilities":
         container["HostConfig"]["CapDrop"] = []
+    elif drift == "init":
+        container["HostConfig"]["Init"] = False
     else:
         container["Config"]["Env"] = ["TEST=old"]
     class NoBinds:
@@ -217,7 +222,7 @@ def test_reconcile_stopped_container_verifies_bind_and_cover_plan(monkeypatch: p
                               "percival.mcp-docker.owner": "percival",
                               "percival.mcp-docker.managed-by": "percival-broker"}, "Env": []},
         "HostConfig": {"NetworkMode": "none", "CapDrop": ["ALL"],
-                       "SecurityOpt": ["no-new-privileges"],
+                       "SecurityOpt": ["no-new-privileges"], "Init": True,
                        "Mounts": [{"Type": "bind", "Source": "/srv/data", "Target": "/host/srv/data",
                                    "BindOptions": {"NonRecursive": True}}],
                        "Tmpfs": {"/host/srv/data/private": cover.split(":", 1)[1]}},
@@ -468,7 +473,7 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(broker, "image_reference", lambda _source: "sha256:" + "a" * 64)
     monkeypatch.setattr(broker, "_running", lambda _server: True)
     monkeypatch.setattr(broker, "_inspect", lambda _server: {
-        "HostConfig": {"NetworkMode": "bridge", "Tmpfs": {}},
+        "HostConfig": {"NetworkMode": "bridge", "Tmpfs": {}, "Init": True},
         "Mounts": [],
     })
 
@@ -494,6 +499,11 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     assert label_index < network_index
     assert "--cap-drop=ALL" in run_args
     assert "--security-opt=no-new-privileges" in run_args
+    # The manager owns the init layer: without ``--init`` the server is PID 1
+    # of the namespace and the kernel never delivers SIGTERM to it, so every
+    # stop pays the full grace period and ends in SIGKILL (137) instead of
+    # a clean exit (143).
+    assert "--init" in run_args
 
 
 def test_spawn_rejects_network_policy_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:

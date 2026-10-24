@@ -461,7 +461,8 @@ async def test_managed_retry_recovers_existing_stopped_container_after_broker_re
                                   "percival.mcp-docker.owner": "percival",
                                   "percival.mcp-docker.managed-by": "percival-broker"}, "Env": []},
             "HostConfig": {"NetworkMode": "none", "CapDrop": ["ALL"],
-                           "SecurityOpt": ["no-new-privileges"], "Mounts": None, "Tmpfs": None},
+                           "SecurityOpt": ["no-new-privileges"], "Init": True,
+                           "Mounts": None, "Tmpfs": None},
         }
 
     def docker(*args: str) -> str:

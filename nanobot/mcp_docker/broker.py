@@ -179,7 +179,7 @@ def _spawn(server: ManagedServer) -> None:
     policy = ready()  # re-read host mounts/data-root before every new container
     reference = image_reference(server.source)
     instance_id = str(uuid.uuid4())
-    args = ["run", "-d", "-i", "--pull=never", "--name", _name(server.server_id),
+    args = ["run", "-d", "-i", "--pull=never", "--init", "--name", _name(server.server_id),
             "--label", f"percival.mcp-docker.server-id={server.server_id}",
             "--label", "percival.mcp-docker.owner=percival",
             "--label", "percival.mcp-docker.managed-by=percival-broker",
@@ -201,6 +201,8 @@ def _spawn(server: ManagedServer) -> None:
     actual_network = cast(dict[str, object], host_config).get("NetworkMode") if isinstance(host_config, dict) else None
     if actual_network != expected_network:
         raise BrokerError("container network policy mismatch")
+    if not isinstance(host_config, dict) or cast(dict[str, object], host_config).get("Init") is not True:
+        raise BrokerError("container init policy mismatch")
     if server.host.mounts == []:
         actual_mounts = container.get("Mounts")
         if not isinstance(actual_mounts, list) or any(
@@ -242,6 +244,7 @@ def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
         labels.get("percival.mcp-docker.server-id") != server.server_id or
         host_config.get("NetworkMode") != server.host.network or
         host_config.get("CapDrop") != ["ALL"] or
+        host_config.get("Init") is not True or
         not isinstance(raw_security_options, list) or
         "no-new-privileges" not in cast(list[object], raw_security_options) or
         host_config.get("Privileged") is True):

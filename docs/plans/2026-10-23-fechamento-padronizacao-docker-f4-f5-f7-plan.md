@@ -1143,6 +1143,65 @@ Research, sob o gestor que os lança, para não criar init duplo. Como os
 dois lados pertencem a repositórios distintos (core e MCPs), a correção é
 **dupla** e o operador precisa decidir a ordem.
 
+#### 2.7.4.1 Dono do init — decisão do agente, com a medição que a sustenta
+
+Os dois achados de init (1 e 2) **não são dois defeitos independentes**:
+são **um só defeito com duas faces** — a camada de init do runtime stdio
+**não tem dono único** no Percival. O levantamento por repositório mostra
+quatro donos diferentes para a mesma responsabilidade:
+
+| MCP | `init:` no compose | tini embutido na imagem | `--init` do Positronic | `--init` do broker |
+| --- | --- | --- | --- | --- |
+| Notes / Weather / Khan / AgentMail | `init: true` | não | sim | **não** |
+| OSM / Deep Research | não | **tini** | sim | **não** |
+
+O contrato de runtime 1 **já nomeia o dono** e é explícito:
+*"`init: true` belongs to Compose. Images do not embed a second init"*
+([`docs/agent-runtime-contract.md:109`-`:112`](../../docs/agent-runtime-contract.md#L109-L112)).
+O runbook diz o mesmo para o caminho stdio: *"Stdio usa `stdin_open:
+true`/`tty: false` e `docker run --init`. Duplo init cria falsa camada de
+supervisão"* ([runbook:14](../../docs/operations/mcp-docker-local-runbook.md#L14)).
+
+**Decisão: o init pertence ao gestor (o `--init` do launch), e a imagem não
+embute init.** Essa é a direção que reconcilia os três repositórios com o
+contrato já vigente, e resolve os dois achados de uma vez:
+
+- o broker do Percival passa a passar `--init` → o achado 1 desaparece;
+- OSM e Deep Research deixam de embutir tini → o achado 2 desaparece
+  (o `docker-init` do Positronic deixa de ser duplicado);
+- os compose dos seis MCPs passam a declarar `init: true` → o caminho
+  local/self-hosted também fica com um init só.
+
+**A decisão precisa ser segura sob as flags do broker.** O contrato de
+runtime 1 alerta que *"Root init needs `CAP_KILL` to signal the child after
+UID drop … Without KILL the constrained root init was observed to fail
+forwarding SIGTERM"*, e o broker usa `--cap-drop=ALL`. Essa combinação
+**não** estava medida. Medida antes de decidir, com a imagem do Notes:
+
+| Flags | PID 1 | `SigCgt` de PID 1 | `docker stop` | Saída |
+| --- | --- | --- | --- | --- |
+| `--cap-drop=ALL --security-opt=no-new-privileges` (**atual**) | o servidor Python | `0x100000002` | **10,1 s** | **137** |
+| `--cap-drop=ALL --security-opt=no-new-privileges --init` (**proposta**) | `/sbin/docker-init` | `0x0` | **0,1 s** | **143** |
+| `--cap-drop=ALL --cap-add=KILL --init` | `/sbin/docker-init` | `0x0` | 0,1 s | 143 |
+| `--init` (Positronic) | `/sbin/docker-init` | `0x0` | 0,1 s | 143 |
+
+**O `--init` funciona mesmo com `--cap-drop=ALL`**: não é preciso
+`--cap-add=KILL`. O `docker-init` corre com `CapEff=0` e ainda assim
+encaminha o SIGTERM ao filho — o filho continua com `SigCgt=0x100000002`
+(bit 14 ligado) e o container sai em 143.
+
+**Sobre o `SigCgt=0` do init:** o init **não instala handler** — ele
+**encaminha** o sinal ao filho. Por isso `SigCgt=0` em PID 1 com `--init`
+não é defeito, e por isso o `SigCgt` **não é o critério de conformidade**.
+O critério é o **comportamento observável**: `docker stop` deve terminar em
+143, e não em 137. Note ainda que, sem init, o PID 1 **é** o servidor
+Python e tem o bit 14 ligado — ou seja, o servidor **tem** handler de
+SIGTERM, mas **o kernel não entrega o sinal** a ele: dentro de um
+namespace de PID, o init do namespace só recebe sinais externos se tiver
+handler instalado. Um handler no processo não basta enquanto o processo é
+o init do namespace — é o init que precisa estar em condições de
+encaminhar.
+
 #### 2.7.5 Achado 2 — init duplicado no consumidor Positronic
 
 **Confirmado, e é defeito de código de outro repositório.**
