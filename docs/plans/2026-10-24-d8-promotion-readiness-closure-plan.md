@@ -310,3 +310,67 @@ verificável.
 
 A D8 é independente de D11, D12, I3/I9, C1–C4 e A1–A9. Fechar a D8 não fecha nenhum
 deles, e o encerramento consolidado continua dependente dos gates externos.
+
+## 7. Registro de execução (2026-10-24)
+
+Fases A a F executadas. A evidência bruta (scans JSON, SBOMs CycloneDX e
+contratos de runtime) está em `/tmp/d8-evidence-v2/`, com os SHA-256
+registrados no [relatório F3](../reports/2026-10-10-f3-remediation-triage.md);
+os artefatos brutos não foram copiados para o repositório.
+
+### 7.1 Candidatos vigentes
+
+| Tag | Revisão | Image ID | C/H/M/L/U |
+| --- | --- | --- | --- |
+| `percival-notes-mcp:0.1.5-c104735` | `c1047355bce2512cc50ca89c0c8af0b82837909a` | `sha256:3abd363f5a354a293b7c5ef5bf58a30cfd245800814f6b800c4545fba994822a` | 0/0/0/0/0 |
+| `percival-agentmail-mcp:0.4.0-cd55a2f` | `cd55a2fe7121f41e8bd5470973ff84e1ba5e58f8` | `sha256:9591d7786a5234b9a5635a5d9fb49d010c66233de25cdf955b4508063c8a53c1` | 0/0/0/0/0 |
+| `percival-weather-mcp:0.9.0-437a41c` | `437a41c3fd55ae7994c71894e639a6c4ca6d8d43` | `sha256:b805919db8fb10af2dd5ea527402449aa743ebcb3762b4d84085f99f97b2d70f` | 0/0/0/0/0 |
+| `percival-khan-calendar:0.4.0-e8c5d8c` | `e8c5d8c0ad2ed498f96985dd77f6247539f62cfb` | `sha256:9aa02922d5163b992032eafcdaef7f49e009d8e0c855b2f93c258b3bb881db1f` | 0/0/0/0/0 |
+| `percival-osm:0.5.0-04d4399` | `04d4399c8f8d1a9ce24c8d5ac4cb2208b1801b76` | `sha256:ce6de5ccd164ec8c89d4f5b195b140f1dd12f1405f50919614aaf8f93252159b` | 0/0/0/0/0 |
+| `percival-deep-research:3.0.1-af3b23b` | `af3b23be6d3bdec88bc0da3e419d62ecd55e9aa4` | `sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff` | 0/0/0/0/0 |
+| `percival-gateway:0.1.0-50e6ebd` | `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6` | `sha256:25f4ac0774e985378e9b8ac09b5eb851915a817fd0e6be2929276fbbab0a50c5` | 0/0/1/0/0 |
+| `percival-mcp-broker:0.1.0-50e6ebd` | `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6` | `sha256:1988f1771ab84b952e301cd1aa931af4e24e116c7a6fb8851b95be566c5be1c7` | 0/0/0/0/0 |
+
+Os oito candidatos são **locais**. Tag local, image ID e digest OCI são
+identidades distintas; nenhum digest OCI existe para estes artefatos.
+
+### 7.2 Critérios C1–C15
+
+| Critério | Estado | Evidência |
+| --- | --- | --- |
+| C1 — Pins | **atendido** | Versões corrigidas verificadas **dentro do runtime** de cada imagem; pins críticos preservados (`certifi==2026.10.23` nos seis; `pillow==13.0.0`, `brotli==1.2.1`, `pypdf==6.21.2`, `filelock==4.2.1` no Deep Research) |
+| C2 — Testes | **atendido** | Notes 52 passed; AgentMail 236 passed / 1 skipped; Weather 149 passed; Khan 231 passed (cobertura 87,47%); OSM 76 passed; Deep Research 414 passed / 3 skipped |
+| C3 — Build | **atendido** | Oito builds de checkout limpo, `linux/amd64`, SHA integral no label `revision`, sem diff de worktree na identidade |
+| C4 — Scan | **atendido** | Trivy 0.67.2: zero findings nos seis MCPs e no broker; um Medium no gateway (`CVE-2026-49138`), com `not_affected` reancorada no commit `545294c` |
+| C5 — SBOM | **atendido** | CycloneDX por image ID (Syft 1.55.0) com SHA-256 do artefato bruto no relatório F3 |
+| C6 — OpenVEX | **atendido** | Oito documentos reemitidos (`version: 2`), um produto por documento, `status` coerente com o scan; drafts, não waivers |
+| C7 — Contrato D7 | **atendido** | 4/4 medições em cinco MCPs (EOF com exit 0, SIGTERM com exit 143, zero violações). No AgentMail o harness D7 usa `--network=none` por desenho, o que bloqueia o EOF porque o lifespan exige upstream: 2/4 no harness (SIGTERM conforme) e o EOF provado conforme fora do isolamento de rede |
+| C8 — Smoke | **atendido** | 12/24/9/12/37/5 tools, idênticos ao baseline |
+| C9 — AgentMail | **atendido** | Smoke autenticado: 24 tools e `mail_get_inbox_info` respondendo HTTP 200, com redação de segredos |
+| C10 — CI | **não atendido** | URLs, `headSha` e conclusão registrados para os seis SHAs MCP; **todos em failure**. O core `50e6ebd0` **não tem run** — workflows desabilitados no fork por limite de uso do GitHub Actions |
+| C11 — Core | **atendido** | Broker sem `zlib` afetado e sem `UNKNOWN` de `musl` (`zlib 1.3.2-r1`, `musl 1.2.6-r3`); smoke D-in-D do par core verde (18 checks, Engine 27.5.1) |
+| C12 — Retenção | **atendido** | Snapshot A/B vigente na §5.1 do runbook; pins A intactos nos dois gestores, reconfirmados por `docker ps`; nenhum prune |
+| C13 — Não mutação | **atendido** | Nenhuma configuração, pin, revisão, allowlist, credencial, container de produto, volume ou registry alterado |
+| C14 — Documentação | **atendido** | §2.9 e linha D8 do plano mestre, relatório F3 e runbook §5.1 reconciliados com o estado real |
+| C15 — Autoridade | **atendido** | Nenhum comando de promoção entregue; nenhuma promoção, canário, cutover ou publicação executada |
+
+### 7.3 Matriz de prontidão B1–B6
+
+| Gate | Estado | Fundamento |
+| --- | --- | --- |
+| B1 — imagem | **atendido** | Oito candidatos limpos; 0 Critical/High; zero findings nos seis MCPs e no broker; um Medium no gateway com avaliação por image ID |
+| B2 — runtime | **atendido** | Contrato D7 4/4 em cinco MCPs; smokes no baseline; AgentMail autenticado com HTTP 200 |
+| B3 — rollback | **atendido** | Par A/B registrado; A reconfirmado por `docker ps`; caminho de retorno exercitado no walkthrough D9 em fixture independente |
+| B4 — retenção | **atendido** | §5 do runbook aprovada textualmente pelo operador em 2026-10-24; A e B preservados, sem prune |
+| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco reproduzem o run anterior sem relação com os pins; o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run por bloqueio de infraestrutura do fork |
+| B6 — distribuição | **fora do escopo local** | Digest OCI publicado, aquisição homologada e B13 aprovado dependem de I3/I5 e de autorização do operador |
+
+### 7.4 Resíduo
+
+- **B5 permanece aberto.** A correção do `docker-smoke-test.sh` do repo OSM é um
+  defeito **preexistente** do harness, não do candidato; tratá-la exige decisão
+  do operador sobre escopo, porque muda o CI de um terceiro repo.
+- **B6 permanece fora do escopo local.** I3 foi adiado; não existe caminho de
+  aquisição por digest implementado.
+- A D8 **não está fechada**: a prontidão local está completa, mas promoção,
+  canário, cutover e publicação dependem de B5/B6 e de decisão do operador.

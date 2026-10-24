@@ -3,32 +3,32 @@
   "@id": "urn:percival:d8:openevex:2026-10-24:weather",
   "author": "Percival D8 technical assessment (draft)",
   "role": "Technical assessor",
-  "timestamp": "2026-10-24T18:50:00Z",
-  "version": 1,
+  "timestamp": "2026-10-24T22:03:37Z",
+  "version": 2,
   "statements": [
     {
       "vulnerability": {"name": "CVE-2026-4539"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4",
-          "name": "percival-weather-mcp:0.9.0-89993a4"
+          "@id": "urn:oci:image:sha256:b805919db8fb10af2dd5ea527402449aa743ebcb3762b4d84085f99f97b2d70f",
+          "name": "percival-weather-mcp:0.9.0-437a41c"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports Pygments 2.19.1 in this exact image; the fixed version is 2.20.0. Application-level reachability of the affected AdlLexer was not assessed.",
-      "action_statement": "Upgrade the locked Pygments dependency, verify Weather tests and image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable Pygments in this image; the runtime carries Pygments 2.21.0, above the 2.20.0 fixed version that the previous candidate image reported as affected.",
+      "action_statement": "Reassess if the locked Pygments dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     },
     {
       "vulnerability": {"name": "CVE-2026-28684"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4",
-          "name": "percival-weather-mcp:0.9.0-89993a4"
+          "@id": "urn:oci:image:sha256:b805919db8fb10af2dd5ea527402449aa743ebcb3762b4d84085f99f97b2d70f",
+          "name": "percival-weather-mcp:0.9.0-437a41c"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports python-dotenv 1.1.1 in this exact image; the fixed version is 1.2.2. Whether the vulnerable symlink-following path is reachable in the Weather service was not assessed.",
-      "action_statement": "Upgrade the locked python-dotenv dependency, verify Weather tests and image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable python-dotenv in this image; the runtime carries python-dotenv 1.2.4, above the 1.2.2 fixed version that the previous candidate image reported as affected. The declared floor in pyproject.toml was raised from 1.1.1 to 1.2.2 so a future re-resolve cannot silently reintroduce the affected line.",
+      "action_statement": "Reassess if the locked python-dotenv dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     }
   ]
 }

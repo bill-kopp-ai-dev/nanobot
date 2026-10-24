@@ -167,22 +167,31 @@ mantém um `configurationId` por servidor. Os seis pins A e candidatos B são:
 
 | Servidor | A: Percival image ID / revisão | A: Positronic image ID / revisão / `configurationId` | B: candidato image ID |
 | --- | --- | --- | --- |
-| AgentMail | `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104` / `1` | mesmo ID / `16` / `84327292-15c1-4b92-8e14-4facb0614e90` | `sha256:b8ed6f58fe6ae1c64f98ee6ebe3dd5cbaa70f043d79278eeb89f48b83273208b` |
-| Weather | `sha256:e75fdd4abc8a0e34a76ff7fea790bffc4b4a7681396cccc393038b6478600aa6` / `1` | mesmo ID / `4` / `0e909f92-915c-494f-9fc3-5c45e3438654` | `sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4` |
-| OSM | `sha256:67f8ada639897af9ca4ca8f02e38932376f73f454db76028a3920f076011cfeb` / `1` | mesmo ID / `4` / `8fb5cdec-f04a-4085-b9d2-f62265464bb0` | `sha256:286fdfeb8327cdbec597c7089eb6e58e59b0b68148c3f48a3a9404daff989369` |
-| Deep Research | `sha256:265891c14514c809e9c05587549631426ef080219c03fde21e5d703623d3793d` / `1` | mesmo ID / `16` / `a766c34f-4166-4553-a7b5-293ab5fd5f3e` | `sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003` |
-| Notes | `sha256:ef4082ef13905cdaa0da23830bcc6c5b88ca3beb30074e11d56593d11a097460` / `4` | mesmo ID / `19` / `1d0880b8-d1f5-4e7f-8b04-19d66ea4f91c` | `sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64` |
-| Khan Calendar | `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914` / `4` | mesmo ID / `10` / `9ee229c8-c6ce-4d5c-b030-e39028fb6349` | `sha256:020200378c995ddfb086315331ad07818d888cf69859869e6e60d8f44588700b` |
+| AgentMail | `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104` / `1` | mesmo ID / `16` / `84327292-15c1-4b92-8e14-4facb0614e90` | `sha256:9591d7786a5234b9a5635a5d9fb49d010c66233de25cdf955b4508063c8a53c1` |
+| Weather | `sha256:e75fdd4abc8a0e34a76ff7fea790bffc4b4a7681396cccc393038b6478600aa6` / `1` | mesmo ID / `4` / `0e909f92-915c-494f-9fc3-5c45e3438654` | `sha256:b805919db8fb10af2dd5ea527402449aa743ebcb3762b4d84085f99f97b2d70f` |
+| OSM | `sha256:67f8ada639897af9ca4ca8f02e38932376f73f454db76028a3920f076011cfeb` / `1` | mesmo ID / `4` / `8fb5cdec-f04a-4085-b9d2-f62265464bb0` | `sha256:ce6de5ccd164ec8c89d4f5b195b140f1dd12f1405f50919614aaf8f93252159b` |
+| Deep Research | `sha256:265891c14514c809e9c05587549631426ef080219c03fde21e5d703623d3793d` / `1` | mesmo ID / `16` / `a766c34f-4166-4553-a7b5-293ab5fd5f3e` | `sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff` |
+| Notes | `sha256:ef4082ef13905cdaa0da23830bcc6c5b88ca3beb30074e11d56593d11a097460` / `4` | mesmo ID / `19` / `1d0880b8-d1f5-4e7f-8b04-19d66ea4f91c` | `sha256:3abd363f5a354a293b7c5ef5bf58a30cfd245800814f6b800c4545fba994822a` |
+| Khan Calendar | `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914` / `4` | mesmo ID / `10` / `9ee229c8-c6ce-4d5c-b030-e39028fb6349` | `sha256:9aa02922d5163b992032eafcdaef7f49e009d8e0c855b2f93c258b3bb881db1f` |
+
+**Substituição de 2026-10-24 (fechamento D8):** a coluna B foi substituída
+pelos candidatos reconstruídos após a reconciliação dos pins Python e a troca
+da base do runtime do broker. Os image IDs B anteriores (`b8ed6f58fe6a`,
+`e3537f2d2983`, `286fdfeb8327`, `af9c6fa28863`, `1bc3417de299`,
+`020200378c99`, `2a0e5c342504`, `c6784ebbc29a`) estão **superados** e não
+podem ser reutilizados como par B. A coluna A é a foto inicial e foi
+reconfirmada por `docker ps` em 2026-10-24: os doze containers MCP dos dois
+gestores e o par core seguem nos image IDs A.
 
 O Percival core ativo observado continua usando gateway
 `sha256:d06d8eedcc4e41136119c154b8e0c9786d1aba3aed0a1b9726f822c7dda7bbc9`
 e broker `sha256:c6e370a5d56c74e0362f2adecd501b575c4246439a22e1451a800fb30f30b32c`.
-O par B local, construído do mesmo SHA `3daabe20f4c6a7b5f26f2158b97dc2591905507b`,
-é gateway `sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f`
-e broker `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d`.
+O par B local, construído do mesmo SHA `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6`,
+é gateway `sha256:25f4ac0774e985378e9b8ac09b5eb851915a817fd0e6be2929276fbbab0a50c5`
+e broker `sha256:1988f1771ab84b952e301cd1aa931af4e24e116c7a6fb8851b95be566c5be1c7`.
 Os image IDs locais não são digests OCI publicados. O core B foi enviado em
-`297d4295` (precedido por `ce31e526` e `3daabe20`); o envio da **fonte** não
-publica nem promove **imagem**.
+`50e6ebd0` (precedido por `297d4295`, `ce31e526` e `3daabe20`); o envio da
+**fonte** não publica nem promove **imagem**.
 
 **Retenção atual:** manter A e B localmente, sem retag destrutivo ou prune.
 O gateway `percival-gateway:0.1.0-b49dd8b` no container nomeado
@@ -190,15 +199,24 @@ O gateway `percival-gateway:0.1.0-b49dd8b` no container nomeado
 do Compose, e permanece fora de qualquer limpeza. Os resultados do scanner e
 os smoke/limites de cada B estão no [registro D8](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
 
-**Gates antes de qualquer promoção:** findings `affected` do OpenVEX precisam
-ser corrigidos e reconstruídos, os `under_investigation` resolvidos, CI remoto
-confirmado e o smoke AgentMail autorizado com credencial/upstream válidos.
-I3 foi adiado; aquisição por catálogo/digest não está implementada. Portanto
-B não é atualmente elegível para instalar. Depois de novos candidatos aprovados,
-o operador deve confirmar a janela, CAS atual, backup/configuração/dados
-compatíveis e rollback A→B→A em fixture independente antes de autorizar
-canário. Nenhum comando de mutação é fornecido neste snapshot. A sequência de
-correção e a matriz de prontidão B1–B6 estão no
+**Gates antes de qualquer promoção (2026-10-24):** os findings Python dos
+seis MCPs e do broker foram corrigidos — os sete image IDs B reportam zero
+findings no Trivy — e o smoke autenticado do AgentMail foi executado com
+sucesso (24 tools e leitura HTTP 200), o que encerra os dois bloqueios
+técnicos locais que restavam. O finding Medium `CVE-2026-49138` do gateway
+permanece com avaliação `not_affected` restrita ao image ID e reancorada no
+commit de correção `545294c`, ancestral da revisão candidata. Restam dois
+bloqueios: **CI remoto** — os seis SHAs candidatos têm run e todos terminam em
+failure; cinco reproduzem o run anterior sem relação com os pins, e o único
+delta real (OSM, step 6) foi diagnosticado como flake preexistente do harness
+legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de
+`initialize`; o core não tem run porque os workflows do fork estão
+desabilitados — e **distribuição**, com I3 adiado e aquisição por catálogo/digest
+não implementada. Portanto B **não** é atualmente elegível para instalar. Depois
+de candidatos aprovados, o operador deve confirmar a janela, CAS atual,
+backup/configuração/dados compatíveis e rollback A→B→A em fixture independente
+antes de autorizar canário. Nenhum comando de mutação é fornecido neste
+snapshot. A sequência de correção e a matriz de prontidão B1–B6 estão no
 [plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md).
 
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.

@@ -3,68 +3,68 @@
   "@id": "urn:percival:d8:openevex:2026-10-24:deep-research",
   "author": "Percival D8 technical assessment (draft)",
   "role": "Technical assessor",
-  "timestamp": "2026-10-24T18:50:00Z",
-  "version": 1,
+  "timestamp": "2026-10-24T22:03:37Z",
+  "version": 2,
   "statements": [
     {
       "vulnerability": {"name": "GHSA-7xgj-8392-5q4r"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003",
-          "name": "percival-deep-research:3.0.1-61ae512"
+          "@id": "urn:oci:image:sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff",
+          "name": "percival-deep-research:3.0.1-af3b23b"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports fastmcp 3.4.4 and fastmcp-slim 3.4.4 in this exact image; the fixed release is 3.4.10 or later in the compatible major line. Vulnerable authorization behavior was not individually assessed.",
-      "action_statement": "Reconcile the FastMCP lock to a compatible fixed release, rerun the complete test suite and stdio smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable FastMCP in this image; the runtime carries fastmcp and fastmcp-slim 3.4.11, above the 3.4.10 fixed release that the previous candidate image reported as 3.4.4.",
+      "action_statement": "Reassess if the locked FastMCP dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     },
     {
       "vulnerability": {"name": "CVE-2026-84377"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003",
-          "name": "percival-deep-research:3.0.1-61ae512"
+          "@id": "urn:oci:image:sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff",
+          "name": "percival-deep-research:3.0.1-af3b23b"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports litellm 1.93.0 in this exact image; the fixed version on this release line is 1.93.2. Exposure to the authenticated SSRF and credential-exposure path was not individually assessed.",
-      "action_statement": "Upgrade LiteLLM to a compatible fixed release, validate provider and research tests, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable litellm in this image; the runtime carries litellm 1.93.2, the fixed version that the previous candidate image reported as 1.93.0. The re-resolution was constrained to the 1.93.x line so that no provider SDK was added to or removed from the locked tree.",
+      "action_statement": "Reassess if the locked litellm dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     },
     {
       "vulnerability": {"name": "CVE-2026-104874"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003",
-          "name": "percival-deep-research:3.0.1-61ae512"
+          "@id": "urn:oci:image:sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff",
+          "name": "percival-deep-research:3.0.1-af3b23b"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports multidict 6.7.1 in this exact image; the fixed version is 6.9.1. Application reachability of the affected items-view operation was not individually assessed.",
-      "action_statement": "Upgrade the compatible locked multidict dependency, rerun the complete test suite and stdio smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable multidict in this image; the runtime carries multidict 6.9.1, the fixed version that the previous candidate image reported as 6.7.1.",
+      "action_statement": "Reassess if the locked multidict dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     },
     {
       "vulnerability": {"name": "CVE-2026-114603"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003",
-          "name": "percival-deep-research:3.0.1-61ae512"
+          "@id": "urn:oci:image:sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff",
+          "name": "percival-deep-research:3.0.1-af3b23b"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports opentelemetry-api 1.44.0 in this exact image; the fixed version is 1.45.1. Application-level exposure to attacker-controlled header parsing was not assessed.",
-      "action_statement": "Upgrade the compatible locked opentelemetry-api dependency, rerun tests and stdio smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable opentelemetry-api in this image; the runtime carries opentelemetry-api 1.45.1, the fixed version that the previous candidate image reported as 1.44.0.",
+      "action_statement": "Reassess if the locked opentelemetry-api dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     },
     {
       "vulnerability": {"name": "GHSA-xmj3-9gf7-h52w"},
       "products": [
         {
-          "@id": "urn:oci:image:sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003",
-          "name": "percival-deep-research:3.0.1-61ae512"
+          "@id": "urn:oci:image:sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff",
+          "name": "percival-deep-research:3.0.1-af3b23b"
         }
       ],
-      "status": "affected",
-      "impact_statement": "Trivy reports setuptools 83.0.0 in this exact image; the fixed version is 84.1.0. The advisory is Windows-path-specific, but no exception is claimed from platform scoping without a separate approved assessment.",
-      "action_statement": "Upgrade or remove the runtime setuptools component after compatibility checks, rerun the test suite and image smoke, then rebuild and issue a new image-specific assessment. This statement is not a waiver."
+      "status": "fixed",
+      "impact_statement": "Trivy 0.67.2 reports no vulnerable setuptools in this image; the runtime carries setuptools 84.2.1, above the 84.1.0 fixed version that the previous candidate image reported as 83.0.0. The package remains a transitive component of spacy and was upgraded in place rather than removed, so no runtime dependency was dropped.",
+      "action_statement": "Reassess if the locked setuptools dependency changes or if the image is rebuilt from a different source revision. This statement is a technical assessment, not a waiver and not an operator approval."
     }
   ]
 }

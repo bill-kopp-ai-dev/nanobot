@@ -336,8 +336,24 @@ Esta seção substitui, **somente para os image IDs abaixo**, as avaliações
 históricas dos seis MCPs da §2.8.5. Não altera nem amplia OpenVEX de outro
 produto. As imagens são candidatos locais `linux/amd64`, construídos de
 checkouts limpos; tag local, image ID e digest OCI são identidades distintas.
-Os scans JSON e SBOMs originais permanecem em `/tmp/d8-evidence/`; seus hashes
-estão registrados abaixo e os documentos OpenVEX são rascunhos versionados.
+Os scans JSON e SBOMs originais permanecem em `/tmp/d8-evidence-v2/`; seus
+hashes estão registrados abaixo e os documentos OpenVEX são rascunhos
+versionados. O mesmo diretório guarda os seis contratos de runtime D7
+(`*-runtime-contract.json`), com SHA-256
+`7cdb82bdceb066149f7df6230779ac9829deb03a3b0fe75f2ffe73c104bfc1a9` (Notes),
+`cad5b9e288010bcb4e6d95f4bff02dd1fbfd3b6041cd48468146924d82d68e9a`
+(AgentMail), `19ce021b75f575e54a490afc4b3523283b448038fa06c9c22725b476736452dd`
+(Weather), `0cfee3adcf8dc4261be141d045311831e7e9c23565f7db7913917296716af4fb`
+(Khan Calendar), `74fa02bae5c4ac860138eed2ecfcb9e6e95e6c0cd49e33cc055c637db9a2ab54`
+(OSM) e `20e2b5c6cd28440aa36ea8f2315667ea58fdebfdd6c2ec721274deca0ca7ba47`
+(Deep Research).
+
+**Substituição de 2026-10-24 (fechamento D8):** a tabela de candidatos abaixo
+substitui a foto anterior (`713e95e`, `6c71497`, `89993a4`, `2d75c05`,
+`bf78fa4`, `61ae512`, `3daabe2`), cujos image IDs estão **superados** e não
+podem ser reutilizados. Os candidatos vigentes são os oito reconstruídos após
+a reconciliação dos pins Python (§"Reconciliação D8") e a troca da base do
+runtime do broker.
 
 ### Receita e pins verificados
 
@@ -362,84 +378,127 @@ copiados para o repositório.
 
 | Candidato local | Revisão (`org.opencontainers.image.revision`) | Image ID | C/H/M/L/U | Componentes | SHA-256 scan JSON | SHA-256 SBOM |
 |---|---|---|---:|---:|---|---|
-| Notes `0.1.5-713e95e` | `713e95ef147abdc07b7efa388fd7cb08c1ce84dd` | `sha256:1bc3417de299f23d3408e68cabab87808a980e467e327965a7e3c9916a640f64` | 0/0/1/1/0 | 144 | `a260bcae30c7d35773fa18dd6271b6d0bb79d74e89e5fe15211f2f393d84766e` | `c861a8a8ed41de2444731d3158da5d61f401e7fc03ea10679088ae26e24744b3` |
-| AgentMail `0.4.0-6c71497` | `6c71497fa2a028d34e408dab1cf97bc0fe5d78c4` | `sha256:b8ed6f58fe6ae1c64f98ee6ebe3dd5cbaa70f043d79278eeb89f48b83273208b` | 0/0/1/0/0 | 146 | `118fff8639e4e5530a3d9b40a334c55b08e8ffff58f301fd894860b3f809c97f` | `bb6ab327eb3d6bf0a75c4dba271de5016ddd2c83fcef976b1d64b2aaa6af5d25` |
-| Weather `0.9.0-89993a4` | `89993a4f31ef7c7f423f9e046117dc9b50eb3d2c` | `sha256:e3537f2d2983f227547ae8d5af194d560550d3ab677cc6ae641f0e83bb0916a4` | 0/0/1/1/0 | 145 | `dd989ebd63fab049d5a0791713b8b2eae98d70f2a3b7676d04e742c1a53183e4` | `29a629ef7af062db8e1b2b4b94ca1169c33fdf0c7ef19787144b04fd8767fa37` |
-| Khan Calendar `0.4.0-2d75c05` | `2d75c0547c66b4925427ab6920d889c0d8ffce02` | `sha256:020200378c995ddfb086315331ad07818d888cf69859869e6e60d8f44588700b` | 0/0/3/0/0 | 189 | `82ab2eff8cb0e5cc4a750f07459d16e901e3f3266e05ac3474d0304a4bb2cfae` | `3e016ed838a5a6d8091bcaf09e91a1110eedcf0062be5510f634312397ad919b` |
-| OSM `0.5.0-bf78fa4` | `bf78fa4f4cf906cfad4c18efbd6f487a630510a0` | `sha256:286fdfeb8327cdbec597c7089eb6e58e59b0b68148c3f48a3a9404daff989369` | 0/0/2/1/0 | 146 | `e3e8cf4ba243435aeece45fcdd4b2c77220a2502208019ecfbebea08a9982228` | `689cf05bb6ebed7adbc258734b46a4d883f11f2b55f80c225f7d9e3788a1271c` |
-| Deep Research `3.0.1-61ae512` | `61ae51274a10468a6c0edb25978afcb8d32e01be` | `sha256:af9c6fa288630a37e116ecd07f9dd3671a6f97a14553f438b5c0d0c44a453003` | 0/0/5/1/0 | 334 | `8266b47cfedabd380c829c52e23f65de6702338d4d1f85ea911b1342587de32a` | `b9e2df333f4243786e83e5be9579c03930b0563bba7403a71909ad9dc804639d` |
-| Gateway `0.1.0-3daabe2` | `3daabe20f4c6a7b5f26f2158b97dc2591905507` | `sha256:2a0e5c34250459bcc1861c3cd291333944f7b7451f65f3dbead0c562cb0ada9f` | 0/0/1/0/0 | 389 | `a6e8c144375d8a8b7b78276f9bc66477838724a89904196e00b2016e88b4475e` | `50532a5bdcd78278b2b1554291f7582888453d5578d1acd8cc4e157ab1ea11ba` |
-| MCP broker `0.1.0-3daabe2` | `3daabe20f4c6a7b5f26f2158b97dc2591905507` | `sha256:c6784ebbc29a41c6591dfeec52528dbd19fb44be18591eadf4db8803141ccf2d` | 0/0/1/0/2 | 46 | `0f232256a4000b38ead91d41f779b28230aab8eb6739144104543dc2a6e99998` | `54878741230530e16f64ebb36a0895169f85c1325a62b05550b38ac221e4094b` |
+| Notes `0.1.5-c104735` | `c1047355bce2512cc50ca89c0c8af0b82837909a` | `sha256:3abd363f5a354a293b7c5ef5bf58a30cfd245800814f6b800c4545fba994822a` | 0/0/0/0/0 | 144 | `0afb01a296396cfe605de87b105ba2ef8b677d53f442fd8e440722b4067f9bd1` | `96af9241051a95a3b331561af769c4180f4b03242485a2a86529175a4f2e4529` |
+| AgentMail `0.4.0-cd55a2f` | `cd55a2fe7121f41e8bd5470973ff84e1ba5e58f8` | `sha256:9591d7786a5234b9a5635a5d9fb49d010c66233de25cdf955b4508063c8a53c1` | 0/0/0/0/0 | 146 | `b40217a8626fc6c74bee29551aa89d7a08e83202fa1f3f4e31facec218a49cac` | `768105f2d300afcbe12a4bc3b56868fae819cd9f09dc76ff82f5b4b061a48203` |
+| Weather `0.9.0-437a41c` | `437a41c3fd55ae7994c71894e639a6c4ca6d8d43` | `sha256:b805919db8fb10af2dd5ea527402449aa743ebcb3762b4d84085f99f97b2d70f` | 0/0/0/0/0 | 145 | `8976697f892287c0a94d69e4896b2b4f1d8caed0c38e167ee8869c05707cd515` | `8fe2c51b10de28f7cf10d9230bee38eededaae34d637b7f8c065234c6115ddbd` |
+| Khan Calendar `0.4.0-e8c5d8c` | `e8c5d8c0ad2ed498f96985dd77f6247539f62cfb` | `sha256:9aa02922d5163b992032eafcdaef7f49e009d8e0c855b2f93c258b3bb881db1f` | 0/0/0/0/0 | 189 | `1d52d1a711878751cf45a44b6ac50378bcb6fb53e5c2d031e33805908fe44aea` | `e55a60636d7b733d6a5e36329b21f7f53593217f834bd2d2d2df863f9aaedc73` |
+| OSM `0.5.0-04d4399` | `04d4399c8f8d1a9ce24c8d5ac4cb2208b1801b76` | `sha256:ce6de5ccd164ec8c89d4f5b195b140f1dd12f1405f50919614aaf8f93252159b` | 0/0/0/0/0 | 146 | `19e2ffd3de319f4f70ea524a87392cdc22bb444dcdeb741d061a4c3bae821e27` | `4ae82b1bf093a8e0ebb8e056fa942890f6553e177d8ec9aa216af54e969dbcd6` |
+| Deep Research `3.0.1-af3b23b` | `af3b23be6d3bdec88bc0da3e419d62ecd55e9aa4` | `sha256:bab6d3ced1b3b20497f0ef61e36e14f2362eca3523b2492519d6596802eb30ff` | 0/0/0/0/0 | 334 | `eb1a4ccf563346478017e64a388d77516fbe1881518f32117fa2080042d7e08b` | `07464ae9f055bc7b26a746593beea91eca9174ef0b9fd45412725ef40b6832d6` |
+| Gateway `0.1.0-50e6ebd` | `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6` | `sha256:25f4ac0774e985378e9b8ac09b5eb851915a817fd0e6be2929276fbbab0a50c5` | 0/0/1/0/0 | 389 | `7de5440eebb7e6e62617b1c40d19326c6fb2fa8d2ba3a98b1bc818493a6d9233` | `7743ca78d1d3648cf48ce39a1d69d3266a19990d0d72e1b8e4674006df054b7c` |
+| MCP broker `0.1.0-50e6ebd` | `50e6ebd0ab8f62a9ed242030459ef0581f7da1a6` | `sha256:1988f1771ab84b952e301cd1aa931af4e24e116c7a6fb8851b95be566c5be1c7` | 0/0/0/0/0 | 46 | `0abb0cef206298b9b06b209d657cf5ec7e402dd87d521cfcfc74cafd35a3b016` | `8bb89cd8afbfdf5682d561634a1dad72eff13da43890dfeba1c044d3a0e7acbd` |
 
-Os seis MCPs somam 13 findings Medium e 4 Low, todos no resultado `python-pkg`;
-os resultados de pacotes Debian Forky não contêm vulnerabilidades. Não há
-Critical nem High. Os findings Python remanescentes, sem alegação de
-não-aplicabilidade, são:
+Os seis MCPs e o broker somam **zero** findings: Trivy 0.67.2 não reporta
+nenhuma vulnerabilidade Critical, High, Medium, Low ou Unknown nesses sete
+image IDs, nem nos resultados `python-pkg` nem nos de pacotes Debian Forky. Os
+13 findings Medium e 4 Low da foto anterior foram eliminados pela
+reconciliação dos pins (§"Reconciliação D8") e pela troca da base do runtime do
+broker. A reconciliação foi feita por re-resolução explícita
+(`uv lock --upgrade-package <pacote>`), porque o resolvedor preserva versões já
+fixadas e não reescreve sozinho um pin existente.
 
-- Notes: `python-dotenv 1.1.1` (`CVE-2026-28684`, fix 1.2.2) e
-  `Pygments 2.19.2` (`CVE-2026-4539`, fix 2.20.0).
-- AgentMail: `mcp 1.28.1` (`CVE-2026-59951`, fix 1.30.0).
-- Weather: `python-dotenv 1.1.1` e `Pygments 2.19.1`, com os mesmos fixes.
-- Khan Calendar: `fastmcp`/`fastmcp-slim 3.4.4`
-  (`GHSA-7xgj-8392-5q4r`, fix 3.4.10) e
-  `opentelemetry-api 1.44.0` (`CVE-2026-114603`, fix 1.45.1).
-- OSM: `python-dotenv 1.0.1` (fix 1.2.2), `Pygments 2.19.1` (fix 2.20.0)
-  e `pydantic-settings 2.13.1` (`GHSA-4xgf-cpjx-pc3j`, fix 2.14.2).
-- Deep Research: FastMCP 3.4.4, `litellm 1.93.0` (fix 1.93.2),
-  `multidict 6.7.1` (fix 6.9.1), `opentelemetry-api 1.44.0` e
-  `setuptools 83.0.0` (fix 84.1.0).
+Versões corrigidas, verificadas **dentro do runtime** de cada imagem (não
+apenas nos metadados dos locks):
 
-No par core, o gateway tem um finding Medium `CVE-2026-49138` do metadado
-`nanobot-ai 0.1.0`; a avaliação `not_affected` está restrita ao image ID em
-[`OpenVEX do gateway D8`](2026-10-24-d8-openvex-gateway.json). O broker tem
-`zlib 1.3.2-r0` Medium com fix `1.3.2-r1` e `musl`/`musl-utils 1.2.5-r23`
-com severidade `UNKNOWN` e fix `1.2.5-r24`; o OpenVEX deixa o primeiro como
-`affected` e o segundo `under_investigation`
+| Serviço | Versão aplicada no runtime |
+|---|---|
+| Notes | `python-dotenv 1.2.4`, `Pygments 2.21.0` |
+| AgentMail | `mcp 1.30.0` |
+| Weather | `python-dotenv 1.2.4`, `Pygments 2.21.0` |
+| Khan Calendar | `fastmcp 3.4.11`, `fastmcp-slim 3.4.11`, `opentelemetry-api 1.45.1` |
+| OSM | `python-dotenv 1.2.4`, `Pygments 2.21.0`, `pydantic-settings 2.16.1` |
+| Deep Research | `fastmcp 3.4.11`, `fastmcp-slim 3.4.11`, `litellm 1.93.2`, `multidict 6.9.1`, `opentelemetry-api 1.45.1`, `setuptools 84.2.1` |
+
+Os pins validados anteriormente **permanecem intactos** e foram reconfirmados
+no runtime: `certifi==2026.10.23` nos seis MCPs; no Deep Research,
+`pillow==13.0.0`, `brotli==1.2.1`, `pypdf==6.21.2` e o override autorizado
+`filelock==4.2.1`. A reconciliação do Deep Research não adicionou nem removeu
+nenhum pacote: um upgrade não constrito de `litellm` saltaria para 1.106.3 e
+traria oito dependências extras (`boto3`, `botocore`, `h2`, `hpack`,
+`hyperframe`, `jmespath`, `python-dateutil`, `s3transfer`), o que foi evitado
+fixando `litellm==1.93.2` na própria re-resolução.
+
+No par core, o gateway tem **um** finding Medium remanescente,
+`CVE-2026-49138`, atribuído ao metadado `nanobot-ai 0.1.0`; a avaliação
+`not_affected` (`vulnerable_code_not_present`) está restrita ao image ID em
+[`OpenVEX do gateway D8`](2026-10-24-d8-openvex-gateway.json) e foi
+reancorada nesta rodada: o commit de correção
+`545294c62c0947da40eb5b65288aaf02b5fdf632` é ancestral da revisão candidata
+`50e6ebd0`, e `nanobot/agent/tools/web.py` e `nanobot/security/network.py`
+permanecem inalterados desde o candidato D6 `3daabe20`. O broker deixou de
+reportar `zlib 1.3.2-r0` e `musl`/`musl-utils 1.2.5-r23` (severidade
+`UNKNOWN`): com a base `python:3.12-alpine3.24` pinada por digest, o runtime
+passa a reportar `musl 1.2.6-r3`, `musl-utils 1.2.6-r3` e `zlib 1.3.2-r1`
 ([`OpenVEX do broker D8`](2026-10-24-d8-openvex-mcp-broker.json)).
 
-As avaliações OpenVEX restantes são drafts, cada uma limitada a um único
-image ID e sem aprovação/assinatura do operador:
+Todos os oito OpenVEX foram **reemitidos** em 2026-10-24 (`version: 2`),
+limitados a um único produto e ao image ID vigente, com `status: fixed` nos
+sete produtos sem finding remanescente e `not_affected` no gateway. São
+rascunhos técnicos: não são waivers nem aprovação do operador.
 [`Notes`](2026-10-24-d8-openvex-notes.json),
 [`AgentMail`](2026-10-24-d8-openvex-agentmail.json),
 [`Weather`](2026-10-24-d8-openvex-weather.json),
 [`Khan Calendar`](2026-10-24-d8-openvex-khan-calendar.json),
 [`OSM`](2026-10-24-d8-openvex-osm.json) e
-[`Deep Research`](2026-10-24-d8-openvex-deep-research.json). Findings
-`affected` não são waivers; os upgrades fixados e novos builds continuam sendo
-gates antes de qualquer promoção.
+[`Deep Research`](2026-10-24-d8-openvex-deep-research.json).
 
 ### Runtime, proveniência e limites
 
 - Os seis repositórios MCP estão limpos, em `main` igual a `origin/main`, e os
   labels de revisão das imagens coincidem com os SHAs completos listados acima.
   Os seis commits foram enviados a `origin/main` sob autorização anterior do
-  operador. O par core foi construído limpo no SHA `3daabe20…`; a **fonte** foi
-  enviada em `297d4295` (com `ce31e526` e `3daabe20` ancestrais de `origin/main`),
-  mas as **imagens** do par core permanecem locais, sem publicação.
+  operador. O par core foi construído limpo no SHA `50e6ebd0…`; a **fonte** foi
+  enviada em `50e6ebd0` (com `297d4295`, `ce31e526` e `3daabe20` ancestrais de
+  `origin/main`), mas as **imagens** do par core permanecem locais, sem
+  publicação.
 - O contrato D7 corrigido passou nos cinco MCPs sem precondição externa: quatro
   medições por imagem (Percival/Positronic × EOF/SIGTERM), sem violações, init
   único, EOF com exit 0 e SIGTERM com exit 143. Smokes MCP stdio sequenciais de
   `initialize` + `tools/list` passaram para Notes (12 tools), Weather (9),
-  Khan (12), OSM (37) e Deep Research (5).
-- AgentMail não está homologado por runtime/protocolo: sem credencial válida e
-  upstream autorizado, o servidor não inicia a sessão MCP; os resultados do
-  harness são falhas de pré-condição, não evidência de defeito funcional. Não
-  foram lidos nem inventados segredos.
+  Khan (12), OSM (37) e Deep Research (5), todos idênticos ao baseline.
+- O AgentMail foi homologado por smoke **autenticado** nesta rodada: 24 tools
+  expostas (igual ao baseline) e leitura segura de `mail_get_inbox_info`
+  respondendo HTTP 200, com redação de segredos no log. O EOF do AgentMail foi
+  provado conforme fora do isolamento de rede: o harness D7 usa `--network=none`
+  por desenho e o lifespan do servidor exige upstream, o que é uma
+  pré-condição do harness, não defeito do candidato.
 - O smoke D-in-D descartável do par core passou 18 verificações em Engine
   27.5.1. Não é aceite VPS nem CI remoto.
-- `gh auth status` confirmou que não há sessão GitHub autenticada; Actions dos
-  seis SHAs não puderam ser confirmadas nesta execução.
+- **CI remoto (2026-10-24):** os seis SHAs candidatos têm run no GitHub
+  Actions e **todos terminam em failure**. Cinco deles reproduzem o mesmo
+  resultado do run anterior (falha de lint ou de smoke legada, sem relação com
+  os pins). O OSM é o único delta real: o job `build (linux/amd64)` passou e
+  falhou no step 6, no `docker-smoke-test.sh`. A causa foi diagnosticada com
+  prova: o script legado usa FIFO (`mkfifo`) e fecha stdin **sem aguardar a
+  resposta de `initialize`**, o que produz flake. Medição local: imagem nova
+  3 PASS / 2 FAIL em 5 execuções; imagem antiga `0.5.0-bf78fa4` 3 PASS / 3 FAIL
+  em 6 execuções. O defeito é **preexistente** no harness do repo OSM, não
+  regressão dos pins; `docker-ci-conformance.py` (sequencial, com timeout)
+  passa localmente contra a imagem nova, com 37 tools. O job `Python tests`
+  do OSM falha no step 4 (`uv sync --locked --group dev`) **antes e depois**
+  do candidato, de forma idêntica ao run antigo.
+- O core `50e6ebd0` **não tem run**: os workflows do fork estão desabilitados
+  ("Workflows are not currently being run on this fork due to the scale of
+  GitHub Actions usage"). Isso é um bloqueio de infraestrutura do fork, não um
+  PASS e não uma falha do candidato.
+- `gh auth status` confirmou que não há sessão GitHub autenticada; a coleta do
+  CI foi feita pela API pública de Actions e, após o rate limit dessa API,
+  pelas páginas HTML do `github.com`. Não houve publicação, promoção nem
+  canário.
 - Leitura final de `docker ps` confirmou que ambos os gestores seguem usando
   os image IDs A anteriores registrados na §5.1 do runbook. Nenhum pin,
   configuração, container de produto, canário, cutover, registry ou estado
   persistente foi alterado.
 
-**Estado D8:** execução local parcial concluída: pins críticos anteriores
-foram atualizados, Forky/OpenSSL/pip verificados no runtime, builds limpos,
-scans/SBOMs/OpenVEX por imagem e retenção A/B registrados. A D8 continua
-aberta por findings corrigíveis, smoke autenticado de AgentMail, CI remoto e
-gates I3/B13. Nenhum candidato foi promovido ou publicado; nenhum comando de
-promoção foi preparado.
+**Estado D8 (2026-10-24, fechamento local):** G1 (13 Medium + 4 Low nos pins
+Python) e G2 (`zlib`/`musl` do broker) **fechados** — os seis MCPs e o broker
+reportam zero findings; G3 (smoke autenticado do AgentMail) **fechado** —
+24 tools e HTTP 200; G6 (push do core) **fechado** — `50e6ebd0` e `a85a9cff`
+enviados. G4 (CI remoto) fica **parcial**: os seis runs MCP terminam em
+failure e o OSM tem um delta real, diagnosticado como flake preexistente do
+harness legado; o core não tem run por desativação de workflows no fork. G5
+(digest OCI, publicação e promoção) permanece **fora do escopo local**, com os
+gates I3/B13 abertos. Nenhum candidato foi promovido ou publicado; nenhum
+comando de promoção foi preparado.
 
 **Plano de fechamento:** o
 [plano D8 de prontidão de promoção](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md)
@@ -450,5 +509,6 @@ rebuild/rescan/reemissão dos OpenVEX por image ID, smoke autenticado do
 AgentMail, verificação do CI remoto, retenção e reconciliação documental.
 
 **Correção de estado (2026-10-24):** a afirmação anterior de que o core não
-tinha sido enviado está superada. O core foi enviado em `297d4295`, precedido
-por `ce31e526` e `3daabe20`. Nenhuma imagem foi publicada ou promovida.
+tinha sido enviado está superada. O core foi enviado em `297d4295`, seguido de
+`50e6ebd0`; o plano D8 foi enviado em `a85a9cff`. Nenhuma imagem foi publicada
+ou promovida.
