@@ -13,11 +13,13 @@
   demonstrado, cardinalidade formalizada e nenhuma limpeza; D5: regressão
   `tools/call` do Khan em §2.6 — o defeito do F4/F5 não reproduz com cliente MCP
   real, causa isolada no harness × camada `fastmcp` 3.x, teste de protocolo e
-  conformance com `tools/call` gravados no repo do Khan); **D7: execução
-  concluída, item aberto** (§2.7 — core reaproveitado do I2, contratos dos
-  seis MCPs medidos por gestor, e um defeito de sinal novo no caminho do
+  conformance com `tools/call` gravados no repo do Khan); **D7: fechada em
+  2026-10-24** (§2.7 — core reaproveitado do I2, contratos dos
+  seis MCPs medidos por gestor, um defeito de sinal novo no caminho do
   Percival: sem `--init`, o `docker stop` de um MCP sem init passa o grace
-  period inteiro e sai 137); D6, D8, D9, D10, D11 e D12 continuam sem
+  period inteiro e sai 137 — corrigido com init único e dono único, e o
+  contrato de imagem agora existe nos seis repositórios); D6, D8, D9, D10, D11
+  e D12 continuam sem
   fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
   Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
@@ -120,7 +122,7 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **fechado em 2026-10-23, com achado residual** — mapa completo em §2.5. **Não há duplicata nem órfão**: os 17 containers MCP são 17 instâncias legítimas. Lado Percival: nome determinístico `percival-mcp-<server_id>` ([`broker.py:135`](../../nanobot/mcp_docker/broker.py#L135)) torna impossível duas instâncias do mesmo servidor (o nome é o lock), 6 containers com labels `percival.mcp-docker.{owner,managed-by,server-id,instance-id}`, todos os journals de servidor em `committed`. Lado Positronic: 11 containers, nome `positronic-mcp-<server>-<run12>`, distinguidos por **contexto de projeto** (label `io.positronic.context` = hash do diretório) — `/home/bill` (6 servidores, via `opencode serve` PID 98403) e `/home/bill/.positronic` (5, via `opencode attach` PID 111547); cardinalidade formalizada como **≤1 por `(servidor, contexto)`**. **Nenhum órfão:** 11/11 containers casam com `owner.json` (`state: acquired`, `pid`/`boot`/`start` idênticos ao `/proc/98403/stat`), 0 `cleanup-pending`, 0 container sem dono. **Ciclo de vida demonstrado** pela auditoria (`acquire` → `tools-list` → `close transport-closed` na reconexão, com `--rm` removendo o anterior), não por inferência. **Nenhuma limpeza executada** — o critério "zero referências confirmadas" não é atingido: os containers estão em uso. **Achado residual de observabilidade:** 7 das 150 aquisições não têm desfecho gravado (o `close` não foi escrito quando o cliente foi interrompido entre `acquire` e `tools-list`); uma delas tem efeito observável — o deep-research ficou ausente no contexto `/home/bill/.positronic` e `GET /mcp` nesse diretório responde HTTP 499. Não é órfão nem duplicata; é lacuna de auditoria que exige gravar o `close` nesse caminho |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **fechado em 2026-10-23** — o defeito reportado pelo F4/F5 ("o FastMCP 3.4.4 não devolve o frame JSON-RPC em `tools/call`") **não reproduz** com cliente MCP real, nem no checkout nem contra a imagem F3 em uso. Diagnóstico em §2.6: a causa é a **combinação entre o harness da F4 e a camada `fastmcp` 3.x** — o harness fechava o stdin via `subprocess.run(input=…)` antes de ler a resposta, e a camada `fastmcp` 3.x não cancela o handler em voo quando o transporte fecha (o SDK low-level cancela). **Não é pin nem config**: as duas pontas da faixa (`mcp` 1.28.1/`fastmcp` 3.2.0 e `mcp` 1.30.0/`fastmcp` 3.4.4`) comportam-se igual, e a mesma imagem que reproduzia o defeito responde 10/10 com o transporte aberto. **Evidência no protocolo**: `initialize` + `tools/list` (12 tools) + `tools/call` de `khan_get_status`, `khan_list_calendars`, `khan_list_events` e round-trip `create`→`list`→`search`, mais erro de validação retornando `isError: true` — todos com `isError: false` e conteúdo correto, sobre workspace isolado por `KHAN_WORKSPACE_DIR`, sem tocar o calendário real. **Correção durável**: novo `tests/test_protocol_stdio.py` (7 testes) no repo do Khan; `scripts/docker-ci-conformance.py` estendido com `--call-tool`/`--call-args` (emite o `tools/call` antes de fechar o stdin) e invocado pelo CI com `--call-tool khan_get_status`. **Limite registrado**: a fragilidade da camada `fastmcp` 3.x permanece (0/10 sob EOF imediato, em ambas as formas de payload medidas); os consumidores reais (broker do Percival, runtime do Positronic) leem o frame antes de fechar o transporte. **Correção após reexecução** (§2.6.2): o controle do Notes **também** perde o frame de forma intermitente sob EOF (9/10 na forma F4, 1/10 na forma com `tools/list` antes) — o registro anterior de "5/5" estava errado; o que distingue o Khan é a falha **determinística**, e a taxa intermitente das camadas do SDK é propriedade do harness, não do servidor. **Ressalva**: as mudanças foram **commitadas e enviadas** em 2026-10-23 (core `1eeed82f`, Khan `0bc52b9`), **não publicadas** |
 | D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
-| D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **execução concluída em 2026-10-23; item permanece aberto** — §2.7. **Core reaproveitado**: os 19 checks PASS do I2 (gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM, crash/recreate/hydrate) mantêm-se válidos, com a justificativa de que nada do core foi alterado. **Contratos MCP por gestor medidos** com o instrumento novo `scripts/percival-mcp-runtime-contract.py` (24 medições: 6 imagens × 2 gestores × EOF/SIGTERM). **Conforme em todas**: sem TTY, stdin aberto, zero portas publicadas, zero sockets em escuta, `CapEff=0`, sem healthcheck HTTP. **Achado novo (defeito de código do core)**: o broker do Percival **não passa `--init`** ([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189)), e 4 das 6 imagens não têm init embutido — logo **PID 1 não trata SIGTERM**, o `docker stop` paga o grace period inteiro (10,2 s) e sai **137** em vez de 143, contra 0,1 s/143 com `--init`; mecanismo confirmado por caso mínimo (bit 14 de `SigCgt` = "SIGTERM tratado"; `SigCgt=0` no init é correto, porque o init encaminha). **Achado confirmado (outro repositório)**: `--init` incondicional do consumidor Positronic ([`managed.ts:640`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L640)) empilha `docker-init` sobre o tini de OSM/Deep Research — 2 camadas de init, medidas. **Divergência registrada**: `NoNewPrivs=1` sob o Percival vs `0` sob o Positronic. **Restam**: corrigir `--init` no broker (core), remover o init duplicado (Positronic) e escrever os testes de contrato de imagem que faltam em Notes/Khan/AgentMail |
+| D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **fechado em 2026-10-24** — §2.7. **Core reaproveitado**: os 19 checks PASS do I2 (gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM, crash/recreate/hydrate) mantêm-se válidos, com a justificativa de que nada do core foi alterado. **Contratos MCP por gestor medidos** com o instrumento novo `scripts/percival-mcp-runtime-contract.py` (24 medições: 6 imagens × 2 gestores × EOF/SIGTERM). **Conforme em todas**: sem TTY, stdin aberto, zero portas publicadas, zero sockets em escuta, `CapEff=0`, sem healthcheck HTTP. **Achado novo (defeito de código do core)**: o broker do Percival **não passa `--init`** ([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189)), e 4 das 6 imagens não têm init embutido — logo **PID 1 não trata SIGTERM**, o `docker stop` paga o grace period inteiro (10,2 s) e sai **137** em vez de 143, contra 0,1 s/143 com `--init`; mecanismo confirmado por caso mínimo (bit 14 de `SigCgt` = "SIGTERM tratado"; `SigCgt=0` no init é correto, porque o init encaminha). **Achado confirmado (outro repositório)**: `--init` incondicional do consumidor Positronic ([`managed.ts:640`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L640)) empilha `docker-init` sobre o tini de OSM/Deep Research — 2 camadas de init, medidas. **Divergência registrada**: `NoNewPrivs=1` sob o Percival vs `0` sob o Positronic. **Correção aplicada (§2.7.8)**: init único com dono único — o init pertence ao gestor (`--init` / Compose `init: true`) e a imagem não embute init. Broker do core passa `--init` e verifica a política após o spawn e na retomada (core `79dda0a0`); OSM e Deep Research deixam de embutir tini e declaram `init: true`; os seis compose renderizam `init: true`; teste de contrato de imagem criado em Notes, Khan e AgentMail e ampliado no Weather (OSM `7f3cb3e`, Deep Research `6bcb752`, Notes `36c4016`, Khan `13f8fce`, AgentMail `31d6b1c`, Weather `81b3aaa`). **Resíduo**: a `NoNewPrivs` do Positronic e o alinhamento do manual (D9) permanecem abertos; as imagens de OSM e Deep Research precisam ser reconstruídas e promovidas sob a D8 |
 | D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito; agora parcialmente invalidada** — em 2026-10-23 o binário `positronic` **passou a existir** no PATH (`/home/bill/.local/bin/positronic`, wrapper do runtime nativo fixado) e expõe `mcp server configure <id> <revision> --tools <lista>`; os 11 comandos da skill **existem** no CLI atual. A afirmação anterior ("não há binário `positronic` no PATH", "não existe comando para corrigir") **não vale mais** — ver §2.3. Restam: reescrever a D10 à luz do CLI atual, confirmar na skill os nomes/flags reais (o `recover-transition` exige `--confirm`), e remover o workaround de edição direta do registry. O estado real continua sendo o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
@@ -1257,19 +1259,69 @@ startup** do servidor. O probe distingue os dois casos e reporta
 importa porque um servidor que falha no startup **não** pode ser julgado
 pelo EOF.
 
-#### 2.7.8 O que a D7 **não** fecha
+#### 2.7.8 Correção aplicada — init único, com dono único
 
-- **A correção do `--init` no broker do Percival** e a **remoção do init
-  duplicado no consumidor Positronic** são **defeitos de código** em
-  repositórios distintos (core e `alternative-positronic`), fora do
-  escopo de execução desta D7 e sem autorização de mutação. A D7
-  entrega o **diagnóstico medido** e a **correção proposta**; a execução
-  fica com o operador.
-- **Os testes de contrato de imagem** que faltam em Notes, Khan e AgentMail
-  (e o teste de init único que falta nos seis) são **trabalho de imagem
-  nos repositórios dos MCPs**, não do core. O instrumento novo mede o
-  comportamento em runtime e pode ser invocado por cada repo; **não**
-  substitui o teste estático no repositório de cada imagem.
+Os dois achados de init foram **corrigidos** em 2026-10-24, com a
+autorização do operador, aplicando a decisão da §2.7.4.1: **o init pertence
+ao gestor, e a imagem não embute init.**
+
+**Core (broker do Percival)** — commit `79dda0a0`:
+
+- [`broker.py:182`](../../nanobot/mcp_docker/broker.py#L182) passa `--init` no
+  `docker run` do `_spawn`.
+- A política é **verificada após o spawn** ([`broker.py:204`](../../nanobot/mcp_docker/broker.py#L204)):
+  se o daemon não honrou o init, o broker falha fechado com `BrokerError`.
+- O gate de **retomada** ([`broker.py:247`](../../nanobot/mcp_docker/broker.py#L247))
+  rejeita containers criados antes do fix, em vez de reutilizá-los com o init
+  quebrado.
+- Testes: `tests/mcp_docker/` → **85 passed**; `ruff check` e
+  `basedpyright nanobot/mcp_docker/broker.py` limpos.
+
+**Imagens (seis MCPs)** — OSM `7f3cb3e`, Deep Research `6bcb752`, Notes
+`36c4016`, Khan `13f8fce`, AgentMail `31d6b1c`, Weather `81b3aaa`:
+
+| Repo | Dockerfile | Compose | Teste de contrato | Lançadores locais |
+| --- | --- | --- | --- | --- |
+| OSM | tini removido | `init: true` | `tests/test_d6_docker.py` invertido | smoke com `--init` |
+| Deep Research | tini removido | `init: true` | `tests/test_docker.py` invertido | smoke + probe stdio com `--init` |
+| Notes | já sem init | `init: true` (já tinha) | **`tests/test_docker_contract.py` (novo)** | conformance, smokes e benchmark com `--init` |
+| Khan | já sem init | `init: true` (já tinha) | **`tests/test_docker_contract.py` (novo)** | conformance e README com `--init` |
+| AgentMail | já sem init | `init: true` (já tinha) | **`tests/test_docker_contract.py` (novo)** | conformance e README com `--init` |
+| Weather | já sem init | `init: true` (já tinha) | `tests/test_dockerfile.py` ampliado | smoke e README com `--init` |
+
+O teste de contrato de imagem nos três repositórios que não o tinham é
+**estático** (lê Dockerfile e compose como texto, sem daemon): a imagem **não
+pode** embutir init, o serviço compose **tem** de declarar o `init: true`
+único, o usuário **tem** de ser não-root e o serviço stdio **não** pode expor
+porta nem healthcheck.
+
+**Verificação de que há um init só, renderizada pelo próprio Compose** —
+`docker compose config --format json` nos seis repositórios:
+
+| Repo | Serviço | `init` |
+| --- | --- | --- |
+| OSM | `mcp-osm` | `true` |
+| Deep Research | `percival-deep-research-stdio` / `-http` | `true` / `true` |
+| Weather | `percival-weather-stdio` | `true` |
+| Notes | `percival-notes` | `true` |
+| Khan | `server` | `true` |
+| AgentMail | `server` | `true` |
+
+**Suítes:** core `tests/mcp_docker/` 85 passed; Notes 52 passed; Khan 231
+passed; AgentMail 236 passed + 1 skipped (integração live); Weather, OSM e
+Deep Research verdes. `ruff check` limpo nos seis (o desvio de `ruff format`
+no Deep Research e os 99 avisos do OSM são **pré-existentes**, confirmados por
+`git stash` sobre a árvore sem as mudanças). `git diff --check` limpo nos
+sete repositórios.
+
+**O consumidor Positronic não precisou de alteração:** o `--init`
+incondicional dele deixa de duplicar quando as imagens param de embutir tini
+(§2.7.4.1). O `NoNewPrivs=0` sob o Positronic (achado 3) **continua
+divergente** e não foi tocado — é decisão de política do gestor, não um
+defeito de contrato.
+
+#### 2.7.9 O que a D7 **não** fecha
+
 - **O manual operacional ainda tem uma lacuna que esta D7 expôs:** a §3.10
   do [runbook](../../docs/operations/mcp-docker-local-runbook.md) diagnostica
   o **init duplicado**, mas não o caso **sem init algum** — que é
@@ -1281,19 +1333,24 @@ pelo EOF.
   diagnóstico (`io.percival.build.worktree=dirty` em quatro delas), sem
   digest OCI de registry, sem SBOM, sem scan, sem build limpo. O gate de
   build limpo e pin por digest é da **D8**; o de publicação, do **D8/I3**.
+  As correções de init mudam o conteúdo das imagens de OSM e Deep Research:
+  elas **precisam** ser reconstruídas e promovidas sob a D8.
 - **Não é** aprovação de serviço externo: o AgentMail falhou por
   dependência de upstream, o que não diz nada sobre a qualidade do serviço
   nem sobre credenciais.
 - **ARM64, VPS, Engine 27.x, I6 (homologação de apps), I8 (recuperação sob
   carga) e C1–C4** mantêm seus escopos. Nada aqui substitui o I2 para o
   core nem o I6 para os MCPs.
+- **A `NoNewPrivs` do Positronic** (achado 3) segue aberta como decisão de
+  política do gestor.
 
-**Estado da D7:** **execução concluída; o item permanece aberto** porque
-restam dois defeitos de código (um no core, um no consumidor Positronic) e
-os testes de contrato de imagem de três repositórios. A evidência é
-reprodutível com
+**Estado da D7:** **fechada em 2026-10-24** — os dois defeitos de init foram
+corrigidos, os testes de contrato de imagem existem nos seis repositórios e
+o init único está verificado no core e no renderizado do Compose dos seis.
+A evidência de runtime é reproduzível com
 `scripts/percival-mcp-runtime-contract.py`; nenhum container de produto,
-imagem, registry, instância ou credencial foi mutado.
+imagem, registry, instância ou credencial foi mutado — só código, testes,
+compose e documentação.
 
 **Complementos de aceite após a harmonização:**
 
@@ -1370,7 +1427,10 @@ decisão/execução do operador, sem transferência realizada por I1/I2.
 - **D7** reaproveita I2 no core; o defeito `--init` do consumidor Positronic e os
   contratos MCP faltantes pertencem aos respectivos repositórios, fora da execução
   I2. Reconfirmar o checkout/consumidor antes de corrigi-los; não fechar o defeito
-  Positronic com uma prova do broker Percival.
+  Positronic com uma prova do broker Percival. **Fechado em 2026-10-24**: init
+  único com dono único (o gestor), broker do core passa `--init` e verifica a
+  política, os seis compose declaram `init: true` e o contrato de imagem existe
+  nos seis repositórios (§2.7.8).
 - **D9** e **D10** são executáveis localmente, sem dependência externa. **D10** passou a ser
   verificação de caminho suportado e correção de documentação, não correção de handler.
 - **D11** não bloqueia F7, mas fica fechado no mesmo plano por pertencer à mesma padronização; exige
@@ -1815,3 +1875,58 @@ sem reexecução de testes de produto ou containers.
   operador, fora do escopo do D2, e precisa ser reconciliado antes de I3.4.
 - **Estado:** **D2 fechado e enviado.** Sem promoção de imagem, sem mudança de
   pin de runtime, sem tag e sem publicação em registry.
+
+**2026-10-24 — D7 corrigida e fechada (decisão e autorização do operador;
+execução e registo do agente).**
+- **Decisão do operador:** "siga com a task e realize um push no github" —
+  a correção dos dois defeitos de init e a escrita dos testes de contrato de
+  imagem foram autorizadas, com commit e push por SSH.
+- **Diagnóstico antes da correção:** os dois achados de init **não são dois
+  defeitos independentes** — são **um só defeito com duas faces**: a camada de
+  init do runtime stdio **não tem dono único**. O levantamento por repositório
+  mostrou quatro donos para a mesma responsabilidade (Compose `init:`, tini
+  embutido na imagem, `--init` do Positronic, `--init` do broker). O contrato
+  de runtime 1 e o runbook já nomeiam o dono correto: **o gestor**. Decisão
+  registrada em §2.7.4.1.
+- **Medição que sustenta a decisão:** `--init` **funciona mesmo com
+  `--cap-drop=ALL`** (PID 1 = `/sbin/docker-init`, `docker stop` em 0,1 s,
+  exit **143**), sem necessidade de `--cap-add=KILL`; sem `--init` o mesmo
+  container paga o grace period inteiro (10,1 s) e sai **137**. Critério de
+  conformidade corrigido: `SigCgt` de PID 1 **não** é critério — o init
+  encaminha o sinal, não o trata; o critério é o **comportamento observável**
+  (143, não 137).
+- **Commits enviados** (todos por SSH, `origin/main`): core `79dda0a0`
+  (`fix(mcp-docker): give the broker the init layer it owns`), OSM `7f3cb3e`,
+  Deep Research `6bcb752` (`fix(docker): give the launcher the init layer
+  this image used to embed`), Notes `36c4016`, Khan `13f8fce`, AgentMail
+  `31d6b1c`, Weather `81b3aaa` (`test(docker): gate the image contract on a
+  single launcher-owned init`).
+- **Conteúdo:** core — `--init` no `_spawn`, verificação pós-spawn
+  (`Init is not True` → `BrokerError`) e gate de retomada que rejeita
+  containers criados antes do fix; OSM e Deep Research — tini removido do
+  Dockerfile, `init: true` no compose, smoke e probe stdio com `--init`;
+  Notes, Khan, AgentMail — **teste de contrato de imagem novo**
+  (`tests/test_docker_contract.py`), conformance e receitas com `--init`;
+  Weather — contrato ampliado no `tests/test_dockerfile.py`, smoke e README
+  com `--init`.
+- **Verificação local:** core `tests/mcp_docker/` **85 passed**,
+  `ruff check` limpo, `basedpyright nanobot/mcp_docker/broker.py` → 0 erros;
+  Notes 52 passed; Khan 231 passed; AgentMail 236 passed + 1 skipped
+  (integração live); Weather, OSM e Deep Research verdes; `git diff --check`
+  limpo nos sete repositórios. `docker compose config --format json` renderiza
+  `init: true` nos seis serviços dos seis repositórios.
+- **Desvios de lint pré-existentes (não introduzidos aqui):** `ruff format`
+  no `scripts/docker_stdio_probe.py` do Deep Research e 99 avisos de
+  `ruff check` no OSM — confirmados por `git stash` sobre a árvore sem as
+  mudanças deste trabalho.
+- **O consumidor Positronic não foi alterado:** com as imagens sem tini
+  embutido, o `--init` incondicional dele deixa de duplicar. A divergência de
+  `NoNewPrivs=0` sob o Positronic **permanece** e é decisão de política do
+  gestor, não defeito de contrato.
+- **Mutações:** só código, testes, compose e documentação. Nenhum container de
+  produto, imagem construída, registry, instância ou credencial foi mutado;
+  nenhuma promoção, nenhuma publicação.
+- **Estado:** **D7 fechada.** Resíduos transferidos: a `NoNewPrivs` do
+  Positronic (divergência de política), o alinhamento do manual de sinais
+  (D9) e a reconstrução/promoção das imagens de OSM e Deep Research (D8).
+  D6, D8–D12 inalterados.
