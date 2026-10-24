@@ -1314,6 +1314,13 @@ no Deep Research e os 99 avisos do OSM são **pré-existentes**, confirmados por
 `git stash` sobre a árvore sem as mudanças). `git diff --check` limpo nos
 sete repositórios.
 
+> **Retificação (2026-10-24, ver §6):** a afirmação "OSM e Deep Research
+> verdes" acima se refere às **suítes de teste**, não aos smokes de imagem. Os
+> smokes de imagem do OSM e do Deep Research **não executavam a tempo** — a
+> verificação de init herdou a asserção anterior à correção e affirmava o
+> **inverso** do contrato. Corrigido depois, em `946ce44` (OSM) e `1d4c541`
+> (Deep Research), com os dois smokes passando contra a imagem reconstruída.
+
 **O consumidor Positronic não precisou de alteração:** o `--init`
 incondicional dele deixa de duplicar quando as imagens param de embutir tini
 (§2.7.4.1). O `NoNewPrivs=0` sob o Positronic (achado 3) **continua
@@ -1930,3 +1937,57 @@ execução e registo do agente).**
   Positronic (divergência de política), o alinhamento do manual de sinais
   (D9) e a reconstrução/promoção das imagens de OSM e Deep Research (D8).
   D6, D8–D12 inalterados.
+
+**2026-10-24 — Sweep de restos não commitados (pedido do operador) e
+retificação do smoke de init do OSM e do Deep Research.**
+- **Pedido do operador:** "commite todas as mudanças não commitadas e
+  realize um push em main em todos os repositórios, caso ainda não tenha
+  sido feito". O sweep apurou que a D7 já estava integralmente enviada
+  (`ahead=0` nos doze repositórios) e que os restos eram untracked de
+  **outra toolchain** (Positronic), anteriores à D7.
+- **Defeito real encontrado no caminho do sweep:** a verificação de init
+  dos smokes de imagem do OSM e do Deep Research **herdou a asserção
+  anterior à correção** — exigia PID 1 = `/usr/bin/tini` e
+  `HostConfig.Init != true`, isto é, o **inverso** do contrato que a
+  própria D7 estabeleceu. Além disso, lia o campo errado:
+  `docker inspect --format {{.Path}}` reporta o *path do processo*, não
+  o init, e por isso permanecia no entrypoint da imagem mesmo com PID 1
+  = `docker-init`. No Deep Research o fixture HTTP sequer era lançado
+  com `--init`.
+- **Medição que fecha o diagnóstico:** com `--init`, `HostConfig.Init`
+  é `true` e o PID 1 é `docker-init` (medido com `docker top` e
+  `/proc/1/status`); `{{.Path}}` continua a apontar para o entrypoint do
+  processo. O critério correto é o **comportamento observável** (143,
+  não 137), já estabelecido na §2.7.4.1.
+- **Correções enviadas:** OSM `946ce44` e Deep Research `1d4c541`
+  (`fix(docker): assert the launcher-owned init the smoke actually
+  launches`) — asserção pelo `HostConfig.Init` + nome real do PID 1 lido
+  de `/proc/1/status`, `--init` no fixture HTTP do Deep Research, e o
+  README do OSM alinhado (a linha de controle dizia `PID 1 = tini`).
+- **Verificação:** ambos os smokes **executados contra a imagem
+  reconstruída** e verdes (`scripts/docker-smoke-test.sh` no OSM,
+  `scripts/docker_smoke_test.sh` no Deep Research).
+- **Conteúdo versionado nos restos** (convenção do operador: versionar
+  onde há precedente — template Positronic e `percival-khan-calendar`;
+  manter ignorado onde há decisão explícita — AgentMail, acquire-knowledge,
+  notes, weather, collective-memory, nanobot):
+  - SPA `f0d4085` — `scripts/dev-spa.sh`, `src/tests/dev-spa.test.ts` e
+    `src/tests/gateway-browser-probe.ts`, já referenciados por
+    `package.json:20` e pelo core em `tests/kg/test_transport.py:153`.
+  - SPA `6e5fdaf`, OSM `ea42aeb`, Deep Research `6e767df` + `720d8be`,
+    Khan `4d3178f`, acquire-knowledge `9235030`, okf-bundle-core
+    `0d01045` — `.positronic/{PROJECT.md,project.json,policy.json}` e
+    `AGENTS.md`, com os fatos desatualizados corrigidos antes de
+    versionar (o PROJECT.md do OSM afirmava `tini` e 74 testes — real
+    76; o do SPA afirmava o modelo CM/AK pré-F7, 206 testes, 10 locales
+    e o export HTML do grafo; o do Deep Research fixava `61cdf26`/v3.0.0;
+    o do acquire-knowledge citava `.gitmodules` e
+    `mcp_servers/config.json`, que não existem neste checkout).
+  - O `.positronic/memory/` do Deep Research (estado de runtime) ficou
+    **fora** do versionamento, com a regra de ignore explícita.
+- **Verificação final:** os doze repositórios com remote estão
+  `ahead=0` e com árvore limpa. `cevap-unesp` permanece **intocado** por
+  decisão do operador (repo sem commit, sem remote, 12 MB de PDFs de
+  material-fonte e `state.sqlite`).
+- **Mutações:** só código, testes, scripts, `.gitignore` e documentação.
+  Nenhuma imagem publicada, nenhuma promoção, nenhum registry tocado.
