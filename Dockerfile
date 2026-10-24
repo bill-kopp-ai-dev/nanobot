@@ -21,9 +21,19 @@ COPY --from=toolchain /usr/local/bin/uv /usr/local/bin/uv
 COPY --from=toolchain /usr/local/bin/python3.12 /usr/local/bin/python3.12
 COPY --from=toolchain /usr/local/lib/python3.12 /usr/local/lib/python3.12
 COPY --from=toolchain /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so.1.0
+# The carried-over interpreter ships pip 25.0.1, whose own vendored SBOM makes
+# Trivy report msgpack, setuptools and urllib3 as installed packages of this
+# image. Those components are not reachable at runtime, so the report is a
+# scanner artifact rather than a finding; dropping pip removes the artifact at
+# its source instead of waiving it. uv is the supported installer here and
+# `optional_features.install_extra` already falls back to it when pip is absent.
+# The ensurepip wheel is removed with it so the image cannot reintroduce the
+# vulnerable pip through the last-resort bootstrap.
 RUN ln -sf /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so && \
     ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 && \
-    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python && \
+    rm -rf /usr/local/lib/python3.12/site-packages/pip /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+           /usr/local/lib/python3.12/ensurepip/_bundled
 
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
@@ -61,7 +71,11 @@ WORKDIR /app
 # channels may install their manifest-declared dependencies at startup.
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
-RUN uv venv --seed "$VIRTUAL_ENV"
+# The venv is created without `--seed`: a seeded pip brings its own vendored
+# SBOM, which the scanner reads as installed msgpack, setuptools and urllib3
+# packages of this image. uv installs the locked dependencies and is the
+# installer `optional_features.install_extra` uses when pip is absent.
+RUN uv venv "$VIRTUAL_ENV"
 
 # Install Python dependencies from the checked-in lock first (cached layer).
 # The project itself is deferred until its custom build-hook inputs are present.

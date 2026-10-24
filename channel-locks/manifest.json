@@ -9,7 +9,7 @@
         "dingtalk-stream>=0.24.0,<1.0.0"
       ],
       "requirementsSha256": "ac498f64e3be6324208fc68f963fd50e506d98311b8e727688392c3d15508fb3",
-      "lockSha256": "60aea676a007189ea21dfedd8f69974afad2b91e233e8a5a8bddc0e09f24ab4c"
+      "lockSha256": "89d9b9aedb709ecb88f49672422b7a7729e75eea7ae8ab0eddccc27c901417eb"
     },
     "discord": {
       "requirements": [
@@ -23,7 +23,7 @@
         "lark-oapi>=1.5.0,<2.0.0"
       ],
       "requirementsSha256": "412fb428b69f2d6199ccdc5988522bb6c9a33de7936306cca388232fd952a61b",
-      "lockSha256": "6deee7c40c080fd4d306126d3d6428ca81b68976a71bd08744fb7a23178a0062"
+      "lockSha256": "d6e452db5fc34d95791302bfacf55c3398c2be12bf035459c5610b0ead9b5edf"
     },
     "matrix": {
       "requirements": [
@@ -83,7 +83,7 @@
         "python-socks[asyncio]>=2.8.0,<3.0.0; sys_platform != 'win32'"
       ],
       "requirementsSha256": "4bb5495441cacf54010c8f0484f41e0e353b4879870dddead1d2caea1a3967d7",
-      "lockSha256": "85431cff12bcfa05a781fc2e6ede96b5f72f6f40016f9a6a4434f97d64bd00ef"
+      "lockSha256": "47a94cd78180fbc19390c595a45b91e78f03438d224769e067b584bea1e30c0c"
     },
     "wecom": {
       "requirements": [
@@ -98,7 +98,7 @@
         "pycryptodome>=3.20.0"
       ],
       "requirementsSha256": "74bb4507ce4df1fb1d92ce136b8d716bc86fcb409326da81aba518cd7838c253",
-      "lockSha256": "e5152fca6f00959f85c6d89b4869d1760225395d9cdf3df69220442129640d6e"
+      "lockSha256": "78f7ffaeb6462f2390f56d6d24344dfc7eb2229fc6a2238d0cbbc77ad9ce7fb6"
     },
     "whatsapp": {
       "requirements": [
@@ -106,7 +106,7 @@
         "segno>=1.6.1,<2.0.0"
       ],
       "requirementsSha256": "cca94652ad5e03101893262e78978485a7ad649feddd665527bc1f9e7d508679",
-      "lockSha256": "32629f980e906acac93289dadbdc9e912e6e9bc4824bfae88e1e0d98079bbf6a"
+      "lockSha256": "5bae8207ecb787b36f9e18c31cea28b1009c35fabfd1699daae1486ee97f4a87"
     }
   }
 }

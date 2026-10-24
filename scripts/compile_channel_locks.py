@@ -39,7 +39,7 @@ def _load_channels() -> dict[str, list[str]]:
     }
 
 
-def _compile(name: str, requirements: list[str], output: Path) -> None:
+def _compile(name: str, requirements: list[str], output: Path, *, upgrade_packages: list[str]) -> None:
     with tempfile.TemporaryDirectory(prefix="percival-channel-lock-") as temporary:
         source = Path(temporary) / "requirements.in"
         source.write_text("\n".join(requirements) + "\n", encoding="utf-8")
@@ -52,6 +52,12 @@ def _compile(name: str, requirements: list[str], output: Path) -> None:
             "--custom-compile-command", "uv run python -m scripts.compile_channel_locks",
             "--output-file", str(output),
         ]
+        for package in upgrade_packages:
+            # uv pip compile keeps the versions already pinned in the output
+            # file, so a recompile silently preserves outdated transitive
+            # dependencies such as a vulnerable pillow. Naming the package
+            # re-resolves it while leaving every other pin untouched.
+            command += ["--upgrade-package", package]
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
         if result.returncode:
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
@@ -125,6 +131,13 @@ def verify(channels: dict[str, list[str]]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="validate committed lock metadata")
+    parser.add_argument(
+        "--upgrade-package",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="re-resolve this package instead of keeping the committed pin; repeatable",
+    )
     args = parser.parse_args()
     channels = _load_channels()
     if args.check:
@@ -139,7 +152,7 @@ def main() -> int:
     LOCK_DIR.mkdir(exist_ok=True)
     for name, requirements in channels.items():
         print(f"locking channel {name}", flush=True)
-        _compile(name, requirements, LOCK_DIR / f"{name}.txt")
+        _compile(name, requirements, LOCK_DIR / f"{name}.txt", upgrade_packages=args.upgrade_package)
     LOCK_MANIFEST.write_text(
         json.dumps(_expected_manifest(channels), indent=2) + "\n",
         encoding="utf-8",
