@@ -13,12 +13,17 @@
   demonstrado, cardinalidade formalizada e nenhuma limpeza; D5: regressão
   `tools/call` do Khan em §2.6 — o defeito do F4/F5 não reproduz com cliente MCP
   real, causa isolada no harness × camada `fastmcp` 3.x, teste de protocolo e
-  conformance com `tools/call` gravados no repo do Khan); D6–D12 continuam sem
+  conformance com `tools/call` gravados no repo do Khan); **D7: execução
+  concluída, item aberto** (§2.7 — core reaproveitado do I2, contratos dos
+  seis MCPs medidos por gestor, e um defeito de sinal novo no caminho do
+  Percival: sem `--init`, o `docker stop` de um MCP sem init passa o grace
+  period inteiro e sai 137); D6, D8, D9, D10, D11 e D12 continuam sem
   fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
   Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
   core de D7, acrescenta seus builds worktree ao resíduo de D8 e atualiza as entradas
-  de D9/D11/D12. I3 foi adiado pelo operador; I4–I9 permanecem pendentes. Restore/rollback
+  de D9/D11/D12. A D7 **executou** em 2026-10-23 e reduziu a lacuna dos contratos
+  MCP por gestor (§2.7). I3 foi adiado pelo operador; I4–I9 permanecem pendentes. Restore/rollback
   F4 anteriores continuam reaproveitáveis no seu escopo. A
   [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md)
   §3.4 é o snapshot anterior a I1/I2; suas referências `arquivo:linha` e ferramentas
@@ -115,7 +120,7 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **fechado em 2026-10-23, com achado residual** — mapa completo em §2.5. **Não há duplicata nem órfão**: os 17 containers MCP são 17 instâncias legítimas. Lado Percival: nome determinístico `percival-mcp-<server_id>` ([`broker.py:135`](../../nanobot/mcp_docker/broker.py#L135)) torna impossível duas instâncias do mesmo servidor (o nome é o lock), 6 containers com labels `percival.mcp-docker.{owner,managed-by,server-id,instance-id}`, todos os journals de servidor em `committed`. Lado Positronic: 11 containers, nome `positronic-mcp-<server>-<run12>`, distinguidos por **contexto de projeto** (label `io.positronic.context` = hash do diretório) — `/home/bill` (6 servidores, via `opencode serve` PID 98403) e `/home/bill/.positronic` (5, via `opencode attach` PID 111547); cardinalidade formalizada como **≤1 por `(servidor, contexto)`**. **Nenhum órfão:** 11/11 containers casam com `owner.json` (`state: acquired`, `pid`/`boot`/`start` idênticos ao `/proc/98403/stat`), 0 `cleanup-pending`, 0 container sem dono. **Ciclo de vida demonstrado** pela auditoria (`acquire` → `tools-list` → `close transport-closed` na reconexão, com `--rm` removendo o anterior), não por inferência. **Nenhuma limpeza executada** — o critério "zero referências confirmadas" não é atingido: os containers estão em uso. **Achado residual de observabilidade:** 7 das 150 aquisições não têm desfecho gravado (o `close` não foi escrito quando o cliente foi interrompido entre `acquire` e `tools-list`); uma delas tem efeito observável — o deep-research ficou ausente no contexto `/home/bill/.positronic` e `GET /mcp` nesse diretório responde HTTP 499. Não é órfão nem duplicata; é lacuna de auditoria que exige gravar o `close` nesse caminho |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **fechado em 2026-10-23** — o defeito reportado pelo F4/F5 ("o FastMCP 3.4.4 não devolve o frame JSON-RPC em `tools/call`") **não reproduz** com cliente MCP real, nem no checkout nem contra a imagem F3 em uso. Diagnóstico em §2.6: a causa é a **combinação entre o harness da F4 e a camada `fastmcp` 3.x** — o harness fechava o stdin via `subprocess.run(input=…)` antes de ler a resposta, e a camada `fastmcp` 3.x não cancela o handler em voo quando o transporte fecha (o SDK low-level cancela). **Não é pin nem config**: as duas pontas da faixa (`mcp` 1.28.1/`fastmcp` 3.2.0 e `mcp` 1.30.0/`fastmcp` 3.4.4`) comportam-se igual, e a mesma imagem que reproduzia o defeito responde 10/10 com o transporte aberto. **Evidência no protocolo**: `initialize` + `tools/list` (12 tools) + `tools/call` de `khan_get_status`, `khan_list_calendars`, `khan_list_events` e round-trip `create`→`list`→`search`, mais erro de validação retornando `isError: true` — todos com `isError: false` e conteúdo correto, sobre workspace isolado por `KHAN_WORKSPACE_DIR`, sem tocar o calendário real. **Correção durável**: novo `tests/test_protocol_stdio.py` (7 testes) no repo do Khan; `scripts/docker-ci-conformance.py` estendido com `--call-tool`/`--call-args` (emite o `tools/call` antes de fechar o stdin) e invocado pelo CI com `--call-tool khan_get_status`. **Limite registrado**: a fragilidade da camada `fastmcp` 3.x permanece (0/10 sob EOF imediato, em ambas as formas de payload medidas); os consumidores reais (broker do Percival, runtime do Positronic) leem o frame antes de fechar o transporte. **Correção após reexecução** (§2.6.2): o controle do Notes **também** perde o frame de forma intermitente sob EOF (9/10 na forma F4, 1/10 na forma com `tools/list` antes) — o registro anterior de "5/5" estava errado; o que distingue o Khan é a falha **determinística**, e a taxa intermitente das camadas do SDK é propriedade do harness, não do servidor. **Ressalva**: as mudanças foram **commitadas e enviadas** em 2026-10-23 (core `1eeed82f`, Khan `0bc52b9`), **não publicadas** |
 | D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
-| D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **parcial, com core comprovado localmente em I2** — 19 checks PASS cobrem gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM e crash/recreate/hydrate com fixture. Restam artefatos finais e contratos MCP por gestor. A auditoria pré-I2 encontrou tini em OSM/Deep e `--init` incondicional no consumidor Positronic, além de falta de contrato de imagem em Notes/Khan/AgentMail. I2 alterou o core Percival, não esses repositórios; não encerra esses achados nem certifica Positronic |
+| D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **execução concluída em 2026-10-23; item permanece aberto** — §2.7. **Core reaproveitado**: os 19 checks PASS do I2 (gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM, crash/recreate/hydrate) mantêm-se válidos, com a justificativa de que nada do core foi alterado. **Contratos MCP por gestor medidos** com o instrumento novo `scripts/percival-mcp-runtime-contract.py` (24 medições: 6 imagens × 2 gestores × EOF/SIGTERM). **Conforme em todas**: sem TTY, stdin aberto, zero portas publicadas, zero sockets em escuta, `CapEff=0`, sem healthcheck HTTP. **Achado novo (defeito de código do core)**: o broker do Percival **não passa `--init`** ([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189)), e 4 das 6 imagens não têm init embutido — logo **PID 1 não trata SIGTERM**, o `docker stop` paga o grace period inteiro (10,2 s) e sai **137** em vez de 143, contra 0,1 s/143 com `--init`; mecanismo confirmado por caso mínimo (bit 14 de `SigCgt` = "SIGTERM tratado"; `SigCgt=0` no init é correto, porque o init encaminha). **Achado confirmado (outro repositório)**: `--init` incondicional do consumidor Positronic ([`managed.ts:640`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L640)) empilha `docker-init` sobre o tini de OSM/Deep Research — 2 camadas de init, medidas. **Divergência registrada**: `NoNewPrivs=1` sob o Percival vs `0` sob o Positronic. **Restam**: corrigir `--init` no broker (core), remover o init duplicado (Positronic) e escrever os testes de contrato de imagem que faltam em Notes/Khan/AgentMail |
 | D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito; agora parcialmente invalidada** — em 2026-10-23 o binário `positronic` **passou a existir** no PATH (`/home/bill/.local/bin/positronic`, wrapper do runtime nativo fixado) e expõe `mcp server configure <id> <revision> --tools <lista>`; os 11 comandos da skill **existem** no CLI atual. A afirmação anterior ("não há binário `positronic` no PATH", "não existe comando para corrigir") **não vale mais** — ver §2.3. Restam: reescrever a D10 à luz do CLI atual, confirmar na skill os nomes/flags reais (o `recover-transition` exige `--confirm`), e remover o workaround de edição direta do registry. O estado real continua sendo o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
@@ -1001,6 +1006,236 @@ frame.
 Isso é mudança de arquitetura do servidor, não correção de regressão, e
 exige decisão própria do operador.
 
+### 2.7 D7 — contrato de runtime por gestor (2026-10-23, agente)
+
+**Veredicto: o core já está provado (I2), mas os seis MCPs não têm contrato
+de runtime homologado — e a medição encontrou um defeito de sinal no caminho
+do Percival que a auditoria pré-I2 não tinha registrado.** A D7 não é uma
+tarefa inacabada: ela tinha duas partes, e as duas foram executadas. O
+reaproveitamento do I2 é válido para o core e está citado abaixo; o que
+faltava eram os **contratos MCP por gestor**, medidos agora.
+
+#### 2.7.1 O que o I2 já provou e o que foi reaproveitado
+
+O [contrato de runtime 1](../agent-runtime-contract.md) e o
+[relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md)
+mantêm-se válidos para o **core**: 19 checks PASS cobrindo gateway/API/CLI/
+broker, identidade de processo, UID/GID, caps, `NoNewPrivs=1`, probe
+autenticada, `doctor`, EOF e SIGTERM. Conforme
+[`.agent/workflow.md`](../../.agent/workflow.md), essa evidência é
+**carried forward** com a justificativa de que nada do core foi alterado
+nesta D7: o único arquivo novo é um script de medição, e nenhuma imagem,
+configuração ou container de produto foi tocado. **O que o I2 não cobre, e
+que a D7 precisava cobrir**, são os **MCPs**: o I2 exercitou um fixture
+stdio genérico, não os seis servidores oficiais.
+
+#### 2.7.2 Instrumento: `scripts/percival-mcp-runtime-contract.py`
+
+O gap era de evidência, não de conceito: os seis MCPs tinham **contratos
+de imagem declarados** (Dockerfile, entrypoint, `EXPOSE`, `HEALTHCHECK`,
+`USER`, `STOPSIGNAL`) e **testes de contrato de imagem** em apenas três
+repositórios — Weather (`tests/test_dockerfile.py`), OSM
+(`tests/test_d6_docker.py`) e Deep Research (`tests/test_docker.py`). Notes,
+Khan e AgentMail **não tinham** teste de contrato de imagem; o Khan só
+recebeu, na D5, um teste de **protocolo**, que é outra coisa.
+
+O instrumento novo mede o contrato **em runtime**, sobre containers
+descartáveis, e é **read-only** quanto ao estado vivo: nome único, rede
+privada, workspace temporário e remoção no fim. Ele não toca containers em
+execução, configuração, credenciais nem estado do host. Para cada imagem e
+cada gestor, mede duas coisas em containers separados:
+
+- **EOF** — o cliente fecha o stdin; o servidor deve responder `initialize`
+  e terminar com **exit 0**;
+- **SIGTERM** — o container é parado como um gestor para; deve terminar com
+  **exit 143**.
+
+E mede, em ambos: TTY, stdin aberto, portas publicadas, healthcheck, UID
+efetivo, `CapEff`, `NoNewPrivs`, sockets em escuta, PID 1 e a máscara
+`SigCgt` de PID 1. As flags de lançamento **não são inventadas**: são as
+que cada gestor usa de fato — `nanobot/mcp_docker/broker.py:182`-`:189`
+(`--cap-drop=ALL --security-opt=no-new-privileges`, sem `--init`) e
+`alternative-positronic/packages/positronic-mcp-docker/src/managed.ts:640`
+(`--pull=never --rm --init --interactive`).
+
+Reprodução de uma célula (o `exit` é diferente de zero quando há violação
+do contrato, o que é o comportamento esperado hoje no caminho do Percival):
+
+```bash
+python3 scripts/percival-mcp-runtime-contract.py \
+  --image sha256:ef4082ef13905cdaa0da23830bcc6c5b88ca3beb30074e11d56593d11a097460 \
+  --name notes --manager percival \
+  --env PERCIVAL_NOTES_VAULT_PATH=/vault \
+  --mount type=tmpfs,destination=/vault,tmpfs-mode=0777 \
+  --output /tmp/d7-contract/notes.json
+```
+
+#### 2.7.3 Matriz medida (imagens F3 em uso, 2026-10-23)
+
+Seis imagens, dois gestores, dois modos: 24 medições. Resultado
+**consolidado**:
+
+| MCP | init na imagem | Percival: EOF / SIGTERM | Positronic: EOF / SIGTERM | `NoNewPrivs` (Percival / Positronic) |
+| --- | --- | --- | --- | --- |
+| Notes | não | 0 / **137** | 0 / 143 | 1 / 0 |
+| Khan | não | 0 / **137** | 0 / 143 | 1 / 0 |
+| Weather | não | 0 / **137** | 0 / 143 | 1 / 0 |
+| AgentMail | não | **não serviu** / **137** | **não serviu** / 143 | 1 / 0 |
+| OSM | tini | 0 / 143 | 0 / 143 (**2 camadas de init**) | 1 / 0 |
+| Deep Research | tini | 0 / 143 | 0 / 143 (**2 camadas de init**) | 1 / 0 |
+
+O que está **conforme** em todas as 24 medições: **sem TTY**, **stdin
+aberto**, **zero portas publicadas**, **zero sockets em escuta** (o stdio
+não abre listener), `CapEff=0`, e **sem healthcheck HTTP** — exceto o OSM,
+que traz `HEALTHCHECK NONE` explicito, que é a forma correta de declarar
+"não há probe". O `EXPOSE` de OSM/Deep/Weather é **documentação**, não
+publicação: nenhuma porta é publicada em runtime.
+
+#### 2.7.4 Achado 1 — no caminho do Percival, o SIGTERM não chega ao servidor
+
+**É o achado novo desta D7, e é um defeito de código do core, não falta de
+evidência.** Quatro das seis imagens (Notes, Khan, Weather, AgentMail) **não
+têm init embutido**: o PID 1 é o próprio processo do servidor. O broker do
+Percival **não passa `--init`** ([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189)),
+e o runbook do próprio projeto determina o contrário — "Stdio usa
+`stdin_open: true`/`tty: false` e `docker run --init`"
+([`docs/operations/mcp-docker-local-runbook.md:14`](../../docs/operations/mcp-docker-local-runbook.md#L14)).
+
+Sem init, **PID 1 não instala handler de SIGTERM**, e o kernel **não
+entrega o sinal**: dentro de um namespace de PID, o init do namespace só
+recebe sinais externos se tiver handler instalado. O `docker stop` então
+espera o grace period inteiro e escala para SIGKILL.
+
+**Mecanismo medido, não inferido** — caso mínimo controlado, sem MCP:
+
+| Caso | PID 1 | `SigCgt` | `docker stop` | Saída |
+| --- | --- | --- | --- | --- |
+| `sh` com `trap … TERM`, sem init | o script | `0x14002` (bit 14 ligado) | 1,1 s | **42** (o trap roda) |
+| `sh` sem trap, sem init | o script | `0x10002` | 10,2 s | **137** (SIGKILL) |
+| `sh` sem trap, **com** `--init` | `/sbin/docker-init` | `0x0` | 0,1 s | **143** |
+
+Ou seja: **o `SigCgt=0` do init não é defeito** — o init não precisa de
+handler, ele **encaminha** o sinal ao filho. E o bit 14 (`0x4000`) de
+`SigCgt` é exatamente "SIGTERM tratado".
+
+**Efeito prático, medido no caminho real do broker** (`docker stop` com o
+grace default de 10 s, container do Notes):
+
+| Caminho | Duração do stop | Código de saída |
+| --- | --- | --- |
+| Percival (sem `--init`) | **10,2 s** | **137** |
+| Positronic (com `--init`) | 0,1 s | 143 |
+
+Ou seja: **todo `stop`/`deactivate`/`exclude` de um MCP sem init sob o
+Percival custa o grace period inteiro e termina em SIGKILL**, e o
+`docker rm -f` do caminho de remoção ([`broker.py:163`](../../nanobot/mcp_docker/broker.py#L163))
+é o que encerra de fato o container. Para os MCPs com tini (OSM, Deep
+Research) o caminho está correto: 0,1 s e 143.
+
+**Alcance.** É um defeito de **parada limpa**, não de funcionamento: as
+24 medições mostram que os MCPs servem corretamente (exit 0 no EOF) sob o
+Percival, e nada na D5/D7 indica perda de dado. Mas ele contradiz o
+runbook, produz saída 137 em vez de 143 e paga o grace period a cada
+parada. **Correção:** o broker deve passar `--init` ao lançar MCPs stdio
+— o que é seguro para os MCPs **sem** init (Notas/Khan/Weather/AgentMail) e
+**precisa** ser pareado com a remoção do tini embutido de OSM e Deep
+Research, sob o gestor que os lança, para não criar init duplo. Como os
+dois lados pertencem a repositórios distintos (core e MCPs), a correção é
+**dupla** e o operador precisa decidir a ordem.
+
+#### 2.7.5 Achado 2 — init duplicado no consumidor Positronic
+
+**Confirmado, e é defeito de código de outro repositório.**
+`alternative-positronic/packages/positronic-mcp-docker/src/managed.ts:640`
+monta `docker run --pull=never --rm --init --interactive` **incondicionalmente**.
+As imagens do OSM (`percival-osm/Dockerfile:146`) e do Deep Research
+(`percival-deep-research/Dockerfile:155`) **já entram por tini**. O
+resultado medido é **2 camadas de init** (`docker-init` sobre `tini`) em
+todas as 4 medições desses dois MCPs sob o gestor Positronic. É o achado
+de F6 ([`docs/reports/2026-10-10-f6-local-cutover.md:49`](../../docs/reports/2026-10-10-f6-local-cutover.md#L49)),
+**ainda vivo**, e agora medido: as árvores de processo confirmam
+`/sbin/docker-init -- /usr/bin/tini -- …` nos containers Positronic de
+OSM e Deep Research, contra `/usr/bin/tini -- …` nos containers Percival
+dos mesmos MCPs.
+
+**Consequência medida:** a falha é de **supervisão falsa**, não de
+funcionamento — os dois MCPs continuam servindo (EOF exit 0) e param
+limpo (143). O custo é uma camada de supervisão que mascara qual processo
+é o responsável pelo sinal, o que o runbook proíbe explicitamente
+("Duplo init cria falsa camada de supervisão") e o que a auditoria
+pré-I2 classificou como N1.
+
+#### 2.7.6 Achado 3 — `NoNewPrivs` e caps divergem entre gestores
+
+O Percival aplica `--cap-drop=ALL --security-opt=no-new-privileges`; o
+Positronic **não aplica nenhum dos dois**. Medido: `NoNewPrivs=1` e
+`CapEff=0` sob o Percival; **`NoNewPrivs=0`** sob o Positronic em todos os
+6 MCPs. `CapEff=0` em ambos, porque as imagens já correm como não-root com
+`USER` — mas `NoNewPrivs=0` significa que um binário setuid ou um
+`capability` herdado **não** seria impedido pelo kernel.
+
+Este é **diferença de política entre gestores**, não um defeito do core: o
+broker do Percival escolhe deliberadamente `--cap-drop=ALL` +
+`no-new-privileges`, e o runbook exige "privilégio mínimo". O consumidor
+Positronic não tem essa escolha equivalente. **Registrado como divergência
+a decidir pelo operador** — não é coberto pelo contrato de runtime 1, que
+descreve o core e o broker, não o consumidor Positronic.
+
+#### 2.7.7 Achado 4 — o AgentMail não serviu no ambiente isolado
+
+Nas 2 medições de EOF, o AgentMail **não respondeu `initialize`** e
+terminou com **exit 1**. A causa é externa ao contrato de runtime: o
+entrypoint do MCP faz um **health check do upstream** no startup
+(`percival_agentmail_mcp/server.py:41`-`:57`) e falha com
+`httpx.ConnectError` quando o upstream não é resolvível
+(`--network=none` + chave de teste inválida). O mesmo vale para o Deep
+Research, que exige `INFERENCE_API_KEY`/`OPENAI_API_KEY` — resolvido ao
+passar a variável, e então ele **serviu** normalmente (exit 0 no EOF).
+
+Isto **não** é uma violação do contrato de runtime: é uma **precondição de
+startup** do servidor. O probe distingue os dois casos e reporta
+"startup precondition not met", e não "falha de EOF" — distinção que
+importa porque um servidor que falha no startup **não** pode ser julgado
+pelo EOF.
+
+#### 2.7.8 O que a D7 **não** fecha
+
+- **A correção do `--init` no broker do Percival** e a **remoção do init
+  duplicado no consumidor Positronic** são **defeitos de código** em
+  repositórios distintos (core e `alternative-positronic`), fora do
+  escopo de execução desta D7 e sem autorização de mutação. A D7
+  entrega o **diagnóstico medido** e a **correção proposta**; a execução
+  fica com o operador.
+- **Os testes de contrato de imagem** que faltam em Notes, Khan e AgentMail
+  (e o teste de init único que falta nos seis) são **trabalho de imagem
+  nos repositórios dos MCPs**, não do core. O instrumento novo mede o
+  comportamento em runtime e pode ser invocado por cada repo; **não**
+  substitui o teste estático no repositório de cada imagem.
+- **O manual operacional ainda tem uma lacuna que esta D7 expôs:** a §3.10
+  do [runbook](../../docs/operations/mcp-docker-local-runbook.md) diagnostica
+  o **init duplicado**, mas não o caso **sem init algum** — que é
+  exatamente o defeito do caminho do Percival, e em que o `docker stop`
+  termina em 137 em vez de 143. O alinhamento do manual continua sendo
+  **D9** (que já é dona do walkthrough de sinais por modo); a D7 não edita o
+  manual para não antecipar um item que o operador ainda não fechou.
+- **Não é** homologação de release: as imagens medidas são as F3 de
+  diagnóstico (`io.percival.build.worktree=dirty` em quatro delas), sem
+  digest OCI de registry, sem SBOM, sem scan, sem build limpo. O gate de
+  build limpo e pin por digest é da **D8**; o de publicação, do **D8/I3**.
+- **Não é** aprovação de serviço externo: o AgentMail falhou por
+  dependência de upstream, o que não diz nada sobre a qualidade do serviço
+  nem sobre credenciais.
+- **ARM64, VPS, Engine 27.x, I6 (homologação de apps), I8 (recuperação sob
+  carga) e C1–C4** mantêm seus escopos. Nada aqui substitui o I2 para o
+  core nem o I6 para os MCPs.
+
+**Estado da D7:** **execução concluída; o item permanece aberto** porque
+restam dois defeitos de código (um no core, um no consumidor Positronic) e
+os testes de contrato de imagem de três repositórios. A evidência é
+reprodutível com
+`scripts/percival-mcp-runtime-contract.py`; nenhum container de produto,
+imagem, registry, instância ou credencial foi mutado.
+
 **Complementos de aceite após a harmonização:**
 
 - **D7:** reaproveitar a matriz e execução I2 para o core sem repeti-las como tarefa
@@ -1328,6 +1563,61 @@ O core **não gerou run**: o CI do core tem `paths-ignore` para `docs/**` e
 continua sem evidência nova neste SHA — dispara-lo por `workflow_dispatch`
 autenticado é decisão do operador, como já registrado no D2. Nenhuma
 imagem foi promovida: o gate D8/I3 segue aberto.
+
+**2026-10-23 — D7: contrato de runtime por gestor (agente).**
+Levantamento completo em §2.7. **Read-only quanto ao estado vivo**: nenhum
+container de produto, imagem, registry, instância ou credencial foi mutado;
+todos os containers de medição foram descartáveis, de nome único, com rede
+privada e removidos no fim. Nenhuma promoção, nenhuma publicação.
+
+Verificações: reaproveitamento justificado da evidência do I2 para o core
+(nada do core foi alterado); leitura do contrato de runtime 1 e do relatório
+I2; inventário read-only dos containers vivos dos dois gestores via
+`python3 -m nanobot.mcp_docker.inventory` (19 containers, 17 MCP, com
+`init`/`tty`/`stdinOpen`/`ports`/`healthcheck`); leitura dos Dockerfiles e
+Compose dos seis MCPs; leitura das flags de lançamento de cada gestor
+([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189) e
+[`managed.ts:640`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L640));
+leitura da árvore de processo (`docker top`) dos 17 containers MCP vivos; e
+**medição em runtime** dos seis MCPs × dois gestores × dois modos (EOF e
+SIGTERM) = 24 medições, com o instrumento novo
+`scripts/percival-mcp-runtime-contract.py`. O mecanismo do achado 1 foi
+confirmado por **caso mínimo controlado** (script com e sem `trap`, com e
+sem `--init`), medindo `SigCgt` de PID 1 e o tempo e código de saída do
+`docker stop`.
+
+Achados: (1) **o broker do Percival não passa `--init`** e 4 das 6 imagens
+não têm init embutido — sem init, PID 1 não trata SIGTERM, o `docker stop`
+paga o grace period inteiro (10,2 s) e sai **137**, contra 0,1 s e 143 com
+`--init`; o `SigCgt=0` do init é correto (o init encaminha o sinal), e o bit
+14 de `SigCgt` é o que distingue "SIGTERM tratado"; (2) **init duplicado**
+no consumidor Positronic (`docker-init` sobre o tini de OSM/Deep Research),
+medido em 4 das 24 medições; (3) **`NoNewPrivs=0`** sob o Positronic contra
+`1` sob o Percival — divergência de política entre gestores, não defeito do
+core; (4) o AgentMail **não serviu** no ambiente isolado por fazer health
+check do upstream no startup — precondição de startup, não violação do
+contrato, e o Deep Research deixou de servir pelo mesmo motivo até receber
+`OPENAI_API_KEY`.
+
+Artefatos gravados: `scripts/percival-mcp-runtime-contract.py` (novo, no
+core) e a §2.7 deste plano. A evidência bruta por imagem (JSON) é
+reproduzível pelo próprio script com `--output`; fica **fora** da fonte
+rastreada, conforme `.agent/workflow.md`.
+
+**Estado:** **D7 — execução concluída, item aberto.** Restam dois defeitos
+de código (o `--init` do broker, no core; o init duplicado, no consumidor
+Positronic) e os testes de contrato de imagem de Notes, Khan e AgentMail.
+As correções são de escrita em repositórios distintos e **não** foram
+executadas: exigem autorização do operador. D6, D8–D12 inalterados.
+
+**Ressalva:** esta execução da D7 **não está commitada nem enviada** — a
+autorização de commit/push do operador cobria a D4 e a D5. No working tree
+do core restam a §2.7 (modificada) e
+`scripts/percival-mcp-runtime-contract.py` (novo, não rastreado). A
+validação documental executada nesta rodada: links/âncoras/CJK/tabelas
+consistentes, `git diff --check` limpo e `ruff check` limpo no script novo
+(o `ruff format` não é aplicado neste repositório, por decisão registrada
+em `AGENTS.md`).
 
 **2026-10-23 — harmonização IaC (não é execução).** Incluídas fronteiras de ownership,
 handoff de D7–D11, separação de aceite F7/I9 e dependências de layout e distribuição.
