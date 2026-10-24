@@ -3,12 +3,18 @@
 - **Preparado em:** 2026-10-23, por fusão dos dois planos de fechamento da padronização
   Docker: o [F4/F5](closed/2026-10-10-f4-f5-closure-plan.md) e o
   [F7 — aceite de operação](closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
-- **Estado / revisão pós-I1/I2 (2026-10-23):** D1, D2 e D3 estão **fechados** (D1: inventário
-  do agente em §2.1, rotação e decisão de histórico do operador; D2: matriz de
-  proveniência em §2.2, atribuição confirmada, `.mailmap` aplicado nos sete repositórios
+- **Estado / revisão pós-I1/I2 (2026-10-23):** D1, D2, D3, D4 e D5 estão **fechados**
+  (D1: inventário do agente em §2.1, rotação e decisão de histórico do operador;
+  D2: matriz de proveniência em §2.2, atribuição confirmada, `.mailmap` aplicado nos sete repositórios
   e rebuild limpo dos seis MCPs; D3: levantamento da superfície em §2.3, decisão do
   operador e aplicação em §2.4 — 12 tools do Khan liberadas nos dois gestores,
-  prompts/resources registrados como limitação); D4–D12 continuam sem fechamento integral. I1 concluiu
+  prompts/resources registrados como limitação; D4: atribuição das duplicatas em
+  §2.5 — mapa container → dono → contexto nos dois gestores, ciclo de vida
+  demonstrado, cardinalidade formalizada e nenhuma limpeza; D5: regressão
+  `tools/call` do Khan em §2.6 — o defeito do F4/F5 não reproduz com cliente MCP
+  real, causa isolada no harness × camada `fastmcp` 3.x, teste de protocolo e
+  conformance com `tools/call` gravados no repo do Khan); D6–D12 continuam sem
+  fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
   Linux/amd64 (`0e7ff072`), ambos commitados/enviados. A evidência reduz a lacuna
   core de D7, acrescenta seus builds worktree ao resíduo de D8 e atualiza as entradas
@@ -106,8 +112,8 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D1 | Rotacionar a credencial `operator-admin` e avaliar a exposição no histórico | Rotação pela interface suportada, autenticação com o segredo novo e invalidação do anterior sem registrar nenhum dos dois; inventário de commits/arquivos afetados; decisão explícita sobre histórico privado/remoto. Sem este gate, nenhuma mutação autenticada em instância real | F7 P0 / Extra | operador (rotação) + agente (inventário) | **fechado em 2026-10-23** — inventário do agente em §2.1; rotação executada pelo operador (afirmação do operador: trocou a senha recentemente); decisão de histórico registrada pelo operador: manter o histórico exposto, por se tratar de segredo legado inerte e repositório privado. **O literal foi redigido da árvore nesta revisão** (`docs/reports/2026-10-10-f4-f5-closure-report.md:16`), mas permanece em 32 commits de `origin/main` — remediação de histórico não é parte deste fechamento. Correção do inventário anterior: exposição de 32 commits, não 5; o commit `07f08314` citado antes **não existe**; o valor exposto casa com o verificador legado `operator.json` e **não** com `auth/verifier.json`, a credencial de instância vigente, que nenhum código legado valida. **Não reproduzir o valor em documento versionado** |
 | D2 | Matriz de proveniência e política de identidade | Matriz repo → SHA → autor/committer bruto → atribuição confirmada → mapeamento aprovado → image ID/revision revisada; `.mailmap` apenas quando duas identidades forem comprovadamente a mesma pessoa; nenhuma reescrita de `main` publicado | F7 P1 (#10) | agente + operador | **fechado em 2026-10-23** — matriz completa em §2.2. Atribuição confirmada por vínculo com a API do GitHub (a API resolve o autor de cada commit para a conta que o assinou); `.mailmap` aplicado nos sete repositórios (Opção A), colapsando 3–5 grafias em `Bill Kopp <bill.kopp.dev@gmail.com>` por repo, sem reescrever nenhum objeto commit; identidades de automação e contribuições externas ficam sem mapeamento (D2-b Opção A); rebuild limpo dos seis MCPs a partir do HEAD, com SHA completo no label `revision` e smoke stdio 6/6 (D2-d Opção A). Defeito corrigido no caminho: `.mailmap` vazava para a imagem do Deep Research (`COPY . .`), corrigido em `e076f29`. **Restam fora deste fechamento:** promoção das imagens (D8, exige aprovação/canário/rollback), push dos `.mailmap` e a política de assinatura de commits, que segue aberta e independente |
 | D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **fechado em 2026-10-23** — decisão do operador em §2.4: **superfície completa nos dois gestores**, prompts/resources como limitação aceita e registrada, aplicação autorizada ao agente. Superfície real: **12 tools + 6 prompts + 1 resource = 19** (§2.3), escrita efetiva em 5 tools. Aplicado: `allowedTools` do Khan no Positronic elevada de 1 para 12 via `positronic mcp server configure` (config `revision` 1→2, `configurationId` preservado, `network: none`, mount e env intactos, snapshot de rollback em `~/.local/state/positronic-d3-snapshots/`); o Percival já estava em 12 tools (`toolsDisabled: []`) e não foi mutado. Projeção verificada nos dois gestores: `discover` 12 tools, `preview` `refreshKey 10:9ee229c8-…:2`, `reconnect` `generation 777b633dce4cf9fa` (= hash da revisão 2), broker Percival `tools/list` 12 tools, log do gateway `connected, 12 capabilities registered`. **Limitação registrada:** prompts/resources não são cobertos por allowlist de tool no Positronic (viram comandos/resource), e não são expostos no Percival — assimetria por construção, não remediavel por configuração |
-| D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **parcial, e o mapeamento já é ferramenta** — `nanobot/mcp_docker/inventory.py:136` coleta `containerId` e `:299` renderiza tabela com `percival.mcp-docker.owner`, `.managed-by`, `.server-id` e `.instance-id`. O que falta é o que o inventário não prova: ciclo de vida demonstrado e cardinalidade esperada documentada |
-| D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **aberto, confirmado** — **não existe** teste de protocolo: buscas por `tools/call`, `call_tool`, `ClientSession`, `stdio_client`, `jsonrpc` em `tests/` e `src/` do Khan não retornam nada, e todos os testes chamam a função por trás do tool (`tests/_helpers.py:24`-`:34`). O isolamento do calendário real está garantido (`tests/conftest.py:11` redireciona `DATA_DIR`/`DB_FILE` e desliga o lock). Versões em jogo: `mcp` 1.30.0 e `fastmcp` 3.4.4 (`uv.lock`), faixas `mcp[cli]>=1.28.1,<2.0.0` e `fastmcp>=3.2.0` (`pyproject.toml:13`-`:14`) |
+| D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **fechado em 2026-10-23, com achado residual** — mapa completo em §2.5. **Não há duplicata nem órfão**: os 17 containers MCP são 17 instâncias legítimas. Lado Percival: nome determinístico `percival-mcp-<server_id>` ([`broker.py:135`](../../nanobot/mcp_docker/broker.py#L135)) torna impossível duas instâncias do mesmo servidor (o nome é o lock), 6 containers com labels `percival.mcp-docker.{owner,managed-by,server-id,instance-id}`, todos os journals de servidor em `committed`. Lado Positronic: 11 containers, nome `positronic-mcp-<server>-<run12>`, distinguidos por **contexto de projeto** (label `io.positronic.context` = hash do diretório) — `/home/bill` (6 servidores, via `opencode serve` PID 98403) e `/home/bill/.positronic` (5, via `opencode attach` PID 111547); cardinalidade formalizada como **≤1 por `(servidor, contexto)`**. **Nenhum órfão:** 11/11 containers casam com `owner.json` (`state: acquired`, `pid`/`boot`/`start` idênticos ao `/proc/98403/stat`), 0 `cleanup-pending`, 0 container sem dono. **Ciclo de vida demonstrado** pela auditoria (`acquire` → `tools-list` → `close transport-closed` na reconexão, com `--rm` removendo o anterior), não por inferência. **Nenhuma limpeza executada** — o critério "zero referências confirmadas" não é atingido: os containers estão em uso. **Achado residual de observabilidade:** 7 das 150 aquisições não têm desfecho gravado (o `close` não foi escrito quando o cliente foi interrompido entre `acquire` e `tools-list`); uma delas tem efeito observável — o deep-research ficou ausente no contexto `/home/bill/.positronic` e `GET /mcp` nesse diretório responde HTTP 499. Não é órfão nem duplicata; é lacuna de auditoria que exige gravar o `close` nesse caminho |
+| D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **fechado em 2026-10-23** — o defeito reportado pelo F4/F5 ("o FastMCP 3.4.4 não devolve o frame JSON-RPC em `tools/call`") **não reproduz** com cliente MCP real, nem no checkout nem contra a imagem F3 em uso. Diagnóstico em §2.6: a causa é a **combinação entre o harness da F4 e a camada `fastmcp` 3.x** — o harness fechava o stdin via `subprocess.run(input=…)` antes de ler a resposta, e a camada `fastmcp` 3.x não cancela o handler em voo quando o transporte fecha (o SDK low-level cancela). **Não é pin nem config**: as duas pontas da faixa (`mcp` 1.28.1/`fastmcp` 3.2.0 e `mcp` 1.30.0/`fastmcp` 3.4.4`) comportam-se igual, e a mesma imagem que reproduzia o defeito responde 10/10 com o transporte aberto. **Evidência no protocolo**: `initialize` + `tools/list` (12 tools) + `tools/call` de `khan_get_status`, `khan_list_calendars`, `khan_list_events` e round-trip `create`→`list`→`search`, mais erro de validação retornando `isError: true` — todos com `isError: false` e conteúdo correto, sobre workspace isolado por `KHAN_WORKSPACE_DIR`, sem tocar o calendário real. **Correção durável**: novo `tests/test_protocol_stdio.py` (7 testes) no repo do Khan; `scripts/docker-ci-conformance.py` estendido com `--call-tool`/`--call-args` (emite o `tools/call` antes de fechar o stdin) e invocado pelo CI com `--call-tool khan_get_status`. **Limite registrado**: a fragilidade da camada `fastmcp` 3.x permanece (0/10 sob EOF imediato, em ambas as formas de payload medidas); os consumidores reais (broker do Percival, runtime do Positronic) leem o frame antes de fechar o transporte. **Correção após reexecução** (§2.6.2): o controle do Notes **também** perde o frame de forma intermitente sob EOF (9/10 na forma F4, 1/10 na forma com `tools/list` antes) — o registro anterior de "5/5" estava errado; o que distingue o Khan é a falha **determinística**, e a taxa intermitente das camadas do SDK é propriedade do harness, não do servidor. **Ressalva**: as mudanças estão **não commitadas, não enviadas e não publicadas** |
 | D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
 | D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **parcial, com core comprovado localmente em I2** — 19 checks PASS cobrem gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM e crash/recreate/hydrate com fixture. Restam artefatos finais e contratos MCP por gestor. A auditoria pré-I2 encontrou tini em OSM/Deep e `--init` incondicional no consumidor Positronic, além de falta de contrato de imagem em Notes/Khan/AgentMail. I2 alterou o core Percival, não esses repositórios; não encerra esses achados nem certifica Positronic |
 | D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
@@ -449,6 +455,550 @@ outros itens: **promoção** das imagens (D8), **duplicatas de container**
 (D4), **regressão `tools/call`** do Khan (D5) e a **reescrita da D10** à luz
 do CLI atual.
 
+### 2.5 D4 — atribuição das duplicatas por container ID (2026-10-23, agente)
+
+Read-only. Nenhum `docker stop`/`rm`/`kill`, nenhuma remoção, nenhuma mudança de
+configuração. Objetivo: responder às duas metades que faltavam na D4 — o
+*mapa* container → dono, e o que o inventário não provava: **ciclo de vida
+demonstrado** e **cardinalidade esperada documentada**.
+
+**Veredito curto.** O termo "duplicata" do F7 era um erro de leitura. Não há
+duplicata nem resíduo: os 17 containers MCP da máquina são **17 instâncias
+legítimas**, cada uma com dono vivo e rastreável. A contagem por servidor
+(2×5 e 1×6 no Positronic) **não** é duplicação — são **dois contextos de
+projeto distintos**, e o runtime mantém **no máximo 1 instância por
+`(servidor, contexto)`**.
+
+**Inventário atual (2026-10-24T00:00Z).** 19 containers no total: 2 do core
+(`nanobot-nanobot-gateway-1`, `nanobot-percival-mcp-broker-1`), 6 do broker
+Percival (`percival-mcp-*`) e **11** do Positronic (`positronic-mcp-*`).
+
+| Grupo | Containers | Dono | Cardinalidade |
+| --- | --- | --- | --- |
+| Core Percival | 2 | Compose (`nanobot-*`) | fixa |
+| MCP via broker | 6 | `percival-broker` | 1 por `server_id` |
+| MCP via Positronic | 11 | runtime Positronic | ≤1 por `(server_id, contexto)` |
+
+#### Lado Percival — 6 containers, cardinalidade 1:1
+
+O broker é o **único dono**: nome determinístico `percival-mcp-<server_id>`
+([`broker.py:135`](../../nanobot/mcp_docker/broker.py#L135)), o que torna
+**impossível** haver duas instâncias do mesmo servidor — a segunda
+`docker run` colidiria no nome e falharia. Cada container carrega os quatro
+labels `percival.mcp-docker.{owner,managed-by,server-id,instance-id}`, com
+`owner=percival` e `managed-by=percival-broker`
+([`broker.py:182`-`:186`](../../nanobot/mcp_docker/broker.py#L182)). O
+`instance-id` é um **UUID novo por spawn**, não um identificador de sessão:
+ele distingue **instâncias**, não **duplicatas**.
+
+| Container | server-id | instance-id | Criado | Papel |
+| --- | --- | --- | --- | --- |
+| `percival-mcp-agentmail` | agentmail | `040d382a-…` | 2026-10-10 15:26 | broker |
+| `percival-mcp-deep-research` | deep-research | `effd3c9f-…` | 2026-10-10 15:27 | broker |
+| `percival-mcp-khan-calendar` | khan-calendar | `68fae821-…` | 2026-10-10 18:32 | broker |
+| `percival-mcp-notes` | notes | `adee065a-…` | 2026-10-10 18:32 | broker |
+| `percival-mcp-osm` | osm | `1b2998fe-…` | 2026-10-10 15:26 | broker |
+| `percival-mcp-weather` | weather | `7ee291aa-…` | 2026-10-10 15:26 | broker |
+
+**Ciclo de vida.** Todo spawn passa por `_spawn`, que re-lê a política
+(`ready()`), valida a identidade da imagem (`--pull=never`), e **verifica
+depois de subir** que a rede, o modo zero-bind e as coberturas exigidas
+batem com a configuração ([`broker.py:178`-`:210`](../../nanobot/mcp_docker/broker.py#L178)).
+Se o container não sobe, `_remove` roda e o registro é removido
+([`broker.py:521`-`:525`](../../nanobot/mcp_docker/broker.py#L521)). Todo
+reconfigure faz `_remove` + `_spawn`, então **não há janela com duas
+instâncias** do mesmo `server_id`: o nome determinístico é o lock. O broker
+não usa `AutoRemove`, e a remoção de container não toca volumes
+(`docker rm -f`, **nunca** `-v` — [`broker.py:161`-`:163`](../../nanobot/mcp_docker/broker.py#L161)).
+
+**Estado transacional.** Os 6 journals de servidor em
+`~/.nanobot/mcp-docker/transitions/*.json` estão em `state: "committed"`
+(nenhum `preparing` pendente); o `audit.jsonl` mostra pares
+`started`/`committed` por operação. Existe um sétimo journal,
+`probe.json`, em `state: "failed"` (`action: install`, `base_revision: 8`) —
+resíduo de uma instalação de **sonda** que falhou em 2026-10-10; não
+corresponde a nenhum `server_id` do registry e não tem container associado.
+
+#### Lado Positronic — 11 containers, cardinalidade ≤1 por (servidor, contexto)
+
+Aqui o nome **não** é determinístico: `positronic-mcp-<server>-<run12>`
+([`execution.ts:50`-`:55`](../../../alternative-positronic/packages/positronic-mcp-docker/src/execution.ts#L50)),
+onde `run` é um UUID por execução. Por isso dois containers do mesmo servidor
+**podem** coexistir — mas cada um pertence a um **contexto de projeto
+diferente**, e a distinção está no label `io.positronic.context`, que é o
+hash SHA-256 do diretório de contexto
+([`execution.ts:37`-`:38`](../../../alternative-positronic/packages/positronic-mcp-docker/src/execution.ts#L37)).
+
+Os dois contextos foram resolvidos por hash:
+
+| Label `io.positronic.context` | Diretório | Containers | Servers |
+| --- | --- | --- | --- |
+| `5c9e98ce905e…` | `/home/bill/.positronic` | 5 | agentmail, khan-calendar, notes, osm, weather |
+| `f1a3fc6cfd85…` | `/home/bill` | 6 | agentmail, deep-research, khan-calendar, notes, osm, weather |
+
+O mapeamento confere com o processo: `opencode serve` (PID 98403, cwd
+`/home/bill`) e `opencode attach --dir /home/bill/.positronic` (PID 111547)
+são **duas instâncias do runtime em diretórios de projeto distintos**, cada uma
+com seu próprio conjunto de clientes MCP. `InstanceState.directory` é o que
+alimenta `activeConfigs(directory)` ([`mcp/index.ts:751`](../../../alternative-positronic/packages/opencode/src/mcp/index.ts#L751)),
+e portanto o que separa os dois conjuntos.
+
+**Cardinalidade esperada, formalizada.** Para cada par `(servidor, contexto)`
+há **no máximo 1 container**. Os 6 servidores do registry têm todos
+`scope: "global"` e `activated: true`, e o `effective()` do gestor inclui um
+servidor global **em todo contexto**
+([`managed.ts:586`-`:587`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L586)),
+o que explica por que o contexto `/home/bill` tem os 6 e o contexto
+`/home/bill/.positronic` tem 5.
+
+**A ausência do deep-research em `/home/bill/.positronic` tem causa
+identificada, e não é a que a contagem sugeria.** O `deep-research` **já
+teve** container nesse contexto: a auditoria registra `acquire 19:28:05` →
+`tools-list 19:28:11 succeeded` (run `013798ea`) → `close 19:50:47
+transport-closed`. O que falta é o **segundo** container: a aquisição seguinte
+(`acquire 19:53:42`, attempt `79f41e61`) **não tem desfecho** — nem
+`tools-list`, nem `failed`. O transporte foi encerrado na janela
+`acquire` → `tools-list`, e o `close` correspondente **não** foi gravado.
+
+O efeito é observável: o container antigo **não** foi removido pelo `cleanup`
+(o `close` é o que o dispara), e a tentativa nova **não** criou container
+próprio naquele contexto. O `recover()` do gestor removeu o registro de
+execução do run antigo, e o container correspondente saiu pelo `--rm` do
+`docker run` quando o processo `docker start --attach` dono encerrou. O
+snapshot final tem `deep-research` **apenas** em `f1a3fc6cfd85` (`/home/bill`),
+com o container `6de22058` criado às 19:52:10.
+
+Ou seja: o deep-research está **ausente em 1 dos 2 contextos** porque a
+tentativa naquele contexto foi interrompida antes de `tools-list` e nunca
+foi refeita. O `recover()` do gestor reconciliaria na próxima aquisição
+desse contexto; até lá, o servidor fica **indisponível apenas naquele
+contexto** — e `GET /mcp` com `x-opencode-directory: /home/bill/.positronic`
+retorna **HTTP 499** (o runtime não consegue projetar um conjunto de MCP
+completo nesse diretório), enquanto o mesmo endpoint em `/home/bill` devolve
+os 6 servidores `connected`.
+
+Isso **não** é órfão (o container não existe) nem resíduo de auditoria pura: é
+uma **aquisição interrompida** cujo desfecho não foi gravado. Ver §2.5.1.
+
+**Nenhum órfão.** Cruzamento integral entre os 11 containers Positronic e os
+11 registros de execução em `~/.positronic/mcp/executions/*/owner.json`:
+
+| Verificação | Resultado |
+| --- | --- |
+| Label `io.positronic.run` do container == diretório do `owner.json` | **11/11 coincidem** |
+| `owner.json` sem container vivo | **0** |
+| Container sem `owner.json` | **0** |
+| Estados de execução | **11 `acquired`, 0 `cleanup-pending`, 0 `creating`** |
+| Diretórios de execução sem `owner.json` | **0** |
+| Dono do processo | todos com `pid: 98403`, `boot: 09e3c814-…`, `start: 200692` — **idêntico ao `/proc/98403/stat` do processo vivo** (mesmo boot, mesmo start-time, mesma máquina) |
+| `AutoRemove` | `true` em todos os 11 |
+
+O `recover()` do gestor é o que garante essa consistência: ele revalida
+máquina, boot, start-time e PID contra o processo atual; se o dono morreu,
+**remove o container**; se o `owner.json` não corresponde, marca `ambiguous`
+e **não** remove ([`execution.ts:132`-`:175`](../../../alternative-positronic/packages/positronic-mcp-docker/src/execution.ts#L132)).
+
+**Ciclo de vida — demonstrado, não inferido.** A auditoria
+`~/.positronic/logs/audit.jsonl` registra o ciclo completo por tentativa
+(`attempt`): `acquire started` → `tools-list succeeded` (com o `run` UUID) →
+`close failed` com `code: transport-closed` quando o cliente reconecta. Para o
+Khan em `/home/bill`: `acquire 19:49:28` → `tools-list 19:49:31 (run
+c06bcab0)` → `close failed 19:50:47 transport-closed` → `acquire 19:52:10` →
+`tools-list 19:52:13 (run 38085fa5)`. Ou seja: **cada reconnect encerra a
+execução anterior por `transport-closed` e cria um container novo**, e o
+`--rm` do `docker run` remove o antigo. Esse é o mecanismo que produz
+"duas instâncias por servidor" sem produzir resíduo.
+
+O `reconnect` que eu disparei na D3 aparece na auditoria como o par
+`acquire 22:20:50` → `tools-list 22:20:54`, com `run 7eb054ef` — e o
+container correspondente é o `positronic-mcp-khan-calendar-8ad0fc1c9794`,
+criado às 19:10:56 (o `docker start --attach` do processo `docker` 698411,
+ainda vivo). O `acquire` das 22:20 **não** criou um container novo: o
+`8ad0fc1c` já existia e foi **reutilizado** pelo mesmo `run`. Cada aquisição
+cria **no máximo um** container; o `8ad0fc1c` **substituiu** o `7a2560e3` no
+contexto `/home/bill/.positronic`, não se multiplicou.
+
+#### 2.5.1 Achado residual: 7 aquisições sem desfecho auditado
+
+Cruzando `attempt` entre `acquire started` e o evento de desfecho, **7 das
+150 aquisições** não têm desfecho registrado:
+
+| Momento | id | contexto | Efeito observável |
+| --- | --- | --- | --- |
+| 19:53:42 | deep-research | `/home/bill/.positronic` | **container ausente** nesse contexto (§2.5) |
+| 22:14:24 | notes, agentmail, khan-calendar, osm, deep-research, weather | `/home/bill/Projects/nanobot` | nenhum container criado nesse contexto |
+
+A causa é o mesmo padrão: o transporte foi encerrado na janela `acquire` →
+`tools-list`, e o `close` que dispararia o `cleanup` **não foi gravado** pelo
+transporte. No caso de 22:14:24 o contexto é
+`/home/bill/Projects/nanobot`, que **não tem nenhum container** — o runtime
+tentou abrir 6 clientes MCP nesse diretório e foi interrompido antes de
+completar qualquer um.
+
+O impacto é **de auditoria e de disponibilidade**, não de integridade: não há
+container sem dono, não há `cleanup-pending`, e `recover()` reconciliaria
+qualquer divergência real no próximo `acquire`. Mas é uma lacuna real de
+observabilidade: o `audit.jsonl` **não** fecha o ciclo dessas tentativas, e
+sem o `close` o `cleanup` não roda — o que deixa o container anterior com
+`--rm` **sem** remoção automática caso o processo dono morra sem o
+`recover()`.
+
+**Contagem de falhas na auditoria (histórico completo).** De 707 eventos
+`experimental.positronic.mcp.server.lifecycle` (288 em 21/10, 204 em 22/10,
+215 em 23/10): 312 `resolve failed`
+(`configuration-resolution-failed`, **todos** até `2026-10-22T00:37:42` —
+zero após, quando as configurações server passaram a existir), 102 `close
+failed` (`transport-closed`, normal na reconexão; último em
+`2026-10-23T19:50:47`), 2 `initialize failed`
+(`container-vault-access-denied`, ambos em 2026-10-21), 141 `tools-list
+succeeded`, 150 `acquire started`. **Nenhum `create` ou `start` falhou**, e
+nenhum `container-create-unknown` — ou seja, **nenhum create ficou sem CID
+observado**, que é a condição que o `cleanup` trata como tombstone
+([`execution.ts:235`-`:242`](../../../alternative-positronic/packages/positronic-mcp-docker/src/execution.ts#L235)).
+
+#### 2.5.2 Critério de "limpo", documentado
+
+O relatório F7 propôs "encerrar o cliente e recontar". A verificação por
+`owner.json` é **mais forte** e não exige derrubar nada: um container é
+legítimo se, e somente se, existe um `owner.json` cujo `container` casa com
+ele, cujo `state` é `acquired`, e cujo `pid`/`boot`/`start` casam com um
+processo vivo. **No snapshot de 2026-10-24T00:00Z, os 11 containers
+Positronic e os 6 containers do broker passam nesse critério.** Não há
+candidato a limpeza.
+
+**Por que não houve limpeza.** A D4 condiciona limpeza a "autorização
+específica e zero referências confirmadas". Esse segundo critério **não é
+atingido**: os containers estão em uso (`GET /mcp` em `/home/bill` → 6
+servidores `connected`; `docker logs` do Khan mostra o ciclo
+`initialize` → `ListToolsRequest` → `tools/list` com as 12 tools), e
+destruí-los derrubaria tools MCP vivas. **Nenhum `docker rm` foi executado.**
+
+**Nota sobre contagem de referências.** O inventário read-only do Percival
+(`nanobot/mcp_docker/inventory.py`) filtra containers por nome, label ou
+referência de imagem, e por isso **inclui os 11 containers do Positronic**,
+que não são geridos pelo broker. Quem precisa da cardinalidade por gestor
+tem de separar os dois grupos pelo label `percival.mcp-docker.managed-by`
+(presente só nos 6 do broker) ou pelo prefixo de nome. O inventário **não
+distingue** esses dois conjuntos sozinho.
+
+**Efeito colateral da D3 sobre a D4.** A elevação da allowlist do Khan para 12
+tools (§2.4) **não** alterou a cardinalidade: o `reconnect` de 22:10 revalidou
+**um** container para o Khan em `/home/bill` e o antigo saiu pelo `--rm`. O
+conteúdo de `allowedTools` não é parte da chave de identidade do container
+(`server.revision:configurationId:config.revision`), então **não** dispara
+re-criação em massa.
+
+**Limites desta execução.** Nenhuma mutação de runtime, configuração,
+registry, container ou journal. Toda a evidência é de leitura: `docker ps -a`,
+`docker inspect`, `~/.positronic/mcp/executions/*/owner.json`,
+`~/.positronic/logs/audit.jsonl`, `~/.nanobot/mcp-docker/transitions/*.json`,
+`~/.nanobot/mcp-docker/audit.jsonl` e leitura do source dos dois gestores.
+
+**Estado da D4.** **Fechada em 2026-10-23, com um achado residual
+registrado.** O mapa container → dono → contexto → registry está completo nos
+dois gestores, o ciclo de vida está demonstrado por evidência de auditoria
+(não por inferência), a cardinalidade esperada está formalizada, e **não há
+container a limpar**. O resíduo encontrado é de **observabilidade**: 7
+aquisições sem desfecho gravado, das quais uma tem efeito observável
+(deep-research ausente no contexto `/home/bill/.positronic`, que faz
+`GET /mcp` nesse diretório responder HTTP 499). Isso **não** é órfão nem
+container duplicado, e **não** exige limpeza — exige que o `close` do
+transporte seja gravado mesmo quando o cliente é interrompido entre
+`acquire` e `tools-list`.
+
+### 2.6 D5 — regressão Khan `tools/call` (2026-10-23, agente)
+
+**Critério de aceite da D5:** "chamada MCP real de leitura com evidência no
+protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário
+real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação
+aprovada".
+
+**Veredicto: o defeito reportado pelo F4/F5 não existe no servidor.** O
+sintoma ("o handler `call_tool` do FastMCP 3.4.4 não devolve o frame JSON-RPC
+ao cliente") reproduz, mas a causa é a **combinação entre o harness e a
+camada `fastmcp` 3.x** — não o pin, não a configuração do Khan, e não um
+defeito de protocolo. O `tools/call` funciona sobre o protocolo, com o
+cliente real, contra o checkout e contra a imagem em uso.
+
+#### 2.6.1 O que o F4/F5 realmente executou
+
+O harness original da F4 está versionado no core (`7e28d272`, quatro scripts
+`scripts/f4-*-test.py`). O helper de chamada é:
+
+```python
+proc = subprocess.run(cmd, input=payload, capture_output=True, text=True, timeout=300)
+```
+
+`subprocess.run(input=...)` **fecha stdin assim que o payload é escrito**. O
+servidor MCP recebe EOF no meio do `tools/call` em voo, e a camada
+`fastmcp` 3.x — que o Khan usa — **não cancela o handler em voo** quando o
+transporte fecha (a diferença de mecanismo está na §2.6.2). O resultado é o
+sintoma observado: `khal` retorna 0 (visível no stderr), o efeito no
+filesystem ocorre, mas **o frame de resposta se perde**.
+
+O harness original da F4 confirmava isso no próprio código — ele **não** lia o
+stdout para o Khan. As três asserções eram todas de filesystem/stderr:
+
+```python
+check(KHAN.joinpath("khal.db").exists(), "khan auto-heal wrote khal.db")
+check("khal.call" in proc.stderr, "khan recreate executed khal CLI")
+check("returncode\": 0" in proc.stderr, "khal returned 0 after recreate")
+```
+
+O relatório F4/F5 descreveu o proxy como "verificação no nível do filesystem +
+stderr" — a escolha foi correta como método, mas a causa foi atribuída à
+versão do FastMCP sem reproduzir o caminho.
+
+#### 2.6.2 Reprodução do sintoma e da causa (matriz controlada)
+
+Reprodução **fiel** do harness original (mesmo payload, mesma imagem F3
+`sha256:55cd5a038d22…`, mesmo `protocolVersion: 2024-11-05`):
+
+| Cenário | Frames recebidos | `khal.call` no stderr |
+| --- | --- | --- |
+| Harness F4 original (EOF imediato, via `subprocess.run(input=…)`) | **`[1]`** — só o `initialize` | sim |
+| Mesmo payload, stdin mantido aberto | **`[1, 2]`** — `initialize` + `tools/call` | sim |
+
+O frame do `tools/call` **aparece** quando o transporte não é fechado. O
+comando `tools/call` é executado em ambos os casos (o log
+`Processing request of type CallToolRequest` aparece nos dois) — o que se
+perde é só o frame de resposta.
+
+**Matriz de discriminação (N=10 repetições por célula, `stderr` para
+arquivo, workspace novo por repetição).** Quatro servidores, mesmo
+payload, mesma máquina; a única variável é a camada de servidor e se o
+stdin é fechado antes da resposta:
+
+| Servidor | EOF imediato | stdin aberto |
+| --- | --- | --- |
+| `fastmcp` 3.4.4 standalone (o que o Khan usa) | **0/10** | **10/10** |
+| `mcp.server.fastmcp` (SDK v1) | 8/10 | 10/10 |
+| `mcp.server.lowlevel.Server` (sem FastMCP) | 8/10 | 10/10 |
+| **KHAN real** (`python -m percival_khan_calendar.server`) | **0/10** | **10/10** |
+
+> **Ressalva de método, registrada após a reexecução:** os "8/10" das
+> células do SDK são **propriedade do harness**, não do servidor — a
+> reexecução abaixo mede 9/10 na forma F4 e 2/10 na forma com `tools/list`
+> antes. A coluna de EOF imediato deve ser lida pela **distinção**
+> (determinístico 0/10 vs. intermitente), e não pelo número absoluto.
+
+A leitura correta da matriz:
+
+1. **Com o transporte aberto, todos respondem** — 10/10 em todas as
+   células. O `tools/call` do Khan funciona; não há defeito no servidor.
+2. **O EOF é a condição necessária para perder o frame.** Nenhum servidor
+   real pierde a resposta quando o cliente fecha o stdin *depois* de
+   escrever o payload.
+3. **O `fastmcp` 3.4.4 é o único que perde o frame de forma
+   determinística** (0/10), enquanto as camadas sem FastMCP perdem de
+   forma intermitente (8/10) — a corrida existe em todas, mas o FastMCP
+   3.x a torna sempre presente.
+
+**Reexecução da matriz (2026-10-23, harness reconstruído do zero) e
+sensibilidade à forma do payload.** A matriz acima foi reconferida com um
+harness independente, que mediu as duas formas de payload usadas nos
+harnesses da F4 e da matriz:
+
+| Forma do payload (mesma imagem, mesmo `mcp` 1.30.0) | `fastmcp` 3.4.4 | `mcp.server.fastmcp` | `mcp.server.lowlevel` | KHAN real |
+| --- | --- | --- | --- | --- |
+| **F4** (`initialize` + `initialized` + `tools/call` como id 2) | **0/10** | 9/10 | 8/10 | **0/10** |
+| **Com `tools/list` antes** (`tools/call` como id 3) | **0/10** | 2/10 | 4/10 | **0/10** |
+
+Com transporte aberto, as quatro camadas respondem **10/10** nas duas
+formas. Duas conclusões se seguem, e elas **endurecem** a leitura
+anterior:
+
+- O **discriminante continua sendo a camada de servidor**: a célula
+  `fastmcp` 3.x é **0/10 em ambas as formas**, enquanto as camadas do SDK
+  são apenas intermitentes. Nenhuma forma do payload faz o Khan
+  responder sob EOF.
+- A **taxa intermitente das camadas do SDK depende da forma do payload**
+  (de 9/10 para 2/10) — os "8/10" da tabela original são **propriedade
+  do harness**, não do servidor. A afirmação estável é apenas a
+  distinção **determinístico (0/10) vs. intermitente**, e ela se mantém
+  em todas as medições.
+
+**Mecanismo.** O `fastmcp` 3.4.4 **sobrescreve** o laço de execução do
+SDK low-level: em `fastmcp/server/low_level.py:234`-`:268` (no `.venv` do
+repositório do Khan), o `run()` reimplementado **não tem o
+`finally: tg.cancel_scope.cancel()`** que o SDK tem
+(`mcp/server/lowlevel/server.py:691`-`:696`).
+Sem esse cancelamento, o *task group* do servidor fica esperando o handler
+em voo; quando o `stdio_server` fecha o stream de escrita (por causa do
+EOF do cliente), o `respond()` do handler cai em
+`anyio.BrokenResourceError`/`ClosedResourceError` e o frame é descartado
+(`mcp/server/lowlevel/server.py:808`-`:816`).
+
+**Correção de uma leitura anterior.** A primeira hipótese levantada durante
+esta D5 era de **latência de inicialização** (o Node do Notes sobe em
+~1.9 s, o Python em ~0.6 s). Os dados a **refutam**: o Khan é *mais
+rápido* que o Notes e mesmo assim é o que perde o frame de forma
+determinística, e a matriz acima isola a camada de servidor, não o tempo
+de subida. A hipótese de latência está **descartada**; a causa é a
+diferença no tratamento do fechamento do transporte entre o
+`fastmcp` 3.x e o SDK low-level.
+
+**Controle com o servidor Notes (imagem F3 `sha256:ef4082ef13905…`, mesmo
+harness):** o Notes **também** perde o frame de forma intermitente sob EOF
+imediato — **9/10** na forma F4 e **1/10** na forma com `tools/list` antes.
+A primeira medição desta D5 registrava "5/5" e sugeria que o Notes nunca
+perdia o frame; a reexecução **corrige esse registro** — o que o Notes não
+faz é *falhar de forma determinística*. A imagem do Notes usa
+`mcp.server.fastmcp` (`notes_mcp.py:19`) sobre o **mesmo** `mcp` 1.30.0,
+com o **mesmo** `stdio_server` e o **mesmo** mecanismo de cancelamento — e
+por isso nunca é determinístico. Isso explica por que o F4/F5 observou o
+defeito **apenas no Khan** e não o registrou como sistêmico: o Khan é a
+única célula que falha **10/10**, independentemente da forma do payload.
+
+#### 2.6.3 A versão: onde está e onde não está a causa
+
+O critério exige separar **bug de versão**, **pin** e **config**. A
+separação é a seguinte:
+
+| Dimensão | Verificação | Veredicto |
+| --- | --- | --- |
+| **Pin** (`mcp[cli]`) | `pyproject.toml:13` declara `mcp[cli]>=1.28.1,<2.0.0`; `uv.lock` fixa `mcp 1.30.0`; a **imagem F3 em uso** (`sha256:55cd5a038d22…`) carrega `mcp 1.30.0` — verificado por `importlib.metadata` **dentro** do container. O pin não mudou desde `d8d4122` (2026-10-09) | **Não é o pin.** A imagem que reproduziu o defeito é a mesma que o pin declara, e o `mcp` 1.30.0 não é a camada que perde o frame (ver abaixo) |
+| **Configuração** | `protocolVersion`, `notifications/initialized`, ordem dos ids, `KHAN_WORKSPACE_DIR`, `KHAN_ENABLE_LOCK` | **Não é configuração.** Descartadas por teste direto (tabela abaixo) |
+| **Versão da camada FastMCP** | `fastmcp` 3.4.4 standalone vs `mcp.server.fastmcp` (SDK v1) vs `mcp.server.lowlevel.Server`, todos sobre o **mesmo** `mcp` 1.30.0 | **É a camada `fastmcp` 3.x.** Ver a matriz da §2.6.2: com o **mesmo** SDK e o **mesmo** payload, só a célula `fastmcp` 3.4.4 perde o frame de forma determinística (0/10) — e o 0/10 se mantém nas **duas** formas de payload medidas |
+| **Pontas da faixa** | `fastmcp` 3.4.4 (lockfile atual) vs `fastmcp` 3.2.0 / `mcp` 1.28.1 (piso do `pyproject.toml`) | **Ambas perdem o frame** sob EOF imediato e **ambas respondem** com o transporte aberto. Atualizar ou rebaixar dentro da faixa **não** corrige o sintoma |
+
+**Conclusão da dimensão de versão:** o defeito **não é do SDK `mcp`**, é da
+**camada `fastmcp` 3.x** usada pelo Khan — e ela **não tem correção dentro
+da faixa declarada** (`fastmcp>=3.2.0`). Porém, como §2.6.2 e §2.6.4
+mostram, essa camada **responde corretamente** em qualquer cliente que
+mantenha o transporte aberto, que é o comportamento de todo cliente MCP
+real (`mcp.ClientSession`, o broker do Percival, o runtime do Positronic).
+Logo: **não há defeito a fechar no servidor, e nenhuma limitação precisa
+ser aprovada** — o que o F4/F5 mediu foi o instrumento, não o produto.
+
+A camada `fastmcp` 3.x é, ainda assim, uma **fragilidade real e
+registrada**: qualquer harness futuro que feche o stdin antes de ler a
+resposta voltará a "detectar" o defeito. A correção durável é o teste de
+protocolo (§2.6.5), que mantém o transporte aberto e lê o frame — e o
+conformance de container, que emite o `tools/call` antes do fechamento
+(stdin).
+
+Também descartadas por teste direto:
+
+| Hipótese | Teste | Resultado |
+| --- | --- | --- |
+| Falta `notifications/initialized` | payload sem a notificação | **responde** (`[1, 2]`) |
+| `protocolVersion` antigo rejeitado | `2024-11-05` | **responde**, e o servidor devolve `2024-11-05` |
+| `tools/list` consome o frame seguinte | id 2 = `tools/list`, id 3 = `tools/call` | ambos chegam |
+| Tool assíncrona vs síncrona é o gatilho | mesma tool como `def` e como `async def` sob `fastmcp` 3.4.4 | **ambas perdem** o frame sob EOF imediato — o gatilho não é a forma da tool |
+
+#### 2.6.4 O `tools/call` real funciona (evidência no protocolo)
+
+Cliente MCP real (`mcp.ClientSession` + `mcp.client.stdio.stdio_client`),
+servidor real, workspace isolado por `KHAN_WORKSPACE_DIR`:
+
+| Chamada | `isError` | Evidência no protocolo |
+| --- | --- | --- |
+| `initialize` | — | `serverInfo.name = percival-khan-calendar`, `protocolVersion 2025-11-25` |
+| `tools/list` | — | **12 tools**, exatamente a superfície declarada |
+| `tools/call khan_get_status` | `false` | `Percival Khan Calendar Server operational.` + workspace isolado |
+| `tools/call khan_list_calendars` (invoca `khal`) | `false` | calendário `nanobot` no envelope `<calendar_untrusted_data>` |
+| `tools/call khan_list_events` (invoca `khal`) | `false` | `No events found.` |
+| `tools/call khan_create_event` → `khan_list_events` → `khan_search_events` | `false` | round-trip: o evento criado aparece nas três leituras |
+| `tools/call khan_list_events` com argumento inválido | **`true`** | `unexpected_keyword_argument` — erro de validação volta como frame, não como queda |
+
+A mesma execução contra a **imagem F3 em uso**
+(`percival-khan-calendar:0.4.0-d8d4122-f3-2500221a747e`, image
+`sha256:55cd5a038d22…`, via `docker run --network=none` com `/data` em
+tmpfs) devolve `tools/call` correto para `khan_get_status`,
+`khan_list_calendars` e `khan_list_events`. O defeito do F4/F5 **não se
+reproduz nem no checkout nem na imagem**.
+
+#### 2.6.5 Correção durável: teste de protocolo e conformance
+
+O teste de protocolo foi gravado no repositório do Khan, onde a ausência era
+o defeito de fundo (todos os testes antigos chamavam a função por trás do
+tool — `tests/_helpers.py:9`-`:34`).
+
+- **Novo** `tests/test_protocol_stdio.py` (7 testes): handshake
+  `initialize`; `tools/list` com as 12 tools; `tools/call` de
+  `khan_get_status`; `tools/call` de `khan_list_calendars` (com `khal`);
+  round-trip de escrita/leitura; erro de validação como frame; e prova de que
+  o calendário real não é tocado. Cada servidor sobe com
+  `KHAN_WORKSPACE_DIR` temporário e `KHAN_ENABLE_LOCK=false`; a fixture
+  `isolated_workspace` (`tests/conftest.py:12`-`:13`) continua sendo a unidade de
+  isolamento do resto da suíte. O transporte **fica aberto** durante a
+  chamada — a própria lição do bug está no desenho do fixture.
+- **Estendido** `scripts/docker-ci-conformance.py`: novas flags
+  `--call-tool` / `--call-args`, com o `tools/call` emitido **antes** do
+  fechamento do stdin (a ordem que o harness F4 errou) e validação de
+  `result`, `isError` e `content` do frame.
+- **CI** (`.github/workflows/ci.yml`): o job `docker` passa a invocar o
+  conformance com `--call-tool khan_get_status`, para que a imagem
+  publicada seja provada no protocolo e não só no handshake.
+
+Verificação local no repositório do Khan:
+
+```
+pytest                → 227 passed, cobertura 87.89% (mínimo 80% do pyproject)
+ruff check .          → All checks passed!
+ruff format --check . → 55 files already formatted
+conformance (imagem F3, tmpfs em /data, --network=none)
+                      → stdio MCP conformance passed: initialize + tools/list (12 tools) + tools/call khan_get_status
+```
+
+#### 2.6.6 Estado da D5
+
+**Fechada em 2026-10-23.** O critério de aceite foi cumprido integralmente:
+chamada MCP real de leitura com evidência **no protocolo**; reprodução em
+fixture sem tocar o calendário real; e a investigação da versão **fechada
+com separação explícita** entre bug de versão, pin e config — o veredicto é
+que **não é pin nem config**, que a camada `fastmcp` 3.x é o gatilho
+**apenas quando o cliente fecha o transporte**, e que **não há defeito de
+protocolo a corrigir**.
+
+**Sem promoção de imagem.** As mudanças são no repositório do Khan
+(`tests/test_protocol_stdio.py`, `scripts/docker-ci-conformance.py`,
+`.github/workflows/ci.yml`) e ainda **não commitadas, não enviadas e não
+publicadas**; o gate de imagem publicada continua sendo D8/I3.
+
+**Correção retroativa pendente de decisão do operador:** o
+[relatório F4/F5](../reports/2026-10-10-f4-f5-closure-report.md) (linha 18) e a
+§5 do [relatório F7](../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md)
+afirmam que o Khan não devolve o frame JSON-RPC e sugerem "investigar a
+versão e testar `khan_get_status` com `mcp client` Python ou atualizar o
+`mcp[cli]`". Essa afirmação está **corrigida** por esta seção. O relatório
+versionado não foi reescrito — relatórios são evidência, e a reescrita
+excederia o escopo desta D5 —; o registro da correção fica aqui e no registo
+de execução (§6). A **recomendação de "atualizar o `mcp[cli]`" fica sem
+fundamento**: nenhuma das duas pontas da faixa (`1.28.1`/`3.2.0` e
+`1.30.0`/`3.4.4`) reproduz o defeito com transporte aberto.
+
+**Risco residual registrado, sem ação imediata:** a camada `fastmcp` 3.x
+é determinística em perder o frame quando o cliente fecha o stdin antes de
+ler a resposta (0/10, nas duas formas de payload medidas). Os consumidores
+reais — broker do Percival
+([`broker.py:283`-`:325`](../../nanobot/mcp_docker/broker.py#L283-L325), que
+faz o handshake e lê o frame **antes** de fechar) e runtime do Positronic —
+não fecham o transporte nesse ponto, e o §2.6.4 prova o `tools/call` pelo
+cliente real. Fica como **fragilidade a monitorar**: um futuro harness
+fechar o stdin cedo voltará a reportar um defeito inexistente. A mitigação
+é o teste de protocolo e o conformance, ambos já gravados.
+
+**Ampliação do risco residual, medida na reexecução:** a fragilidade **não
+é exclusiva** do `fastmcp` 3.x. As camadas do SDK (`mcp.server.fastmcp` e
+`mcp.server.lowlevel.Server`) também perdem o frame de forma intermitente
+sob EOF imediato — 9/10 e 8/10 na forma F4, caindo para 2/10 e 4/10 na
+forma com `tools/list` antes. O Notes real, sobre `mcp.server.fastmcp`,
+falha em 9/10 e 1/10 respectivamente. Ou seja: **qualquer servidor MCP
+stdio que use o `stdio_server` do SDK perde o frame de forma intermitente
+quando o cliente fecha o stdin antes de ler a resposta**; o que o
+`fastmcp` 3.x acrescenta é a **determinismo** da falha. Isso reforça a
+conclusão central desta D5 — o defeito era do **harness** — e reforça a
+mitigação: nenhum consumidor real deve fechar o transporte antes de ler o
+frame.
+
+**Não decidido nesta D5, por estar fora do escopo:** migrar o Khan de
+`fastmcp` 3.x para a camada `mcp.server.fastmcp` do SDK (ou para
+`mcp.server.lowlevel.Server`), o que eliminaria a fragilidade na origem.
+Isso é mudança de arquitetura do servidor, não correção de regressão, e
+exige decisão própria do operador.
+
 **Complementos de aceite após a harmonização:**
 
 - **D7:** reaproveitar a matriz e execução I2 para o core sem repeti-las como tarefa
@@ -634,6 +1184,116 @@ gestor (§2.4) e a aplicação do reflexo dessa decisão nas configurações.
 - **Estado:** **D3 fechado.** Sem promoção de imagem, sem alteração do servidor
   Khan, sem alteração do fork do Positronic. D4–D12 inalterados; o encerramento
   consolidado continua bloqueado por D4–D10 e pelos gates externos C1–C4 e A1–A9.
+
+**2026-10-23 — D4: atribuição das duplicatas por container ID (agente; read-only).**
+Nenhum `docker stop`/`rm`/`kill`, nenhuma mudança de configuração, registry ou
+journal. Levantamento completo em §2.5. Verificações: `docker ps -a` e
+`docker inspect` nos 19 containers da máquina; labels `percival.mcp-docker.*` nos
+6 do broker; labels `io.positronic.{run,context,home}` nos 11 do Positronic;
+cruzamento integral com `~/.positronic/mcp/executions/*/owner.json`
+(`state`, `container`, `pid`, `boot`, `start`); resolução dos dois contextos por
+hash SHA-256 do diretório; correlação com os processos vivos
+(`opencode serve` PID 98403 cwd `/home/bill`; `opencode attach --dir
+/home/bill/.positronic` PID 111547); auditoria de lifecycle em
+`~/.positronic/logs/audit.jsonl` (707 eventos) por `attempt`; journals em
+`~/.nanobot/mcp-docker/transitions/*.json` e `audit.jsonl` do broker; leitura do
+source dos dois gestores (`broker.py`, `execution.ts`, `managed.ts`,
+`managed-stdio.ts`, `inventory.py`).
+
+Achados: (1) **não há duplicata nem órfão** — 17 containers MCP, 17 donos
+vivos; (2) o nome determinístico do broker torna **impossível** duas
+instâncias do mesmo `server_id`; (3) no Positronic a cardinalidade é **≤1 por
+`(servidor, contexto)`**, e os "2×" do F7 são **dois contextos de projeto**,
+não duplicação; (4) o ciclo de vida é **demonstrado** pela auditoria
+(`acquire` → `tools-list` → `close transport-closed` → novo `acquire`, com
+`--rm` removendo o anterior); (5) o `instance-id` do broker é **por spawn**,
+não por sessão — não é identificador de duplicata; (6) o inventário do Percival
+**inclui** os containers do Positronic, porque filtra por nome/label/imagem —
+quem precisar da cardinalidade por gestor tem de separar por
+`percival.mcp-docker.managed-by`; (7) **achado residual de observabilidade** —
+7 das 150 aquisições não têm desfecho gravado, porque o `close` não é
+escrito quando o cliente é interrompido entre `acquire` e `tools-list`; uma
+delas tem efeito observável (deep-research ausente em
+`/home/bill/.positronic`, com `GET /mcp` nesse diretório em HTTP 499).
+
+**Nenhuma limpeza.** O critério "zero referências confirmadas" da própria D4
+não é atingido: os containers estão em uso. Nenhum `docker rm` executado.
+
+**Estado:** **D4 fechado, com achado residual registrado.** Sem promoção de
+imagem, sem mutação de runtime. D5–D12 inalterados.
+
+**2026-10-23 — D5: regressão Khan `tools/call` (agente).**
+Investigação e correção em `/home/bill/Projects/percival-khan-calendar`.
+Nenhuma mutação de instância, registry, container, imagem publicada ou
+credencial; nenhuma promoção. Levantamento completo em §2.6.
+
+Verificações: cliente MCP real (`mcp.ClientSession` +
+`mcp.client.stdio.stdio_client`) contra o checkout; contra a imagem F3 em
+uso (`percival-khan-calendar:0.4.0-d8d4122-f3-2500221a747e`, image
+`sha256:55cd5a038d22…`) via `docker run --network=none` com `/data` em
+tmpfs; reprodução fiel do harness F4 (`7e28d272`,
+`scripts/f4-fixture-test.py`) contra o mesmo payload e a mesma imagem;
+matriz de discriminação com N=10 por célula (`fastmcp` 3.4.4 standalone ×
+`mcp.server.fastmcp` do SDK v1 × `mcp.server.lowlevel.Server` × Khan real,
+com EOF imediato e com stdin aberto, `stderr` para arquivo e workspace novo
+por repetição); matriz de duas pontas da faixa (`mcp` 1.28.1/`fastmcp` 3.2.0 em
+venv isolado × `mcp` 1.30.0/`fastmcp` 3.4.4 do lockfile); **reexecução da
+matriz** com harness reconstruído do zero, medindo as **duas** formas de
+payload (forma F4 e forma com `tools/list` antes) nas quatro camadas, contra
+o checkout e contra as imagens F3 do Khan e do Notes; leitura do source
+do SDK (`mcp/server/lowlevel/server.py`, `mcp/server/stdio.py`,
+`mcp/server/session.py`) e do FastMCP (`fastmcp/server/low_level.py`); e
+inspeção da imagem do Notes (`mcp` 1.30.0, `mcp.server.fastmcp`,
+`notes_mcp.py:19`) como controle.
+
+Achados: (1) **o defeito do F4/F5 não reproduz** — `tools/call` responde
+com cliente MCP real, no checkout e contra a imagem, para `khan_get_status`,
+`khan_list_calendars`, `khan_list_events` e para o round-trip
+`create`→`list`→`search`, com erro de validação retornando `isError: true`;
+(2) a **causa** é a combinação entre o harness da F4 — que fechava o stdin
+via `subprocess.run(input=…)` antes de ler a resposta — e a camada
+`fastmcp` 3.x, cujo `run()` sobrescrito **não** cancela o handler em voo
+quando o transporte fecha (o SDK low-level cancela em
+`mcp/server/lowlevel/server.py:691`-`:696`); (3) **não é pin nem config**:
+as duas pontas da faixa se comportam igual, e o `protocolVersion` antigo, a
+notificação ausente e a forma da tool (sync/async) foram descartados por
+teste direto; (4) **correção de leitura intermediária** — a hipótese de
+latência de inicialização (o Node do Notes sobe em ~1.9 s, o Python em
+~0.6 s) foi **refutada** pelos dados: o Khan é o mais rápido e mesmo assim
+é o que perde o frame de forma determinística; a variável real é a camada
+de servidor; (5) **controle com o Notes** (`mcp.server.fastmcp` sobre o
+mesmo `mcp` 1.30.0) também perde o frame de forma **intermitente** sob EOF
+imediato — o registro anterior de "5/5" foi **corrigido** na reexecução:
+9/10 na forma F4 e 1/10 na forma com `tools/list` antes. O que distingue o
+Khan é a **falha determinística (10/10)**, e é por isso que o F4/F5
+observou o defeito só no Khan; (6) **reexecução da matriz** com harness
+reconstruído, nas **duas** formas de payload: a célula `fastmcp` 3.x
+continua **0/10** em ambas, enquanto a taxa das camadas do SDK varia com
+a forma do payload (de 9/10 para 2/10) — o "8/10" original era
+propriedade do harness, e a afirmação estável é a distinção
+determinístico vs. intermitente.
+
+**Artefatos gravados (não commitados, não enviados):** no repo do Khan,
+`tests/test_protocol_stdio.py` (novo, 7 testes de protocolo com workspace
+isolado por `KHAN_WORKSPACE_DIR`), `scripts/docker-ci-conformance.py`
+(estendido com `--call-tool`/`--call-args`, emitindo o `tools/call` antes do
+fechamento do stdin) e `.github/workflows/ci.yml` (job `docker` invocando o
+conformance com `--call-tool khan_get_status`).
+
+**Verificação local:** `pytest` → 227 passed, cobertura 87.89% (mínimo 80%);
+`ruff check .` → All checks passed!; `ruff format --check .` → 55 files
+already formatted; conformance contra a imagem F3, com as mesmas flags do
+CI (tmpfs em `/data` com `tmpfs-mode=0777`, `--env KHAN_WORKSPACE_DIR=/data`,
+`--expected-uid 1000`, `--compose-service server`) →
+`stdio MCP conformance passed: initialize + tools/list (12 tools) + tools/call khan_get_status`.
+Teste negativo do conformance (`--call-tool khan_nonexistent`) → exit 1 com
+`tools/call khan_nonexistent reported isError=true`, provando que o gate não
+passa por ignorância.
+
+**Estado:** **D5 fechado.** Sem promoção de imagem, sem mutação de runtime,
+sem alteração do servidor Khan. A fragilidade da camada `fastmcp` 3.x
+permanece registrada como risco residual; a decisão de migrar de camada
+fica com o operador. D6–D12 inalterados.
 
 **2026-10-23 — harmonização IaC (não é execução).** Incluídas fronteiras de ownership,
 handoff de D7–D11, separação de aceite F7/I9 e dependências de layout e distribuição.
