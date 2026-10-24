@@ -207,12 +207,14 @@ técnicos locais que restavam. O finding Medium `CVE-2026-49138` do gateway
 permanece com avaliação `not_affected` restrita ao image ID e reancorada no
 commit de correção `545294c`, ancestral da revisão candidata. Restam dois
 bloqueios: **CI remoto** — os seis SHAs candidatos têm run e todos terminam em
-failure; cinco reproduzem o run anterior sem relação com os pins, e o único
-delta real (OSM, step 6) foi diagnosticado como flake preexistente do harness
-legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de
-`initialize`; o core não tem run porque os workflows do fork estão
-desabilitados — e **distribuição**, com I3 adiado e aquisição por catálogo/digest
-não implementada. Portanto B **não** é atualmente elegível para instalar. Depois
+failure; a comparação step a step contra o run anterior de cada repo mostra
+que cinco falham no **mesmo step**, com o mesmo nome, sem relação com os pins,
+e o único delta real (OSM, step 6) foi diagnosticado como flake preexistente do
+harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta
+de `initialize`; o core não tem run (`total_count: 0`) porque os workflows do
+fork estão desabilitados — e **distribuição**, com I3 adiado e aquisição por
+catálogo/digest não implementada. Portanto B **não** é atualmente elegível
+para instalar. Depois
 de candidatos aprovados, o operador deve confirmar a janela, CAS atual,
 backup/configuração/dados compatíveis e rollback A→B→A em fixture independente
 antes de autorizar canário. Nenhum comando de mutação é fornecido neste

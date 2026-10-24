@@ -464,18 +464,24 @@ rascunhos técnicos: não são waivers nem aprovação do operador.
 - O smoke D-in-D descartável do par core passou 18 verificações em Engine
   27.5.1. Não é aceite VPS nem CI remoto.
 - **CI remoto (2026-10-24):** os seis SHAs candidatos têm run no GitHub
-  Actions e **todos terminam em failure**. Cinco deles reproduzem o mesmo
-  resultado do run anterior (falha de lint ou de smoke legada, sem relação com
-  os pins). O OSM é o único delta real: o job `build (linux/amd64)` passou e
-  falhou no step 6, no `docker-smoke-test.sh`. A causa foi diagnosticada com
-  prova: o script legado usa FIFO (`mkfifo`) e fecha stdin **sem aguardar a
-  resposta de `initialize`**, o que produz flake. Medição local: imagem nova
-  3 PASS / 2 FAIL em 5 execuções; imagem antiga `0.5.0-bf78fa4` 3 PASS / 3 FAIL
-  em 6 execuções. O defeito é **preexistente** no harness do repo OSM, não
+  Actions e **todos terminam em failure**. A comparação foi feita **step a
+  step** pela API pública de Actions, contra o run imediatamente anterior de
+  cada repo: **cinco MCPs falham no mesmo step, com o mesmo nome**, o que
+  exclui regressão dos pins. Detalhe em §7.4 do
+  [plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md). O
+  OSM é o único delta real: o job `build (linux/amd64)` passou e falhou no
+  step 6, no `docker-smoke-test.sh`. A causa foi diagnosticada com prova: o
+  script legado usa FIFO (`mkfifo`) e fecha stdin **sem aguardar a resposta de
+  `initialize`**, o que produz flake. Medição local: imagem nova 3 PASS / 2
+  FAIL em 5 execuções; imagem antiga `0.5.0-bf78fa4` 3 PASS / 3 FAIL em 6
+  execuções. O defeito é **preexistente** no harness do repo OSM, não
   regressão dos pins; `docker-ci-conformance.py` (sequencial, com timeout)
   passa localmente contra a imagem nova, com 37 tools. O job `Python tests`
   do OSM falha no step 4 (`uv sync --locked --group dev`) **antes e depois**
-  do candidato, de forma idêntica ao run antigo.
+  do candidato, de forma idêntica ao run antigo — e o job
+  `docker-mcp catalog schema`, que executa o **mesmo** comando no mesmo step
+  4 do **mesmo** run, passa, o que aponta para o ambiente/cache do job e não
+  para o `uv.lock`.
 - O core `50e6ebd0` **não tem run**: os workflows do fork estão desabilitados
   ("Workflows are not currently being run on this fork due to the scale of
   GitHub Actions usage"). Isso é um bloqueio de infraestrutura do fork, não um

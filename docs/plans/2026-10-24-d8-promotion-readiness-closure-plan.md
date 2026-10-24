@@ -347,7 +347,7 @@ identidades distintas; nenhum digest OCI existe para estes artefatos.
 | C7 — Contrato D7 | **atendido** | 4/4 medições em cinco MCPs (EOF com exit 0, SIGTERM com exit 143, zero violações). No AgentMail o harness D7 usa `--network=none` por desenho, o que bloqueia o EOF porque o lifespan exige upstream: 2/4 no harness (SIGTERM conforme) e o EOF provado conforme fora do isolamento de rede |
 | C8 — Smoke | **atendido** | 12/24/9/12/37/5 tools, idênticos ao baseline |
 | C9 — AgentMail | **atendido** | Smoke autenticado: 24 tools e `mail_get_inbox_info` respondendo HTTP 200, com redação de segredos |
-| C10 — CI | **não atendido** | URLs, `headSha` e conclusão registrados para os seis SHAs MCP; **todos em failure**. O core `50e6ebd0` **não tem run** — workflows desabilitados no fork por limite de uso do GitHub Actions |
+| C10 — CI | **não atendido** | Comparação **step a step** dos runs candidato e anterior registrada na §7.4. Os seis SHAs MCP têm run e **todos em failure**; cinco falham no **mesmo step** do run anterior. O core `50e6ebd0` tem `total_count: 0` — workflows desabilitados no fork por limite de uso do GitHub Actions |
 | C11 — Core | **atendido** | Broker sem `zlib` afetado e sem `UNKNOWN` de `musl` (`zlib 1.3.2-r1`, `musl 1.2.6-r3`); smoke D-in-D do par core verde (18 checks, Engine 27.5.1) |
 | C12 — Retenção | **atendido** | Snapshot A/B vigente na §5.1 do runbook; pins A intactos nos dois gestores, reconfirmados por `docker ps`; nenhum prune |
 | C13 — Não mutação | **atendido** | Nenhuma configuração, pin, revisão, allowlist, credencial, container de produto, volume ou registry alterado |
@@ -362,10 +362,56 @@ identidades distintas; nenhum digest OCI existe para estes artefatos.
 | B2 — runtime | **atendido** | Contrato D7 4/4 em cinco MCPs; smokes no baseline; AgentMail autenticado com HTTP 200 |
 | B3 — rollback | **atendido** | Par A/B registrado; A reconfirmado por `docker ps`; caminho de retorno exercitado no walkthrough D9 em fixture independente |
 | B4 — retenção | **atendido** | §5 do runbook aprovada textualmente pelo operador em 2026-10-24; A e B preservados, sem prune |
-| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco reproduzem o run anterior sem relação com os pins; o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run por bloqueio de infraestrutura do fork |
+| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco falham no **mesmo step** do run anterior (§7.4); o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run (`total_count: 0`) por bloqueio de infraestrutura do fork |
 | B6 — distribuição | **fora do escopo local** | Digest OCI publicado, aquisição homologada e B13 aprovado dependem de I3/I5 e de autorização do operador |
 
-### 7.4 Resíduo
+### 7.4 Comparação step a step do CI remoto
+
+Coleta pela API pública de Actions (`runs` e `runs/<id>/jobs`), com
+`head_sha` do candidato. Os runs candidatos são os de 2026-10-24T21:15Z; o
+"anterior" é o run imediatamente precedente no mesmo repo, que corresponde ao
+candidato D8 anterior à reconciliação.
+
+| Repo | Run candidato | Run anterior | Steps que falham no candidato | Steps que falham no anterior | Delta |
+| --- | --- | --- | --- | --- | --- |
+| Notes | `40133387366` (`c1047355`) | `40122158694` (`713e95ef`) | `Docker build + stdio conformance` step 6 `Inspect identity and privilege posture` | idem | nenhum |
+| AgentMail | `40133390113` (`cd55a2fe`) | `40122158486` (`6c71497f`) | `Test on Python 3.11` step 6 `Lint`; `Test on Python 3.12` step 6 `Lint` | idem | nenhum |
+| Weather | `40133392465` (`437a41c3`) | `40122158562` (`89993a4f`) | `Docker build + MCP conformance` step 4 `Resolve image metadata` | idem | nenhum |
+| Khan Calendar | `40133396025` (`e8c5d8c`) | `40122158627` (`2d75c054`) | `test (3.12)` step 6 `Lint (ruff)`; `test (3.11)` step 6 cancelado | idem | nenhum |
+| OSM | `40133398880` (`04d4399c`) | `40122158365` (`bf78fa4f`) | `Python tests` step 4 `uv sync --locked --group dev`; `build (linux/amd64)` step 6 `Smoke test (linux/amd64)` | apenas `Python tests` step 4 | **real** |
+| Deep Research | `40133402029` (`af3b23be`) | `40122162585` (`61ae5127`) | `test` step 6 `Lint and check formatting`; `Docker build + stdio conformance` step 6 `Inspect identity and privilege posture` | idem | nenhum |
+
+Leitura da tabela:
+
+- **Cinco MCPs falham no mesmo step do run anterior**, com o mesmo nome de
+  step. Nenhuma falha nova foi introduzida pela reconciliação dos pins.
+- **O core não tem run:** `total_count: 0` para `50e6ebd0`, e o run mais
+  recente do repositório é de 2026-10-12 (`e564b956`). A página do repo
+  informa que os workflows do fork não estão sendo executados por escala de
+  uso do GitHub Actions. Isso é bloqueio de infraestrutura, não PASS nem falha
+  do candidato.
+- **Jobs que passam no run candidato, além do anterior:**
+  - Notes: `test` passa (sync + pytest verdes) — só o job Docker falha.
+  - AgentMail: `Docker build + smoke` passa **inteiro**, incluindo
+    `MCP stdio conformance (offline)`.
+  - Weather: os três jobs `lint + type-check + tests` (3.10, 3.11 e 3.12)
+    passam; só o job Docker falha.
+  - Khan Calendar: `Docker build + smoke` passa **inteiro**.
+  - OSM: `docker-mcp catalog schema` passa **inteiro**.
+- **O caso do OSM no step 4 é auto-evidente:** o job `docker-mcp catalog schema`
+  executa o **mesmo** `uv sync --locked --group dev` no mesmo step 4 e passa,
+  enquanto o job `Python tests` falha no comando idêntico, no mesmo run. Um
+  lock inválido reprovaria os dois. Isso aponta para o ambiente/cache do job
+  (`astral-sh/setup-uv@v4`), não para o conteúdo do `uv.lock`.
+- **O delta real do OSM** está no step 6 do job `build (linux/amd64)`, que
+  executa `scripts/docker-ci-conformance.py` e `scripts/docker-smoke-test.sh`.
+  O primeiro é sequencial, com timeout, e passa localmente contra a imagem
+  nova com 37 tools. O segundo é o harness legado com FIFO, que fecha stdin
+  sem aguardar a resposta de `initialize` — flake preexistente, reproduzido
+  também na imagem antiga (3 PASS / 3 FAIL em 6 execuções, contra 3 PASS / 2
+  FAIL em 5 execuções na imagem nova).
+
+### 7.5 Resíduo
 
 - **B5 permanece aberto.** A correção do `docker-smoke-test.sh` do repo OSM é um
   defeito **preexistente** do harness, não do candidato; tratá-la exige decisão
