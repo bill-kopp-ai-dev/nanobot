@@ -1313,6 +1313,22 @@ tools/call gates`) e Khan `0bc52b9`. Ambos enviados a `origin/main`. Nenhuma
 imagem construída, promovida ou publicada; nenhum container, registry,
 instância ou credencial foi mutado.
 
+**CI após o push (2026-10-23).** No repo do Khan, o run
+[40055008222](https://github.com/bill-kopp-ai-dev/percival-khan-calendar/actions/runs/40055008222)
+(`0bc52b9`) está **verde**: `test (3.11)`, `test (3.12)` e
+`Docker build + smoke` — incluindo o passo **"MCP stdio conformance
+(offline)"**, que agora exige o `tools/call` real sobre a imagem recién
+construída. É a **primeira prova remota** do `tools/call` por protocolo em
+imagem de container, e fecha o gate local sem depender de confiança no
+harness local. Nenhum workflow de push publica imagem: o run só constrói o
+candidato local e arquiva `docker-build-manifest.json` e `sbom.cdx.json`.
+
+O core **não gerou run**: o CI do core tem `paths-ignore` para `docs/**` e
+`1eeed82f`/`b0f57b8c` só tocam `docs/**`. O gate de conformance do core
+continua sem evidência nova neste SHA — dispara-lo por `workflow_dispatch`
+autenticado é decisão do operador, como já registrado no D2. Nenhuma
+imagem foi promovida: o gate D8/I3 segue aberto.
+
 **2026-10-23 — harmonização IaC (não é execução).** Incluídas fronteiras de ownership,
 handoff de D7–D11, separação de aceite F7/I9 e dependências de layout e distribuição.
 Preservadas as evidências existentes e o estado aberto de D1–D12.
