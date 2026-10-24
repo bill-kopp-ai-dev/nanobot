@@ -8,7 +8,22 @@ COPY webui/ ./
 COPY packages/client-events/ /app/packages/client-events/
 RUN mkdir -p /app/nanobot/web && npm run build
 
-FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb228142f776ed8df9e51fba89ee31f018c04a0452645c014783546b164c03 AS runtime
+# The Python 3.12 toolchain (uv plus the standalone interpreter) is carried
+# over from the pinned uv image. Debian Forky is the base because OpenSSH
+# below 10.4 is vulnerable to CVE-2026-60002 and Debian Trixie has no fixed
+# package: trixie-backports ships 10.3p1, and the forky build requires
+# glibc >= 2.42, which Trixie (2.41) cannot load. Debian Forky has 1:10.6p1-1.
+FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb228142f776ed8df9e51fba89ee31f018c04a0452645c014783546b164c03 AS toolchain
+
+FROM debian:forky-slim@sha256:4cee6ff3ebc49e32d55a857e25164ef8e5f8fecff2a186c6393f7e8bd8c23b53 AS runtime
+
+COPY --from=toolchain /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=toolchain /usr/local/bin/python3.12 /usr/local/bin/python3.12
+COPY --from=toolchain /usr/local/lib/python3.12 /usr/local/lib/python3.12
+COPY --from=toolchain /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so.1.0
+RUN ln -sf /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so && \
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/local/bin/python3.12 /usr/local/bin/python
 
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
@@ -21,16 +36,21 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
-ARG DEBIAN_SNAPSHOT=20261009T000000Z
-RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
-    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
+ARG DEBIAN_SNAPSHOT=20261020T000000Z
+RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s forky main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
+    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s forky-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
     rm -f /etc/apt/sources.list.d/debian.sources && \
     apt-get -o Acquire::Check-Valid-Until=false update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
-        ca-certificates=20250419 git=1:2.47.3-0+deb13u1 \
-        bubblewrap=0.12.0-1~deb13u1 openssh-client=1:10.0p1-7+deb13u4 \
-        libmagic1t64=1:5.46-5 && \
+        ca-certificates=20260816 git=1:2.53.0-1 \
+        bubblewrap=0.13.0-1 openssh-client=1:10.6p1-1 \
+        libmagic1t64=1:5.47-4 \
+        libffi8=3.8.0-2 libsqlite3-0=3.53.4-2 libreadline8t64=8.3-4 \
+        libncursesw6=6.6+20260608-2 libtinfo6=6.6+20260608-2 \
+        libdb5.3t64=5.3.28+dfsg2-11+b1 libgdbm6t64=1.26-1+b2 \
+        libbz2-1.0=1.0.8-6+b2 liblzma5=5.8.4-1 libuuid1=2.42.4-1 \
+        libzstd1=1.5.7+dfsg-4 zlib1g=1:1.3.dfsg+really1.3.2-3 && \
     chmod u-s /usr/bin/mount && \
     rm -f /usr/bin/nsenter /usr/bin/infocmp && \
     rm -rf /var/lib/apt/lists/*

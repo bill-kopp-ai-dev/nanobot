@@ -108,7 +108,7 @@ jobs:
                   python_required=true
                   docker_required=true
                   ;;
-                tests/test_docker.sh|scripts/percival-f5-*|scripts/write_docker_ci_manifest.py)
+                tests/test_docker.sh|scripts/percival-f5-*|scripts/write_docker_ci_manifest.py|scripts/percival-remote-ssh-regression.py)
                   docker_required=true
                   ;;
                 pyproject.toml|hatch_build.py|scripts/install_channel_dependencies.py)
@@ -349,6 +349,13 @@ jobs:
       - name: Verify default WhatsApp dependencies
         run: docker run --rm --entrypoint python percival-gateway:ci -c "import neonize, segno"
 
+      - name: Regression of Percival Remote SSH inside the gateway image
+        run: >
+          python3 scripts/percival-remote-ssh-regression.py
+          --gateway-image percival-gateway:ci
+          --scratch-parent "$RUNNER_TEMP"
+          --output "$RUNNER_TEMP/remote-ssh-regression.json"
+
       - name: Verify runtime dependency permissions
         run: >-
           docker run --rm --user 1000:1000 --entrypoint sh percival-gateway:ci -c
@@ -384,6 +391,7 @@ jobs:
             gateway-sbom.cdx.json
             broker-sbom.cdx.json
             ${{ runner.temp }}/i2-*/results.json
+            ${{ runner.temp }}/remote-ssh-regression.json
           if-no-files-found: error
 
   arch:
