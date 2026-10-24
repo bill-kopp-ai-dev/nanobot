@@ -17,7 +17,15 @@ COPY docker/mcp-broker-requirements.lock /tmp/mcp-broker-requirements.lock
 COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
 RUN python3 -m venv /opt/broker-venv && \
     /opt/broker-venv/bin/pip install --no-cache-dir --require-hashes --no-deps \
-      -r /tmp/mcp-broker-requirements.lock && rm /tmp/mcp-broker-requirements.lock
+      -r /tmp/mcp-broker-requirements.lock && \
+    rm -rf /usr/local/bin/pip* \
+           /usr/local/lib/python3.12/site-packages/pip \
+           /usr/local/lib/python3.12/site-packages/pip-*.dist-info \
+           /usr/local/lib/python3.12/ensurepip/_bundled \
+           /opt/broker-venv/bin/pip* \
+           /opt/broker-venv/lib/python3.12/site-packages/pip \
+           /opt/broker-venv/lib/python3.12/site-packages/pip-*.dist-info \
+           /tmp/mcp-broker-requirements.lock
 
 WORKDIR /app
 COPY nanobot/__init__.py nanobot/config_base.py nanobot/
