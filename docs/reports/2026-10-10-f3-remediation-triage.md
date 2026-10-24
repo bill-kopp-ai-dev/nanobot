@@ -196,12 +196,17 @@ Fontes Debian primárias: [CVE-2025-69720](https://security-tracker.debian.org/t
    pacote corrigido compatível) e executar testes Percival Remote SSH com
    OpenSSH >=10.4; depois regenerar candidato, scan e SBOM. Se não houver caminho
    tecnicamente viável, pedir ao operador waiver específico de `CVE-2026-60002`.
+   → **Executado em 2026-10-24 (D6):** ver §Fechamento da D6.
 2. Registrar VEX/decisão por imagem para os CVEs de pacote base, distinguindo
    `not_affected` comprovado de risco aceito. Não aprovar waiver blanket para
    “Debian Trixie”.
 3. Resolver a discrepância do SBOM Trivy no gateway: scan atual ainda apresenta
    findings Python sem `PkgPath` e aviso de SBOM de terceiro impreciso; comparar
    com rootfs e SBOM CycloneDX e documentar uma fonte reproduzível.
+   → **Resolvido em 2026-10-24 (D6):** a fonte reproduzível era o SBOM
+   vendorizado do `pip` 25.0.1 (`pip/_vendor/bom.cdx.json`), que declarava
+   msgpack 1.1.2, setuptools 70.3.0 e urllib3 2.7.0. Removendo o `pip` do
+   runtime, o artefato desapareceu na origem.
 4. Levar os diffs necessários a commits/candidatos aprovados; rodar builds limpos,
    SBOM/scan e CI GitHub nos SHAs exatos. `gh auth status` em 2026-10-10
    confirmou que a CLI não está autenticada em nenhum host GitHub; execuções
@@ -209,3 +214,113 @@ Fontes Debian primárias: [CVE-2025-69720](https://security-tracker.debian.org/t
    builder CI nem F5.
 5. Só então avaliar fechamento de F3. Nenhum desses passos autoriza alterar pins
    de consumidores, cutover, push ou release.
+
+## Fechamento da D6 — gateway em Debian Forky (2026-10-24)
+
+Esta seção fecha a pendência #11a sobre o resíduo OpenSSH do gateway. **Não
+altera o histórico acima**: as triagens, contagens e OpenVEX de 2026-10-10
+pertencem aos image IDs que analisaram.
+
+- **Decisões do operador:** reconstruir o gateway em base Debian Forky
+  (recomendado) e absorver no mesmo rebuild os advisories Python adicionais.
+- **Candidato final:** `percival-gateway:0.1.0-92eeff9`, revisão
+  `92eeff90cdb81c27c80ff239e84325021b9bd840`, image ID
+  `sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368`,
+  `linux/amd64`, construído por `scripts/percival-docker-build.py` com
+  provenance limpa (`worktree: clean`).
+- **Base:** `debian:forky-slim@sha256:4cee6ff3…`, snapshot Debian
+  `20261020T000000Z`, `openssh-client=1:10.6p1-1`
+  (`OpenSSH_10.6p1 Debian-1`). Python 3.12.12 e uv 0.9.30 preservados.
+
+### Remediação do Critical e do resíduo do scanner
+
+`CVE-2026-60002` era um resíduo estrutural: Trixie e Trixie-backports não
+têm pacote corrigido, e o `1:10.6p1-1` do Forky exige `glibc >= 2.42`, que o
+Trixie (2.41) não carrega. Trocar só o `.deb` do OpenSSH sobre Trixie é
+impossível; a base runtime inteira migrou para Forky.
+
+O primeiro build já corrigido, `percival-gateway:0.1.0-b49dd8b`, zerou o
+Critical, mas ainda reportava **4 High** vindos de msgpack 1.1.2, setuptools
+70.3.0 e urllib3 2.7.0 (dois advisories). A origem reproduzível era o SBOM
+vendorizado do `pip` 25.0.1 (`pip/_vendor/bom.cdx.json`), que o Trivy lia como
+pacotes instalados da imagem — o `pip` 26.2.2 do venv não tem esse arquivo, e
+é por isso que os achados não traziam `PkgPath`.
+
+Em vez de emitir waiver, o `pip` foi removido na origem: do interpretador do
+sistema, do venv (criado sem `--seed`) e da wheel de `ensurepip`. O `uv`
+instala as dependências travadas e `optional_features.install_extra` já
+recorre a ele quando o `pip` está ausente. **Achado adicional nesta rodada:** os
+channel locks mantinham `pillow==12.3.0` e `certifi==2026.7.22` porque o
+`uv pip compile` preserva as versões já fixadas no arquivo de saída — recompilar
+nunca as avançava, e habilitar um canal reinstalava as versões vulneráveis no
+runtime. Causa corrigida (`--upgrade-package` em
+`scripts/compile_channel_locks.py`) e locks re-resolvidos para esses dois
+pacotes.
+
+### Evidência do candidato final
+
+| Verificação | Resultado |
+|---|---|
+| Scan Trivy 0.67.2 do candidato final | **0 Critical, 0 High, 1 Medium** (`CVE-2026-49138` / `nanobot-ai` 0.1.0, cujo fix upstream `545294c62` é ancestra de `HEAD` e cujo código do gateway é mais forte) |
+| SBOM CycloneDX (syft) | 6129 componentes |
+| Regressão Remote SSH dentro da imagem | **5/5 PASS** — versão do cliente, ausência de `openssh-server`, scan de host key, probe de credencial, túnel de transporte, contra um `sshd` em fixture separado |
+| Smoke I2 runtime (gateway + broker) | **19/19 PASS**, incluindo SIGTERM, init, caps, recreation/hydrate do broker e UID alternado |
+| Suíte do core | 8459 passed, 66 skipped, 2 falhas pré-existentes (`test_session_absolute_ttl_present`, `test_every_runtime_channel_field_has_a_webui_contract`) |
+| `compile_channel_locks --check` | 13 manifestos travados verificados |
+
+O OpenVEX reemitido para este image ID está em
+[`2026-10-24-d6-openvex.json`](2026-10-24-d6-openvex.json) — oito declarações
+`not_affected` restritas a `sha256:1ad32437…`: `CVE-2026-60002` (cliente
+corrigido), `CVE-2026-59999` e `CVE-2026-60000` (`sshd` ausente), msgpack e
+setuptools (componentes ausentes), as duas CVEs de urllib3 (runtime na versão
+2.8.0) e `CVE-2026-49138` (o SSRF de redirect do `web_fetch`: o fix upstream
+`545294c62` é ancestra de `HEAD` e o código shipped é mais forte — redirects
+manuais com `follow_redirects=False`, validação de cada hop, DNS resolvido e
+fixado por requisição). **Não é waiver** e não se estende a outros image IDs.
+
+### Análise por imagem dos seis MCPs — sem extensão do VEX do gateway
+
+O critério da D6 exige que o OpenVEX do gateway **não** seja estendido aos MCPs
+sem análise por imagem. Cada MCP foi escaneado e inspecionado separadamente.
+**Conclusão: nenhuma declaração do gateway se aplica a estas imagens**, porque
+todas as seis são Debian 13 (Trixie), não contêm `openssh-client` nem `sshd`,
+e cada uma carrega o seu próprio `pip` 25.0.1 (Deep Research, `pip` 24.0) com
+o mesmo SBOM vendorizado.
+
+| Imagem | Image ID | Revisão | OS | `sshd` | `certifi` | Critical | High |
+|---|---|---|---|---|---:|---:|---:|
+| Notes `0.1.5-78c2810` | `sha256:5a802a63…` | `78c2810` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| AgentMail `0.4.0-54461f4` | `sha256:7f8a2ab5…` | `54461f4` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| Weather `0.9.0-b5dd4eb` | `sha256:6da5d43f…` | `b5dd4eb` | Trixie | ausente | 2025.1.31 | 1 | 44 |
+| Khan `0.4.0-ce69267` | `sha256:b7d56ee4…` | `ce69267` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| OSM `0.5.0-55aa673` | `sha256:bb88ae35…` | `55aa673` | Trixie | ausente | 2025.1.31 | 1 | 44 |
+| Deep Research `3.0.1-e076f29` | `sha256:bad6defa…` | `e076f29` | Trixie | ausente | 2026.7.22 | 12 | 94 |
+
+Os Criticals são `GHSA-6q48-6c7w-9gw2` (`certifi` com as raízes emSign
+comprometidas) em todas as seis, mais `pillow 12.3.0` e `brotli 1.2.0` no Deep
+Research. **Nenhum waiver foi emitido para nenhuma delas**: os `uv.lock` dos
+seis repositórios MCP ainda fixam `certifi` 2026.7.22/2025.1.31, `pillow`
+12.3.0 e `brotli` 1.2.0. A remediação é do D8, em cada repositório. As imagens
+analisadas também estão **atrasadas em relação ao HEAD** dos respectivos
+repositórios (divergência de revisão em todas as seis), o que reforça que
+qualquer avaliação final exige reconstrução a partir de commit limpo.
+
+### Limitações e estado
+
+- **A D8 continua aberta:** este candidato é local. Promoção, canário, rollback,
+  retenção do par A/B e a publicação limpa dependem de checkout limpo e
+  aprovação do operador, sob a D8.
+- **O gateway não foi promovido nem publicado**; nenhum registry foi tocado.
+- **O broker não foi alterado** na D6: o smoke I2 reusou o broker
+  `percival-i2-broker:ses-e96f9440`, e o contrato do broker segue coberto pela D7.
+- **Os 44 High de base dos MCPs** (oito CVEs de pacote Debian) seguem sem
+  avaliação por imagem; a avaliação por imagem feita aqui cobre o Critical de
+  `certifi` e o resíduo OpenSSH, não o conjunto de base.
+- **O `CVE-2026-49138` do próprio `nanobot-ai` 0.1.0** permanece como Medium no
+  scan: o fix upstream está presente no código e o código vigente é mais
+  forte, mas o scanner reporta pela versão do pacote. É finding do próprio
+  produto, não do runtime — e é por isso que ele **não** é uma pendência da
+  D6: o que a D6 tinha de fechar era o resíduo OpenSSH e o Critical de
+  `certifi`. A reavaliação do `CVE-2026-49138` está registrada como
+  statement `not_affected` no OpenVEX do image ID final, e a versão do
+  pacote pode ser elevada em release própria, fora deste plano.

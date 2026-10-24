@@ -18,7 +18,12 @@
   seis MCPs medidos por gestor, um defeito de sinal novo no caminho do
   Percival: sem `--init`, o `docker stop` de um MCP sem init passa o grace
   period inteiro e sai 137 — corrigido com init único e dono único, e o
-  contrato de imagem agora existe nos seis repositórios); D6, D8, D9, D10, D11
+  contrato de imagem agora existe nos seis repositórios); **D6: fechada em
+  2026-10-24** (§2.8 — gateway reconstruído em Debian Forky com OpenSSH
+  corrigido, regressão Remote SSH real 5/5 dentro da imagem, scan do candidato
+  final 0 Critical/0 High/1 Medium, SBOM e OpenVEX reemitidos, análise por
+  imagem dos seis MCPs sem estender o VEX do gateway; a promoção, o canário, o
+  rollback e a publicação limpa permanecem na D8); D8, D9, D10, D11
   e D12 continuam sem
   fechamento integral. I1 concluiu
   arquitetura/handoff (`eb4e3555`) e I2 concluiu runtime 1 e conformance local
@@ -94,6 +99,7 @@
 | Metadata core `0.1.0`, bind CLI/API/gateway unificado, API opt-in, UID/GID efetivos, root-drop fail-closed, init único e probes por modo | [runtime 1](../agent-runtime-contract.md) e [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md); resultado fonte em `0e7ff072` | I2.1–I2.4; parte core de D7 |
 | Startup com broker atrasado, crash/hydrate, persistência e recriação conjunta; 19 checks PASS em Engine 27.5.1 rootful/amd64, com MCP fixture real | relatório I2, §§2–4, `i2-5atl75uj/results.json` no diretório privado ali referenciado | I2.5; parte local de D7, não VPS nem recovery em carga |
 | Gateway atual/broker baseline real e caller v1 independente/broker atual; protocolo WebUI 1/schema MCP 1 preservados; CI usa runner isolado e arquiva `results.json` | runtime 1, §5, e relatório I2, §§2/4 | I2.6; compatibilidade core, sem fechar B3/C1 |
+| Gateway candidato em Debian Forky com `openssh-client 1:10.6p1-1`; scan 0 Critical/0 High/1 Medium; SBOM CycloneDX; regressão Remote SSH real 5/5 dentro da imagem; OpenVEX de 8 statements restrito ao image ID final; análise por imagem dos seis MCPs | §2.8 e [OpenVEX](../reports/2026-10-24-d6-openvex.json) | D6, 2026-10-24; candidato **local**, sem promoção nem publicação |
 
 **Lacunas residuais de F4/F7** (que os itens abaixo precisam fechar): a prova Khan usa
 verificação em filesystem/stderr como proxy, não chamada MCP real; os builds locais de
@@ -121,9 +127,9 @@ Cada item registra a pendência da tabela do plano de fase entre parênteses.
 | D3 | Permissão do Khan e projeção efetiva | Decisão registrada do operador sobre a superfície por gestor; lista efetiva extraída do protocolo e verificada nos dois consumidores; `allowedProjects` não confundido com permissão de tool | F7 P2 (#7) | operador | **fechado em 2026-10-23** — decisão do operador em §2.4: **superfície completa nos dois gestores**, prompts/resources como limitação aceita e registrada, aplicação autorizada ao agente. Superfície real: **12 tools + 6 prompts + 1 resource = 19** (§2.3), escrita efetiva em 5 tools. Aplicado: `allowedTools` do Khan no Positronic elevada de 1 para 12 via `positronic mcp server configure` (config `revision` 1→2, `configurationId` preservado, `network: none`, mount e env intactos, snapshot de rollback em `~/.local/state/positronic-d3-snapshots/`); o Percival já estava em 12 tools (`toolsDisabled: []`) e não foi mutado. Projeção verificada nos dois gestores: `discover` 12 tools, `preview` `refreshKey 10:9ee229c8-…:2`, `reconnect` `generation 777b633dce4cf9fa` (= hash da revisão 2), broker Percival `tools/list` 12 tools, log do gateway `connected, 12 capabilities registered`. **Limitação registrada:** prompts/resources não são cobertos por allowlist de tool no Positronic (viram comandos/resource), e não são expostos no Percival — assimetria por construção, não remediavel por configuração |
 | D4 | Atribuição das duplicatas por container ID | Mapa container → processo/sessão cliente/registry/escopo, com ciclo de vida demonstrado e cardinalidade esperada documentada; limpeza apenas com autorização específica e zero referências confirmadas | F7 P2 (#8) | agente | **fechado em 2026-10-23, com achado residual** — mapa completo em §2.5. **Não há duplicata nem órfão**: os 17 containers MCP são 17 instâncias legítimas. Lado Percival: nome determinístico `percival-mcp-<server_id>` ([`broker.py:135`](../../nanobot/mcp_docker/broker.py#L135)) torna impossível duas instâncias do mesmo servidor (o nome é o lock), 6 containers com labels `percival.mcp-docker.{owner,managed-by,server-id,instance-id}`, todos os journals de servidor em `committed`. Lado Positronic: 11 containers, nome `positronic-mcp-<server>-<run12>`, distinguidos por **contexto de projeto** (label `io.positronic.context` = hash do diretório) — `/home/bill` (6 servidores, via `opencode serve` PID 98403) e `/home/bill/.positronic` (5, via `opencode attach` PID 111547); cardinalidade formalizada como **≤1 por `(servidor, contexto)`**. **Nenhum órfão:** 11/11 containers casam com `owner.json` (`state: acquired`, `pid`/`boot`/`start` idênticos ao `/proc/98403/stat`), 0 `cleanup-pending`, 0 container sem dono. **Ciclo de vida demonstrado** pela auditoria (`acquire` → `tools-list` → `close transport-closed` na reconexão, com `--rm` removendo o anterior), não por inferência. **Nenhuma limpeza executada** — o critério "zero referências confirmadas" não é atingido: os containers estão em uso. **Achado residual de observabilidade:** 7 das 150 aquisições não têm desfecho gravado (o `close` não foi escrito quando o cliente foi interrompido entre `acquire` e `tools-list`); uma delas tem efeito observável — o deep-research ficou ausente no contexto `/home/bill/.positronic` e `GET /mcp` nesse diretório responde HTTP 499. Não é órfão nem duplicata; é lacuna de auditoria que exige gravar o `close` nesse caminho |
 | D5 | Regressão Khan `tools/call` | Chamada MCP real de leitura com evidência no protocolo, não em filesystem/stderr; reproduzir em fixture sem tocar calendário real; investigar a versão do FastMCP/`mcp[cli]` ou registrar limitação aprovada | relatório F4/F5 | agente | **fechado em 2026-10-23** — o defeito reportado pelo F4/F5 ("o FastMCP 3.4.4 não devolve o frame JSON-RPC em `tools/call`") **não reproduz** com cliente MCP real, nem no checkout nem contra a imagem F3 em uso. Diagnóstico em §2.6: a causa é a **combinação entre o harness da F4 e a camada `fastmcp` 3.x** — o harness fechava o stdin via `subprocess.run(input=…)` antes de ler a resposta, e a camada `fastmcp` 3.x não cancela o handler em voo quando o transporte fecha (o SDK low-level cancela). **Não é pin nem config**: as duas pontas da faixa (`mcp` 1.28.1/`fastmcp` 3.2.0 e `mcp` 1.30.0/`fastmcp` 3.4.4`) comportam-se igual, e a mesma imagem que reproduzia o defeito responde 10/10 com o transporte aberto. **Evidência no protocolo**: `initialize` + `tools/list` (12 tools) + `tools/call` de `khan_get_status`, `khan_list_calendars`, `khan_list_events` e round-trip `create`→`list`→`search`, mais erro de validação retornando `isError: true` — todos com `isError: false` e conteúdo correto, sobre workspace isolado por `KHAN_WORKSPACE_DIR`, sem tocar o calendário real. **Correção durável**: novo `tests/test_protocol_stdio.py` (7 testes) no repo do Khan; `scripts/docker-ci-conformance.py` estendido com `--call-tool`/`--call-args` (emite o `tools/call` antes de fechar o stdin) e invocado pelo CI com `--call-tool khan_get_status`. **Limite registrado**: a fragilidade da camada `fastmcp` 3.x permanece (0/10 sob EOF imediato, em ambas as formas de payload medidas); os consumidores reais (broker do Percival, runtime do Positronic) leem o frame antes de fechar o transporte. **Correção após reexecução** (§2.6.2): o controle do Notes **também** perde o frame de forma intermitente sob EOF (9/10 na forma F4, 1/10 na forma com `tools/list` antes) — o registro anterior de "5/5" estava errado; o que distingue o Khan é a falha **determinística**, e a taxa intermitente das camadas do SDK é propriedade do harness, não do servidor. **Ressalva**: as mudanças foram **commitadas e enviadas** em 2026-10-23 (core `1eeed82f`, Khan `0bc52b9`), **não publicadas** |
-| D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **aberto, sem remediação por I2** — fonte atual preserva base uv/Trixie pinada e `openssh-client=1:10.0p1-7+deb13u4` no `Dockerfile`. O finding Critical e o waiver não aprovado são da triagem F3; I2 não executou novo scan nem teste Remote SSH na imagem. OpenVEX antigo é restrito ao image ID analisado e não cobre esta CVE; não se transfere aos novos IDs I2. Testar OpenSSH Forky fora da imagem não fecha D6 |
+| D6 | Resíduo OpenSSH `CVE-2026-60002` no gateway (#11a) | Build do gateway em base corrigida com OpenSSH >= 10.4 e regressão de Percival Remote SSH na imagem, **ou** exceção individual documentada e aprovada; OpenVEX do gateway não estendido aos MCPs sem análise por imagem | F7 P4.2 (#11a) | agente + operador | **fechado em 2026-10-24** — §2.8. **Gateway reconstruído em Debian Forky**: base `debian:forky-slim@sha256:4cee6ff3…`, snapshot `20261020T000000Z`, `openssh-client=1:10.6p1-1` (`OpenSSH_10.6p1`), Python 3.12.12 e uv 0.9.30 preservados. A troca só do `.deb` era impossível: o pacote Forky exige `glibc >= 2.42` e o Trixie tem 2.41, e nem Trixie nem Trixie-backports têm versão corrigida. Candidato final `percival-gateway:0.1.0-92eeff9`, revisão `92eeff90cdb81c27c80ff239e84325021b9bd840`, image ID `sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368`, `linux/amd64`, provenance limpa. **Regressão Remote SSH real dentro da imagem: 5/5** (versão do cliente, ausência de `openssh-server`, scan de host key, probe de credencial, túnel) contra `sshd` em fixture separado; smoke I2 runtime 19/19. **Scan Trivy do candidato: 0 Critical, 0 High, 1 Medium** (`CVE-2026-49138` do próprio `nanobot-ai`, com fix upstream presente). **Sem waiver:** os 4 High residuais do primeiro build corrigido vinham do SBOM vendorizado do `pip` 25.0.1; o `pip` foi removido na origem (interpretador, venv sem `--seed` e wheel de `ensurepip`) e o `uv` instala as dependências travadas. **Achado adicional:** os channel locks mantinham `pillow==12.3.0`/`certifi==2026.7.22` porque o `uv pip compile` preserva pins já fixados; habilitar um canal reinstalava versões vulneráveis — causa corrigida (`--upgrade-package`) e locks re-resolvidos. **OpenVEX reemitido** restrito ao image ID final ([`2026-10-24-d6-openvex.json`](../reports/2026-10-24-d6-openvex.json)). **Análise por imagem dos seis MCPs feita e o VEX do gateway não estendido a elas** (§2.8.4). **Resíduo:** promoção, canário, rollback, par A/B e publicação limpa permanecem na D8; o candidato é local e não foi promovido nem publicado |
 | D7 | Consolidar evidência de runtime nos artefatos finais | Runtime 1 por modo, usuário/caps/init efetivos, sinais/EOF, probes/autenticação e persistência; MCP stdio sem porta/TTY/health HTTP e sem init duplicado por gestor. Evidência ligada aos SHAs/imagens finais e aos consumidores afetados | F4/F5 closure, item 2; I2.1–I2.6 | agente | **fechado em 2026-10-24** — §2.7. **Core reaproveitado**: os 19 checks PASS do I2 (gateway/API/CLI/broker, doctor/probe autenticada, init/caps/UID, SIGTERM, crash/recreate/hydrate) mantêm-se válidos, com a justificativa de que nada do core foi alterado. **Contratos MCP por gestor medidos** com o instrumento novo `scripts/percival-mcp-runtime-contract.py` (24 medições: 6 imagens × 2 gestores × EOF/SIGTERM). **Conforme em todas**: sem TTY, stdin aberto, zero portas publicadas, zero sockets em escuta, `CapEff=0`, sem healthcheck HTTP. **Achado novo (defeito de código do core)**: o broker do Percival **não passa `--init`** ([`broker.py:182`-`:189`](../../nanobot/mcp_docker/broker.py#L182-L189)), e 4 das 6 imagens não têm init embutido — logo **PID 1 não trata SIGTERM**, o `docker stop` paga o grace period inteiro (10,2 s) e sai **137** em vez de 143, contra 0,1 s/143 com `--init`; mecanismo confirmado por caso mínimo (bit 14 de `SigCgt` = "SIGTERM tratado"; `SigCgt=0` no init é correto, porque o init encaminha). **Achado confirmado (outro repositório)**: `--init` incondicional do consumidor Positronic ([`managed.ts:640`](../../../alternative-positronic/packages/positronic-mcp-docker/src/managed.ts#L640)) empilha `docker-init` sobre o tini de OSM/Deep Research — 2 camadas de init, medidas. **Divergência registrada**: `NoNewPrivs=1` sob o Percival vs `0` sob o Positronic. **Correção aplicada (§2.7.8)**: init único com dono único — o init pertence ao gestor (`--init` / Compose `init: true`) e a imagem não embute init. Broker do core passa `--init` e verifica a política após o spawn e na retomada (core `79dda0a0`); OSM e Deep Research deixam de embutir tini e declaram `init: true`; os seis compose renderizam `init: true`; teste de contrato de imagem criado em Notes, Khan e AgentMail e ampliado no Weather (OSM `7f3cb3e`, Deep Research `6bcb752`, Notes `36c4016`, Khan `13f8fce`, AgentMail `31d6b1c`, Weather `81b3aaa`). **Resíduo**: a `NoNewPrivs` do Positronic e o alinhamento do manual (D9) permanecem abertos; as imagens de OSM e Deep Research precisam ser reconstruídas e promovidas sob a D8 |
-| D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão |
+| D8 | Reconciliar pins e par core com builds de checkout limpo e promover | Rebuild Notes/AgentMail, par core I2 e qualquer candidato alterado a partir de commit limpo, com SHA/versão/labels/imagem coerentes; promover por gestor só com aprovação, canário e rollback independentes; reter último bom e par A/B, com config/dados compatíveis | F7 P4.1 (#4, #6); I2 → I3 | agente + operador | **parcial, com resíduo core explícito** — guard de checkout/worktree já existe em `scripts/percival-docker-build.py`. I2 alinhou metadata core a `0.1.0`, mas seus builds são baseline + diff, não builds do commit limpo `0e7ff072`. A auditoria dos seis MCPs registrou falta de guard equivalente e SHA curto do OSM incompatível com verificação por SHA completo; esses achados não foram corrigidos por I1/I2. **O SHA curto do OSM foi corrigido em 2026-10-23**: os seis MCPs foram reconstruídos a partir do HEAD limpo com SHA completo no label `revision` e smoke stdio 6/6 (§2.2), o que remove o resíduo de proveniência dos MCPs. Restam: build limpo do **par core** a partir de `0e7ff072`, promoção das seis imagens novas por gestor (exige aprovação, canário e rollback independentes) e retenção do par A/B. Sem promoção, nenhum digest público nesta revisão. **A D6 (2026-10-24) acrescentou um candidato do gateway a promover**: `percival-gateway:0.1.0-92eeff9` (image ID `sha256:1ad32437…`), construído com provenance limpa mas **local** — a promoção, o canário, o rollback e a retenção do par A/B do gateway são desta D8, e a remediação dos Criticals de `certifi` nos seis MCPs também |
 | D9 | Alinhar/exercitar o manual operacional e assinar a retenção | Walkthrough em fixture de update, rollback, restore e falsa falha de health; comandos/APIs e procedimentos compatíveis com runtime 1; política de retenção e revisão trimestral assinada | F7 P3 (#2, #5); handoff I2/I4/I8 | agente (redige) + operador (aprova) | **parcial, precisa incorporar runtime 1** — [manual criado](../operations/mcp-docker-local-runbook.md); existência de `auth init` e `mcp-docker doctor` já verificada não prova o procedimento inteiro. Corrigir no walkthrough API alternativa/single-writer, bind comum/token, significado das probes, init e sinais por modo (gateway/API exit 0 idle; broker 143, sem promessa de drain). I2 não exercitou esse manual nem assinou retenção/revisão trimestral; D10 mantém dono dos comandos Positronic |
 | D10 | Caminho de reinstalação do MCP Docker no consumidor Positronic (**item reescrito em 2026-10-23**) | (a) Determinar e registrar qual é o caminho de reinstalação **suportado**, pela interface suportada; (b) corrigir a documentação que promete comandos inexistentes — a skill global `mcp-docker-workflow` lista 11 comandos `positronic mcp server …` (`SKILL.md:31`-`:43`) que **não existem** no pacote de CLI do fork; (c) remover o workaround de edição direta do registry | F7 P3 / relatório F4/F5 | agente + operador | **premissa errada → reescrito; agora parcialmente invalidada** — em 2026-10-23 o binário `positronic` **passou a existir** no PATH (`/home/bill/.local/bin/positronic`, wrapper do runtime nativo fixado) e expõe `mcp server configure <id> <revision> --tools <lista>`; os 11 comandos da skill **existem** no CLI atual. A afirmação anterior ("não há binário `positronic` no PATH", "não existe comando para corrigir") **não vale mais** — ver §2.3. Restam: reescrever a D10 à luz do CLI atual, confirmar na skill os nomes/flags reais (o `recover-transition` exige `--confirm`), e remover o workaround de edição direta do registry. O estado real continua sendo o registry gerido pelo servidor (`~/.positronic/mcp/registry.json`, `schemaVersion` + 6 servidores) |
 | D11 | Skill de gestão F8 e instruções nos `AGENTS.md` | Matriz efetiva dos `AGENTS.md`; skill revisada com dry-run e fixture; ativação pelo operador | F8 (#9) | agente + operador | **parcial, raiz Percival atualizada** — `AGENTS.md` já cobre MCP Docker/IaC, runtime 1 e limites de I2; a ausência citada na auditoria foi resolvida. Restam decisão extensão versus skill própria, matriz dos demais escopos, arquivos Notes/AgentMail ausentes no inventário anterior, revisão/dry-run/fixture e ativação. Reconfirmar esses inventários externos antes de editar; I1/I2 não os alteraram |
@@ -1392,6 +1398,173 @@ compose e documentação.
   push e anteriores à promoção. Não usar a assinatura consolidada de D12 para criar
   ciclo B13 → publicação → VPS/I9 → B13.
 
+### 2.8 D6 — resíduo OpenSSH do gateway, reconstrução em Debian Forky (2026-10-24, agente)
+
+Levantamento completo em §2.8.1–§2.8.5. **Read-only quanto ao estado vivo**: nenhuma
+imagem foi promovida nem publicada, nenhum registry foi tocado, nenhuma
+instância, container ou credencial foi mutado. Só código, locks, scripts de
+verificação e documentação.
+
+#### 2.8.1 O que a D6 tinha de fechar, e por que a troca só do `.deb` era impossível
+
+A pendência era o resíduo `CVE-2026-60002` (use-after-free no cliente OpenSSH
+anterior a 10.4 durante rekey com troca de host key), herança do candidato
+F3 de 2026-10-10, construído sobre Debian Trixie com
+`openssh-client 1:10.0p1-7+deb13u4`.
+
+Antes de reconstruir, a viabilidade foi verificada contra o archive do Debian:
+
+| Base candidata | `openssh-client` disponível | Serve? |
+| --- | --- | --- |
+| Trixie | `1:10.0p1-7+deb13u4` | **não** — vulnerável |
+| Trixie-backports | `1:10.3p1-1~bpo13+1` | **não** — ainda abaixo de 10.4 |
+| Forky | `1:10.6p1-1` (`OpenSSH_10.6p1 Debian-1`) | sim |
+
+E a troca isolada do `.deb` do Forky sobre o Trixie é **impossível**: o pacote
+exige `libc6 >= 2.42` e o Trixie carrega glibc 2.41. Não existe caminho de
+remediação que não migre a base runtime inteira — e a decisão do operador foi
+justamente reconstruir em Forky, em vez de pedir exceção individual.
+
+#### 2.8.2 A base Forky e o que foi preservado
+
+O runtime do gateway migrou de Trixie para
+`debian:forky-slim@sha256:4cee6ff3ebc49e32d55a857e25164ef8e5f8fecff2a186c6393f7e8bd8c23b53`,
+com o snapshot `20261020T000000Z` como fonte dos pacotes. O OpenSSH corrigido
+vem desse snapshot; o `openssh-server` **não** entra na imagem.
+
+O Python e o uv **não vêm de pacotes Debian**: o `python3` do Debian traria
+o `pip` do sistema — que é justamente a origem do resíduo do scanner
+(§2.8.3). Em vez de instalar `python3` por `apt`, a toolchain Python/uv é
+**copiada** da imagem `uv` pinada (`0.9.30-python3.12-trixie-slim`, por
+digest): o binário `uv`, o interpretador `python3.12`, a biblioteca padrão
+`/usr/local/lib/python3.12` e `libpython3.12.so.1.0`, com symlinks para
+`python3`/`python`. Python 3.12.12, uv 0.9.30, o WebUI e os contratos de
+runtime do gateway foram preservados; as bibliotecas compartilhadas que o
+interpretador standalone exige (`libffi8`, `libsqlite3-0`, `libreadline8t64`,
+`libncursesw6`, `libtinfo6`, `libdb5.3t64`, `libgdbm6t64`, `libbz2-1.0`,
+`liblzma5`, `libuuid1`, `libzstd1`, `zlib1g`) vêm do mesmo snapshot Forky.
+
+#### 2.8.3 O resíduo do scanner: o SBOM vendorizado do `pip`, e o achado dos channel locks
+
+O primeiro build já corrigido (`percival-gateway:0.1.0-b49dd8b`) zerou o
+Critical, mas ainda reportava **4 High**: msgpack 1.1.2, setuptools 70.3.0 e
+urllib3 2.7.0 (dois advisories). A discrepância era reproduzível: o runtime
+real **não continha** msgpack nem setuptools e continha urllib3 **2.8.0**, mas
+o scan os reportava sem `PkgPath`.
+
+A origem foi isolada: o SBOM vendorizado do `pip` 25.0.1
+(`/usr/local/lib/python3.12/site-packages/pip/_vendor/bom.cdx.json`), que o
+Trivy lia como pacotes instalados da imagem. O `pip` 26.2.2 do venv não tem
+esse arquivo — é por isso que os achados não traziam `PkgPath`.
+
+Em vez de emitir waiver, o `pip` foi removido **na origem**: do interpretador
+do sistema, do venv (criado sem `--seed`) e da wheel de `ensurepip`, para que
+o bootstrap de último recurso não reintroduza o `pip` vulnerável. O `uv`
+instala as dependências travadas, e `optional_features.install_extra` já
+recorre a ele quando o `pip` está ausente — o caminho foi exercitado dentro da
+imagem.
+
+**Achado adicional, de raiz:** os channel locks mantinham `pillow==12.3.0` e
+`certifi==2026.7.22` porque o `uv pip compile` **preserva as versões já fixadas
+no arquivo de saída** — recompilar nunca as avançava, e habilitar um canal
+reinstalava versões vulneráveis no runtime. A causa foi corrigida em
+`scripts/compile_channel_locks.py`, que ganhou `--upgrade-package` (repetível e
+cirúrgico), e os locks foram re-resolvidos. Um `--upgrade` indiscriminado foi
+descartado: produzia bumps colaterais em `aiohttp`, `cachetools`, `lark-oapi`,
+`multidict`, `websockets` e outros.
+
+No mesmo `uv.lock` foram absorvidos os advisories Python autorizados pelo
+operador: `certifi` 2026.7.22 → 2026.10.23 (Critical `GHSA-6q48-6c7w-9gw2`),
+`pillow` 12.3.0 → 13.0.0, `aiohttp` 3.14.3 → 3.14.5, `filelock` 4.0.12 → 4.2.4
+e `pypdf` 6.20.0 → 6.21.2.
+
+#### 2.8.4 A regressão Remote SSH dentro da imagem, e o VEX por imagem
+
+A regressão é real e roda **dentro da imagem candidata**: o cliente OpenSSH da
+própria imagem é o binário exercitado, e o `sshd` fica num container separado,
+preservando a ausência de `openssh-server` no gateway. O caminho exercitado é o
+de produção — `nanobot.webui.remote_ssh` resolve o cliente por
+`shutil.which("ssh")` e o script chama `scan_host_key`, `probe` e `open_tunnel`.
+O instrumento novo é `scripts/percival-remote-ssh-regression.py`, integrado ao
+CI do core com `docker_required=true`.
+
+Sobre o VEX: o critério da D6 exige que **o OpenVEX do gateway não seja
+estendido aos MCPs sem análise por imagem**. Cada MCP foi escaneado e
+inspecionado separadamente (§2.8.5). **Nenhuma declaração do gateway se
+aplica às seis**, porque todas são Debian 13 (Trixie), não contêm
+`openssh-client` nem `sshd`, e cada uma carrega o seu próprio `pip` 25.0.1 (Deep
+Research, `pip` 24.0) com o mesmo SBOM vendorizado. **Nenhum waiver foi emitido
+para nenhuma delas**; a remediação é do D8, em cada repositório.
+
+#### 2.8.5 Candidato final, evidência e o que a D6 não fecha
+
+Candidato final `percival-gateway:0.1.0-92eeff9`, revisão
+`92eeff90cdb81c27c80ff239e84325021b9bd840`, image ID
+`sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368`,
+`linux/amd64`, construído por `scripts/percival-docker-build.py` com
+`worktree: clean` e os labels exigidos.
+
+| Verificação | Resultado |
+| --- | --- |
+| Scan Trivy 0.67.2 do candidato final | **0 Critical, 0 High, 1 Medium** (`CVE-2026-49138` / `nanobot-ai` 0.1.0 — o fix upstream `545294c62` é ancestra de `HEAD` e o código shipped é mais forte: redirects manuais, `follow_redirects=False`, validação de cada hop, DNS resolvido e fixado por requisição) |
+| SBOM CycloneDX (syft) | 6129 componentes |
+| Regressão Remote SSH dentro da imagem | **5/5 PASS** — versão do cliente, ausência de `openssh-server`, scan de host key, probe de credencial, túnel de transporte |
+| Smoke I2 runtime (gateway + broker) | **19/19 PASS**, incluindo SIGTERM, init, caps, recreation/hydrate do broker e UID alternado |
+| Suíte do core | 8459 passed, 66 skipped, 2 falhas pré-existentes (`test_session_absolute_ttl_present`, `test_every_runtime_channel_field_has_a_webui_contract`) |
+| `compile_channel_locks --check` | 13 manifestos travados verificados |
+
+O OpenVEX reemitido está em
+[`2026-10-24-d6-openvex.json`](../reports/2026-10-24-d6-openvex.json) — **oito**
+declarações `not_affected`, todas restritas ao image ID final (produto único):
+`CVE-2026-60002`, `CVE-2026-59999`, `CVE-2026-60000`, msgpack, setuptools,
+as duas CVEs de urllib3 e `CVE-2026-49138`. **Não é waiver** e não se estende a
+outros image IDs. O OpenVEX histórico de 2026-10-10 permanece intacto, restrito
+ao image ID antigo que ele analisou.
+
+**Análise por imagem dos seis MCPs** (escaneados e inspecionados separadamente,
+sem extensão do VEX do gateway):
+
+| Imagem | Image ID | Revisão | OS | `sshd` | `certifi` | Critical | High |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Notes `0.1.5-78c2810` | `sha256:5a802a63…` | `78c2810` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| AgentMail `0.4.0-54461f4` | `sha256:7f8a2ab5…` | `54461f4` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| Weather `0.9.0-b5dd4eb` | `sha256:6da5d43f…` | `b5dd4eb` | Trixie | ausente | 2025.1.31 | 1 | 44 |
+| Khan `0.4.0-ce69267` | `sha256:b7d56ee4…` | `ce69267` | Trixie | ausente | 2026.7.22 | 1 | 44 |
+| OSM `0.5.0-55aa673` | `sha256:bb88ae35…` | `55aa673` | Trixie | ausente | 2025.1.31 | 1 | 44 |
+| Deep Research `3.0.1-e076f29` | `sha256:bad6defa…` | `e076f29` | Trixie | ausente | 2026.7.22 | 12 | 94 |
+
+Os Criticals são `GHSA-6q48-6c7w-9gw2` (`certifi` com as raízes emSign
+comprometidas) nas seis, mais `pillow 12.3.0` e `brotli 1.2.0` no Deep
+Research. As imagens analisadas também estão **atrasadas em relação ao HEAD**
+dos respectivos repositórios (divergência de revisão nas seis), o que reforça
+que a avaliação final exige reconstrução a partir de commit limpo.
+
+**O que a D6 não fecha:**
+
+- **A D8 continua aberta:** este candidato é local. Promoção, canário, rollback,
+  retenção do par A/B e a publicação limpa dependem de checkout limpo e
+  aprovação do operador.
+- **O gateway não foi promovido nem publicado**; nenhum registry foi tocado.
+- **O broker não foi alterado**: o smoke I2 reusou `percival-i2-broker:ses-e96f9440`,
+  e o contrato do broker segue coberto pela D7.
+- **Os 44 High de base dos MCPs** (oito CVEs de pacote Debian) seguem sem
+  avaliação por imagem; a análise feita aqui cobre o Critical de `certifi` e o
+  resíduo OpenSSH, não o conjunto de base.
+- **O `CVE-2026-49138` do próprio `nanobot-ai` 0.1.0** permanece como Medium no
+  scan porque o scanner reporta pela versão declarada do pacote. É finding do
+  próprio produto, não do runtime; a reavaliação está no OpenVEX do image ID
+  final e a elevação da versão do pacote é release própria, fora deste plano.
+- **Resíduo de robustez do instrumento:** a regressão Remote SSH não tem
+  espera explícita pela prontidão da porta do `sshd` do fixture. Passou
+  repetidamente, mas o ponto deve ser endurecido antes de virar gate definitivo
+  fora do CI.
+
+**Estado da D6:** **fechada em 2026-10-24** — remediação aplicada, candidato
+construído com provenance limpa, regressão Remote SSH real e scan reproduzidos
+dentro da imagem, SBOM e OpenVEX reemitidos, e a análise por imagem dos seis
+MCPs feita sem estender o VEX do gateway. Nenhuma promoção, nenhuma
+publicação, nenhuma mutação de runtime.
+
 ## 3. Itens transferidos (fora de escopo, com dono)
 
 | Gate | Dono |
@@ -1411,7 +1584,7 @@ evidência e aponte para o run, inventário ou relatório comum.
 D1 (credencial) ─┬─→ D8 (promoção) ─┐
 D2 (proveniência)┤                  ├─→ D12 (assinatura F7)
 D3, D4, D5 (Khan)┘                  │
-D6 (OpenSSH) ───────────────────────┤
+D6 (OpenSSH) ───────────────────────┤  (fechado 2026-10-24)
 D7, D9, D10 (runtime/manual) ───────┘
 D11 (skill F8) — independente, pode correr em qualquer momento
 C1–C4 (Actions/VPS) ───────────────→ D12
@@ -1428,9 +1601,13 @@ decisão/execução do operador, sem transferência realizada por I1/I2.
 - **D1 é pré-requisito** de qualquer mutação autenticada em instância real.
 - **D3** bloqueia a projeção efetiva do Khan e, junto com **D5**, o item 2 do aceite. Se a decisão
   for restringir a superfície, ela vira trabalho de engenharia: não há modo somente leitura.
-- **D6** bloqueia F7 e a publicação da primeira versão 0.1.0, e é hoje o item de maior severidade da
+- **D6** bloqueia F7 e a publicação da primeira versão 0.1.0, e era o item de maior severidade da
   lista: um Critical conhecido no candidato local do gateway. Não há evidência aqui de
-  publicação dessa imagem em registry; reavaliar o finding no candidato final.
+  publicação dessa imagem em registry. **Fechado em 2026-10-24**: o gateway foi
+  reconstruído em Debian Forky com `openssh-client 1:10.6p1-1`, o scan do candidato
+  final é 0 Critical/0 High/1 Medium e a regressão Remote SSH real passa 5/5 dentro
+  da imagem (§2.8). O candidato é local: promoção, canário, rollback e publicação
+  limpa permanecem na D8.
 - **D7** reaproveita I2 no core; o defeito `--init` do consumidor Positronic e os
   contratos MCP faltantes pertencem aos respectivos repositórios, fora da execução
   I2. Reconfirmar o checkout/consumidor antes de corrigi-los; não fechar o defeito
@@ -1450,7 +1627,7 @@ decisão/execução do operador, sem transferência realizada por I1/I2.
 | Apagar evidência ao limpar fixtures | reter um par A/B de imagem conhecido por gestor antes de qualquer nova promoção; `docker image prune -a` e `system prune` nunca são atalho de limpeza |
 | Confundir proxy de evidência com prova | verificação em filesystem/stderr não fecha `tools/call`; o critério exige protocolo MCP real |
 | `chmod 777` de fixture local virar política de produção | registrar modo e owner reais no inventário antes de qualquer promoção |
-| Estender o VEX do gateway aos MCPs | reavaliar findings por imagem e escopo; sem extensão automática |
+| Estender o VEX do gateway aos MCPs | reavaliar findings por imagem e escopo; sem extensão automática — feito na D6 (§2.8.4/§2.8.5): as seis imagens MCP foram escaneadas separadamente e nenhuma declaração do gateway se aplica a elas |
 | Reescrever `main` publicado | `mailmap` altera apresentação, não objetos nem SHA; reescrita é ato separado com autorização específica |
 | Prova local ser lida como aceite VPS | I2 usou Server 27.5.1 isolado; F7 histórico usou overlay Engine 29. Nenhum prova o host alvo: inventário e aceite VPS são C2–C4 |
 | Preservar `local-only` como veto permanente à proposta IaC | I1 já aditou o contrato e escolheu índice JSON/aquisição restrita; runtime atual ainda é local-only e I6 implementa a evolução. I3/I5 e B13 mantêm gates próprios |
@@ -1991,3 +2168,76 @@ retificação do smoke de init do OSM e do Deep Research.**
   material-fonte e `state.sqlite`).
 - **Mutações:** só código, testes, scripts, `.gitignore` e documentação.
   Nenhuma imagem publicada, nenhuma promoção, nenhum registry tocado.
+
+**2026-10-24 — D6: resíduo OpenSSH do gateway, reconstrução em Debian Forky
+(decisões e autorização do operador; execução e registo do agente).**
+- **Decisões do operador:** (1) remediação por **rebuild do gateway em Debian
+  Forky** (recomendado), em vez de exceção individual; (2) **absorver no mesmo
+  rebuild** os Criticals adicionais de Python.
+- **Escopo:** §2.8.1–§2.8.5. **Read-only quanto ao estado vivo**: nenhuma imagem
+  foi promovida nem publicada, nenhum registry tocado, nenhuma instância,
+  container ou credencial mutada. Só código, locks, scripts de verificação e
+  documentação.
+- **Viabilidade provada antes de reconstruir:** Trixie
+  (`1:10.0p1-7+deb13u4`) e Trixie-backports (`1:10.3p1-1~bpo13+1`) não têm
+  versão corrigida de `openssh-client`, e o `.deb` do Forky exige
+  `libc6 >= 2.42` contra os glibc 2.41 do Trixie — a troca isolada é
+  impossível, o que tornava a migração da base runtime o único caminho.
+- **Artefatos gravados e commitados no core:** `Dockerfile` (base Forky por
+  digest, snapshot `20261020T000000Z`, `openssh-client=1:10.6p1-1`,
+  toolchain Python/uv copiada da imagem uv pinada, `pip` removido do
+  interpretador, do venv sem `--seed` e da wheel de `ensurepip`),
+  `scripts/compile_channel_locks.py` (novo `--upgrade-package`),
+  `channel-locks/` (locks re-resolvidos para `pillow` 13.0.0 e `certifi`
+  2026.10.23), `uv.lock` (bumps de `certifi`, `pillow`, `aiohttp`, `filelock`
+  e `pypdf`), `scripts/percival-remote-ssh-regression.py` (novo) e
+  `.github/workflows/ci.yml` (gate da regressão na imagem, com
+  `docker_required=true`).
+- **Candidato final:** `percival-gateway:0.1.0-92eeff9`, revisão
+  `92eeff90cdb81c27c80ff239e84325021b9bd840`, image ID
+  `sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368`,
+  `linux/amd64`, construído por `scripts/percival-docker-build.py` com
+  `worktree: clean` e os labels exigidos.
+- **Verificações:** scan Trivy 0.67.2 do candidato final **0 Critical, 0 High,
+  1 Medium**; SBOM CycloneDX com 6129 componentes; regressão Remote SSH
+  **5/5 PASS** dentro da imagem (versão do cliente, ausência de
+  `openssh-server`, scan de host key, probe de credencial, túnel) contra `sshd`
+  em fixture separado; smoke I2 runtime **19/19 PASS**; suíte do core
+  8459 passed / 66 skipped com 2 falhas pré-existentes
+  (`test_session_absolute_ttl_present`,
+  `test_every_runtime_channel_field_has_a_webui_contract`, confirmadas por
+  baseline); `compile_channel_locks --check` com 13 manifestos travados.
+- **Achados novos desta rodada:** (1) os 4 High residuais do primeiro build
+  corrigido vinham do **SBOM vendorizado do `pip` 25.0.1**
+  (`pip/_vendor/bom.cdx.json`), lido pelo Trivy como pacotes da imagem — a
+  origem foi reproduzível e o `pip` foi removido **na origem**, sem waiver;
+  (2) o `uv pip compile` **preserva os pins já fixados** no arquivo de saída,
+  então os channel locks mantinham `pillow==12.3.0` e `certifi==2026.7.22` e
+  habilitar um canal reinstalava versões vulneráveis — causa corrigida em
+  `scripts/compile_channel_locks.py` e locks re-resolvidos.
+- **OpenVEX:** reemitido em
+  [`2026-10-24-d6-openvex.json`](../reports/2026-10-24-d6-openvex.json), com
+  **oito** declarações `not_affected` todas restritas ao image ID final
+  (produto único). O OpenVEX histórico de 2026-10-10 não foi alterado.
+- **Análise por imagem dos seis MCPs:** feita separadamente (§2.8.5).
+  **Nenhuma declaração do gateway se estende a elas** e **nenhum waiver** foi
+  emitido para nenhuma: são Trixie, sem `openssh-client` nem `sshd`, com
+  `certifi` 2026.7.22/2025.1.31 (Critical `GHSA-6q48-6c7w-9gw2`) e, no Deep
+  Research, `pillow` 12.3.0 e `brotli` 1.2.0. A remediação é do D8, em cada
+  repositório.
+- **Mutações:** `Dockerfile`, `scripts/`, `channel-locks/`, `uv.lock`,
+  `.github/workflows/ci.yml`, este plano, o relatório F3 e o OpenVEX novo.
+  Nenhuma promoção, nenhuma publicação, nenhum registry tocado, nenhuma
+  instância ou credencial mutada.
+- **Limitações:** (1) o candidato é **local** — promoção, canário, rollback,
+  retenção do par A/B e publicação limpa permanecem na **D8**; (2) o broker
+  não foi alterado, e o smoke I2 reusou `percival-i2-broker:ses-e96f9440`;
+  (3) os 44 High de base dos MCPs seguem sem avaliação por imagem; (4) o
+  `CVE-2026-49138` do próprio `nanobot-ai` 0.1.0 permanece como Medium porque
+  o scanner reporta pela versão declarada do pacote — o fix upstream
+  `545294c62` é ancestra de `HEAD` e o código shipped é mais forte, e a
+  reavaliação está no OpenVEX; (5) a regressão Remote SSH não tem espera
+  explícita pela prontidão da porta do `sshd` do fixture — passa repetidamente,
+  mas o ponto deve ser endurecido antes de virar gate definitivo fora do CI.
+- **Estado:** **D6 fechada.** D8–D12 inalteradas; o encerramento consolidado
+  continua bloqueado por D8–D12 e pelos gates externos C1–C4 e A1–A9.

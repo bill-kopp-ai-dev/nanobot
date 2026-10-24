@@ -1,0 +1,130 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:percival:d6:openevex:2026-10-24:gateway-forky",
+  "author": "Percival D6 technical assessment",
+  "role": "Technical assessor",
+  "timestamp": "2026-10-24T16:35:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-60002"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The advisory describes a use-after-free in the OpenSSH client before 10.4 during a rekey with host key exchange. This exact candidate contains openssh-client 1:10.6p1-1 (OpenSSH_10.6p1 Debian-1), which is at or above the fixed 10.4 release line, so the vulnerable client code is not present. The candidate runtime also carries the real OpenSSH client used by Percival Remote SSH, and the in-image regression drove a host key scan, a credential probe and a transport tunnel through that client against a separate sshd fixture.",
+      "action_statement": "Keep the runtime base on Debian Forky with openssh-client >= 10.4 and re-run the Remote SSH in-image regression after any base or lock change; this assessment applies only to this image ID."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-59999"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The finding describes an OpenSSH sshd server vulnerability. This exact candidate contains openssh-client 1:10.6p1-1 and /usr/bin/ssh, but the openssh-server package and /usr/sbin/sshd are absent; the vulnerable server component is absent.",
+      "action_statement": "Keep the image free of openssh-server and verify component absence in the clean CI builder before applying this assessment to any other image digest."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-60000"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The finding describes an OpenSSH sshd server vulnerability. This exact candidate contains openssh-client 1:10.6p1-1 and /usr/bin/ssh, but the openssh-server package and /usr/sbin/sshd are absent; the vulnerable server component is absent.",
+      "action_statement": "Keep the image free of openssh-server and verify component absence in the clean CI builder before applying this assessment to any other image digest."
+    },
+    {
+      "vulnerability": {
+        "name": "GHSA-6v7p-g79w-8964"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The Trivy finding attributes msgpack 1.1.2 to this image without PkgPath. That attribution came from the vendored SBOM shipped inside the pip 25.0.1 interpreter that the image carried. The candidate no longer contains pip in the system interpreter, in the virtual environment or as an ensurepip wheel, so no third-party SBOM declares msgpack and the component is absent from the runtime image. The scan of this candidate reports no msgpack finding.",
+      "action_statement": "Keep the runtime image free of pip and confirm the absence in the clean CI builder; re-evaluate if the gateway dependency lock adds msgpack."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47273"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "The Trivy finding attributes setuptools 70.3.0 to this image without PkgPath, sourced from the same pip 25.0.1 vendored SBOM. The candidate contains no setuptools distribution in the system interpreter or in the virtual environment, so the vulnerable component is absent. The scan of this candidate reports no setuptools finding.",
+      "action_statement": "Keep the runtime image free of setuptools and confirm the absence in the clean CI builder; re-evaluate if the gateway begins using setuptools at runtime."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-97687"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The Trivy finding attributes urllib3 2.7.0 to this image without PkgPath, sourced from the pip 25.0.1 vendored SBOM. The candidate runtime contains urllib3 2.8.0 in /app/.venv, which is the fixed version identified by the advisory, and the image no longer carries the vendored copy that produced the report. The scan of this candidate reports no urllib3 finding.",
+      "action_statement": "Verify urllib3's installed version from the final runtime and SBOM in CI; revisit if the locked runtime version falls below 2.8.0."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-97689"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The Trivy finding attributes urllib3 2.7.0 to this image without PkgPath, sourced from the pip 25.0.1 vendored SBOM. The candidate runtime contains urllib3 2.8.0 in /app/.venv, which is the fixed version identified by the advisory, and the image no longer carries the vendored copy that produced the report. The scan of this candidate reports no urllib3 finding.",
+      "action_statement": "Verify urllib3's installed version from the final runtime and SBOM in CI; revisit if the locked runtime version falls below 2.8.0."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-49138"
+      },
+      "products": [
+        {
+          "@id": "urn:oci:image:sha256:1ad324379fa94b8e7b4768f703ea10213eda0986c4b4a3e8e9bb70de486f0368",
+          "name": "percival-gateway:0.1.0-92eeff9"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The advisory (GHSA-434r-7c99-hwf3) describes a redirect-time SSRF in the web_fetch tool: httpx automatic redirect following could request a private or loopback Location target before the final resolved-URL check ran. The scanner attributes the finding to the nanobot-ai package version 0.1.0 declared by the distribution metadata. The code shipped in this exact candidate does not contain the vulnerable behaviour: nanobot/agent/tools/web.py validates the initial URL, then drives both the image preflight and the readability fallback through the manual redirect helpers _stream_with_safe_redirects and _get_with_safe_redirects, which set follow_redirects=False, resolve each Location with urljoin and validate it before the next request is issued; the upstream fix commit 545294c62c0947da40eb5b65288aaf02b5fdf632 (HKUDS/nanobot#3928) is an ancestor of this image's source revision, and the shipped code is stronger than that fix because every hop is resolved and DNS-pinned through nanobot.security.network.PinnedDNSAsyncTransport and blocked when it resolves to private, loopback, link-local or metadata addresses. No httpx client in the web_fetch path follows redirects automatically.",
+      "action_statement": "This assessment is limited to this image ID and to the web_fetch code path that the advisory describes. Re-evaluate if the web_fetch helpers change, if an automatic-redirect client returns to that path, or if a new nanobot-ai release supersedes the declared 0.1.0 metadata."
+    }
+  ]
+}
