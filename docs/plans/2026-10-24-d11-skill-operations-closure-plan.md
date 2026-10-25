@@ -1,14 +1,14 @@
-# Plano de fechamento D11 — skill de operações MCP Docker
+# Acompanhamento técnico pós-encerramento D11 — skill de operações MCP Docker
 
 - **Preparado em:** 2026-10-24.
-- **Objetivo:** fechar D11/F8 com uma skill Percival Built-in disponível, compreensível no contexto real do agente e exercitada em ambiente descartável pelo fluxo do manager.
-- **Estado inicial:** D11 parcial. A presença, categoria **Built-in** e ativação da skill foram confirmadas visualmente pelo operador em 2026-10-24. O diagnóstico estruturado do agente aprovou a política em leitura, mas não executou o rehearsal; portanto não fecha o aceite operacional.
+- **Objetivo:** acompanhar os gates técnicos de segurança e rehearsal que o operador decidiu adiar após encerrar administrativamente D11/F8.
+- **Estado:** D11 foi **fechada por decisão do operador nesta revisão**. Esse fechamento de escopo não equivale a aprovação dos gates técnicos abaixo. A skill Built-in está implantada e confirmada; o rehearsal da fixture passou em 24 checks e deixou 1 bloqueado. Pendências e incidente de segurança permanecem registrados neste plano para retomada posterior.
 - **Referências:** [plano integrado D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../operations/mcp-docker-local-runbook.md); [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md).
 - **Autoridade:** este plano orienta trabalho local e fixtures sintéticas. Não aprova mudanças em servidores MCP reais, pins/allowlists/credenciais, limpeza de imagens ou estado, acesso remoto, publicação, VPS ou qualquer deploy adicional. Essas ações exigem aprovação específica do operador pela interface suportada.
 
 ## 1. Estado conhecido e interpretação do diagnóstico
 
-A skill possui frontmatter válido, o loader a reconhece como `builtin`, está habilitada na UI e a cópia Custom do workspace foi removida. O hash do conteúdo aprovado e implantado é `d17c78c3eb0c8fb41260c297c6cdbc98970cee6c07d35d76919de50f0351d60c`.
+A skill possui frontmatter válido, o loader a reconhece como `builtin`, está habilitada na UI e a cópia Custom concorrente foi removida. O conteúdo atualmente implantado tem SHA-256 `81373efc83c7ec8a043dc38990254653137d85cb36351356c8061d347d1a8bdd`; o deploy local e a retenção da imagem anterior estão registrados no relatório de rehearsal. O hash anterior `d17c78c3…` identifica a versão inicial aprovada, não a versão atual.
 
 O agente reportou 8 PASS, 1 PARCIAL, 3 FAIL e 4 BLOQUEADO, sem mutações. O resultado principal — **política aprovada, procedimento ainda não demonstrado** — é mantido. As linhas abaixo separam defeito, contexto de execução e teste fora do contrato:
 
@@ -80,11 +80,13 @@ Fora do escopo: atualização de pin dos seis servidores observados; instalar/at
 
 1. Registrar status individual de ST-01–ST-16: PASS, corrigido e repetido, limitação de contexto, fora de escopo ou defeito separado. Nenhum FAIL/BLOQUEADO fica oculto em contagem agregada.
 2. Atualizar §2.12 e a linha D11 do plano mestre com data, commit/SHA, skill hash, imagem local, evidência e risco residual.
-3. Marcar D11 **fechada** apenas quando a UI estiver confirmada como Built-in+Enabled, o teste do loader passar no artefato identificado, o agente produzir dry-run correto e completar C1–C9 no fixture sem mutação de produto, e as provas de integridade/redaction estiverem anexadas.
-4. Se o rehearsal permanecer inacessível, preservar estado **parcial/bloqueado por ambiente** e registrar exatamente o requisito de acesso que falta; aprovação da política ou screenshot não substitui execução.
+3. Registrar que o operador encerrou D11 administrativamente nesta revisão; gates técnicos não atendidos permanecem explicitamente pendentes e não devem ser marcados como PASS.
+4. Retomar os gates técnicos descritos neste plano em ambiente isolado, sem usar a decisão de encerramento como autorização para ações em MCPs reais.
 5. Manter D8, D12, aprovação B13, release/publicação e VPS como gates independentes.
 
-## 4. Critérios de aceite
+## 4. Critérios técnicos transferidos
+
+D11 está administrativamente fechada por decisão do operador. Estes critérios foram preservados como referência para o acompanhamento técnico e não são declarados satisfeitos por esse encerramento.
 
 | Gate | Aceite verificável |
 | --- | --- |
@@ -95,7 +97,7 @@ Fora do escopo: atualização de pin dos seis servidores observados; instalar/at
 | C5 — Controles | CAS obsoleto e payload inválido são negados sem chamada Docker; secrets não aparecem. |
 | C6 — Probes | Caso stdio falso `unhealthy` e fixture HTTP com readiness falhando interpretados por transporte correto. |
 | C7 — Restore/read-model | Backup atual restaurado pela interface atual; read-model converge com observação do broker; divergência reproduzível vira blocker separado. |
-| C8 — Não mutação | Estado real, pins, revisões, allowlists, credenciais e containers de produto inalterados; prova redigida anexada. |
+| C8 — Não mutação | Estado/configuração MCP, pins, revisões, allowlists, credenciais, containers e dados persistentes de produto inalterados; deploy local do gateway/broker identificado e com rollback preservado; prova redigida anexada. |
 | C9 — Operador | Screenshot/confirmação Built-in+Enabled e aprovação da política de acesso remoto registradas; nenhuma alteração de configuração remota presumida. |
 | C10 — Proveniência | Commit, versão, SHA integral, image ID e hashes da skill/resultado correspondem ao bundle testado. |
 
@@ -106,3 +108,50 @@ Fora do escopo: atualização de pin dos seis servidores observados; instalar/at
 - Se smoke, rollback, restore, integridade ou broker falhar, manter A e a imagem anterior, preservar logs redigidos e não repetir sobre estado de produto.
 - Sem `docker system prune`, bulk cleanup, remoção de container por nome/tag/idade, mudanças de credencial, alteração de allowlist ativa, pull/publicação ou deploy externo.
 - O teste legado `restore-f1` fica separado. Qualquer requisito de restaurar backups F1 exige inventário/owner, compatibilidade deliberada e fixture própria antes de alterar o fluxo atual.
+
+## 6. Registro de execução e encerramento administrativo — 2026-10-25 UTC
+
+O rehearsal registrado em [relatório D11](../reports/2026-10-25-d11-skill-operations-rehearsal.md)
+foi executado pelo runner versionado em `scripts/d11/` no DinD 27.5.1. Resultado:
+24 PASS e 1 BLOCKED. C1 e C2 foram confirmados no contexto implantado/fixture;
+C4, C5, C7 e o exercício stdio de C6 passaram na fixture. O profile HTTP de
+readiness deliberadamente falhando não foi executado. O dry-run determinístico do
+harness passou, mas não valida o comportamento do agente; C3 continua pendente
+porque o agente/LLM não foi invocado por falta de endpoint isolado. C10
+está atendido para a candidata local identificada no relatório; não é release e
+nada foi publicado. C9 não tem decisão registrada sobre `allowRemoteAdmin=true`.
+
+Depois dessa evidência, a auditoria fornecida pelo operador relatou que uma
+sondagem declarada read-only chamou `notes_rm("x")` no Notes de teste. A função
+trata arquivo ausente como sucesso e retorna a mesma mensagem de remoção, portanto
+a resposta não demonstra se havia arquivo antes da chamada. O hash atual da skill
+Custom de auditoria e a evidência disponível não resolvem essa incerteza. Tratar
+como incidente aberto de prioridade alta; não usar Notes real para novos testes.
+
+**Decisão do operador:** D11 está **fechada administrativamente**. Os gates
+operacionais não executados e o incidente acima foram transferidos para este
+plano, sem serem marcados como concluídos. Nenhuma alteração de configuração,
+pin ou container MCP de produto foi feita no rehearsal D11; a possível mutação de
+dados do vault na auditoria separada permanece sem conclusão factual.
+
+## 7. Pendências transferidas para retomada posterior
+
+- **C3 / M-1 — comportamento read-only do agente (prioridade alta):** primeiro
+  apurar, usando evidência pré-chamada ou backup existente, se `x` existia antes
+  da chamada `notes_rm`. Registrar que o resultado atual não prova exclusão nem
+  ausência de exclusão. Revisar a skill Custom de auditoria para impedir chamadas
+  fora de uma allowlist explicitamente read-only. Só então repetir o dry-run do
+  agente em uma fixture isolada, sem vaults, credenciais ou MCPs de produto.
+- **C6 — profile HTTP:** criar e exercitar uma fixture HTTP descartável com probe
+  de readiness deliberadamente falhando, comprovando o resultado pelo manager e
+  sem trocar pins de produto.
+- **C9 — política administrativa:** registrar a decisão do operador sobre
+  `allowRemoteAdmin=true`, bind interno e portas publicadas. Não alterar a
+  configuração ativa sem aprovação específica para essa mudança.
+- **C8 — limite da prova de não mutação:** manter explícito que a fixture D11 não
+  alterou MCPs de produto; resolver separadamente a incerteza sobre dados do vault
+  causada pela chamada da auditoria antes de declarar aquele teste read-only.
+
+O plano pode ser retomado sem reabrir o status administrativo de D11. Não use
+este encerramento como aceite dos itens acima, autorização de mutação, publicação
+ou deploy externo.

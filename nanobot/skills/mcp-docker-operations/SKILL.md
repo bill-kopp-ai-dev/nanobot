@@ -9,6 +9,10 @@ Use this Local Skill only while working in the Percival project. The Positronic
 consumer has a separate TUI/CLI and inventory; never apply Percival operations
 to a Positronic-owned server. The central procedure is
 `docs/operations/mcp-docker-local-runbook.md` in the Percival checkout.
+The runtime image may not include the checkout’s `docs/` tree. Confirm that the
+runbook is readable in the current agent context before relying on it. If it is
+missing, stop read-only and report the path; do not improvise host commands, ask
+for Docker access in the gateway, or claim the procedure ran.
 
 ## Default to read-only
 
@@ -24,6 +28,12 @@ for Positronic state. Never edit `config.json`, `mcp-docker/`, Positronic
 `registry.json`, or server configuration files directly. Compose is for local
 development/fixtures; it must not become a second owner of a manager-created
 production MCP container. The broker alone receives Docker access.
+
+`nanobot mcp-docker doctor` is a client-side preflight. Run it with the effective
+`PERCIVAL_BROKER_TOKEN_GID` from the deployment context; the fallback GID is not
+evidence of the token file’s actual group. The broker’s authenticated probe and
+`doctor` cover different sides of the connection. Report the numeric effective
+GID only, never token contents or environment dumps.
 
 ## Diagnose by transport
 
@@ -57,6 +67,14 @@ does not download a missing image or undo data migrations.
 
 Never run `docker system prune`, bulk prune, blind `docker rm`, or cleanup by
 tag/name/age/`unhealthy`. Preserve external containers and persistent data.
+
+Record `allowRemoteAdmin`, the gateway bind, and host-published addresses during
+preflight. A wildcard bind inside a container does not by itself prove external
+reachability; assess it together with the host port binding and reachable peers.
+Do not change the active admin policy or expose a listener as part of diagnosis.
+The legacy `restore-f1` command accepts only its disposable F1 schema; use the
+current manager restore flow for current backups and never convert manifests by
+hand.
 
 ## Required rehearsal
 
