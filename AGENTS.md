@@ -40,17 +40,19 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | WebUI/host compatibility | [`.agent/review-guide.md`](.agent/review-guide.md) |
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
-| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md), [Plan 3: deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md) |
+| Docker/IaC architecture or distribution contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md) |
 | Core runtime modes, UID/init/probes or gateway↔broker compatibility | [Runtime contract 1](docs/agent-runtime-contract.md), [I2 local conformance](docs/reports/2026-10-23-i2-runtime-contract-conformance.md) |
 | KG, MCP/browser, authentication or local product acceptance | [Plan 1: product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md) |
 | CI, candidate provenance, image publication or acquisition | [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md) |
-| Real-state authentication cutover, backup, MCP promotion or VPS acceptance | [Plan 3: deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md) |
+| Deploy/VPS, real-state cutover, production backup/restore, MCP promotion/canary | [Deferred scope record](docs/plans/closed/2026-10-25-03-deployment-operations-plan.md); explicitly out of active scope |
 
 ## Docker-first IaC boundaries
 
-- Use only the three active plans: [local product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md),
-  [qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md)
-  and [deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md).
+- Use only the two active plans: [local product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md)
+  and [qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md).
+  Deployment/production rollout/VPS activities are deferred in the
+  [archived scope record](docs/plans/closed/2026-10-25-03-deployment-operations-plan.md),
+  not active work and not a blocker for these two plans.
   The [consolidation map](docs/reports/2026-10-25-three-plan-consolidation.md) transfers
   every prior gate, detailed subtask and acceptance case; archived plans are specifications/history,
   not concurrent trackers. C1 now has one execution/acceptance owner, Plan 2 D03.
@@ -113,11 +115,12 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   rehearse restore. Image rollback does not undo data migration. Existing vulnerability
   policy applies to the exact candidate; documented triage is not a waiver.
   I1 separates pre-publication B13 approval from post-publication anonymous pull/smoke
-  homologation; only homologated artifacts enter deployment. VPS C2–C4/I9 remain separate.
+  homologation; only homologated artifacts may enter a future deployment. VPS C2–C4/I9
+  are deferred and are not current plan-completion criteria.
 - P0 is open infrastructure only; premium GCP, entitlement, billing, marketplace,
   Kubernetes, private customer delivery and a proprietary registry need separate scope.
-  Track implementation in L*, D* and O* of the three plans; I1–I9 remain origin IDs.
-  `docs/plans/closed/` is historical; transferring a gate or editing a plan does not close it.
+  Track current implementation in L* and D* of the two active plans; I1–I9 remain origin IDs.
+  `docs/plans/closed/` is historical and includes deferred work; archiving/transferring does not close a gate.
 
 ## Development constraints
 

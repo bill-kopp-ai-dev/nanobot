@@ -2,8 +2,8 @@
 
 > **Arquivado por consolidação em 2026-10-25, a pedido de bill.** KG-A1–A5 e
 > MCP-B1–B6 → [Plano 1](../2026-10-25-01-product-readiness-plan.md);
-> KG-A7/MCP-B7/C1 → [Plano 2](../2026-10-25-02-qualification-distribution-plan.md);
-> KG-A6/C2–C4 → [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> MCP-B7/C1 → [Plano 2](../2026-10-25-02-qualification-distribution-plan.md);
+> KG-A6/A7 e C2–C4 → escopo diferido no [registro arquivado](2026-10-25-03-deployment-operations-plan.md), não plano ativo.
 > Não fecha gates: o restante é histórico/especificação, não tracker corrente.
 > Ver [mapa integral e precedência](../../reports/2026-10-25-three-plan-consolidation.md).
 

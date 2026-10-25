@@ -1,5 +1,12 @@
 # Revisão cruzada dos planos e transferência da padronização Docker
 
+> **Snapshot histórico da consolidação inicial.** O recorte atual tem apenas dois planos
+> ativos; deploy/VPS, promoções, recovery de estado real e migrações relacionadas foram
+> diferidos por decisão posterior. A fonte corrente é o [adendo de escopo e mapa de
+> atividades](2026-10-25-three-plan-consolidation.md#8-adiamento-de-deploy-e-vps); o
+> [Plano 3 arquivado](../plans/closed/2026-10-25-03-deployment-operations-plan.md)
+> conserva critérios para possível retomada, não execução corrente.
+
 - **Data:** 2026-10-25.
 - **Solicitação:** bill determinou criar sucessor com todas as pendências F0–F8,
   registrar/fechar/arquivar o plano original, revisar todos os planos ativos,

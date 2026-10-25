@@ -1,14 +1,23 @@
 # Plano 3 — Implantação, recuperação e operação
 
-- **Estado:** ativo, consolidado em 2026-10-25; preparação local pendente e alvo VPS
-  não identificado nos registros herdados. Nenhum cutover executado nesta revisão.
+- **Estado:** **diferido e arquivado em 2026-10-25**, a pedido de bill. Nenhuma destas
+  etapas será executada no futuro próximo. Este documento conserva escopo, critérios,
+  origens e controles para retomada; não é plano ativo, backlog de execução ou
+  autorização. Não existe data de retomada definida.
+- **Planos ativos:** somente Plano 1 (prontidão local) e Plano 2 (qualificação/
+  distribuição). Nenhum item daqui bloqueia o fechamento desses planos.
+- **Motivo/decisão:** deploy, testes em VPS, rollout/cutover e trabalhos estreitamente
+  dependentes (inventário de alvo, backup/restore de estado real, migração real, pins A/B,
+  canário e aceite operacional) não são prioridade no horizonte próximo informado pelo
+  operador. A retirada não os declara concluídos nem elimina o histórico.
+- **Mapa vigente:** [adiamento e classificação de escopo](../../reports/2026-10-25-three-plan-consolidation.md#deferred-deployment-vps).
 - **Objetivo:** instalar/atualizar uma combinação compatível de core, configuração,
   autenticação e dados, com backup/retorno medidos e aceite específico do alvo.
 - **Dono:** bill aprova host, dados, janelas, riscos e cortes; agente verifica/executa
   por interface do owner autorizado. Tooling IaC controla core; manager controla MCPs.
-- **Entrada:** contratos I1/runtime 1; [Plano 1](2026-10-25-01-product-readiness-plan.md)
-  entrega comportamento local e [Plano 2](2026-10-25-02-qualification-distribution-plan.md)
-  qualifica os artefatos. [Mapa integral](../reports/2026-10-25-three-plan-consolidation.md).
+- **Entrada:** contratos I1/runtime 1; [Plano 1](../2026-10-25-01-product-readiness-plan.md)
+  entrega comportamento local e [Plano 2](../2026-10-25-02-qualification-distribution-plan.md)
+  qualifica os artefatos. [Mapa integral](../../reports/2026-10-25-three-plan-consolidation.md).
 - **Baseline:** análise documental sobre `5f77f438`, sem novo inventário host/gestor.
 
 ## 1. Fronteiras e contratos preservados
@@ -18,9 +27,9 @@ aplicar no VPS exige inventário e autorização próprios. I3 permanece adiado.
 de reorganizar planos não autoriza instalação Docker, OpenTofu apply, acesso remoto,
 promoção, mudança de pins/credenciais, migração de dados ou limpeza.
 
-Decisões [I1](../Decisions/2026-10-23-open-iac-contracts.md),
-[handoff](../iac-p0-contract-handoff.md) e [runtime 1](../agent-runtime-contract.md)
-regem execução; [runbook local](../operations/mcp-docker-local-runbook.md) detalha
+Decisões [I1](../../Decisions/2026-10-23-open-iac-contracts.md),
+[handoff](../../iac-p0-contract-handoff.md) e [runtime 1](../../agent-runtime-contract.md)
+regem execução; [runbook local](../../operations/mcp-docker-local-runbook.md) detalha
 gestores e transportes. F7/D12 e D11 administrativo permanecem encerrados com limites;
 seis MCPs canariados em 2026-10-10 não provam adoção dos candidatos posteriores.
 
@@ -162,7 +171,7 @@ homologação pública, sem ciclo release↔VPS. Nenhuma data/orçamento novo ap
 Matriz O*: requisito/origem → repo/SHA/contrato → par/imagem/digest/plataforma →
 ambiente/datado/host redigido → teste esperado/observado → artefato/hash/URL →
 decisão bill/risco/limitação → próximo responsável. Reusar V01–V04/V07–V10/V15/
-V20–V24 da [especificação IaC histórica](closed/2026-10-23-iac-alignment-execution-plan.md)
+V20–V24 da [especificação IaC histórica](2026-10-23-iac-alignment-execution-plan.md)
 com identidade, limites e extensão requerida; prova local não fecha VPS.
 
 Parar se não houver autorização/alvo/retorno, se Server/digest/plataforma divergirem,

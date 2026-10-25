@@ -3,7 +3,7 @@
 > **Arquivado por consolidação em 2026-10-25, a pedido de bill.** AUTH-A1–A6 →
 > [Plano 1, L03](../2026-10-25-01-product-readiness-plan.md); AUTH-A8/CI →
 > [Plano 2, D03](../2026-10-25-02-qualification-distribution-plan.md);
-> AUTH-A7/cutover e A9/VPS → [Plano 3, O06/O03/O08](../2026-10-25-03-deployment-operations-plan.md).
+> AUTH-A7/cutover e A9/VPS → escopo diferido no [registro arquivado](2026-10-25-03-deployment-operations-plan.md).
 > P2 continua adiado; nenhuma pendência foi executada ou aceita por esta transferência.
 > O restante é histórico/especificação; a precedência corrente e o mapa integral estão
 > no [registro de consolidação](../../reports/2026-10-25-three-plan-consolidation.md).

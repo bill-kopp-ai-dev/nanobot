@@ -2,7 +2,7 @@
 
 > **Arquivado por consolidação em 2026-10-25, a pedido de bill.** I3/I5/I6/I7 →
 > [Plano 2, D04–D09](../2026-10-25-02-qualification-distribution-plan.md);
-> I4/I8/I9 → [Plano 3, O01/O02/O09](../2026-10-25-03-deployment-operations-plan.md).
+> I4/I8/I9 → escopo diferido no [registro arquivado](2026-10-25-03-deployment-operations-plan.md), não tracker ativo.
 > I1/I2 permanecem concluídos no escopo registrado e I3 continua adiado. Nenhuma
 > subtarefa ou caso V01–V24 foi dispensado: a especificação detalhada abaixo é
 > referência histórica herdada, com execução/aceite nos sucessores. Ver

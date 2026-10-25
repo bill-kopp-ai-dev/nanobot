@@ -9,8 +9,10 @@
 - **Baseline:** revisão documental sobre `5f77f438`; snapshots Actions/imagens abaixo
   são herdados, não consultas novas a GitHub ou registry.
 - **Interfaces:** [Plano 1](2026-10-25-01-product-readiness-plan.md) entrega provas
-  locais; [Plano 3](2026-10-25-03-deployment-operations-plan.md) consome artefatos
-  homologados e export/contratos. [Mapa de transferência](../reports/2026-10-25-three-plan-consolidation.md).
+  locais. Publicação e aquisição homologada encerram o escopo ativo; promoção em gestor
+  vivo, rollout e VPS foram diferidos no
+  [registro arquivado](closed/2026-10-25-03-deployment-operations-plan.md).
+  [Mapa de transferência](../reports/2026-10-25-three-plan-consolidation.md).
 
 ## 1. Fluxo único e limites
 
@@ -41,18 +43,17 @@ I3 e execução B13/publicação continuam decisões explícitas, separadas.
 
 | ID / origem | Entrega e aceite verificável | Estado / dependências |
 | --- | --- | --- |
-| D01 / R01, DIST-B6 fase A | Decidir conjunto e método: oito artefatos ou subconjunto aprovado; pull independente versus aquisição manager/índice. Matriz repo/SHA integral/versão/plataforma/labels/locks/bases/image ID/digests, pin A e B por consumidor, escopo local/público e evidências aplicáveis. Refixar após mudanças, não usar build F3/diagnóstico F5 como HEAD final | **Aberto**, bill + agente; preparação pode anteceder conclusão do Plano 1 |
-| D02 / R06, R09, B13 preparação | Rever chaves válidas F0 D-4 antes de publicação/migração/auditoria de backups; rotação adiada indefinidamente e risco aceito permanecem explícitos. Decidir assinatura/proveniência, chave/identidade/verificação ou manutenção sem assinatura com limites; `.mailmap` já aplicado. Revisar owner/fonte pública, histórico/licenças/secrets, labels/attestations e notas finais para o candidato | **Decisões abertas**, bill. R06 não é segredo legado D1 já encerrado; L12 trata formato, não rotação |
+| D01 / R01, DIST-B6 fase A | Decidir conjunto e método: oito artefatos ou subconjunto aprovado; pull independente versus aquisição por manager/índice **em fixture**. Matriz repo/SHA integral/versão/plataforma/labels/locks/bases/image ID/digests e evidências aplicáveis. Refixar após mudanças, não usar build F3/diagnóstico F5 como HEAD final. Pins A/B por consumidor e seleção para rollout foram diferidos | **Aberto**, bill + agente; preparação pode anteceder conclusão do Plano 1 |
+| D02 / R06, R09, B13 preparação | Rever exposição de chaves válidas F0 D-4 antes da publicação; rotação permanece adiada e o risco aceito explícito. Decidir assinatura/proveniência, chave/identidade/verificação ou manutenção sem assinatura com limites; `.mailmap` já aplicado. Revisar owner/fonte pública, histórico/licenças/secrets, labels/attestations e notas finais do candidato. Inspeção de backups/migração de estado foi diferida | **Decisões abertas**, bill. R06 é distinto do segredo legado D1 já encerrado |
 | D03 / C1, F5/C1 WP1–WP4, DIST-B5, AUTH-A8/P3 | Uma única matriz de Actions dos sete repos no SHA exato e confronto de artifacts; checklist §3. CI de conformance não publica. Registrar resultado por requisito de core/auth/MCP sem aceitar run de outro SHA | **Bloqueado por acesso/core**, Deep falho no snapshot; bill disponibiliza acesso, agente verifica |
 | D04 / I3.1–I3.3, R03, DIST-B6 fase C | Pipeline protegido e candidato: PR build/test/scan sem push, SHA limpo/versão/SPA/locks/bases coerentes, Buildx `linux/amd64`, checks/scans/SBOM/proveniência nos bytes exatos. DB/scanner registrados; Critical/High bloqueiam sem correção ou waiver individual válido; OpenVEX restrito à imagem. Renovar evidência vencida antes de promoção | **I3 adiado**; partes R03 continuam por candidato. DB F3 herdada expira em 2026-10-26; não representa scan novo |
 | D05 / I3.4, publicação I5.3, DIST-B6 fase D | Após D03/D04 aplicáveis e B13 por candidato/repo, publicar só imagens/versões autorizadas. Par gateway/broker completo; falha parcial não promove bundle. Sem substituir bytes de tag SemVer já distribuída; divulgação de fonte/URLs aprovada antes de assar labels no digest | **Não autorizado/não iniciado**; I3 adiado e acessos release necessários |
-| D06 / I3.5–I3.6, DIST-B6 aceite | Pull anônimo por digest, Docker config limpa **e daemon/cache vazio**, verificação plataforma/labels/proveniência e smokes no artefato adquirido. Registrar índice OCI (se houver), manifest de plataforma e ID local separados. Quando D01 exige manager, D08 real também é obrigatório. Só homologar o conjunto aprovado completo; publicar não implica homologar ou promover | **Pendente**, D05 e método D01; nenhuma publicação por esta revisão |
+| D06 / I3.5–I3.6, DIST-B6 aceite | Pull anônimo por digest em daemon/cache descartável, verificação plataforma/labels/proveniência e smokes no artefato adquirido. Registrar índice OCI (se houver), manifest de plataforma e ID local separados. Quando D01 exige manager, exercitar D08 em fixture isolada. Homologar artefatos publicados pelo método aprovado; promoção em gestor vivo está diferida | **Pendente**, D05 e método D01; nenhuma publicação por esta revisão |
 | D07 / I5.1–I5.6 | Template derivado do Weather, depois OSM; pipelines/README/licença/protocolo e `server.json` no schema oficial pinado. Índice determinístico versionado, dois oficiais homologados e um comunitário upstream por digest, sem mirror/reatribuição. Etapas incrementais §4 | **Pendente**, workspaces/owners a confirmar; releases usam D04–D06 por repo |
-| D08 / I6.1–I6.8 | Adapter somente dados + aquisição tipada/restrita + consentimento/policy + commit manager/CAS + lifecycle/protocolo real. Critérios de segurança/timeout/compatibilidade na §5 | **Pendente**; primeiro MCP e índice mínimo D07 para prova real; fixtures podem antecipar engenharia |
-| D09 / I7.1–I7.5 | `capabilities.lock` derivado do estado canônico, schema/revisão/identidades comprovadas, export consistente/atômico sem secrets. Falha após config comitada fica “export pendente”, não repete install. Comparar drift; restore só com backup/config/policy privados e consentimento, nunca lock isolado | **Pendente**; export local independe de D08, restore remoto depende de aquisição |
+| D08 / I6.1–I6.8 | Adapter somente dados + aquisição tipada/restrita + consentimento/policy + commit manager/CAS + lifecycle/protocolo real **em fixture/manager descartável**. Critérios de segurança/timeout/compatibilidade na §5 | **Pendente**; primeiro MCP e índice mínimo D07 para prova real; sem alteração ou promoção em gestor vivo |
+| D09 / I7.1–I7.4 | `capabilities.lock` derivado do estado canônico, schema/revisão/identidades comprovadas, export consistente/atômico sem secrets. Falha após config comitada fica “export pendente”, não repete install. Comparar drift localmente, sem restaurar estado ou implantar | **Pendente**; export local independente de D08. Restore diferido |
 | D10 / MCP-B7 | Rever pin Arch de CI, registrar tabela de revisão e automação trimestral de issue/renovação ou adiamento explícito. Workflow agendado que reusa pin não o renova; conferir calendário antes de declarar vencimento | **Aberto**, agente/bill; se mudar workflow, refixar candidato D03 |
 | D11 / F5/C1 WP5 | Atualizar handoff existente por Journal autorizado e CAS após reler revisão, sem append duplicado. Nota `20261025-193252-f5-conformance-ci-revalidation-local-fix-254a6f58-1d5` teve `JournalNoteError` e permaneceu antiga; registrar blocker se acesso negado | **Pendente externo**, agente/bill; não editar arquivos Journal nem escrever entre escopos sem grant |
-| D12 / KG-A7 | Reconciliar banners/MIGRATION/freeze e estado dos repos legados antes de repetir entregas. Concluir D5/D10/EOL: release estável com teste upgrade/rollback, condições O07 atendidas, aprovação operador e arquivamento CM depois AK via console conforme decisão anterior | **Aberto**, bill; relatos de freeze e auditoria divergem. Nenhuma tag/ação GitHub implícita |
 
 ## 3. D03 — CI e artifacts em uma campanha
 
@@ -72,7 +73,7 @@ I3 e execução B13/publicação continuam decisões explícitas, separadas.
 5. Baixar arquivos originais, verificar integridade e comparar manifest/SBOM CycloneDX
    com SHA, imagem, labels, plataforma, hashes dos locks e bases pinadas. Core exige
    pares gateway/broker e `results.json` de runtime. Falta/mismatch mantém C1 aberto.
-6. Registrar C1 uma vez em D03 e referenciar essa prova em D01/D05/O05/O08 e auth.
+6. Registrar C1 uma vez em D03 e referenciar essa prova em D01/D05 e auth.
    Atualizar handoff D11 sem multiplicar notas; disponibilidade Journal não fabrica CI.
 
 Snapshot herdado de 2026-10-25 (não reconsultado):
@@ -139,34 +140,38 @@ Fonte e histórico diagnóstico: [F5 revalidation](../reports/2026-10-25-f5-ci-c
 7. Homologar bridge por método/versão/sessão: sequencial/concorrente, stderr, EOF,
    timeout, restart, ausência de órfãos. Streaming/paginação/notifications/cancelamento
    ou HTTP só se provados; HTTP do broker não prova container MCP HTTP.
-8. Export D09 usa snapshot serializado, não `list()` assumido read-only (`recover_pending`
-   tem efeitos). Allowlist sem env/secrets/mask hints/paths privados desnecessários;
-   app_id distinto de server_id válido e instância; IDs locais sem RepoDigest marcados
-   locais. Observação sem broker é desconhecida, não running inventado.
+  8. Export D09 usa snapshot serializado, não `list()` assumido read-only (`recover_pending`
+    tem efeitos). Allowlist sem env/secrets/mask hints/paths privados desnecessários;
+    app_id distinto de server_id válido e instância; IDs locais sem RepoDigest marcados
+    locais. Observação sem broker é desconhecida, não running inventado.
 9. Export com ordenação estável/replace durável/revisão, sem antigo sobrescrever novo;
    falha de export após commit preserva lock anterior e recovery refaz só projeção.
-   IaC/WUD não escreve esse lock. Restore parte de backup/config privado e policy;
-   owner externo é inventário/conexão, não licença para lifecycle.
+    IaC/WUD não escreve esse lock. Restore do lock/estado real e recuperação em host
+    ficam diferidos; lock nunca é suficiente para autorizar lifecycle de owner externo.
 
-**Matriz negativa obrigatória:** PR/scan/waiver inválido; push parcial; índice/app
+**Matriz negativa ativa:** PR/scan/waiver inválido; push parcial; índice/app
 inconsistentes; origem não confiável; requisito sem enforcement; digest mismatch;
 imagem/plataforma ausentes; 429/timeout/cache; concorrência/CAS/retry; bridge/EOF;
-export atrasado/broker fora/falha após commit; restore sem secrets/config/backup ou
-owner externo. São V05/V06/V11–V20/V24 herdados de I3/I5/I6/I7/I8; detalhes e critérios
-originais preservados no [IaC arquivado](closed/2026-10-23-iac-alignment-execution-plan.md).
+export atrasado/broker fora/falha após commit; owner externo sem permissão. Restore sem
+backup/config/secrets é parte diferida. Casos V05/V06/V11–V19 herdados de I3/I5/I6/I7
+ficam no escopo de qualificação; extensões de recovery/VPS seguem no
+[registro arquivado](closed/2026-10-25-03-deployment-operations-plan.md) e na
+[especificação IaC histórica](closed/2026-10-23-iac-alignment-execution-plan.md).
 
 ## 6. Sequência sem dependência circular
 
 1. D01/D02 e D10 podem ser preparados; D03 intermediário não precisa esperar todo o
    produto, mas C1 final exige os sete SHAs finais. I3 continua adiado até retomada.
-2. D09 export local e O01/O02 locais podem avançar antes de registry/VPS, no escopo
-   autorizado. D07 I5a/I5b desbloqueiam primeira prova D08; I5c fecha a matriz dos três.
+2. D09 export local pode avançar antes de registry/VPS. D07 I5a/I5b desbloqueiam
+   primeira prova D08; I5c fecha a matriz dos três.
 3. D08 pode usar **core candidato local rastreado** sobre MCP/índice publicados.
    Assim I6/I7 podem entrar na fonte final sem esperar publicação anterior do core.
 4. Após engenharia incluída no escopo, refixar D01 → checks locais/scan e D03 final →
-   B13 → D05 → D06 e regressão D08/D09 no core publicado → consumo pelo Plano 3.
-5. Homologação pública e VPS/I9 vêm depois de publicar; não são pré-requisito circular
-   da primeira B13. Publicação intermediária autorizada não certifica código posterior.
+   B13 → D05 → D06; regressar D08/D09 em ambiente descartável contra o artefato
+   publicado. Promoção/consumo em deployment real está diferido.
+5. Homologação pública vem depois de publicar e encerra a distribuição. VPS/I9 e aceites
+   no alvo foram diferidos; não são gates ativos nem pré-requisito circular de B13.
+   Publicação intermediária autorizada não certifica código posterior.
 
 ## 7. Evidência e encerramento
 
@@ -178,9 +183,11 @@ permanece explícito; documentação/triagem não é waiver de imagem.
 
 Fecha D03 somente com sete workflows obrigatórios verdes e artifacts confrontados.
 Fecha distribuição apenas com D01/D04–D08 aplicáveis atendidos, não pelo push.
-Plano integral exige D01–D12 com evidência ou decisão/transferência explícita aceita;
-parcialidade de dados/EOL/Journal continua visível. Não certifica Positronic, VPS ou
-cutover. Não há novo orçamento/prazo aprovado; estimativas antigas de B5/B6 não foram
+O escopo ativo termina na qualificação e homologação dos artefatos em ambiente
+descartável. Rollout, backup/restore de estado real, migração KG, EOL legado, VPS e
+aceite no alvo foram diferidos no registro arquivado, sem execução imediata. Decisões
+pré-publicação e riscos permanecem. Não certifica Positronic nem implica cutover.
+Não há novo orçamento/prazo aprovado; estimativas antigas de B5/B6 não foram
 revalidadas e não são calendário contratado.
 
 **Próxima ação:** bill decide conjunto/método D01 e libera acesso D03; agente prepara

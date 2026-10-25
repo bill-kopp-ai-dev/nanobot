@@ -1,22 +1,27 @@
-# Consolidação dos planos abertos em três planos executáveis
+# Consolidação e recorte de escopo dos planos abertos
 
 - **Data:** 2026-10-25. **Solicitante/decisor de organização:** bill.
+- **Adendo de escopo:** a pedido posterior de bill, implantação/VPS e trabalhos
+  estreitamente dependentes foram retirados dos planos ativos e diferidos. A partir
+  deste adendo há **dois planos ativos**; o Plano 3 é apenas registro arquivado.
+  Ver §8, que prevalece sobre a organização inicial registrada nas §§1–7.
 - **Baseline observado:** `nanobot/main` em `5f77f438`, `git status --short --branch`
   inicialmente limpo e alinhado ao tracking local `origin/main`.
 - **Método:** leitura integral dos oito documentos da raiz `docs/plans/` (sete planos
   e um índice/auditoria), diretrizes, governança e evidências por eles referenciadas.
   Revisão de dependências e critérios; sem nova inspeção de código/runtime/CI/registry
   ou host remoto. Estados técnicos abaixo são herdados, não resultados desta campanha.
-- **Resultado organizacional:** três planos ativos, 40 atividades atuais agrupadas
-  (18 L*, 12 D*, 10 O*), sem quatro trackers para CI nem coordenação paralela.
+- **Resultado inicial:** três planos ativos, então 40 atividades agrupadas (18 L*,
+  12 D*, 10 O*), sem quatro trackers para CI. A decisão posterior reduz o escopo
+  ativo a L01–L16 e D01–D11; O01–O10 e outras atividades correlatas foram diferidas.
 
 ## 1. Organização recomendada e aplicada
 
 | Plano / dono do detalhamento e aceite | Resultado | Interface |
 | --- | --- | --- |
-| [1 — Prontidão local do produto](../plans/2026-10-25-01-product-readiness-plan.md) | Corrigir/validar produto com auth, Browser, KG, skill e resíduos técnicos | L* fornece evidência local para qualificação; dados KG alimentam ensaio O07 |
-| [2 — Qualificação, distribuição e aquisição](../plans/2026-10-25-02-qualification-distribution-plan.md) | Candidato único, C1, B13/publicação, digest homologado, índice/aquisição e export MCP | D* fornece imagens/contratos ao Plano 3; alterações I6/I7 invalidam somente checks locais afetados |
-| [3 — Implantação, recuperação e operação](../plans/2026-10-25-03-deployment-operations-plan.md) | Deployment/backup/restore, promoção/cutover, inventário/VPS e aceite do alvo | O01/O02 em fixture podem começar cedo; O08 público consome D06; O09 encerra integração Percival |
+| [1 — Prontidão local do produto](../plans/2026-10-25-01-product-readiness-plan.md) | Trabalho local/fixture de auth, Browser, KG, skill e resíduos independentes | L* pode fornecer evidência de produto ao Plano 2; KG real permanece diferido |
+| [2 — Qualificação, distribuição e aquisição](../plans/2026-10-25-02-qualification-distribution-plan.md) | Candidato único, C1, B13/publicação, digest homologado, índice/aquisição e export MCP local | D* termina em aquisição/homologação descartável; sem consumo em deployment vivo |
+| [Escopo diferido: deployment/recuperação/operação](../plans/closed/2026-10-25-03-deployment-operations-plan.md) | **Não é plano ativo.** Deployment/backup/restore real, promoção/cutover, inventário/VPS e aceite do alvo foram retirados do horizonte próximo | Retomada futura somente por nova decisão explícita; nenhum Plano 1/2 depende desse trabalho |
 
 Critério de agrupamento: **o que o trabalho entrega e quem aceita**, não o nome da
 campanha que o originou. Escopos e gates conservados; “consolidar” não é reduzir
@@ -32,18 +37,18 @@ preparação/revisão repetidas; não foi medida como economia realizada.
 | DIST-B6 descrevia publicação/pull já detalhados em I3/I5 e aquisição I6 | D01 fixa conjunto/método; D04–D08 executam preparo/publicação/homologação/aquisição uma vez | Oito artefatos D8 versus dois MCPs oficiais é decisão de escopo, não redundância eliminável |
 | MCP-B1/B4/B6 tinham campanhas Browser com mesmo backend; auth e KG também precisam Browser | L02 compartilha infraestrutura; L05 agrega smoke/matriz E2E/a11y, L03/L07 mantêm cenários próprios | CLI/happy-dom não provam Browser; estado/reset separado por cenário, não uma execução que “fecha tudo” |
 | D11 só determinístico não prova comportamento LLM; incidente M-1 era citado em dois lugares | L01 apura M-1; L11 concentra dry-run real, HTTP e política admin | Evidência inconclusa não prova exclusão nem ausência dela. M-1 precede novo ensaio read-only |
-| R02/R04, senha P2-F, I8 e C3 repetiam backup/retorno em domínios diferentes | O02 define mecanismo comum; O04 faz backup do contexto atual; O06/O07/O08 aplicam a seus cortes | Cópia fixture não substitui backup real; imagem antiga não desfaz migração de dados |
-| I4/C2/C3/P4 tratavam host/layout/implantação | O01 prepara contrato/bootstrap local; O03 inventaria alvo; O08 valida deployment/auth no alvo; O09 aceita | Inventário read-only pode anteceder auth/publicação; escrita só após destino/retorno/autorização |
-| KG benchmark precedia insumo representativo na leitura superficial | L08 → L09; L08/cópia → O07; release/upgrade/rollback → D12 EOL | Bundle vazio não prova desempenho em conteúdo real; ensaio pessoal do operador não vira tarefa do agente |
+| R02/R04, senha P2-F, I8 e C3 repetiam backup/retorno em domínios diferentes | Inicialmente O02/O04/O06/O07/O08; agora todo pacote de backup/restore real e cutover está diferido | Retorno sintético em L03/D08 permanece confinado à fixture; não é backup operacional |
+| I4/C2/C3/P4 tratavam host/layout/implantação | Inicialmente O01/O03/O08/O09; agora o pacote todo está diferido, sem descoberta ou inventário de alvo ativo | Nenhuma escrita/inventário remoto; D06 continua homologação de artefato em daemon descartável |
+| KG benchmark precedia insumo representativo na leitura superficial | L08 → L09 continua; L08 usa conteúdo autorizado em ambiente local/isolado; KG-A6/A7 e EOL → escopo diferido | Bundle de produção e migração não são dependência dos testes locais; operador decide se dá acesso a fixture/conteúdo |
 | I3 final podia parecer bloquear I6 que precisa entrar no próprio core | Primeiro MCP/índice D07 → I6 em core candidato **local** D08 → SHA final/C1 → core público | I3 permanece adiado. MCP publicado precisa de sua própria aprovação; não antecipar publicação do core |
 | Continuidade e índice replicavam status sem execução própria | Continuidade distribuída entre os três; índice histórico arquivado, relatório contém mapa sem novo tracker | Nenhum quarto plano de coordenação; status novo é registrado só em L*/D*/O* |
 
 ## 3. Precedência e regra de migração
 
-Os oito documentos originais foram movidos para `docs/plans/closed/`, com aviso de
+Os documentos originais foram movidos para `docs/plans/closed/`, com aviso de
 transferência e links realocados. Corpos históricos preservam conteúdo, critérios,
 contratos e resultados. Sua linguagem “ativo/dono único/próxima ação” é datada.
-Os três planos novos prevalecem **para ownership e sequência**, sem revogar ADRs,
+Os planos ativos iniciais prevaleceram **para ownership e sequência**, sem revogar ADRs,
 governança ou requisitos detalhados herdados. Especificações antigas são referências
 estáticas dos novos itens, não lugares para registrar execução nova.
 
@@ -52,7 +57,11 @@ salvo divisão explícita na tabela abaixo. ST-01–ST-16 e D11-C1–C10 ficam s
 com M-1/C8 acompanhado em L01. V01–V24 estão mapeados na §5. Nenhuma subtarefa fica
 sem dono por não reaparecer verbatim no resumo do novo plano.
 
-## 4. Mapa completo de atividades de origem
+## 4. Mapa de atividades da consolidação inicial (histórico)
+
+As destinações L*/D*/O* abaixo descrevem a primeira organização, não o recorte
+vigente depois do adendo. Ver §8 para a classificação atual: itens O* e atividades
+íntimas foram arquivados como diferidos; nenhum O* permanece como owner ativo.
 
 ### 4.1 Produto integrado e autenticação
 
@@ -144,7 +153,10 @@ sem dono por não reaparecer verbatim no resumo do novo plano.
 | B13 | Decisão bill em D02/D05 | Pré-publicação, não requisito circular de homologação/VPS já completos |
 | Índice/auditoria 2026-10-23 | Este relatório como mapa estático; status nos três planos | Sem atividade de execução própria; percentuais históricos não recalculados |
 
-## 5. Cobertura dos 24 casos de aceitação IaC
+## 5. Cobertura original dos 24 casos de aceitação IaC
+
+Esta matriz registra para onde os critérios foram mapeados na primeira consolidação.
+As extensões de deployment, estado real, restore integral e alvo estão diferidas pela §8.
 
 | Caso original | Atividade que conserva o critério / evidência |
 | --- | --- |
@@ -177,7 +189,7 @@ Compartilhar prova não multiplica o aceite: dono do mecanismo registra resultad
 consumidores apontam à mesma identidade. Casos com extensões local/público/alvo
 permanecem abertos até cobrir seus ambientes aplicáveis; `SKIP` não é `PASS`.
 
-## 6. Sequência consolidada e recursos
+## 6. Sequência da primeira consolidação (histórico)
 
 ```text
 L01 → L11                         L08 → L09
@@ -197,7 +209,7 @@ Actions/artifacts, workspaces IaC/índice/template, namespace registry e VPS sã
 recursos a fornecer/confirmar por bill. Falta de um recurso bloqueia seu consumidor,
 não todos os trabalhos independentes. Nenhuma delegação/subagente foi solicitada.
 
-## 7. Mudanças, verificações e próximo passo
+## 7. Mudanças, verificações e próximo passo da consolidação inicial
 
 - Três planos criados; oito documentos anteriores arquivados com avisos de destino;
   referências e índice de arquivo realocados, `.gitignore` alinhado aos três ativos.
@@ -212,15 +224,15 @@ não todos os trabalhos independentes. Nenhuma delegação/subagente foi solicit
 - Nenhum commit/push novo está autorizado pelo pedido atual; alterações locais ficam
   disponíveis para revisão. O commit `5f77f438` é baseline da campanha anterior.
 
-### Verificações editoriais realizadas
+### Verificações editoriais realizadas na primeira consolidação
 
 Validador local: `/home/bill/.positronic/runtime/tmp/opencode/check_three_plan_consolidation.py`.
 As verificações abaixo são documentais; não são homologação do produto.
 
 | Critério | Resultado |
 | --- | --- |
-| Limite de planos ativos | Exatamente três Markdown na raiz de `docs/plans/` |
-| Atividades atuais | L01–L18, D01–D12 e O01–O10 contíguos, sem definição duplicada |
+| Limite inicial de planos ativos | Exatamente três Markdown na raiz, antes da decisão posterior de redução |
+| Atividades da primeira consolidação | L01–L18, D01–D12 e O01–O10 contíguos, sem definição duplicada |
 | Transferência | KG-A1–A7, MCP-B1–B7, AUTH-A1–A9, R01–R14 e V01–V24 mapeados; 55 subtarefas IaC preservadas e encaminhadas |
 | Links/âncoras | 571 referências locais e 22 fragmentos válidos em 30 documentos Markdown |
 | Estrutura | 154 tabelas consistentes; fences fechadas; dois delimitadores finais ausentes em tabela histórica corrigidos sem mudar conteúdo |
@@ -228,6 +240,66 @@ As verificações abaixo são documentais; não são homologação do produto.
 | Versionabilidade | Planos novos, arquivos movidos e relatório não ignorados por `.gitignore` |
 | Whitespace | `git diff --check` passou |
 
-**Próximo passo técnico proposto:** começar por M-1 e pelo harness comum, enquanto
-bill decide conjunto/método de distribuição e fornece acesso CI/dados necessários.
-Manter adiamentos até retomada explícita. Não há próximo corte de produto autorizado.
+**Próximo passo da primeira consolidação:** começar por M-1 e pelo harness comum, enquanto
+bill decide conjunto/método de distribuição e fornece acesso CI/dados necessários. Este
+registro foi depois atualizado pelo adendo abaixo.
+
+## 8. Adiamento de deploy e VPS — recorte vigente
+
+<a id="deferred-deployment-vps"></a>
+
+**Decisão do operador:** as atividades relacionadas a deploy/testes em VPS e as etapas
+estreitamente dependentes não serão executadas no futuro próximo, porque há prioridades
+anteriores. Não se registra data de retomada. O Plano 3 foi movido integralmente para
+`docs/plans/closed/2026-10-25-03-deployment-operations-plan.md`, preservando critérios,
+responsáveis e decisões sem manter um terceiro plano ativo. O arquivamento é **diferimento**,
+não conclusão, transferência para execução atual nem autorização.
+
+| Etapas identificadas | Tratamento vigente | O que permanece ativo |
+| --- | --- | --- |
+| I4.1–I4.6 / O01 — layout do host, bundle Compose de produção, bootstrap/OpenTofu, preflight e `deployment.lock` | Diferidas integralmente, incluindo ensaios locais que só servem ao pacote de deployment | Verificação de produto em fixtures, CI e artefatos no Plano 2; não gerar bundle/receita de deploy agora |
+| I8.1–I8.7 / O02 — política de backup do estado inteiro, RPO/RTO, update/restore, recuperação e ensaios de falha | Diferidas; backup/restore de configuração, auth, KG, MCPs, journals e estado real fora do escopo atual | Retorno de uma operação sintética dentro dos testes L03/D08 continua restrito à fixture e não é um programa de backup/DR |
+| C2–C4, AUTH-A9, O03/O08/O09, I9 — inventário, instalação, auth/proxy e aceite de VPS/staging | Diferidos; nenhum host será selecionado/inventariado/aplicado como parte dos planos ativos | Checks locais/Actions e pull/homologação D03–D08 não exigem VPS |
+| R02/R04/R05/R14, O04/O05/O10 — snapshots do estado de consumidores, pins A/B, backup antes do corte, promoção/canário, inventário pós-corte/retenção | Diferidos; sem atividade de cutover em gestor vivo, alteração de pins, reconciliação pós-corte ou limpeza | D01 matriz de artefato não inclui pin por consumidor; D08 adquire e exercita lifecycle só em manager/daemon descartável |
+| AUTH-A7/P2-F / O06 — cutover de autenticação em instância real | Diferido; testes L03 permanecem em DIND/fixture e não migram credenciais reais | L03 segue adiado pelo operador; seus ensaios locais não são de VPS |
+| KG-A6/O07 e KG-A7/D12 — migração/rollback de bundle real, decisão `kg.mode=native`, EOL/archive CM/AK dependentes de release/upgrade real | Diferidos, inclusive reconciliação e release/EOL operacional dos legados; decisão de manter/arquivar não é reaberta aqui | L08/L09 com conjunto autorizado e sintético/isolado permanecem ativos; não usar bundle de produção |
+| R07 — escolher representação de secrets em backups/transições e migração/restore | Diferido junto com I8/O02 | D02 continua tratando exposição/proveniência estritamente para avaliação do candidato e pré-publicação; nenhuma migração de secret |
+| R12/L16 anterior — validar profile nginx de Deep Research como runtime de produção | Diferido como qualificação de um modo de implantação; se o modo não estiver no candidato, não bloqueia testes locais gerais | Outros testes Browser/auth/WebUI em fixture permanecem ativos |
+| D09 / I7.1–I7.4 — export e reconciliação de `capabilities.lock` | Mantidos apenas como trabalho de projeção/export local, sem restore, deployment lock ou reconciliação no host | D09 ativo no Plano 2; restauração de estado real está diferida |
+| D12 / KG-A7 — reconciliação de banner/MIGRATION/freeze e release estável com upgrade/rollback | Retirado do Plano 2 e diferido junto com O07; sem arquivamento de repos/tags/actions | Nenhum requisito de EOL legado para fechar Plano 1 ou Plano 2 |
+
+### Casos IaC afetados
+
+Em V01–V24, provas de contrato/produto ainda necessárias para a qualificação são
+executadas em escopo local/fixture conforme Plano 1/2. As porções que exigem pacote
+de produção, estado real, restore completo, paths do host, aquisição implantada, VPS,
+staging ou aceite operacional são diferidas (em particular V07–V10, V15 quando se
+trata de core/restore, V20–V24 nas extensões de recovery/alvo). O inventário original
+dos 24 casos permanece no histórico IaC; nenhum `PASS` é inferido nem o critério é
+considerado concluído. Se um caso combinar local e VPS, apenas a parte local que serve
+diretamente a L*/D* pode rodar; ela não satisfaz a extensão diferida.
+
+### Plano ativo após o adendo
+
+- **Plano 1:** L01–L16, local/fixture e atividades independentes de rollout; AUTH-P2
+  continua explicitamente adiado pelo operador. L08→L09 permanece; cópia/migração real
+  de KG não é prerequisite nem subtarefa ativa.
+- **Plano 2:** D01–D11 termina em CI, distribuição e aquisição/homologação em ambientes
+  descartáveis. D05 ainda exige retomada de I3, B13 e autorização própria; D06 não
+  significa implantação nem promoção de gestor vivo. D12/KG-A7 foi removido para o
+  escopo diferido.
+- **Escopo diferido (antigo Plano 3):** arquivado como referência de critérios para eventual retomada; não conta
+  como terceiro plano ativo nem como backlog prioritário. AGENTS/runbook/índice devem
+  encaminhar implantação, rollback real e VPS para esse registro diferido.
+
+**Critério de retomada:** decisão futura explícita de bill para reabrir escopo e
+priorizar infraestrutura/deploy; nessa ocasião reavaliar os critérios arquivados, o
+estado atual dos candidatos, a disponibilidade do alvo/recursos e criar um plano ativo
+ou aditamento com sequência/aceites atuais. Não presumir que os snapshots de 2026-10-25
+continuarão válidos. Nenhuma atividade diferida foi executada por esta edição.
+
+**Verificação editorial do adendo:** raiz `docs/plans/` contém dois planos ativos;
+L01–L16 e D01–D11 são contínuos; o registro O01–O10 está arquivado, sem execução.
+Links/fragmentos, tabelas e preservação dos históricos foram validados pelo checker
+local da campanha; `git diff --check` foi repetido para esta alteração. Nenhum teste
+de runtime, Actions, registry, daemon ou VPS foi executado.

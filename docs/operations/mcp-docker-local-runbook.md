@@ -3,7 +3,7 @@
 - **Revisado em:** 2026-10-24 UTC; revisão 0.2 (D9).
 - **Escopo:** procedimentos de operação, atualização, rollback, incidente, revisão e retenção para os servidores MCP Docker que o Percival consome (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research) e para o gateway/broker. Este manual **não** substitui o [runbook de migração de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md), apenas convive com ele.
 - **Autoridade:** qualquer mutação real (instalar/atualizar/rollback/parar/remover) exige a interface suportada do gestor correspondente e a aprovação específica do operador. Nada aqui é executado implicitamente.
-- **Planos de execução:** [Plano 1 — produto local](../plans/2026-10-25-01-product-readiness-plan.md), [Plano 2 — qualificação/distribuição](../plans/2026-10-25-02-qualification-distribution-plan.md) e [Plano 3 — implantação/operação](../plans/2026-10-25-03-deployment-operations-plan.md). Contratos/histórico no [F0–F8 arquivado](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md). F7 assinado com ressalvas não aprova CI, distribuição ou promoção.
+- **Planos ativos:** [Plano 1 — produto local](../plans/2026-10-25-01-product-readiness-plan.md) e [Plano 2 — qualificação/distribuição](../plans/2026-10-25-02-qualification-distribution-plan.md). Deploy/VPS, cutover e promoção em gestores reais estão diferidos no [registro de escopo arquivado](../plans/closed/2026-10-25-03-deployment-operations-plan.md). Contratos/histórico no [F0–F8 arquivado](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md). F7 assinado com ressalvas não aprova CI, distribuição ou promoção.
 
 ## 1. Princípios
 
@@ -309,7 +309,7 @@ antes de qualquer promoção.
 ## 6. Links e procedimentos vizinhos
 
 - [Padronização Docker arquivada](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md) — contratos e snapshots F0–F8.
-- [Plano 3 — implantação/operação](../plans/2026-10-25-03-deployment-operations-plan.md) — backup, canário, retorno, retenção e aceite no alvo; CI/candidato têm dono no Plano 2.
+- [Escopo diferido de implantação/operação](../plans/closed/2026-10-25-03-deployment-operations-plan.md) — especificação histórica, não autorização ou plano ativo.
 - [Plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md) — pacotes P0–P5 que precedem este manual.
 - [Runbook F5 — migração/recuperação de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md) — procedimento de cutover do estado Compose sidecar.
 - [Governança B10–B13](../percival-governance.md) — upstream/CI/release.

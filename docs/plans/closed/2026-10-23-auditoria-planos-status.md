@@ -3,7 +3,7 @@
 > **Índice histórico arquivado em 2026-10-25, a pedido de bill.** A lista corrente
 > contém somente [Plano 1](../2026-10-25-01-product-readiness-plan.md),
 > [Plano 2](../2026-10-25-02-qualification-distribution-plan.md) e
-> [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> [registro diferido de implantação/VPS](2026-10-25-03-deployment-operations-plan.md).
 > Percentuais, estados e recomendações abaixo preservam suas datas e não são
 > instruções atuais. A análise desta reorganização está no
 > [registro de consolidação](../../reports/2026-10-25-three-plan-consolidation.md).

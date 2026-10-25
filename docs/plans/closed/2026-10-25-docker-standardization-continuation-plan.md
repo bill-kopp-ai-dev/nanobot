@@ -3,7 +3,7 @@
 > **Arquivado por consolidação em 2026-10-25, a pedido de bill.** Resíduos de
 > engenharia/skill → [Plano 1](../2026-10-25-01-product-readiness-plan.md);
 > candidato/segurança/CI/distribuição → [Plano 2](../2026-10-25-02-qualification-distribution-plan.md);
-> backup/promoção/operação → [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> backup de estado real/promoção/operação → escopo diferido no [registro arquivado](2026-10-25-03-deployment-operations-plan.md), não tracker ativo.
 > R01–R14 e todos os gates referenciados têm destino no
 > [mapa integral](../../reports/2026-10-25-three-plan-consolidation.md).
 > Transferência não executa F6 nem fecha gates; corpo abaixo é histórico/especificação.
