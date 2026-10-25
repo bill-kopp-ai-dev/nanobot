@@ -12,10 +12,11 @@
 docs/superpowers/
 docs/plans/*
 !docs/plans/closed/
-!docs/plans/2026-10-09-docker-standardization-refactor-plan.md
+!docs/plans/2026-10-25-docker-standardization-continuation-plan.md
 !docs/plans/2026-10-11-single-password-acceptance-closure-plan.md
 !docs/plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md
-!docs/plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md
+!docs/plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md
+!docs/plans/2026-10-24-d11-skill-operations-closure-plan.md
 !docs/plans/2026-10-23-auditoria-planos-status.md
 !docs/plans/2026-10-23-iac-alignment-execution-plan.md
 !docs/plans/2026-10-25-f5-c1-remote-ci-closure-plan.md

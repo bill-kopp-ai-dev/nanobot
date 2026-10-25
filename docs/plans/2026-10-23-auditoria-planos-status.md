@@ -1,4 +1,4 @@
-# Auditoria de planos — status de conclusão
+# Índice de planos ativos e auditoria histórica de conclusão
 
 - **Data:** 2026-10-23.
 - **Escopo original:** snapshot dos 9 documentos então em `docs/plans/`, antes das
@@ -12,37 +12,44 @@
 - **Aviso:** porcentagem alta **não** equivale a plano concluído. Três documentos proíbem
   explicitamente declarar-se fechados antes de gates externos (Actions, Engine 27.x, VPS).
 
-## Leitura corrente após a harmonização IaC — 2026-10-23
+## Leitura corrente — reconciliação de 2026-10-25
 
-As porcentagens e recomendações originais abaixo são **históricas**, não medem o
-escopo IaC acrescentado e não devem disparar execução de passos já substituídos.
-O rastreamento ativo é:
+Este documento é índice/snapshot, não plano de execução nem dono de gates. As
+porcentagens, diagnósticos e recomendações a partir da §“Situação histórica” são
+preservados como evidência de 2026-10-23; não são estimativas atuais nem instruções
+para repetir entregas já fechadas. O índice ativo foi revisto contra todos os oito
+documentos Markdown na raiz de `docs/plans/` (incluindo este índice):
 
 | Plano | Papel / dono |
 | --- | --- |
-| [Padronização Docker v1.0](2026-10-09-docker-standardization-refactor-plan.md) | F0–F8 como fases e baseline; contrato-alvo/handoff IaC harmonizado |
-| [Fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12: lacunas locais, runtime/proveniência, F7/F8 |
+| [Continuidade Docker](2026-10-25-docker-standardization-continuation-plan.md) | Sucessor de F0–F8; R01–R14 e mapa completo de pendências, com um dono por gate |
 | [Integração KG/MCP](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | A1–A7 KG, B1–B7 MCP/browser, C1 CI e C2–C4 alvo VPS |
 | [Senha única](2026-10-11-single-password-acceptance-closure-plan.md) | A1–A9 de autenticação; rehearsal e handoff de persistência/segredos |
-| [Integração IaC](2026-10-23-iac-alignment-execution-plan.md) | I1–I9: arbitragem, runtime, Docker Hub/CI de release, bootstrap/layout/locks, índice e aquisição MCP, recuperação e aceite IaC |
+| [Integração IaC](2026-10-23-iac-alignment-execution-plan.md) | I1/I2 concluídos, I3 adiado e I4–I9 pendentes: distribuição, deployment, índice/aquisição, locks e recovery |
+| [F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md) | Checklist único de Actions/artifacts; aceite C1 no integrado, não segundo gate |
+| [Distribuição B6](2026-10-24-b5-b6-ci-distribution-closure-plan.md) | B6 da D8; B5 CI transferido para F5/C1, sem promoção autorizada |
+| [Acompanhamento D11](2026-10-24-d11-skill-operations-closure-plan.md) | Incidente M-1, dry-run LLM, profile HTTP e política admin; D11 administrativo fechado |
 
-**Mudanças de planejamento:** Docker Hub como alvo oficial aberto (namespace pendente),
-GitHub Actions como publicador e índice GitHub curado; Compose só core + broker,
-manager nativo só seus MCPs. `local-only`/`--pull=never` permanecem baseline de runtime,
-não proibição da integração OCI futura. Aquisição explícita por digest, compatibilidade
-e policy são I1/I6; o antigo catálogo OCI compartilhado não é dependência obrigatória.
+**Arquivos históricos:** [F0–F8](closed/2026-10-09-docker-standardization-refactor-plan.md)
+foi fechado por transferência em 2026-10-25; [D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+e F7 estão encerrados com ressalvas. D11/F8 foi encerrado administrativamente. Nada
+disso fecha C1, distribuição, autenticação ou VPS. O [mapa de sucessores](closed/README.md)
+indica os donos ativos, sem contagem histórica fixa de arquivos arquivados.
 
-I4/C2 reconciliam `~/.nanobot`, `.percival` e `/srv/pblabs/` antes de migrar; não há rename
-automático. `deployment.lock` pertence ao deploy externo; `capabilities.lock` é export
-do manager. `0.1.0` já é a primeira versão pretendida; alinhar o metadado herdado não é
-uma nova decisão de versão. Broker existente não é reimplementado, e sua existência
-não equivale a isolamento total/aceite VPS. Os sete planos em `closed/` continuam
-histórico, com [mapa de sucessores](closed/README.md).
+**Contratos vigentes:** I1 decidiu Docker Hub `pbeanlabs` e fontes GitHub; acesso e
+publicação não verificados por esta revisão. I2 alinhou metadata/runtime 1 a `0.1.0`;
+F3 local foi fechado e F4/F5 receberam revalidação em 2026-10-25. Spawn continua
+`--pull=never`; aquisição I6, deployment.lock I4 e capabilities.lock I7 são futuros.
+I4/C2 resolvem layout sem rename automático; socket apenas no broker não prova
+isolamento total. Política de severidade e aceites separados continuam vigentes.
 
-Nenhum item foi executado ou fechado por esta revisão; estimativas anteriores não
-foram recalculadas. Publicação, deploy, aceite local e release B13 continuam separados.
+**Resultado desta revisão:** transferência/arquivamento e correções documentais,
+com commit/push solicitados. Nenhum gate técnico foi executado/fechado; porcentagens
+não foram recalculadas. O [relatório cruzado](../reports/2026-10-25-plans-cross-review-and-docker-handoff.md)
+registra inconsistências e verificação editorial. O antigo achado de exceções
+`.gitignore` foi reconciliado com a lista ativa nesta campanha.
 
-## Situação consolidada
+## Situação histórica — snapshot de 2026-10-23
 
 | Grupo | Critério | Planos | Leitura |
 | --- | --- | --- | --- |

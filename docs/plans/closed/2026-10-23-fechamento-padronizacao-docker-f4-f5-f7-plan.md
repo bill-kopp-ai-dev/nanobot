@@ -43,7 +43,7 @@
   [auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md)
   §3.4 é o snapshot anterior a I1/I2; suas referências `arquivo:linha` e ferramentas
   externas exigem reconferência, não são observações novas desta revisão.
-- **Plano de fase de origem:** [padronização Docker](../2026-10-09-docker-standardization-refactor-plan.md),
+- **Plano de fase de origem:** [padronização Docker](2026-10-09-docker-standardization-refactor-plan.md),
   seções F4, F5, F7 e F8. Este plano substitui os dois planos de fechamento e passa a ser a
   fonte de verdade do quadro de pendências, hoje desatualizado no plano de fase.
 - **Autoridade:** não autoriza reescrita de histórico, push, remoção de containers/imagens,

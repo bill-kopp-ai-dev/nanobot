@@ -2,7 +2,7 @@
 
 - **ARQUIVADO em 2026-10-23.** Fundido com o outro plano de fechamento da padronização Docker no [plano de fechamento F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), que é o único dono dos itens de padronização (credencial, proveniência, Khan, duplicatas, OpenSSH, runtime, manual, skill F8 e assinatura F7). Os passos de **Actions e VPS** foram transferidos para C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), para não haver gate com dois donos. Este documento não é reaberto; preserva histórico, critérios e evidências. Ver também a [auditoria de planos](../2026-10-23-auditoria-planos-status.md).
 - **Verificado em:** 2026-10-10, contra o checkout local e relatórios existentes.
-- **Escopo:** item 4 das ações F7 do [plano de padronização](../2026-10-09-docker-standardization-refactor-plan.md). F4/F5 deste plano **não** substituem F5 de deploy MCP Docker no VPS, nem encerram o resíduo F3 da pendência #11.
+- **Escopo:** item 4 das ações F7 do [plano de padronização](2026-10-09-docker-standardization-refactor-plan.md). F4/F5 deste plano **não** substituem F5 de deploy MCP Docker no VPS, nem encerram o resíduo F3 da pendência #11.
 - **Estado:** código e parte dos smokes locais existem; ambos os gates permanecem abertos. Não foram executados restore/rollback, Actions remotas ou alterações de credenciais nesta revisão.
 
 ## Evidência já disponível e lacuna efetiva

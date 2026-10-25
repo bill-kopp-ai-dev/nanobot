@@ -2,7 +2,7 @@
 
 **Data da observação:** 2026-10-09
 **Estado:** baseline e decisões F0 concluídos; execution gates F1+ ainda não iniciados.
-**Plano:** [padronização Docker do Percival](../plans/2026-10-09-docker-standardization-refactor-plan.md)
+**Plano:** [padronização Docker do Percival](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md)
 
 ## Escopo e método
 

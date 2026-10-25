@@ -3,7 +3,7 @@
 - **Data:** 2026-10-09
 - **Estado:** implementação revisada e integrada em `origin/main`; o gate final
   de builds canônicos em checkout limpo permanece aberto.
-- **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F2.
+- **Plano:** [`padronização Docker`](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md), fase F2.
 - **Engine local observado:** Docker Engine 29.7.2, linux/amd64. Isto não demonstra compatibilidade com Engine 27.x do gate remoto.
 
 **Atualização 2026-10-24:** gate local F2 concluído pela reconciliação dos seis

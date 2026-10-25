@@ -3,7 +3,7 @@
 - **Revisado em:** 2026-10-24 UTC; revisão 0.2 (D9).
 - **Escopo:** procedimentos de operação, atualização, rollback, incidente, revisão e retenção para os servidores MCP Docker que o Percival consome (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research) e para o gateway/broker. Este manual **não** substitui o [runbook de migração de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md), apenas convive com ele.
 - **Autoridade:** qualquer mutação real (instalar/atualizar/rollback/parar/remover) exige a interface suportada do gestor correspondente e a aprovação específica do operador. Nada aqui é executado implicitamente.
-- **Estado da padronização:** o documento nasce no fechamento F7. Os contratos F0–F5 que ele referencia estão registrados no [plano de padronização](../plans/2026-10-09-docker-standardization-refactor-plan.md) e no [plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md).
+- **Estado da padronização:** contratos/histórico no [plano F0–F8 arquivado](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md); pendências e coordenação no [plano de continuidade](../plans/2026-10-25-docker-standardization-continuation-plan.md). F7 foi assinado com ressalvas; isso não aprova os gates remotos ou a promoção.
 
 ## 1. Princípios
 
@@ -242,7 +242,7 @@ Retêm-se também o par core ativo do deploy D11
 `percival-gateway:0.1.0-b49dd8b` no container nomeado `d6-nopip` também foi
 observado ativo; é um fixture preexistente, não o gateway do Compose, e
 permanece fora de qualquer limpeza. Os resultados do scanner e os
-smoke/limites de cada B estão no [registro D8](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
+smoke/limites de cada B estão no [registro D8](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção-2026-10-24).
 
 **Gates antes de qualquer promoção (2026-10-24):** os findings Python dos
 seis MCPs e do broker foram corrigidos — os sete image IDs B reportam zero
@@ -308,7 +308,8 @@ antes de qualquer promoção.
 
 ## 6. Links e procedimentos vizinhos
 
-- [Plano de padronização Docker](../plans/2026-10-09-docker-standardization-refactor-plan.md) — contratos F0–F5 e pendências numeradas.
+- [Padronização Docker arquivada](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md) — contratos e snapshots F0–F8.
+- [Continuidade Docker](../plans/2026-10-25-docker-standardization-continuation-plan.md) — pendências, candidatos, canário e referências aos donos dos gates.
 - [Plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md) — pacotes P0–P5 que precedem este manual.
 - [Runbook F5 — migração/recuperação de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md) — procedimento de cutover do estado Compose sidecar.
 - [Governança B10–B13](../percival-governance.md) — upstream/CI/release.

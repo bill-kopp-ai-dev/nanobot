@@ -1,6 +1,6 @@
 # F3 — Reprodutibilidade, contextos e postura base (execução 2026-10-25)
 
-- **Escopo:** gate F3 do [plano de padronização Docker](../plans/2026-10-09-docker-standardization-refactor-plan.md)
+- **Escopo:** gate F3 do [plano de padronização Docker](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md)
   para o core Percival (gateway + broker) e os seis MCPs, em `linux/amd64`.
 - **Autoridade:** execução local. Nenhuma imagem foi publicada, promovida, removida
   ou instalada; nenhum pin, revisão, allowlist, credencial ou container de produto

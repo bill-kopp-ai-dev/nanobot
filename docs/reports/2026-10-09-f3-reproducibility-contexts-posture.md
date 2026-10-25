@@ -4,7 +4,7 @@
 - **Estado:** implementação e validação local concluídas; **gate F3 aberto** por
   findings Critical/High sem triagem/waiver e ausência de build em checkout limpo
   no builder CI.
-- **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F3.
+- **Plano:** [`padronização Docker`](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md), fase F3.
 - **Manifest detalhado:** [`F3 image build manifest`](2026-10-09-f3-image-build-manifest.json).
 - **Política:** [`Docker image security and maintenance policy`](../Decisions/2026-10-09-docker-image-posture-policy.md).
 - **Target:** `linux/amd64`; imagens locais apenas, sem cutover/publicação.

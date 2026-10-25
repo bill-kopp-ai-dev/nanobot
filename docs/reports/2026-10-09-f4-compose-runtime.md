@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-09
 - **Estado:** implementação local validada por render/estrutura; gate F4 aberto.
-- **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F4.
+- **Plano:** [`padronização Docker`](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md), fase F4.
 - **Engine/Compose local:** Docker Compose v5.5.1; `linux/amd64`.
 - **Governança:** nenhum commit/push, build/promoção de imagem, cutover,
   operação sobre containers reais ou limpeza foi executado.

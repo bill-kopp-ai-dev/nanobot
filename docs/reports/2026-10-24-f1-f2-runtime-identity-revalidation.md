@@ -3,7 +3,7 @@
 - **Data:** 2026-10-24, America/Sao_Paulo (UTC-03:00).
 - **Estado:** F1 revalidada nos candidatos atuais; critérios locais do gate F2
   atendidos, com implementação complementar de inventário no worktree.
-- **Plano:** [padronização Docker](../plans/2026-10-09-docker-standardization-refactor-plan.md),
+- **Plano:** [padronização Docker](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md),
   fases F1 e F2, após o [fechamento da reexecução F0](2026-10-24-f0-closure-record.md).
 - **Fonte Percival:** HEAD `3ae3098e`, mais o diff de inventário/testes/documentação
   desta execução. Nenhuma alteração nos seis repositórios MCP.

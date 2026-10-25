@@ -7,7 +7,7 @@
   (rotação de credencial exposta) encerrada por aceitação formal do risco residual
   — ver [registro de fechamento](2026-10-24-f0-closure-record.md). Nenhuma mutação
   foi executada.
-- **Plano:** [padronização Docker do Percival](../plans/2026-10-09-docker-standardization-refactor-plan.md),
+- **Plano:** [padronização Docker do Percival](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md),
   fase F0 (§3) e decisões §2.
 - **Precedente:** [inventário F0 de 2026-10-09](2026-10-09-f0-docker-baseline-inventory.md)
   (histórico, gate então concluído) e
@@ -269,7 +269,7 @@ configuração foram migrados para pin por image ID.
 | `percival-mcp-broker:local` | **pin efetivo em execução**, mutável | `percival-mcp-broker:<semver>-<shortsha>` + `docker.io/pbeanlabs/percival-mcp-broker` (ADR I1) |
 | `percival-<mcp>:<semver>-<shortsha>` | padrão já em uso | mantido (fonte da versão = `pyproject.toml`) |
 | `percival-<mcp>:*-f3-<diff>` / `*-f7-test-*` / `:smoke` / `:local` / `:audit` | candidatos de worktree/smoke | sem papel de identidade; mantidos como rollback até decisão de retenção |
-| `localhost:5000|5001/...` | registries de fixture | sem papel; já sem imagem referenciada |
+| `localhost:5000\|5001/...` | registries de fixture | sem papel; já sem imagem referenciada |
 | `positronic/<servidor>:<versão>-local` | aliases do gestor Positronic (2026-10-09) | não existem mais; pins passaram a ser image ID |
 
 ## 9. Labels de container em uso

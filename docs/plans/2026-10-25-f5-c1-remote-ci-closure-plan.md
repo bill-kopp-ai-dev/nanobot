@@ -3,6 +3,7 @@
 - **Prepared:** 2026-10-25, by the agent after bill requested closure of F5 and transfer of its remaining remote work.
 - **Status:** active follow-up. The **local implementation scope of F5 is closed** in the master plan; **C1 is open** until exact-SHA Actions and artifact acceptance are proven.
 - **Acceptance owner:** C1 remains owned by the [integrated pending-work plan](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). This plan is its execution checklist, not a second acceptance gate.
+- **Coordination update, 2026-10-25:** remaining work from the archived F0–F8 plan is indexed in the [Docker continuation plan](2026-10-25-docker-standardization-continuation-plan.md). F5 implementation is closed; C1 remains open. The Actions table below is a dated snapshot, not a live query or a claim about the next commit.
 - **Related plan:** B6 distribution remains in [B5/B6 CI-distribution closure](2026-10-24-b5-b6-ci-distribution-closure-plan.md); this plan does not authorize B6 publication/acquisition.
 - **Authority:** bill authorized six MCP corrective commits/pushes to `main` in this campaign. That is not blanket authorization for later source pushes, repository settings changes, login, registry access, publication, promotion or deployment. Actions enablement and GitHub authentication remain operator-owned.
 
@@ -10,7 +11,7 @@
 
 F5 implementation now provides per-repository Docker build/conformance workflows for the six MCPs and the Percival core workflow. The follow-up MCP fixes were pushed to `main`; five MCPs have green remote workflows, while Deep Research's latest Python test job failed. The core SHA has no current Actions run. CI artifacts are listed for some green MCP runs, but manifests/SBOMs have not been downloaded or compared with their source/build inputs.
 
-This plan closes only the **implementation phase** F5 in the 2026-10-09 master plan. It does not claim remote C1 acceptance. No job in this plan publishes/pushes an image or tag to a registry, and no release, pin change, manager action, canary, cutover or VPS deployment is included.
+The **implementation phase** F5 was closed in the [archived 2026-10-09 plan](closed/2026-10-09-docker-standardization-refactor-plan.md). This follow-up does not claim remote C1 acceptance. No job in this plan publishes/pushes an image or tag to a registry, and no release, pin change, manager action, canary, cutover or VPS deployment is included.
 
 ## 2. Candidate and Actions snapshot
 
@@ -34,7 +35,7 @@ The detailed initial diagnosis, local verification and intermediate run history 
 
 **Owner:** bill. **Status:** pending.
 
-1. Enable/authorize GitHub Actions for `bill-kopp-ai-dev/nanobot` in the repository settings or otherwise provide an approved run for candidate SHA `f3ad1590…`.
+1. Enable/authorize GitHub Actions for `bill-kopp-ai-dev/nanobot` in the repository settings or otherwise provide an approved run. Re-read and freeze the then-current approved `main` SHA before dispatch; `f3ad1590…` is only the initial snapshot, not a future execution target. Dispatch only a supported workflow under the applicable authorization.
 2. Complete GitHub CLI authentication in the operator's terminal using the supported interactive login flow. Never paste the token/device credential into chat, a shell command, a workflow, a plan or a report.
 3. Confirm authenticated, read-only access to Actions logs/artifacts for all seven repositories. Do not change the mise trust configuration as a workaround without separate approval.
 
@@ -44,7 +45,7 @@ The detailed initial diagnosis, local verification and intermediate run history 
 
 **Owner:** agent after WP1. **Status:** blocked on authenticated logs.
 
-1. Download the failing run #15 logs from the exact current SHA, identify job/test, Python/uv versions, and the first failing assertion/traceback.
+1. Re-read the candidate SHA and run identity. Download the recorded failing run #15 logs for `defc943…` (or its identified successor), preserving the exact association; identify job/test, Python/uv versions, and the first failing assertion/traceback. A historic run is diagnostic evidence, not acceptance for a newer SHA.
 2. Reproduce the failure locally using the same locked dependencies, Python version, runtime patch and command. Keep credentials and provider calls synthetic/offline.
 3. If the failure is a workflow/environment issue, fix that narrowly and verify the full affected checks. If it is an application/test failure, add a reachable regression test and run the canonical suite.
 4. Any source change requires a new commit/SHA and a fresh Actions run for that SHA. Prior successful build/run artifacts do not transfer to a different SHA.
@@ -83,9 +84,9 @@ The global handoff note `20261025-193252-f5-conformance-ci-revalidation-local-fi
 - required manifest/SBOM artifacts (and core `results.json`) are downloaded, integrity checked and compared with their exact source/build inputs;
 - Deep Research's failure is resolved and the final run is green;
 - the core Actions run exists on the candidate SHA; and
-- this plan, the master plan, integrated C1 row, and durable handoff agree on the verified state and residuals.
+- this plan, the active continuation plan, integrated C1 row, and durable handoff agree on the verified state and residuals. The archived phase plan preserves its historical closure and is not a live status tracker.
 
-Closing the F5 implementation phase in the master plan does **not** close C1, approve B13, publish images, authorize image promotion or complete F6/VPS acceptance.
+Closing F5 implementation or archiving its phase plan does **not** close C1, approve B13, publish images, authorize image promotion or complete F6/VPS acceptance.
 
 ## 5. Stop conditions
 

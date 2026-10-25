@@ -6,7 +6,7 @@
   e nos limites registrados neste documento.
 - **Fonte de evidência:** [inventário F0 (reexecução) de 2026-10-24](2026-10-24-f0-docker-baseline-inventory-r2.md),
   [adendo de 2026-10-24 da ADR de padronização](../Decisions/2026-10-09-docker-standardization.md)
-  e o plano [padronização Docker do Percival](../plans/2026-10-09-docker-standardization-refactor-plan.md)
+  e o plano [padronização Docker do Percival](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md)
   (§3, F0). Este registro não substitui nem reinterpreta o inventário.
 - **Escopo:** este fechamento cobre **apenas** a fase F0 do plano — baseline de
   inventário, decisões de padrão local e descrição do caminho de rollback/aliases.

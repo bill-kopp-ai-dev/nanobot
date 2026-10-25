@@ -19,8 +19,8 @@ public source repository is named `percival`. Account migration and public discl
 are separate actions. Read the [contract handoff](docs/iac-p0-contract-handoff.md) for
 owners, schemas, source snapshots and downstream implementation gates.
 
-On 2026-10-23 the operator deferred I3, so no implementation work package is open.
-Before the first public publication (I3.4), migrate the repository to `p-bean-labs`:
+On 2026-10-23 the operator deferred I3; other local work keeps its own authorization.
+Before the first public publication (I3.4), review the recommended owner migration with the operator:
 the `org.opencontainers.image.source` label is baked into the published image digest,
 and the plan forbids repointing an already published SemVer tag at different bytes.
 Docker Hub push credentials belong to the protected release environment; anonymous
@@ -40,7 +40,7 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | WebUI/host compatibility | [`.agent/review-guide.md`](.agent/review-guide.md) |
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
-| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker standardization phases](docs/plans/2026-10-09-docker-standardization-refactor-plan.md) |
+| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker continuation](docs/plans/2026-10-25-docker-standardization-continuation-plan.md), [archived phases](docs/plans/closed/2026-10-09-docker-standardization-refactor-plan.md) |
 | Core runtime modes, UID/init/probes or gateway↔broker compatibility | [Runtime contract 1](docs/agent-runtime-contract.md), [I2 local conformance](docs/reports/2026-10-23-i2-runtime-contract-conformance.md) |
 | Docker runtime, provenance, MCP/browser or VPS acceptance | [Docker closure (D1–D12)](docs/plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), [integrated backlog (A/B/C)](docs/plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
 | Instance authentication or persistent credentials | [Single-password acceptance](docs/plans/2026-10-11-single-password-acceptance-closure-plan.md) |

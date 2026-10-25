@@ -3,6 +3,7 @@
 - **Preparado em:** 2026-10-24.
 - **Objetivo:** acompanhar os gates técnicos de segurança e rehearsal que o operador decidiu adiar após encerrar administrativamente D11/F8.
 - **Estado:** D11 foi **fechada por decisão do operador nesta revisão**. Esse fechamento de escopo não equivale a aprovação dos gates técnicos abaixo. A skill Built-in está implantada e confirmada; o rehearsal da fixture passou em 24 checks e deixou 1 bloqueado. Pendências e incidente de segurança permanecem registrados neste plano para retomada posterior.
+- **Coordenação em 2026-10-25:** [continuidade Docker, §4.2](2026-10-25-docker-standardization-continuation-plan.md#42-f8--d11-técnico). Este plano continua dono do incidente M-1 e dos gates D11 técnicos; D11/F8 administrativo e F7/D12 estão encerrados. As fases A–E abaixo são o roteiro original; §6 registra o que foi executado e §7 é a lista de retomada, sem refazer os 24 checks por omissão de leitura.
 - **Referências:** [plano integrado D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../operations/mcp-docker-local-runbook.md); [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md).
 - **Autoridade:** este plano orienta trabalho local e fixtures sintéticas. Não aprova mudanças em servidores MCP reais, pins/allowlists/credenciais, limpeza de imagens ou estado, acesso remoto, publicação, VPS ou qualquer deploy adicional. Essas ações exigem aprovação específica do operador pela interface suportada.
 
@@ -25,9 +26,9 @@ O agente reportou 8 PASS, 1 PARCIAL, 3 FAIL e 4 BLOQUEADO, sem mutações. O res
 
 ## 2. Escopo e fronteiras
 
-Incluído: skill Built-in, documentação operacional acessível ao agente, roteamento por owner, dry-run, rehearsal sintético, evidência redigida e atualização do plano mestre.
+Incluído: skill Built-in, documentação operacional acessível ao agente, roteamento por owner, dry-run, rehearsal sintético, evidência redigida e atualização deste acompanhamento e de sua projeção na continuidade Docker.
 
-Fora do escopo: atualização de pin dos seis servidores observados; instalar/ativar/configurar/excluir/restaurar MCP real; alteração de `allowRemoteAdmin`, credenciais, GID ou allowlist ativos; provisionar uma porta de administração remota; `docker prune`; publicar ou promover imagens; fechar D8, D12, I3/I9 ou gates VPS.
+Fora do escopo: atualização de pin dos seis servidores observados; instalar/ativar/configurar/excluir/restaurar MCP real; alteração de `allowRemoteAdmin`, credenciais, GID ou allowlist ativos; provisionar uma porta de administração remota; `docker prune`; publicar/promover imagens ou fechar I3/I9/VPS. D8 local e D12 já foram fechados e não são gates a reabrir aqui.
 
 ## 3. Plano de execução
 
@@ -79,10 +80,11 @@ Fora do escopo: atualização de pin dos seis servidores observados; instalar/at
 ### Fase E — Decisão e fechamento documental
 
 1. Registrar status individual de ST-01–ST-16: PASS, corrigido e repetido, limitação de contexto, fora de escopo ou defeito separado. Nenhum FAIL/BLOQUEADO fica oculto em contagem agregada.
-2. Atualizar §2.12 e a linha D11 do plano mestre com data, commit/SHA, skill hash, imagem local, evidência e risco residual.
+2. Registrar a nova evidência neste acompanhamento e atualizar sua projeção no plano de continuidade, com data, commit/SHA, skill hash, imagem e risco residual. D1–D12 arquivado preserva o encerramento administrativo e aponta para este dono, sem virar tracker de execução.
 3. Registrar que o operador encerrou D11 administrativamente nesta revisão; gates técnicos não atendidos permanecem explicitamente pendentes e não devem ser marcados como PASS.
 4. Retomar os gates técnicos descritos neste plano em ambiente isolado, sem usar a decisão de encerramento como autorização para ações em MCPs reais.
-5. Manter D8, D12, aprovação B13, release/publicação e VPS como gates independentes.
+5. Preservar os encerramentos locais D8/D12 e manter B13, release/publicação e VPS
+   como atos independentes ainda não concedidos por este acompanhamento.
 
 ## 4. Critérios técnicos transferidos
 

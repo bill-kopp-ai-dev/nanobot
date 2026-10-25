@@ -10,10 +10,10 @@
   do plano é fechada pelo critério "documentação e triagem completas"** — o
   resíduo (Critical `CVE-2026-60002` no gateway e ausência de Actions remotas
   nos SHAs candidatos) é tratado pela pendência #11 do plano
-  [`2026-10-09-docker-standardization-refactor-plan.md`](../plans/2026-10-09-docker-standardization-refactor-plan.md).
+  [`2026-10-09-docker-standardization-refactor-plan.md`](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md).
   Nenhum waiver foi aprovado, nenhum commit/push foi feito e nenhum
   consumidor foi alterado nesta execução.
-- **Plano:** [padronização Docker, F3](../plans/2026-10-09-docker-standardization-refactor-plan.md#f3--reprodutibilidade-contextos-e-postura-base).
+- **Plano:** [padronização Docker, F3](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md#f3--reprodutibilidade-contextos-e-postura-base).
 - **Política:** [postura e manutenção de imagens Docker](../Decisions/2026-10-09-docker-image-posture-policy.md).
 - **Scanner:** Trivy 0.67.2,
   `aquasec/trivy@sha256:ac2f9d0197456a8ce460884b113e49d65b667f506c31d014c9955869a7a5d682`.

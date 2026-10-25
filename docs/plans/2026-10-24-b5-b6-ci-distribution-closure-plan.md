@@ -1,8 +1,9 @@
-# Plano adicional B5/B6 — CI remoto e distribuição por digest
+# Distribuição por digest — B6 da D8 (B5 transferido para C1)
 
 - **Preparado em:** 2026-10-24.
 - **Estado:** B5 (CI remoto) transferido para o [plano ativo F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md); B6 distribuição/aquisição continua planejado e não iniciado.
-- **Objetivo:** assumir as pendências B5 (CI remoto) e B6 (distribuição/aquisição por digest) transferidas do escopo local concluído da D8, sem reabrir seus trabalhos já aceitos.
+- **Objetivo atual:** executar B6 (distribuição/aquisição por digest) transferida da D8; o checklist de CI B5 já pertence a F5/C1. Não duplicar diagnóstico ou aceite de Actions neste plano.
+- **Coordenação 2026-10-25:** [continuidade Docker](2026-10-25-docker-standardization-continuation-plan.md), R01 e DIST-B6. O nome do arquivo preserva links históricos; B6 aqui é distribuição, não o MCP-B6 Browser do plano integrado. F0–F8 foi arquivado por transferência, sem promoção.
 - **Estimativa inicial:** B5, aproximadamente 4–8 dias de engenharia; B6, 1–3 semanas para publicação e homologação no escopo acordado. A integração completa de aquisição pelo manager pode exigir várias semanas adicionais se depender da implementação I6. Esperas por acesso, decisões e aprovações não estão incluídas.
 - **Referências:** [plano mestre D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [plano D8 arquivado](closed/2026-10-24-d8-promotion-readiness-closure-plan.md) §§7.3–7.6; [relatório F3](../reports/2026-10-10-f3-remediation-triage.md); [plano IaC I1–I9](2026-10-23-iac-alignment-execution-plan.md) §§5.3–5.6 e §10; [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md); [runbook operacional](../operations/mcp-docker-local-runbook.md) §5.1.
 - **Autoridade:** este plano não autoriza publicação, promoção, canário, cutover, alteração de gestores, pins/allowlists/credenciais, deploy em VPS ou preparação/entrega de comandos de promoção. Publicação exige aprovação B13 e autorização explícita do operador para a execução correspondente. Em qualquer gate que exija acesso ou ação manual do operador, **parar e informar** antes de prosseguir.
@@ -26,7 +27,7 @@ de Actions e artifacts. Este plano permanece dono apenas de B6. A evidência e a
 conclusões históricas permanecem no plano D8 arquivado e no relatório F3; resultados
 antigos não serão reinterpretados como gates verdes.
 
-**Decisão de escopo obrigatória antes da Fase B:** confirmar se a distribuição cobre
+**Decisão de escopo obrigatória na Fase A, antes das Fases C/D:** confirmar se a distribuição cobre
 os oito artefatos D8 (seis MCPs, gateway e broker) ou um subconjunto selecionado
 formalmente por I3/I5. A aquisição a homologar também precisa ser definida:
 pull independente por digest ou aquisição pelo fluxo real do manager/catálogo. A
@@ -34,10 +35,11 @@ segunda opção requer I5/I6 aplicáveis e não pode ser substituída por um pul
 
 ## 2. Fronteiras
 
-Incluído: diagnosticar e corrigir falhas de workflows, habilitar evidência remota
-válida para os SHAs finais, refazer candidatos e evidências quando uma alteração
-mudar sua identidade, desenhar o fluxo seguro de publicação, registrar digests OCI
-e provar aquisição no escopo aprovado.
+Incluído: selecionar o conjunto e o método de aquisição, consumir C1 aprovado,
+refixar candidatos/evidências quando sua identidade mudar, desenhar o fluxo seguro
+de publicação e, sob autorização específica, registrar digests OCI e provar aquisição.
+Diagnóstico de Actions e confronto dos artifacts de conformance ficam em F5/C1;
+implementação de pipelines de distribuição e aquisição fica em I3/I5/I6 conforme escopo.
 
 Fora do escopo sem autorização separada: publicar imagens ou tags; promover imagens
 em qualquer gestor; alterar pins, revisões, CAS, `configurationId`, allowlists ou
@@ -155,8 +157,9 @@ condições, **parar e informar** e manter B6 aberto.
    bloqueio e não substituir a prova por pull manual.
 5. Atualizar o catálogo/índice curado conforme I5, quando aplicável, mantendo os
    metadados vinculados à revisão imutável e aos digests publicados.
-6. Registrar evidência redigida e reconciliar o plano mestre, o relatório F3 e o
-   runbook sem expor secrets.
+6. Registrar evidência redigida e reconciliar este plano, o sucessor de continuidade,
+   o registro do novo candidato e o runbook sem expor secrets. Relatórios F3 e planos
+   arquivados preservam a identidade/data originais; não sobrescrever seus snapshots.
 
 **Aceite B6:** todos os artefatos incluídos no escopo têm digest OCI registrado e
 verificado, aquisição homologada pelo método decidido na Fase A, evidência vinculada
@@ -175,7 +178,7 @@ cutover.
 | B6 — aquisição | Pull limpo por digest e smoke; aquisição via manager/catalog quando essa for a decisão de escopo |
 | Segurança | Nenhum secret exposto; workflow de publicação protegido e com privilégio mínimo |
 | Não mutação | Nenhum pin, gestor vivo, canário, cutover ou deploy alterado por este plano |
-| Documentação | Plano mestre, F3, runbook e inventário de release refletem evidência e resíduos atuais |
+| Documentação | Continuidade Docker, este plano, registro do candidato e runbook refletem a evidência atual; snapshots históricos permanecem identificados |
 
 ## 5. Paradas e tratamento de falhas
 

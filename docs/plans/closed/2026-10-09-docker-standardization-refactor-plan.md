@@ -1,17 +1,36 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
+- **Encerramento em 2026-10-25 — decisão de bill:** plano **fechado por transferência**
+  e arquivado em `docs/plans/closed/`, conforme pedido explícito do operador nesta
+  sessão. Todos os itens abertos foram recebidos pelo
+  [plano de continuidade](../2026-10-25-docker-standardization-continuation-plan.md),
+  com origem, estado, responsável, critério de fechamento e referência ao dono dos
+  gates especializados. Este arquivo preserva as fases, contratos e evidências
+  históricas; não é mais checklist de execução nem tracker corrente.
+- **Limite do encerramento:** não declara F6 novo, C1, B6 de distribuição,
+  autenticação, B13, homologação pública ou VPS concluídos. D1–D12/F7 já estavam
+  encerrados com ressalvas; D11/F8 foi fechado administrativamente e conserva seus
+  acompanhamentos técnicos. Não repetir o cutover histórico dos seis MCPs por
+  interpretar os snapshots abaixo como tarefas atuais.
+- **Mapa de transferência:** F6/candidatos/rollback/retenção e resíduos F0/D2/D4/D5/D6
+  → R01–R14 do sucessor; C1/F5, distribuição, D11/M-1, autenticação, UI/VPS,
+  IaC I3–I9 e referências KG → §4 do sucessor, mantendo um dono por gate.
+- **Leitura do restante:** revisão v1.2 e seções abaixo são o histórico anterior ao
+  arquivamento. Referências a “ativo”, “próxima ação” ou itens “abertos” não revogam
+  este encerramento; consultar o sucessor para o estado e as condições vigentes.
+
 - **Revisão:** 2026-10-25 / v1.2 — fechamento da implementação local F5 e transferência da homologação GitHub Actions para C1.
   Este aditamento não declara C1 verde, nem aprova B13, publicação, promoção ou deployment.
-  O plano dedicado de execução remota é [F5/C1 — Actions e artifacts](2026-10-25-f5-c1-remote-ci-closure-plan.md).
+  O plano dedicado de execução remota é [F5/C1 — Actions e artifacts](../2026-10-25-f5-c1-remote-ci-closure-plan.md).
   Revisão anterior: 2026-10-23 / v1.1 — reconciliação com I1/I2 executados da IaC aberta PBLabs.
   F0–F8 e seus relatos permanecem como histórico de execução; o rastreio atual dos
   gates locais está em D1–D12/C1–C4. Integração IaC, distribuição e catálogo passam
-  a I1–I9 do [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
+  a I1–I9 do [plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
   I1 concluiu arquitetura/handoff (`eb4e3555`); I2 entregou runtime 1 e conformance
   local Linux/amd64 (`0e7ff072`), ambos commitados/enviados. I3 foi adiado pelo operador;
   I4–I9 continuam pendentes. A revisão v1.2 fecha F5 como implementação local e transfere
   a verificação remota restante para C1; não declara aceite de C1.
-- **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
+- **Fonte de evidência:** [diagnóstico consolidado Docker](../../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks,
   CI, gestão local das imagens do Percival e dos seis MCPs (Notes, AgentMail, Weather,
   Khan Calendar, OSM e Deep Research), com contratos de handoff para a IaC aberta.
@@ -20,7 +39,7 @@
   cutover. Houve execução posterior e canário dos seis MCPs nos dois gestores, registrados
   abaixo. Antes de novas edições, reverificar os checkouts e preservar trabalho existente;
   não usar o snapshot inicial como inventário atual.
-- **Execução F0:** baseline read-only e decisões do operador registrados em [inventário F0](../reports/2026-10-09-f0-docker-baseline-inventory.md) e [ADR de padronização](../Decisions/2026-10-09-docker-standardization.md). Gate F0 concluído; investigar causa das instâncias duplicadas Positronic antes de cutover/cleanup que as afete.
+- **Execução F0:** baseline read-only e decisões do operador registrados em [inventário F0](../../reports/2026-10-09-f0-docker-baseline-inventory.md) e [ADR de padronização](../../Decisions/2026-10-09-docker-standardization.md). Gate F0 concluído; investigar causa das instâncias duplicadas Positronic antes de cutover/cleanup que as afete.
 - **Resultado pretendido:** imagens reproduzíveis e rastreáveis, contratos previsíveis
   stdio/HTTP e um caminho verificável fonte→candidato local→release OCI→deployment
   validado. O aceite local continua distinto da homologação de distribuição e de VPS.
@@ -28,9 +47,9 @@
 
 **Leitura do estado atual:** os relatos de execução F0–F7 abaixo são snapshots datados,
 não instruções para repetir trabalho. Para o contrato vigente, usar a
-[ADR I1](../Decisions/2026-10-23-open-iac-contracts.md), o
-[handoff](../iac-p0-contract-handoff.md), o [runtime 1](../agent-runtime-contract.md)
-e o [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md).
+[ADR I1](../../Decisions/2026-10-23-open-iac-contracts.md), o
+[handoff](../../iac-p0-contract-handoff.md), o [runtime 1](../../agent-runtime-contract.md)
+e o [relatório I2](../../reports/2026-10-23-i2-runtime-contract-conformance.md).
 As pendências residuais continuam nos trackers D/C/autenticação e I1–I9.
 
 ## 1. Objetivo, escopo e limites
@@ -89,7 +108,7 @@ Um operador deve conseguir responder para qualquer container MCP local:
 ### Decisões F0 aprovadas (baseline local de 2026-10-09)
 
 As decisões de produto estão formalizadas em
-[`docs/Decisions/2026-10-09-docker-standardization.md`](../Decisions/2026-10-09-docker-standardization.md):
+[`docs/Decisions/2026-10-09-docker-standardization.md`](../../Decisions/2026-10-09-docker-standardization.md):
 
 1. Tags locais imutáveis `<semver>-<shortsha>` e alias `:dev` somente para
    desenvolvimento; repositórios Docker-facing `percival-<service>`,
@@ -115,7 +134,7 @@ As decisões de produto estão formalizadas em
 
 ### Contrato-alvo IaC e handoff das fases
 
-Referências correntes: [plano de integração IaC, §§1–3](2026-10-23-iac-alignment-execution-plan.md)
+Referências correntes: [plano de integração IaC, §§1–3](../2026-10-23-iac-alignment-execution-plan.md)
 e ADR/handoff I1. As cinco fontes de 2026-10-19 tiveram seus conflitos P0 arbitrados
 em I1; schemas de deployment/índice/exports e a aquisição continuam por implementar.
 O relatório comparativo é diagnóstico, não aceite.
@@ -251,7 +270,7 @@ A12/A13/A14 permanecem abertos nos planos donos.
 **Execução 2026-10-09 — gate concluído em candidatos locais:** Deep Research e
 OSM passaram build `linux/amd64`, Compose stdio/HTTP isolado, handshake/tools,
 probe HTTP, auth/bind no OSM, init único e encerramento por SIGTERM. O relatório
-[`F1 runtime corrections`](../reports/2026-10-09-f1-runtime-corrections.md)
+[`F1 runtime corrections`](../../reports/2026-10-09-f1-runtime-corrections.md)
 registra IDs, RepoDigests locais, configuração inspecionada, comandos, testes e
 limitações. As imagens candidatas foram mantidas para rollback; containers e
 consumidores históricos não foram alterados. O cutover permanece em F6.
@@ -261,7 +280,7 @@ consumidores históricos não foram alterados. O cutover permanece em F6.
 Compose stdio/HTTP em fixtures, `initialize`/`tools/list` (37/5 tools), health
 específico por profile, loopback, auth OSM e SIGTERM 143 nos quatro modos. PID 1
 é `docker-init` do launcher; as imagens não embutem tini. Relatório e limites:
-[`F1/F2 revalidation`](../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
+[`F1/F2 revalidation`](../../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
 Os consumidores ativos permanecem nos pins antigos; A5/A6 não foram encerrados.
 
 ### F2 — Contrato de identidade e inventário contínuo
@@ -300,7 +319,7 @@ validação local, sem representar release nem atualizar `:dev`.
 dos seis MCPs, build local source-derived, labels broker-managed e inventário
 read-only foram implementados e enviados a `origin/main`. Os candidatos F2
 `linux/amd64` identificam o diff tracked local em tag e label explícitos. O relatório
-[`F2 identity/inventory`](../reports/2026-10-09-f2-docker-identity-inventory.md)
+[`F2 identity/inventory`](../../reports/2026-10-09-f2-docker-identity-inventory.md)
 registra IDs, hashes, verificações e limites. Os sete repositórios F2 foram
 revisados, commitados e enviados a `origin/main`; ainda faltam builds canônicos
 dos seis MCPs em checkouts limpos após esses commits, por isso F2 não está
@@ -316,7 +335,7 @@ OSM `04d4399` e Deep Research `af3b23b`. Versão, SHA completo, oito labels OCI 
 inventário foi complementado para o esquema duplo D-6, proveniência de worktree,
 overrides Compose e Markdown; verificou 12 MCPs com 12 UUIDs v4 e seis pins nos
 dois gestores, sem alteração de configuração. Relatório e evidências:
-[`F1/F2 revalidation`](../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
+[`F1/F2 revalidation`](../../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
 A melhoria de inventário está validada no worktree, ainda sem commit/push.
 Lint/typecheck focados passaram; checks globais têm falhas externas ao diff
 registradas no relatório. CI remoto, distribuição e cutover permanecem gates próprios.
@@ -368,12 +387,12 @@ Os oito candidatos foram construídos, inspecionados e receberam SBOM CycloneDX
 via Docker Scout; smoke stdio/HTTP F1 de OSM e Deep Research passou. Trivy
 0.67.2 (imagem fixada por digest; DB atualizado em 2026-10-09T13:10Z) registrou
 Critical/High em todos os oito. A política em
-[`docker-image-posture-policy`](../Decisions/2026-10-09-docker-image-posture-policy.md)
+[`docker-image-posture-policy`](../../Decisions/2026-10-09-docker-image-posture-policy.md)
 define esses níveis como bloqueadores; não foram concedidos waivers. F3 não
 fecha até triagem/resolução ou aprovação explícita de exceções com owner e
 expiração, além de rebuild/validação em builder/checkout limpo e evidência
 reprodutível do conjunto resolvido. O relatório
-  [`F3 reproducibility/context/posture`](../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
+  [`F3 reproducibility/context/posture`](../../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
   registra candidatos, contextos, hashes dos artefatos e findings.
 
 **Execução F3 2026-10-25 — gate concluído no escopo local:** o build do gateway
@@ -399,7 +418,7 @@ Trivy 0.67.2 (DB de 2026-10-25) reportou **0 Critical/High nos oito candidatos**
 avaliação `not_affected` reancorada no image ID novo, sem waiver. Runtime:
 rehearsal I2 **18/18 PASS** no par novo, conformidade stdio dos MCPs e gateway
 offline em UID 1000/1001 com 20 pins de canal conferidos. Relatório:
-[`F3 2026-10-25`](../reports/2026-10-25-f3-reproducibility-contexts-posture.md).
+[`F3 2026-10-25`](../../reports/2026-10-25-f3-reproducibility-contexts-posture.md).
 **Fora do escopo:** build clean em builder de CI (B5/C1) e digest publicado
 (B6/I3) continuam não executados; nenhum pin, container ou registry foi alterado.
 
@@ -409,7 +428,7 @@ gateway foram alinhadas a Debian Trixie e as oito imagens foram rebuildadas e
 rescanneadas. Os candidatos passaram os smokes stdio; Notes e Khan também
 passaram persistência local isolada. A política continua sem waivers e o scan
 Trivy 0.67.2 ainda registra Critical/High nas oito imagens (ver
-[`F3 remediation and F6 preflight`](../reports/2026-10-09-f3-remediation-and-f6-preflight.md));
+[`F3 remediation and F6 preflight`](../../reports/2026-10-09-f3-remediation-and-f6-preflight.md));
 portanto F3 não foi aprovada. HTTP/restore restantes de F4 e execuções remotas
 F5 também não foram concluídos. F6 não foi iniciada e nenhum consumer foi
 alterado.
@@ -431,8 +450,8 @@ ao image ID do gateway cobre CVEs de `sshd` ausente e discrepâncias de msgpack,
 setuptools e urllib3; não cobre os demais findings nem outros digests. Nenhum
 waiver foi aprovado. O Trivy ainda apresenta discrepância de inventário Python/
 aviso de SBOM de terceiro no gateway. Relatório,
-hashes de scan/SBOM, decisões e testes: [`F3 remediation and triage`](../reports/2026-10-10-f3-remediation-triage.md)
-e [`F3 OpenVEX`](../reports/2026-10-10-f3-openvex.json). Notas F3 por servidor
+hashes de scan/SBOM, decisões e testes: [`F3 remediation and triage`](../../reports/2026-10-10-f3-remediation-triage.md)
+e [`F3 OpenVEX`](../../reports/2026-10-10-f3-openvex.json). Notas F3 por servidor
 foram publicadas em `docs/issues/2026-10-10-f3-status.md` (cinco MCPs) e
 `docs/security/f3-status.md` (AgentMail, onde o `.gitignore` reserva
 `docs/issues/` para rascunhos locais). A pendência #1 do plano é fechada
@@ -479,7 +498,7 @@ obrigatório pelo runtime com `restart: no` para não formar restart loop sem
 credencial. Notes exige mount `/vault` gravável por UID/GID 65532; o Khan tem
 `khal` na dependência travada e documenta UID/GID 1000; Weather/OSM/Deep têm
 serviços HTTP de profile e stdio sob demanda. Veja
-[`relatório F4 Compose/runtime`](../reports/2026-10-09-f4-compose-runtime.md).
+[`relatório F4 Compose/runtime`](../../reports/2026-10-09-f4-compose-runtime.md).
 
 O gate **não está fechado**: não foram construídas imagens candidatas nem
 executados handshakes MCP, SIGTERM, probes HTTP com containers ou teste de
@@ -517,7 +536,7 @@ validação local dessa implementação, não certifica uma execução remota es
 **Aceite remoto C1:** workflows verdes no SHA final dos sete repositórios, com
 `headSha` conferido e manifest/SBOM (mais `results.json` do core) baixados e
 comparados com source, lock, labels, bases e plataforma. A fonte de verdade e o
-único gate remoto são C1 no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+único gate remoto são C1 no [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 O pipeline de release protegido permanece em I3/I5 e condicionado a B13; F5/C1
 nunca publica imagens.
 
@@ -532,7 +551,7 @@ Compose, auth/readiness e mantém o broker em Engine 27.5.1. O smoke local tamb�
 expôs um bind interno incompatível com Docker port forwarding; o gateway foi
 ajustado para usar listener de container e arquivo read-only de token issuance obrigatório
 para WebUI, mantendo portas publicadas em loopback. Testes/smokes locais e SHAs
-base constam em [`relatório F5 CI/conformance`](../reports/2026-10-09-f5-ci-conformance.md).
+base constam em [`relatório F5 CI/conformance`](../../reports/2026-10-09-f5-ci-conformance.md).
 
 No snapshot de 2026-10-09, o gate remoto F5 permanecia aberto porque os workflows
 ainda não tinham run no SHA candidato exato; a autenticação e os artefatos não
@@ -554,14 +573,14 @@ de bill, F5 foi encerrada no escopo de entrega dos workflows e conformance. As
 correções e revisões dos seis MCPs foram commitadas/enviadas a `main`: Notes
 `83980418`, AgentMail `68751b6`, Weather `144dd440`, Khan `919b6ab`, OSM `0648425`
 e Deep Research `defc943`. Smokes/builds locais e correções por CI constam em
-[`F5 revalidation`](../reports/2026-10-25-f5-ci-conformance-revalidation.md).
+[`F5 revalidation`](../../reports/2026-10-25-f5-ci-conformance-revalidation.md).
 
 Este fechamento **não é aceite de CI remoto**: Actions de Notes, AgentMail, Khan,
 Weather e OSM passaram; Deep Research falhou em pytest sem log autenticado. No
 snapshot inicial, o core `f3ad1590` não tinha run/checks; o Actions público informa
 que workflows estão desabilitados neste fork. O SHA da branch precisa ser relido
 após habilitação, imediatamente antes da execução. A fase de execução/diagnóstico remoto e
-confronto de manifest/SBOM foi transferida ao [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md);
+confronto de manifest/SBOM foi transferida ao [plano F5/C1](../2026-10-25-f5-c1-remote-ci-closure-plan.md);
 C1 continua **ABERTO** sob seu dono único no plano integrado. Não houve publicação,
 promoção, pin, alteração de manager, canário ou cutover.
 
@@ -598,7 +617,7 @@ Percival ainda aguardam cutover; suas imagens antigas permanecem no Engine.
 Rollback dos quatro pins Positronic exige recarregar ou reconstruir as imagens
 antigas e não foi ensaiado. F6 permanece parcial e não fecha os gates F3–F5.
 Evidência detalhada:
-[`F6 local cutover`](../reports/2026-10-10-f6-local-cutover.md).
+[`F6 local cutover`](../../reports/2026-10-10-f6-local-cutover.md).
 
 ### F7 — Aceite de operação e manutenção
 
@@ -607,7 +626,7 @@ Evidência detalhada:
 - Aprovar manual de build/update/rollback e procedimento de incidente/health false-positive.
 - Definir revisão trimestral de bases/dependências, atualização urgente por vulnerabilidade, retention de tags locais e limite de imagens intermediárias.
 - Depois do cutover local, atualizar o inventário. No VPS, C2–C4 do
-  [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+  [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
   consomem I4 (layout/receita/locks) e I8 (recovery), incluindo Engine/mount/GID/UID e
   novo aceite específico; o plano MCP Docker arquivado é origem histórica, não dono ativo.
 - Release/publicação segue governança B13: aprovação explícita no SHA candidato, histórico/licenças/proveniência e sem publicação implícita neste plano.
@@ -624,16 +643,16 @@ exige autorização específica e a sua própria evidência.
 
 > **Fonte de verdade a partir de 2026-10-23:** o quadro abaixo e as seções de fase **não** são
 > mais o rastreamento corrente das pendências. O acompanhamento passou para o
-> [fechamento da padronização Docker F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+> [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
 > (itens D1–D12), com os passos de Actions e VPS em C1–C4 do
-> [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
+> [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
 > preservado como registro de 2026-10-10 e **não** deve ser atualizado item a item: as linhas
 > #2, #4, #5 e #6 já tinham evidência parcial posterior, e #11 foi dividida entre D6 (OpenSSH) e
 > C1 (Actions). A incorporação posterior de I1/I2 está no quadro de evidência da §2
 > e no tracker D1–D12; os estados antigos de metadata/API/runtime não prevalecem
 > sobre runtime 1.
 
-**Plano de fechamento 2026-10-10 (histórico):** [F7 — aceite de operação e manutenção](closed/2026-10-10-f7-operations-acceptance-closure-plan.md). O quadro abaixo contém snapshots anteriores; o plano de fechamento confronta seus itens com os relatórios F4/F5 e o runtime observado antes de atualizar cada status.
+**Plano de fechamento 2026-10-10 (histórico):** [F7 — aceite de operação e manutenção](2026-10-10-f7-operations-acceptance-closure-plan.md). O quadro abaixo contém snapshots anteriores; o plano de fechamento confronta seus itens com os relatórios F4/F5 e o runtime observado antes de atualizar cada status.
 
 **Reverificação de 2026-10-23 (resultado; o quadro acima não muda).** Os onze itens foram
 confrontados com o código e com as imagens. Nenhum está integralmente concluído, e três foram
@@ -654,29 +673,29 @@ corrigidos em premissa. Mapa item → dono atual → situação:
 | 11 | Resíduo OpenSSH e VEX | D6 (OpenSSH), C1 (Actions) | **aberto, maior severidade** — gateway ainda em `openssh-client` 10.0p1; waiver não aprovado |
 
 Evidência completa em
-[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+[auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md).
 
 **Progresso do plano de fechamento 2026-10-10 UTC** (relatórios e artefatos produzidos nesta sessão; sem mutações em `main`/registry/remoto):
 
-- **P1 — Procedência e identidade (parcial):** [relatório de procedência](../reports/2026-10-10-f7-provenance-and-identity.md). Mapeamento de 6 identidades distintas em 8 repos; nenhum `.mailmap` aplicado; nenhuma reescrita de commit; sem push. Decisão de `.mailmap` × reescrita × publicação exige confirmação do operador; nenhum commit está assinado por GPG/SSH.
-- **P2 — Khan allowlist e duplicatas (diagnóstico):** [relatório Khan/duplicatas](../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md). Khan com 12 tools em ambos os gestores; sem decisão registrada. Duplicatas Positronic (12 `docker run` filhos do PID 3758) têm pai vivo; não há órfãos verdadeiros no snapshot. Cleanup não foi executado.
-- **P3 — Manual de operação/rollback:** [manual operacional](../operations/mcp-docker-local-runbook.md) criado e vinculado a partir de [`docs/percival-governance.md`](../percival-governance.md). Cobre inventário, build, atualização, rollback, backup/restore Notes/Khan, incidentes de health e SIGTERM, revisão trimestral, urgência por CVE e retenção. Walkthrough em fixture não foi executado nesta sessão.
-- **P4 — Runtime, segurança, CI:** [relatório de bloqueios P4/P5](../reports/2026-10-10-f7-p4-p5-blockers.md). `gh auth status` continua sem login; promoção de pins exige rebuild + canary; OpenSSH Forky pendente; VEX restrito ao gateway.
+- **P1 — Procedência e identidade (parcial):** [relatório de procedência](../../reports/2026-10-10-f7-provenance-and-identity.md). Mapeamento de 6 identidades distintas em 8 repos; nenhum `.mailmap` aplicado; nenhuma reescrita de commit; sem push. Decisão de `.mailmap` × reescrita × publicação exige confirmação do operador; nenhum commit está assinado por GPG/SSH.
+- **P2 — Khan allowlist e duplicatas (diagnóstico):** [relatório Khan/duplicatas](../../reports/2026-10-10-f7-khan-allowlist-and-duplicates.md). Khan com 12 tools em ambos os gestores; sem decisão registrada. Duplicatas Positronic (12 `docker run` filhos do PID 3758) têm pai vivo; não há órfãos verdadeiros no snapshot. Cleanup não foi executado.
+- **P3 — Manual de operação/rollback:** [manual operacional](../../operations/mcp-docker-local-runbook.md) criado e vinculado a partir de [`docs/percival-governance.md`](../../percival-governance.md). Cobre inventário, build, atualização, rollback, backup/restore Notes/Khan, incidentes de health e SIGTERM, revisão trimestral, urgência por CVE e retenção. Walkthrough em fixture não foi executado nesta sessão.
+- **P4 — Runtime, segurança, CI:** [relatório de bloqueios P4/P5](../../reports/2026-10-10-f7-p4-p5-blockers.md). `gh auth status` continua sem login; promoção de pins exige rebuild + canary; OpenSSH Forky pendente; VEX restrito ao gateway.
 - **P5 — VPS/aceite:** mesma pendência. Engine 27.x e migração real não foram ensaiadas nesta sessão.
 
 | # | Pendência | Origem | Critério de fechamento | Responsável | Evidência esperada | Efeito em F7 |
 |---|---|---|---|---|---|---|
-| 1 | **F3 — findings Critical/High sem waiver — fechado pelo critério "documentação e triagem completas; resíduo de blocker transferido".** Scans locais worktree candidates 2026-10-10: broker 0/0; gateway 1 Critical/64 High; Notes, AgentMail, Weather, Khan, OSM e Deep Research 0/44 High cada. O gateway conserva Critical OpenSSH; CVEs de pacote-base permanecem. | [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md) e [`F3 preflight anterior`](../reports/2026-10-09-f3-remediation-and-f6-preflight.md) | Triagem local concluída para todos os candidatos (matriz de aplicabilidade, hardening aplicado nos sete runtimes Debian, NLTK excluído de Deep Research, OpenSSH Forky 10.5p1 testado fora da imagem, OpenVEX com 6 declarações restritas ao image ID do gateway). Notas F3 publicadas em `docs/issues/2026-10-10-f3-status.md` (Notes, Weather, Khan, OSM, Deep Research) e `docs/security/f3-status.md` (AgentMail, onde o `.gitignore` reserva `docs/issues/` para rascunhos locais); commits `ab0f07d`, `d2d6458`, `9746453`, `7f6bd4f`, `3588a45`, `1db41fc`. Resíduo transferido para a pendência #11 (correção de OpenSSH client 10.0p1 e VEX/build limpo dos findings base nas Actions remotas). | agente (remediação/evidência); operador (waiver/VEX e acesso GitHub). | JSON Trivy e CycloneDX com hashes, matriz de aplicabilidade, ADR/VEX aprovados, logs/actions e comparação de source SHA/diff. | Fechado como item próprio; o resíduo crítico passa a ser tratado por #11, e a triagem documentada por servidor é a base de evidência para qualquer decisão de waiver ou fix. |
-| 2 | **F4 — restore e aceite de gateway/API ainda sem evidência completa.** | [`F4 report`](../reports/2026-10-09-f4-compose-runtime.md) | `docker compose config` em cada receita, smoke isolado de `initialize`/`tools/list`/SIGTERM, probes HTTP nos profiles HTTP, restore/rollback validado para Notes e Khan. | agente. | Logs, IDs de container, screenshots. | Sem evidência de restore/rollback, o aceite F7 não pode ser assinado. |
-| 3 | **F5 — execuções remotas em GitHub Actions não verificadas.** `gh auth status: not logged into any GitHub hosts`. | [`F5 report`](../reports/2026-10-09-f5-ci-conformance.md) | Cada workflow de CI passa nos SHAs candidatos; manifest/SBOM arquivados. | operador (login); agente (análise). | URLs de runs, artifacts, comparação SHA. | Gate F5 ainda aberto; sem isso, qualquer release estaria sem CI verde. |
-| 4 | **Gateway/broker local em Engine 29.7.2; pins antigos ainda ativos.** O stack Compose local está `healthy` com o overlay explicitamente descartável `docker-compose.engine29-override.yml`; isso não satisfaz nem representa o gate VPS Engine 27.x. O bind histórico `0.0.0.0:8765` foi substituído pelo par atual em loopback. Config revisão 4 ainda marca AgentMail, Weather, OSM e Deep Research ativos/em `running`, com pins antigos. | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) e [`F7 local stack report`](../reports/2026-10-10-f7-local-stack-provisioning.md) | Atualizar os quatro pins via API/domínio autenticado; validar readiness/canary por serviço. Manter binds de host em loopback e socket apenas no broker. O gate VPS requer inventário e Engine 27.x aprovados separadamente. | agente (mutações via domínio após credencial operator-admin); operador (senha/autorização local, gate VPS). | Compose render, `docker compose ps`, `nanobot mcp-docker doctor`, IDs das imagens/containers, GIDs, observation/health e `tools/list` por `server_id`. | F6 local permanece parcial até pins/canary e rollback; F7 continua bloqueado pelo restante das pendências e gates VPS/CI. |
-| 5 | **Rollback dos quatro pins Positronic não foi ensaiado.** As imagens antigas foram removidas; rollback agora exige reconstruir/recuperar tarballs. | [`F6 cutover report` addendum](../reports/2026-10-10-f6-local-cutover.md#addendum--limpeza-solicitada-pelo-operador) | Ensaio de `update-image` + `configure` voltando para IDs antigos reconstruídos; checagem de `tools/list`. | agente. | Logs, IDs, `tools/list` antes/depois. | F7 exige rollback testado. |
-| 6 | **Quatro pins Percival ainda apontando para imagens pré-F3.** OSM, Weather, AgentMail e Deep Research com `imageId` antigo. | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) | Cada `server_id` aponta para o image ID candidato correspondente; `observe`/`health` retornam `running`/`ready`; `tools/list` casa o contrato. | agente (quando broker disponível). | Logs do broker, `docker inspect`, `tools/list` de cada serviço. | F6 parcial; o aceite local cobre apenas Positronic. |
-| 7 | **Permissões do Khan e decisão sobre allowlist.** Tools descobertas, mas allowlist vazia no registry Positronic (`revision 7`). | [`F6 cutover report`](../reports/2026-10-10-f6-local-cutover.md) | Decisão registrada sobre manter vazia ou expor subset. | operador. | ADR ou nota em `docs/percival-governance.md`. | Acceptance F7 requer alinhamento explícito. |
-| 8 | **Duplicatas Positronic AgentMail/Deep Research.** Causa da duplicação ainda não identificada. | [`F0 inventory`](../reports/2026-10-09-f0-docker-baseline-inventory.md) | Origem da segunda instância documentada; consumer identificado. | agente. | Logs de spawn/Positronic, rótulos faltantes. | Documentação de observabilidade; pode bloquear F7 se houver instâncias órfãs. |
+| 1 | **F3 — findings Critical/High sem waiver — fechado pelo critério "documentação e triagem completas; resíduo de blocker transferido".** Scans locais worktree candidates 2026-10-10: broker 0/0; gateway 1 Critical/64 High; Notes, AgentMail, Weather, Khan, OSM e Deep Research 0/44 High cada. O gateway conserva Critical OpenSSH; CVEs de pacote-base permanecem. | [`F3 remediation/triage`](../../reports/2026-10-10-f3-remediation-triage.md) e [`F3 preflight anterior`](../../reports/2026-10-09-f3-remediation-and-f6-preflight.md) | Triagem local concluída para todos os candidatos (matriz de aplicabilidade, hardening aplicado nos sete runtimes Debian, NLTK excluído de Deep Research, OpenSSH Forky 10.5p1 testado fora da imagem, OpenVEX com 6 declarações restritas ao image ID do gateway). Notas F3 publicadas em `docs/issues/2026-10-10-f3-status.md` (Notes, Weather, Khan, OSM, Deep Research) e `docs/security/f3-status.md` (AgentMail, onde o `.gitignore` reserva `docs/issues/` para rascunhos locais); commits `ab0f07d`, `d2d6458`, `9746453`, `7f6bd4f`, `3588a45`, `1db41fc`. Resíduo transferido para a pendência #11 (correção de OpenSSH client 10.0p1 e VEX/build limpo dos findings base nas Actions remotas). | agente (remediação/evidência); operador (waiver/VEX e acesso GitHub). | JSON Trivy e CycloneDX com hashes, matriz de aplicabilidade, ADR/VEX aprovados, logs/actions e comparação de source SHA/diff. | Fechado como item próprio; o resíduo crítico passa a ser tratado por #11, e a triagem documentada por servidor é a base de evidência para qualquer decisão de waiver ou fix. |
+| 2 | **F4 — restore e aceite de gateway/API ainda sem evidência completa.** | [`F4 report`](../../reports/2026-10-09-f4-compose-runtime.md) | `docker compose config` em cada receita, smoke isolado de `initialize`/`tools/list`/SIGTERM, probes HTTP nos profiles HTTP, restore/rollback validado para Notes e Khan. | agente. | Logs, IDs de container, screenshots. | Sem evidência de restore/rollback, o aceite F7 não pode ser assinado. |
+| 3 | **F5 — execuções remotas em GitHub Actions não verificadas.** `gh auth status: not logged into any GitHub hosts`. | [`F5 report`](../../reports/2026-10-09-f5-ci-conformance.md) | Cada workflow de CI passa nos SHAs candidatos; manifest/SBOM arquivados. | operador (login); agente (análise). | URLs de runs, artifacts, comparação SHA. | Gate F5 ainda aberto; sem isso, qualquer release estaria sem CI verde. |
+| 4 | **Gateway/broker local em Engine 29.7.2; pins antigos ainda ativos.** O stack Compose local está `healthy` com o overlay explicitamente descartável `docker-compose.engine29-override.yml`; isso não satisfaz nem representa o gate VPS Engine 27.x. O bind histórico `0.0.0.0:8765` foi substituído pelo par atual em loopback. Config revisão 4 ainda marca AgentMail, Weather, OSM e Deep Research ativos/em `running`, com pins antigos. | [`F6 cutover report`](../../reports/2026-10-10-f6-local-cutover.md) e [`F7 local stack report`](../../reports/2026-10-10-f7-local-stack-provisioning.md) | Atualizar os quatro pins via API/domínio autenticado; validar readiness/canary por serviço. Manter binds de host em loopback e socket apenas no broker. O gate VPS requer inventário e Engine 27.x aprovados separadamente. | agente (mutações via domínio após credencial operator-admin); operador (senha/autorização local, gate VPS). | Compose render, `docker compose ps`, `nanobot mcp-docker doctor`, IDs das imagens/containers, GIDs, observation/health e `tools/list` por `server_id`. | F6 local permanece parcial até pins/canary e rollback; F7 continua bloqueado pelo restante das pendências e gates VPS/CI. |
+| 5 | **Rollback dos quatro pins Positronic não foi ensaiado.** As imagens antigas foram removidas; rollback agora exige reconstruir/recuperar tarballs. | [`F6 cutover report` addendum](../../reports/2026-10-10-f6-local-cutover.md#addendum--limpeza-solicitada-pelo-operador) | Ensaio de `update-image` + `configure` voltando para IDs antigos reconstruídos; checagem de `tools/list`. | agente. | Logs, IDs, `tools/list` antes/depois. | F7 exige rollback testado. |
+| 6 | **Quatro pins Percival ainda apontando para imagens pré-F3.** OSM, Weather, AgentMail e Deep Research com `imageId` antigo. | [`F6 cutover report`](../../reports/2026-10-10-f6-local-cutover.md) | Cada `server_id` aponta para o image ID candidato correspondente; `observe`/`health` retornam `running`/`ready`; `tools/list` casa o contrato. | agente (quando broker disponível). | Logs do broker, `docker inspect`, `tools/list` de cada serviço. | F6 parcial; o aceite local cobre apenas Positronic. |
+| 7 | **Permissões do Khan e decisão sobre allowlist.** Tools descobertas, mas allowlist vazia no registry Positronic (`revision 7`). | [`F6 cutover report`](../../reports/2026-10-10-f6-local-cutover.md) | Decisão registrada sobre manter vazia ou expor subset. | operador. | ADR ou nota em `docs/percival-governance.md`. | Acceptance F7 requer alinhamento explícito. |
+| 8 | **Duplicatas Positronic AgentMail/Deep Research.** Causa da duplicação ainda não identificada. | [`F0 inventory`](../../reports/2026-10-09-f0-docker-baseline-inventory.md) | Origem da segunda instância documentada; consumer identificado. | agente. | Logs de spawn/Positronic, rótulos faltantes. | Documentação de observabilidade; pode bloquear F7 se houver instâncias órfãs. |
 | 9 | **Falta padronização de F8 (skill + AGENTS.md).** | [`F8 seção abaixo`](#f8--skill-de-gestão-e-instruções-operacionais-nos-agentsmd) | Matriz dos `AGENTS.md` efetiva; skill revisada com dry-run/fixture. | agente; operador (ativação). | Skill em workshop, dry-run logs. | Bloqueia F8, mas F7 é independente. |
 | 10 | **Identity mismatch nos commits.** `percival-notes-mcp` ficou com `bill@percival.local`; demais repositórios com `bill-kopp-ai-dev@users.noreply.github.com`. | journal de 2026-10-10 | Commits do `percival-notes-mcp` reescritos ou reatribuídos via política `mailmap`. | agente; operador. | `git log --pretty=format:'%h %an <%ae>' -n 5` em cada repo; `mailmap` aplicado. | Não bloqueia F7 funcionalmente, mas afeta a proveniência exigida por B13. |
-| 11 | **Resíduo F3 — OpenSSH `CVE-2026-60002` no gateway e ausência de Actions remotas.** Item #1 ficou fechado pela documentação; restam (a) corrigir ou waverar o `openssh-client 1:10.0p1-7+deb13u4` no gateway (teste Forky com `OpenSSH_10.5p1` já fez conexão client/server local; falta build do gateway em base Forky, regressão Percival Remote SSH na imagem, e aprovação do operador caso se opte por waiver individual), e (b) reproduzir o conjunto de scans/VEX e os fluxos F0–F3 em `linux/amd64` via Actions remotas (`gh auth status: not logged into any GitHub hosts` em 2026-10-10). | [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md), [`F3 OpenVEX`](../reports/2026-10-10-f3-openvex.json) e [`F5 report`](../reports/2026-10-09-f5-ci-conformance.md) | (a) gateway build Forky com OpenSSH >=10.4 ou waiver individual do operador; (b) login GitHub e Actions verdes nos SHAs candidatos. | operador (waiver, login); agente (build Forky, scans remotos, ADR/VEX). | Logs do build Forky, `tests/webui/test_remote_*` verdes, ADR/VEX aprovados, URLs de runs, manifest/SBOM arquivados. | Bloqueia F7 e a publicação da primeira versão 0.1.0 do Percival enquanto o Critical ou os CVEs base não tiverem reprodutibilidade no builder CI. |
+| 11 | **Resíduo F3 — OpenSSH `CVE-2026-60002` no gateway e ausência de Actions remotas.** Item #1 ficou fechado pela documentação; restam (a) corrigir ou waverar o `openssh-client 1:10.0p1-7+deb13u4` no gateway (teste Forky com `OpenSSH_10.5p1` já fez conexão client/server local; falta build do gateway em base Forky, regressão Percival Remote SSH na imagem, e aprovação do operador caso se opte por waiver individual), e (b) reproduzir o conjunto de scans/VEX e os fluxos F0–F3 em `linux/amd64` via Actions remotas (`gh auth status: not logged into any GitHub hosts` em 2026-10-10). | [`F3 remediation/triage`](../../reports/2026-10-10-f3-remediation-triage.md), [`F3 OpenVEX`](../../reports/2026-10-10-f3-openvex.json) e [`F5 report`](../../reports/2026-10-09-f5-ci-conformance.md) | (a) gateway build Forky com OpenSSH >=10.4 ou waiver individual do operador; (b) login GitHub e Actions verdes nos SHAs candidatos. | operador (waiver, login); agente (build Forky, scans remotos, ADR/VEX). | Logs do build Forky, `tests/webui/test_remote_*` verdes, ADR/VEX aprovados, URLs de runs, manifest/SBOM arquivados. | Bloqueia F7 e a publicação da primeira versão 0.1.0 do Percival enquanto o Critical ou os CVEs base não tiverem reprodutibilidade no builder CI. |
 
 #### Ações necessárias para liberar o aceite F7
 
@@ -686,9 +705,9 @@ Evidência completa em
    OpenSSH >=10.4 ou waiver individual do operador, e (b) login GitHub e
    Actions verdes nos SHAs candidatos antes do aceite F7 ou de uma eventual
    publicação 0.1.0. Triagem por imagem permanece em
-   [`F3 remediation/triage`](../reports/2026-10-10-f3-remediation-triage.md)
+   [`F3 remediation/triage`](../../reports/2026-10-10-f3-remediation-triage.md)
    e o OpenVEX em
-   [`f3-openvex`](../reports/2026-10-10-f3-openvex.json); notas F3 por
+   [`f3-openvex`](../../reports/2026-10-10-f3-openvex.json); notas F3 por
    servidor em `docs/issues/2026-10-10-f3-status.md` (cinco MCPs) e
    `docs/security/f3-status.md` (AgentMail).
 2. **Provisionar o stack gateway/broker Percival** — criar o arquivo
@@ -708,7 +727,7 @@ Evidência completa em
    broker estão `healthy`, e `doctor` passou. Para o Engine local 29.7.2, o
    stack usa o overlay descartável Engine 29; isso não fecha gate VPS Engine
    27. O relato e IDs estão em
-   [`F7 local stack provisioning`](../reports/2026-10-10-f7-local-stack-provisioning.md).
+   [`F7 local stack provisioning`](../../reports/2026-10-10-f7-local-stack-provisioning.md).
    Os quatro MCPs continuam configurados com pins antigos; mutações via API
    requerem `operator-admin` existente, cuja senha está sob controle do
    operador. Nenhuma rotação/bypass foi feita; atualizar pins e validar canary
@@ -733,8 +752,8 @@ Evidência completa em
     `state=running`, `docker=running`, `mcp=connected`. Ferramentas
     observadas (99 totais): agentmail 24, weather 9, osm 37, deep-research 5,
     notes 12, khan-calendar 12. Relatório:
-    [`F7 canary execution`](../reports/2026-10-10-f7-canary-execution.md) e
-    [`F7 local stack provisioning`](../reports/2026-10-10-f7-local-stack-provisioning.md).
+    [`F7 canary execution`](../../reports/2026-10-10-f7-canary-execution.md) e
+    [`F7 local stack provisioning`](../../reports/2026-10-10-f7-local-stack-provisioning.md).
  4. **Concluir F4 e F5** — smokes locais de Compose, stdio/HTTP e auth já
     possuem evidência parcial em F4/F5/F7; permanecem restore real dos dados
     Notes/Khan, rollback de imagem/config em fixture nos dois gestores,
@@ -742,11 +761,11 @@ Evidência completa em
     nos SHAs finais. `gh` continua sem autenticação nesta sessão. Antes de
     novos testes autenticados, conter a credencial `operator-admin` exposta em
     documentos versionados. Restore byte a byte e rollback A→B→A já foram
-    evidenciados em [F4/F5 closure report](../reports/2026-10-10-f4-f5-closure-report.md);
+    evidenciados em [F4/F5 closure report](../../reports/2026-10-10-f4-f5-closure-report.md);
     o que resta é C1 (Actions), D7 (runtime nos artefatos finais) e D8 (promoção dos pins).
     Critérios de aceite: itens D7, D8, D12 do
-    [fechamento da padronização F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
-    e C1 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+    [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+    e C1 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 5. **Documentar identidade e procedência dos commits** — uniformizar o
    committer em todos os repositórios via `mailmap` ou reescrevendo o commit
    do `percival-notes-mcp`, garantindo a proveniência exigida por B13.
@@ -857,9 +876,9 @@ migração recomendada para `p-bean-labs`, revisando labels OCI antes do digest 
 Nomes decididos não comprovam acesso, publicação nem migração realizada.
 
 Os trabalhos locais independentes continuam com seus donos em D1–D12 do
-[fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
-C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
-e A1–A9 de [senha única](2026-10-11-single-password-acceptance-closure-plan.md),
+[fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
+C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+e A1–A9 de [senha única](../2026-10-11-single-password-acceptance-closure-plan.md),
 conforme autorização de cada execução. I1/I2 não eliminam D1 (credencial), D6
 (OpenSSH), D7/D8 (artefatos finais), D9–D11 (manual/instruções) ou os gates remotos.
 Não repetir o cutover dos seis MCPs apenas porque um snapshot antigo o dizia pendente;

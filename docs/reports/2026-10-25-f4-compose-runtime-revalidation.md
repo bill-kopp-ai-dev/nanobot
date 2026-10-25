@@ -7,7 +7,7 @@
   esta execução de validação não houve build, retag/promoção, alteração de pin,
   limpeza, cutover, commit ou push; qualquer publicação posterior deve apontar
   para a autorização e os commits específicos do operador.
-- **Referência:** [plano de padronização](../plans/2026-10-09-docker-standardization-refactor-plan.md), §3/F4;
+- **Referência:** [plano de padronização](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md), §3/F4;
   [estado F3](../operations/mcp-docker-local-runbook.md#53-candidatos-limpos-f3-2026-10-25).
 
 ## Mudanças realizadas

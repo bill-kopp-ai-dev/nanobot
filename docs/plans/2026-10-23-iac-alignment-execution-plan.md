@@ -24,8 +24,14 @@
 - **Condição de conclusão:** evidência rastreável de distribuição, implantação,
   lifecycle MCP e recuperação na parte Percival; aceite do operador em I9.
   Este documento não estabelece uma data de entrega nem estima esforço sem baseline.
+- **Reconciliação documental em 2026-10-25:** F0–F8 foi fechado por transferência
+  para a [continuidade Docker](2026-10-25-docker-standardization-continuation-plan.md).
+  D1–D12 e F7 estão encerrados com ressalvas; F1–F5 têm evidências locais posteriores
+  nos relatórios F3/F4/F5 de 2026-10-25. C1 segue aberto e I3 segue adiado; I4–I9
+  continuam pendentes. Resíduos de runtime/promoção/segredos não desaparecem com o
+  fechamento administrativo e mantêm seus donos no sucessor e planos especializados.
 
-**Navegação:** [baseline](#11-baseline-reconferido-nesta-revisão) ·
+**Navegação:** [baseline histórico](#11-baseline-estático-histórico-de-2026-10-23) ·
 [resumo I1–I9](#3-work-packages-donos-e-critérios-de-aceite) ·
 [subtarefas](#5-roteiro-detalhado-por-work-package) ·
 [sequência](#6-sequenciamento-e-caminho-crítico-por-marco) ·
@@ -72,9 +78,11 @@ Em particular:
   imagem multimodo (CLI/gateway/API), nem tratar `USER root` no Dockerfile isoladamente
   como usuário efetivo. I2 verifica processo, entrypoint, overrides e permissões reais.
 
-### 1.1 Baseline reconferido nesta revisão
+### 1.1 Baseline estático histórico de 2026-10-23
 
-Inspeção estática em `a299da09`; não equivale a execução dos componentes. Links apontam
+Inspeção estática em `a299da09`, anterior a I2/D7/F3/F4/F5; não é descrição atual de
+defeitos a corrigir novamente. I2 unificou binds/API e probes, D7 corrigiu init e F3
+de 2026-10-25 vedou instalação tardia de channels na imagem. Links apontam
 para o checkout e devem ser pinados ao SHA no relatório de implementação.
 
 | Observação direta | Consequência executável |
@@ -206,8 +214,8 @@ arbitragem preservado para rastreio, não questões ainda sem encaminhamento.
 
 | Assunto | Dono do gate | Uso neste plano |
 | --- | --- | --- |
-| Fases históricas F0–F8 e padrão local de imagem/runtime | [padronização Docker](2026-10-09-docker-standardization-refactor-plan.md) | Base de I2/I3/I5, não prova de distribuição |
-| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | I3/I5 usam os gates aplicáveis ao candidato; I8 amplia recuperação para core/estado completo |
+| Fases históricas F0–F8 e padrão local de imagem/runtime | [padronização arquivada](closed/2026-10-09-docker-standardization-refactor-plan.md); [continuidade ativa](2026-10-25-docker-standardization-continuation-plan.md) | Contratos/evidências históricos; resíduos ativos R01–R14 e referências de gates, não prova de distribuição |
+| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker arquivado](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | Encerrados com limites; I3/I5 revalidam o candidato afetado, sem reabrir os IDs administrativos. R06/R07 cobrem exposição/persistência de chaves válidas, distinta do segredo legado D1 |
 | A1–A7 KG; B1–B7 MCP/browser; C1 CI e C2–C4 VPS | [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | C1 continua verificação remota, não pipeline de push; C3 consome contrato de paths/IaC de I4 |
 | A1–A9 de autenticação e ensaio P2–P4 | [senha única](2026-10-11-single-password-acceptance-closure-plan.md) | Reutilizar provas do candidato; persistir verifier/segredos em I4/I8 sem copiá-los para locks |
 | Publicação, índice, aquisição, export de lock e aceite IaC | **I1–I9 deste plano** | Lacunas novas têm dono sem reabrir planos arquivados |
@@ -644,9 +652,10 @@ começa cedo; sua publicação final pode vir depois de M4 e dos ensaios locais 
   manager novo; o core local permite desenvolver essa integração sem ciclo I3↔I6.
 - Harness Browser WebUI é dependência compartilhada de B1/B4/B6 e fluxos UI alterados;
   não precisa virar dependência da API de busca se a loja P0 não usar browser.
-- D1 bloqueia mutações autenticadas na **instância real** até rotação autorizada. Não
-  bloqueia desenho ou fixture nova sem credencial real. D2/D6/D7/D8 bloqueiam candidatos
-  afetados; não são “resolvidos” pela publicação ou por um SBOM.
+- D1 já foi encerrado para o segredo legado de administração; não é bloqueio atual
+  de rotação. R06/R07 do sucessor tratam chaves válidas e formato de persistência,
+  com revisão antes de publicação/migração. D2/D6/D7/D8 estão fechados no escopo
+  registrado; os checks do candidato alterado continuam obrigatórios em C1/I3/I5.
 - A sequência B13↔VPS segue a ADR I1: B13 antes de publicar, homologação pública antes
   de promover, C2–C4/I9 separados. Não transformar ensaio privado em deploy público
   homologado nem fechar I9 antes do pull público.
@@ -838,17 +847,18 @@ local; V02/V03/V04 têm evidência local e extensões I4/I8/C1/B3 abertas; V05�
 Registrar avanço e fechar cada I com
 seu aceite; I9 exige evidência e assinatura, não percentuais estimados de completude.
 
-**Próxima ação concreta:** nenhuma etapa de implementação em curso; o ciclo encerra em
-I2 por decisão do operador em 2026-10-23. I3 continua sendo o próximo work package
-quando houver nova autorização, e então começa por I3.1–I3.3 (build/test/scan sem
-push), que não exigem credencial de registry. Preparação a cargo de bill antes de I3.4:
+**Próxima ação deste plano IaC:** I3 continua adiado, sem implementação iniciada
+nesta revisão. Quando reautorizado, começa por I3.1–I3.3 (build/test/scan sem push),
+que não exigem credencial de registry. O adiamento não impede C1 ou os ensaios
+locais I4/I7/I8 autorizados em seus escopos. Preparação de bill antes de I3.4:
 
 1. **Docker Hub** — namespace `pbeanlabs` com permissão de push e token de escopo
    mínimo guardado como secret no ambiente de release do repositório onde o pipeline
    roda. Credencial é necessária apenas no **push** de I3.4 (imagens core) e I5.3
    (MCPs oficiais); I3.5, I4, I6 e I8 usam pull anônimo, sem login local.
-2. **Owner GitHub** — recomendação de não publicar `0.1.0` antes da transferência de
-   `bill-kopp-ai-dev/nanobot` para `p-bean-labs`: as labels
+2. **Owner GitHub/fonte pública** — decidir a migração recomendada antes de publicar
+   `0.1.0` e revisar a origem pública separada `percival`, conforme ADR I1. Não
+   presumir transferência/divulgação do histórico privado `nanobot`: as labels
    `org.opencontainers.image.source`/`documentation` fixadas nos Dockerfiles entram no
    digest da imagem, e o plano proíbe reaproveitar tag SemVer já publicada para
    apontar a bytes diferentes; corrigir a origem depois exigiria nova versão e nova

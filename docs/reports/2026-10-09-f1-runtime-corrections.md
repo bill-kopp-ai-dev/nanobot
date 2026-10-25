@@ -2,7 +2,7 @@
 
 - **Data:** 2026-10-09
 - **Estado:** gate F1 concluído para candidatos locais; sem cutover.
-- **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F1.
+- **Plano:** [`padronização Docker`](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md), fase F1.
 - **Engine de teste:** Docker Engine 29.7.2, linux/amd64.
 
 **Atualização 2026-10-24:** F1 revalidada nos candidatos atuais OSM `04d4399` e

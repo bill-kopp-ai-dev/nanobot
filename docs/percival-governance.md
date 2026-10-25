@@ -40,12 +40,11 @@ useful upstream checks where they cover supported Percival behavior, adding
 Python, UI, KG, packaging and, when implemented, Docker-MCP checks. Run
 affected checks after each upstream import and the full release gate before
 tagging. Document any changed gate and its reason. Supported platform is
-Linux only. Current `.github/workflows/kg-platform.yml` runs on Ubuntu, but
-`.github/workflows/ci.yml` still contains Windows Python/process/TUI jobs,
-and upstream TUI packaging/release documentation assumes additional targets.
-CI and packaging must be reconciled with Linux-only before claiming that the
-Percival release gate is complete. A CI policy decision alone does not close
-that implementation gap.
+Linux only. The 2026-10-25 static review of `.github/workflows/ci.yml`,
+`kg-platform.yml` and `tui-release.yml` found no Windows/macOS jobs; the earlier
+statement that CI still contained them is superseded. This is source inspection,
+not a successful workflow run. Candidate-specific remote conformance remains C1;
+packaging/publication and supported image platforms keep their own release gates.
 
 ## Manual de operação e manutenção
 
