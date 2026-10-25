@@ -76,6 +76,7 @@ def build(
     allowed_core_untracked = {
         "uv.lock",
         "scripts/compile_channel_locks.py",
+        "scripts/check_docker_context.py",
         "docker/mcp-broker-requirements.in",
         "docker/mcp-broker-requirements.lock",
     }
@@ -215,13 +216,13 @@ def build(
         lock_paths.extend((
             repo / "webui" / "package-lock.json",
             repo / "channel-locks" / "manifest.json",
-            repo / "channel-locks" / "whatsapp.txt",
+            *sorted((repo / "channel-locks").glob("*.txt")),
         ))
     elif service == "mcp-broker":
         lock_paths.append(repo / "docker" / "mcp-broker-requirements.lock")
     build_args = {
         name: value
-        for name, value in re.findall(r"^ARG\s+(\w+)=([^\s]+)", dockerfile_text, re.MULTILINE)
+        for name, value in re.findall(r"^ARG\s+(\w+)=([^\s]*)", dockerfile_text, re.MULTILINE)
         if name not in {"VERSION", "GIT_SHA"}
     }
     build_args.update({"VERSION": version, "GIT_SHA": revision})
@@ -242,7 +243,6 @@ def build(
         "lockHashes": {
             str(path.relative_to(repo)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in lock_paths
-            if path.is_file()
         },
         "buildArgs": build_args,
         "contextTransfer": context_sizes[-1] if context_sizes else "not-reported-by-builder",

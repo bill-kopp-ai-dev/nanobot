@@ -67,8 +67,8 @@ RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian
 
 WORKDIR /app
 
-# Keep the runtime environment writable by the non-root nanobot user. Enabled
-# channels may install their manifest-declared dependencies at startup.
+# Keep the environment layout compatible with UID 1000 and alternate UIDs.
+# Channel dependencies are installed at build time, not at startup.
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 # The venv is created without `--seed`: a seeded pip brings its own vendored
@@ -108,9 +108,8 @@ RUN python -m scripts.compile_channel_locks --check
 # Preinstall selected channel dependencies from their manifests. A comma-separated
 # list keeps the image configurable while preserving WhatsApp in the default image.
 ARG NANOBOT_CHANNELS=whatsapp
-RUN for channel in $(printf '%s' "$NANOBOT_CHANNELS" | tr ',' ' '); do \
-        python -m scripts.install_channel_dependencies "$channel"; \
-    done
+RUN python -m scripts.install_channel_dependencies --locked $(printf '%s' "$NANOBOT_CHANNELS" | tr ',' ' ') && \
+    uv pip check --python /app/.venv/bin/python
 
 # Render deploy template (see render.yaml): committed gateway config that wires
 # secrets through ${ANTHROPIC_API_KEY} / ${NANOBOT_WEB_TOKEN} env vars (resolved
@@ -140,6 +139,9 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod a+rx /usr/local/bin/e
 USER root
 ENV HOME=/home/nanobot
 ENV NANOBOT_CHANNEL_LOCK_DIR=/app/channel-locks
+# Native Python retains optional installs. Docker candidates require all enabled
+# channels/extras in the reviewed build; neither startup nor WebUI installs them.
+ENV NANOBOT_RUNTIME_PACKAGE_INSTALL=0
 # Ensure crash output reaches Render logs (app output is otherwise swallowed on
 # non-graceful exit).
 ENV PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1

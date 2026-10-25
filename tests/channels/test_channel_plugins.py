@@ -2674,6 +2674,77 @@ def test_install_extra_fails_closed_for_stale_hash_lock(tmp_path, monkeypatch):
     assert calls == []
 
 
+def test_immutable_image_refuses_startup_and_webui_installs(tmp_path, monkeypatch):
+    from nanobot import optional_features
+    from nanobot.channels.registry import discover_plugins
+
+    monkeypatch.setenv("NANOBOT_RUNTIME_PACKAGE_INSTALL", "0")
+    monkeypatch.setattr(optional_features, "extra_installed", lambda *_: False)
+    calls = []
+    def runner(*args, **kwargs):
+        return calls.append(args)
+
+    result = optional_features.install_extra("discord", ["discord.py>=2"], runner=runner)
+    assert not result.ok and "Rebuild" in result.output
+    failures = optional_features.ensure_enabled_channel_dependencies(
+        {"discord"}, discover_plugins(), runner=runner,
+    )
+    assert "NANOBOT_CHANNELS" in failures["discord"]
+    config_path = tmp_path / "config.json"
+    with pytest.raises(optional_features.OptionalFeatureError, match="Rebuild") as error:
+        optional_features.enable_optional_feature("discord", config_path=config_path, runner=runner)
+    assert error.value.status == 409
+    assert not config_path.exists()
+    assert calls == []
+
+
+def test_immutable_image_accepts_preinstalled_channel_dependencies(monkeypatch):
+    from nanobot import optional_features
+    from nanobot.channels.registry import discover_plugins
+
+    monkeypatch.setenv("NANOBOT_RUNTIME_PACKAGE_INSTALL", "0")
+    monkeypatch.setattr(optional_features, "extra_installed", lambda *_: True)
+    assert optional_features.ensure_enabled_channel_dependencies(
+        {"whatsapp"}, discover_plugins(), runner=lambda *_: pytest.fail("must not install"),
+    ) == {}
+
+
+def test_locked_build_installer_uses_pins_even_when_ranges_are_satisfied(monkeypatch):
+    from scripts import compile_channel_locks, install_channel_dependencies
+
+    calls = []
+    monkeypatch.setattr(install_channel_dependencies, "extra_installed", lambda *_: True)
+    monkeypatch.setattr(
+        install_channel_dependencies.subprocess, "run",
+        lambda argv, **kwargs: calls.append(argv) or subprocess.CompletedProcess(argv, 0),
+    )
+    assert install_channel_dependencies.main(["--locked", "whatsapp", "discord"]) == 0
+    assert calls == [[
+        "uv", "pip", "install", "--python", sys.executable, "--require-hashes", "--no-deps",
+        "-r", str(compile_channel_locks.LOCK_DIR / "discord.txt"),
+        "-r", str(compile_channel_locks.LOCK_DIR / "whatsapp.txt"),
+    ]]
+    assert install_channel_dependencies.main(["--locked"]) == 0  # Explicit empty image channel set.
+    assert len(calls) == 1
+
+
+def test_locked_build_installer_rejects_tampered_lock(tmp_path, monkeypatch):
+    from scripts import compile_channel_locks, install_channel_dependencies
+
+    lock_dir = compile_channel_locks.LOCK_DIR
+    (tmp_path / "manifest.json").write_bytes((lock_dir / "manifest.json").read_bytes())
+    for source in lock_dir.glob("*.txt"):
+        (tmp_path / source.name).write_bytes(source.read_bytes())
+    (tmp_path / "whatsapp.txt").write_text("neonize==0.0.0\n")
+    monkeypatch.setattr(compile_channel_locks, "LOCK_DIR", tmp_path)
+    monkeypatch.setattr(compile_channel_locks, "LOCK_MANIFEST", tmp_path / "manifest.json")
+    monkeypatch.setattr(
+        install_channel_dependencies.subprocess, "run",
+        lambda *_args, **_kwargs: pytest.fail("tampered locks must never invoke an installer"),
+    )
+    assert install_channel_dependencies.main(["--locked", "whatsapp"]) == 1
+
+
 def test_run_install_command_returns_failure_on_timeout(monkeypatch):
     from nanobot import optional_features
 

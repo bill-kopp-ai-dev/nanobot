@@ -319,6 +319,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Audit clean build context and synthetic secret exclusion
+        run: >-
+          python3 scripts/check_docker_context.py --budget-bytes 41943040
+          --output "$RUNNER_TEMP/core-context.json"
+
       - name: Build image with default channel dependencies
         run: |
           VERSION=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
@@ -356,15 +361,17 @@ jobs:
           --scratch-parent "$RUNNER_TEMP"
           --output "$RUNNER_TEMP/remote-ssh-regression.json"
 
-      - name: Verify runtime dependency permissions
+      - name: Verify immutable runtime dependencies without network
         run: >-
-          docker run --rm --user 1000:1000 --entrypoint sh percival-gateway:ci -c
-          'test -w /app/.venv && test ! -w /app && test ! -w /app/nanobot &&
-          python -m scripts.install_channel_dependencies discord && python -c "import discord"'
+          docker run --rm --network none --user 1001:1001 --entrypoint python percival-gateway:ci -c
+          'import neonize, segno;
+          from nanobot.optional_features import install_extra;
+          result = install_extra("discord", ["discord.py>=2"]);
+          assert not result.ok and "Rebuild" in result.output, result'
 
       - name: Record gateway and broker build manifests
         run: |
-          python3 scripts/write_docker_ci_manifest.py --image percival-gateway:ci --source-sha "$GITHUB_SHA" --lock uv.lock --lock channel-locks --output gateway-build-manifest.json
+          python3 scripts/write_docker_ci_manifest.py --image percival-gateway:ci --source-sha "$GITHUB_SHA" --lock uv.lock --lock channel-locks --lock webui/package-lock.json --output gateway-build-manifest.json
           python3 scripts/write_docker_ci_manifest.py --image percival-mcp-broker:ci --source-sha "$GITHUB_SHA" --dockerfile Dockerfile.mcp-broker --lock docker/mcp-broker-requirements.lock --output broker-build-manifest.json
       - name: Generate gateway CycloneDX SBOM
         uses: anchore/sbom-action@v0
@@ -390,6 +397,7 @@ jobs:
             broker-build-manifest.json
             gateway-sbom.cdx.json
             broker-sbom.cdx.json
+            ${{ runner.temp }}/core-context.json
             ${{ runner.temp }}/i2-*/results.json
             ${{ runner.temp }}/remote-ssh-regression.json
           if-no-files-found: error

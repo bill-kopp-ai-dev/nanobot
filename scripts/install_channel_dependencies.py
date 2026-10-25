@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from collections.abc import Sequence
 
@@ -15,6 +16,33 @@ from nanobot.optional_features import (
 )
 
 _DEPENDENCY_FAILURE = "Channel dependencies could not be installed. Check gateway logs."
+
+
+def install_locked_channel_dependencies(names: set[str], plugins: dict[str, ChannelPlugin]) -> int:
+    """Install one compatible union of hash-locked channels, even if ranges are met.
+
+    This is the image build path. The native development installer below retains
+    its manifest-based behavior. Never fall back to unpinned resolution here.
+    """
+    from scripts.compile_channel_locks import LOCK_DIR, verify
+
+    channels = {
+        name: list(plugin.dependencies)
+        for name, plugin in plugins.items() if plugin.dependencies
+    }
+    errors = verify(channels)
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        return 1
+    command = ["uv", "pip", "install", "--python", sys.executable, "--require-hashes", "--no-deps"]
+    selected = sorted(names & set(channels))
+    if not selected:
+        return 0
+    for name in selected:
+        command.extend(["-r", str(LOCK_DIR / f"{name}.txt")])
+    # Let uv reject incompatible pins between selected channels in one operation.
+    return subprocess.run(command, check=False).returncode
 
 
 def ensure_repository_channel_dependencies(
@@ -73,7 +101,10 @@ def ensure_repository_channel_dependencies(
 def main(argv: Sequence[str] | None = None) -> int:
     """Install selected channel dependencies without changing channel configuration."""
     args = list(sys.argv[1:] if argv is None else argv)
-    if not args:
+    locked = "--locked" in args
+    if locked:
+        args.remove("--locked")
+    if not args and not locked:
         print("Pass channel names or --all-channels.", file=sys.stderr)
         return 2
     if "--all-channels" in args and args != ["--all-channels"]:
@@ -86,6 +117,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if unknown:
         print(f"Unknown channels: {', '.join(unknown)}", file=sys.stderr)
         return 2
+
+    if locked:
+        return install_locked_channel_dependencies(names, plugins)
 
     failures = ensure_repository_channel_dependencies(names, plugins)
     for name, message in sorted(failures.items()):

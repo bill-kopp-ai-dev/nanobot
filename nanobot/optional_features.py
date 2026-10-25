@@ -53,6 +53,15 @@ _INSTALL_TIMEOUT_SECONDS = 300
 _LOG_OUTPUT_LIMIT = 4000
 _HIDDEN_OPTIONAL_FEATURES = {"documents", "pdf"}
 _BUNDLED_FEATURE_ALIASES = {"documents", "pdf"}
+_IMMUTABLE_DEPENDENCY_ERROR = (
+    "Runtime package installation is disabled for this image. "
+    "Rebuild with the required NANOBOT_CHANNELS or NANOBOT_EXTRAS, then deploy the new candidate."
+)
+
+
+def runtime_package_install_enabled() -> bool:
+    """Native installs remain supported; immutable Docker candidates opt out."""
+    return os.environ.get("NANOBOT_RUNTIME_PACKAGE_INSTALL", "1") == "1"
 
 
 def load_pyproject(path: Path) -> dict[str, Any]:
@@ -227,6 +236,8 @@ def install_extra(
     import importlib
 
     install_args, label = install_args_for_extra(extra, deps)
+    if not runtime_package_install_enabled():
+        return InstallResult(False, label, [], output=_IMMUTABLE_DEPENDENCY_ERROR)
     lock_dir = os.environ.get("NANOBOT_CHANNEL_LOCK_DIR", "").strip()
     lock_path: Path | None = None
     if lock_dir:
@@ -503,7 +514,7 @@ def optional_features_payload(
             "type": "channel" if is_channel else "feature",
             "installed": installed,
             "requires_dependencies": has_dependencies,
-            "install_supported": has_dependencies or is_channel,
+            "install_supported": (has_dependencies or is_channel) and runtime_package_install_enabled(),
             "requires_restart": _feature_requires_restart(name, is_channel=is_channel),
         }
         if channel_plugin is not None:
@@ -711,6 +722,8 @@ def _install_feature_dependencies(
             "Run this action from localhost or set tools.webuiAllowRemotePackageInstall to true.",
             status=403,
         )
+    if not runtime_package_install_enabled():
+        raise OptionalFeatureError(_IMMUTABLE_DEPENDENCY_ERROR, status=409)
     result = install_extra(
         name,
         dependencies,
@@ -893,6 +906,9 @@ def ensure_enabled_channel_dependencies(
             continue
         dependencies = list(plugin.dependencies)
         if not dependencies or extra_installed(name, dependencies):
+            continue
+        if not runtime_package_install_enabled():
+            failures[name] = _IMMUTABLE_DEPENDENCY_ERROR
             continue
         result = install_extra(name, dependencies, runner=runner)
         if result.ok and extra_installed(name, dependencies):

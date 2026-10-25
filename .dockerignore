@@ -1,3 +1,30 @@
+# Only Dockerfile inputs belong in the context (including bundled KG assets).
+**
+!Dockerfile
+!Dockerfile.mcp-broker
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!hatch_build.py
+!entrypoint.sh
+!render-config.json
+!nanobot/
+!nanobot/**
+!webui/
+!webui/**
+!packages/
+!packages/client-events/
+!packages/client-events/**
+!scripts/
+!scripts/install_channel_dependencies.py
+!scripts/compile_channel_locks.py
+!channel-locks/
+!channel-locks/**
+!docker/
+!docker/mcp-broker-requirements.lock
+
 __pycache__
 *.pyc
 *.pyo
@@ -40,3 +67,19 @@ scripts/*
 **/node_modules/
 webui/coverage/
 webui/.vite/
+
+# Recursive exclusions apply inside copied source/vendor trees as well.
+**/.venv/
+**/venv/
+**/.positronic/
+**/.env
+**/.env.*
+**/secrets/
+**/*.pem
+**/*.key
+**/__pycache__/
+**/.pytest_cache/
+**/.cache/
+**/AGENTS.md
+# Bundled workspace templates are product inputs, not operator instructions.
+!nanobot/templates/AGENTS.md
