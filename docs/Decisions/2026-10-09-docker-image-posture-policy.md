@@ -42,3 +42,31 @@ applicability, mitigation, approving owner, creation date, and expiry. Expired
 exceptions block promotion until they are renewed or resolved. The local F3
 scan found findings above the blocking threshold; they remain unwaived and the
 F3 gate remains open.
+
+## F3 execution of 2026-10-25
+
+- Candidates were rebuilt from **committed, clean checkouts** and rescanned with
+  Trivy 0.67.2 (`aquasec/trivy` pinned by digest, DB `UpdatedAt`
+  2026-10-25T01:20:33Z). Result: **0 Critical and 0 High** on all eight image
+  IDs, so no waiver was required or granted.
+- The single remaining Medium, `CVE-2026-49138` on the gateway, carries a
+  `not_affected` assessment anchored to that image ID in
+  [`OpenVEX F3 do gateway`](../reports/2026-10-25-f3-openvex-gateway.json). It
+  is a technical draft, not a waiver, and it expires with the image ID: a
+  rebuild from another revision requires a fresh assessment.
+- Findings and waivers do **not** transfer between images. The per-image
+  evidence (scan JSON, CycloneDX SBOM, scanner digest, DB timestamp and
+  SHA-256 of each artifact) lives outside the repository and is referenced from
+  [`F3 2026-10-25`](../reports/2026-10-25-f3-reproducibility-contexts-posture.md).
+- Immutable dependency sets are part of the posture: a candidate must install
+  channel dependencies from the reviewed hash-locked files at build time, and
+  runtime installation stays disabled in images
+  (`NANOBOT_RUNTIME_PACKAGE_INSTALL=0`). Enabling installation at runtime
+  invalidates the fixed dependency-set claim and requires a new candidate.
+
+## Exception record (superseded)
+
+The record above describes the 2026-10-09 scan, which found Critical/High
+findings above the blocking threshold and left the F3 gate open. The 2026-10-25
+execution above closed the local F3 gate; the statement is kept for history
+because the 2026-10-09 findings were remediated rather than waived.

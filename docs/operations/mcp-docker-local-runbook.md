@@ -65,6 +65,21 @@ fixture; never infer MCP readiness from health alone.
 - Para o gateway/broker: `python scripts/percival-docker-build.py` no checkout Percival; passar `--worktree-candidate` quando a fonte incluir diff não commitado. Não usar `:dev` como release.
 - Para os MCPs: `python scripts/percival-docker-build.py <service>` no checkout do MCP, com tag imutável `<semver>-<shortsha>`. Registrar `<semver>` de `pyproject.toml` e `<shortsha>` de `git rev-parse --short HEAD`. Falhar se o `0.0.0`/`unknown`/`local` aparecer.
 - Pinar base/lock/canal conforme F3. Confirmar com `docker inspect <id>` que `org.opencontainers.image.{source,revision,licenses}` batem com o esperado.
+- **Canais e extras entram no build.** `NANOBOT_CHANNELS` substitui o conjunto
+  padrão (`whatsapp`): inclua todos os canais que a imagem deve habilitar. O
+  build instala os channel-locks com `--require-hashes --no-deps`, valida o
+  manifesto e roda `uv pip check`; pins conflitantes falham o build.
+- **Imagens Docker são imutáveis em dependências.** Elas definem
+  `NANOBOT_RUNTIME_PACKAGE_INSTALL=0`: o startup reporta canal ausente sem
+  instalar e a WebUI recusa a instalação com 409 antes de alterar configuração.
+  Para adicionar canal ou extra, reconstrua com `NANOBOT_CHANNELS` /
+  `NANOBOT_EXTRAS` e promova a nova imagem. A instalação nativa continua
+  disponível fora do Docker.
+- **Auditar o contexto antes de promover:**
+  `python scripts/check_docker_context.py --budget-bytes <bytes> --output <arquivo>`
+  exporta o contexto efetivo pelo BuildKit, mede bytes e canários sintéticos de
+  estado/segredo e falha se algum canário vazar ou exceder o orçamento. O
+  arquivo de saída é evidência fora da fonte.
 - Após o build, executar o smoke F1 (stdio) e, se aplicável, o profile HTTP. Para Khan, executar `khan_get_status` em fixture isolada para validar resposta, não apenas `tools/list`.
 
 ### 3.3 Atualização de servidor em Positronic
@@ -265,6 +280,31 @@ A política de retenção da tabela §5 foi aprovada pelo operador nesta execuç
 | Próxima revisão trimestral | até 2027-01-24 | Operador | Agente | Pendente |
 
 Em cada revisão, anexar tabela §4.1, inventário por image ID/digest, referências em pins/config/containers/volumes, decisão explícita de retenção e aprovação do operador. Não remova automaticamente artefatos fora do limite: apresente uma lista nominal e aguarde aprovação específica para cada limpeza.
+
+### 5.3 Candidatos limpos F3 (2026-10-25)
+
+Fotografia, **não** autorização: são artefatos **locais**, sem digest OCI
+publicado, e nenhum pin foi alterado. Substituem funcionalmente o par B da D8
+como candidatos de referência, mas continuam retidos sem promoção.
+
+| Papel | Tag | Image ID |
+| --- | --- | --- |
+| Gateway | `percival-gateway:0.1.0-f2173bb` | `sha256:72195df6c5818e0b22d2bb5f5dcc349f38c70b787a5ed8db1935c39d88d32ee3` |
+| MCP broker | `percival-mcp-broker:0.1.0-f2173bb` | `sha256:a3c469a0b6e5799ab322fea5ba7f3782b73e177d6dfbec3aadeab0f2ee1a4685` |
+| Notes MCP | `percival-notes-mcp:0.1.5-c104735` (D8, reaproveitado) | `sha256:3abd363f5a354a293b7c5ef5bf58a30cfd245800814f6b800c4545fba994822a` |
+| AgentMail MCP | `percival-agentmail-mcp:0.4.0-89acdf4` | `sha256:114f938fdcfca2832f661484a70b1fa24c37f783ea09c0d23af1de45d56d159c` |
+| Weather MCP | `percival-weather-mcp:0.9.0-9583059` | `sha256:7e3c03db89a649afc82f3da156710c154abd29143dace6bde0ba9f07cf53a69f` |
+| Khan Calendar | `percival-khan-calendar:0.4.0-4f4521a` | `sha256:620dbbc4b04d9e131c85e692fd1a6d44ee2a222977b0c65b53449abf33cca4c0` |
+| OSM | `percival-osm:0.5.0-4204213` | `sha256:6d0e8e5f4aad13b4a98eb7f50cfeef32463f18b777b5c44dae325c045e0a2ab6` |
+| Deep Research | `percival-deep-research:3.0.1-dd6451e` | `sha256:7d015e3359363df00db47f9b8678fb76d601f64fb471314a163a36f5a1e75e07` |
+
+Postura: Trivy 0.67.2 com DB de 2026-10-25, **0 Critical/High** nos oito
+candidatos; único Medium `CVE-2026-49138` no gateway com avaliação
+`not_affected` restrita ao image ID do gateway
+([OpenVEX F3](../reports/2026-10-25-f3-openvex-gateway.json)). Relatório, SBOMs
+e hashes: [F3 2026-10-25](../reports/2026-10-25-f3-reproducibility-contexts-posture.md).
+A base de vulnerabilidades usada expira em 2026-10-26: reexecutar scan e SBOM
+antes de qualquer promoção.
 
 ## 6. Links e procedimentos vizinhos
 

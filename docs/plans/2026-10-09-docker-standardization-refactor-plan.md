@@ -372,6 +372,33 @@ reprodutível do conjunto resolvido. O relatório
   [`F3 reproducibility/context/posture`](../reports/2026-10-09-f3-reproducibility-contexts-posture.md)
   registra candidatos, contextos, hashes dos artefatos e findings.
 
+**Execução F3 2026-10-25 — gate concluído no escopo local:** o build do gateway
+passou a instalar a **união dos channel-locks** com `--require-hashes --no-deps`
+(o caminho anterior resolvia por manifest e podia aceitar faixa já satisfeita) e
+`uv pip check`; candidatos Docker definem
+`NANOBOT_RUNTIME_PACKAGE_INSTALL=0`, então o startup reporta dependência ausente
+sem instalar e a WebUI recusa (409) antes de alterar configuração — a instalação
+nativa segue intacta fora da imagem. Os `.dockerignore` do core e dos cinco MCPs
+alterados viraram allowlist explícita, e o novo
+`scripts/check_docker_context.py` exporta o contexto efetivo com BuildKit e
+mede canários sintéticos de estado/segredo: **19 canários por repositório, zero
+vazados**, com o core caindo de 23.956.554 para 22.003.812 B.
+
+Foram construídos **candidatos limpos a partir de checkouts commitados** (core
+`f2173bbe`, AgentMail `89acdf4`, Weather `9583059`, Khan `4f4521a`, OSM
+`4204213`, Deep `dd6451e`; Notes reaproveita o candidato limpo da D8
+`c104735`). Rebuilds `--no-cache` dos mesmos fontes produziram **conjuntos
+resolvidos idênticos** (pacotes Python e de sistema) nos sete serviços
+repetidos — repetibilidade do conjunto resolvido, não igualdade bit a bit.
+Trivy 0.67.2 (DB de 2026-10-25) reportou **0 Critical/High nos oito candidatos**
+(SBOM CycloneDX por image ID); o único Medium (`CVE-2026-49138` do gateway) teve
+avaliação `not_affected` reancorada no image ID novo, sem waiver. Runtime:
+rehearsal I2 **18/18 PASS** no par novo, conformidade stdio dos MCPs e gateway
+offline em UID 1000/1001 com 20 pins de canal conferidos. Relatório:
+[`F3 2026-10-25`](../reports/2026-10-25-f3-reproducibility-contexts-posture.md).
+**Fora do escopo:** build clean em builder de CI (B5/C1) e digest publicado
+(B6/I3) continuam não executados; nenhum pin, container ou registry foi alterado.
+
 **Remediação local 2026-10-09/10 — gate continua aberto:** versões Python com
 correção disponível foram atualizadas, as bases Linux dos candidatos MCP/
 gateway foram alinhadas a Debian Trixie e as oito imagens foram rebuildadas e
