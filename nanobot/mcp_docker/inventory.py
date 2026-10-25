@@ -32,6 +32,25 @@ CONTAINER_LABELS = frozenset({
     "percival.mcp-docker.managed-by",
     "percival.mcp-docker.instance-id",
 })
+POSITRONIC_LABELS = frozenset({
+    "io.positronic.managed",
+    "io.positronic.run",
+    "io.positronic.server",
+    "io.positronic.server-name",
+    "io.positronic.context",
+    "io.positronic.home",
+})
+COMPOSE_LABELS = frozenset({
+    "com.docker.compose.project",
+    "com.docker.compose.service",
+    "com.docker.compose.project.config_files",
+    "com.docker.compose.project.working_dir",
+})
+BUILD_LABELS = frozenset({
+    "io.percival.build.worktree",
+    "io.percival.build.source-diff-sha256",
+    "io.percival.build.phase",
+})
 REFERENCE_KEYS = frozenset({"reference", "image", "imageid", "image_ref", "repodigest", "repo_digest"})
 SECRET_PATH_PATTERN = re.compile(
     r"(?:^|[/_.-])(?:\.env(?:$|[/_.-])|secrets?(?:$|[/_.-]))",
@@ -102,7 +121,7 @@ def _parse_image(line: str) -> dict[str, Any] | None:
         "created": created,
         "os": os_name,
         "architecture": architecture,
-        "labels": _labels(_json(labels, {}), OCI_LABELS),
+        "labels": _labels(_json(labels, {}), OCI_LABELS | BUILD_LABELS),
         "healthcheck": _json(healthcheck, None),
         "exposedPorts": _json(ports, {}),
     }
@@ -144,7 +163,7 @@ def _parse_container(line: str) -> dict[str, Any] | None:
         "created": created,
         "status": status,
         "health": health,
-        "labels": _labels(labels_obj, CONTAINER_LABELS | OCI_LABELS),
+        "labels": _labels(labels_obj, CONTAINER_LABELS | POSITRONIC_LABELS | COMPOSE_LABELS | OCI_LABELS | BUILD_LABELS),
         "healthcheck": _json(healthcheck, None),
         "ports": _json(ports, {}),
         "mounts": _safe_mounts(_json(mounts, [])),
@@ -166,11 +185,15 @@ def _reference_matches_image(image: dict[str, Any], reference: str) -> bool:
     return reference in (image["tags"] or []) or reference in (image["repoDigests"] or [])
 
 
+def _markdown_row(cells: list[object]) -> str:
+    return "| " + " | ".join(str(cell).replace("|", "\\|").replace("\n", "<br>") for cell in cells) + " |"
+
+
 def _project_references(projects_root: Path) -> list[dict[str, str]]:
     refs: list[dict[str, str]] = []
     if not projects_root.is_dir():
         return refs
-    for path in sorted(projects_root.glob("*/docker-compose.y*ml")):
+    for path in sorted(projects_root.glob("*/docker-compose*.y*ml")):
         if not path.parent.name.startswith(("percival-", "nanobot")):
             continue
         for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
@@ -236,7 +259,7 @@ def collect_inventory(*, docker_bin: str = "docker", projects_root: Path | None 
         container = _parse_container(_docker(["container", "inspect", "--format", CONTAINER_TEMPLATE, container_id], docker_bin=docker_bin))
         if container and (
             _relevant(container["name"] + " " + container["configuredImage"])
-            or bool(set(container["labels"]) & CONTAINER_LABELS)
+            or bool(set(container["labels"]) & (CONTAINER_LABELS | POSITRONIC_LABELS))
             or container["imageId"] in referenced_values
         ):
             containers.append(container)
@@ -288,15 +311,32 @@ def main() -> int:
             tags = ", ".join(image["tags"] or [])
             digests = ", ".join(image["repoDigests"] or [])
             selected_labels = json.dumps(labels, sort_keys=True, ensure_ascii=False)
-            print(f"| {tags} | {image['imageId']} | {digests} | {image['os']}/{image['architecture']} | {image['created']} | {image['healthcheck']} | `{selected_labels}` |")
+            print(_markdown_row([
+                tags, image["imageId"], digests, f"{image['os']}/{image['architecture']}",
+                image["created"], image["healthcheck"], f"`{selected_labels}`",
+            ]))
         print("\n## Containers\n")
-        print("| name | container ID | configured image | image ID | owner | managed-by | server-id | instance-id | status/health | ports | mounts |")
-        print("|---|---|---|---|---|---|---|---|---|---|---|")
+        print("| name | container ID | configured image | image ID | owner | managed-by | server-id | instance-id/run | status/health | healthcheck | init/TTY/stdin | ports | mounts | selected labels |")
+        print("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
         for container in inventory["containers"]:
             labels = container["labels"]
             mounts = ", ".join(f"{item['source']}→{item['destination']} ({'rw' if item['readWrite'] else 'ro'})" for item in container["mounts"])
             selected_labels = json.dumps(labels, sort_keys=True, ensure_ascii=False)
-            print(f"| {container['name']} | {container['containerId']} | {container['configuredImage']} | {container['imageId']} | {labels.get('percival.mcp-docker.owner', '')} | {labels.get('percival.mcp-docker.managed-by', '')} | {labels.get('percival.mcp-docker.server-id', '')} | {labels.get('percival.mcp-docker.instance-id', '')} | {container['status']}/{container['health']} | {container['ports']} | {mounts} | `{selected_labels}` |")
+            owner = labels.get("percival.mcp-docker.owner", "")
+            manager = labels.get("percival.mcp-docker.managed-by", "")
+            server = labels.get("percival.mcp-docker.server-id", "")
+            instance = labels.get("percival.mcp-docker.instance-id", "")
+            if not owner and labels.get("io.positronic.managed") == "mcp":
+                owner = manager = "positronic"
+                server = labels.get("io.positronic.server", "")
+                instance = labels.get("io.positronic.run", "")
+            print(_markdown_row([
+                container["name"], container["containerId"], container["configuredImage"],
+                container["imageId"], owner, manager, server, instance,
+                f"{container['status']}/{container['health']}", container["healthcheck"],
+                f"{container['init']}/{container['tty']}/{container['stdinOpen']}",
+                container["ports"], mounts, f"`{selected_labels}`",
+            ]))
         print("\n## Compose/config references\n")
         for reference in inventory["references"]:
             where = f"{reference['path']}:{reference.get('line', reference.get('pointer', ''))}"

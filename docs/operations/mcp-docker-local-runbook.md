@@ -31,6 +31,12 @@ CLI, gateway e API usam o bind de estado inventariado do mesmo deploy. **Somente
 
 ### 3.1 Inventário seguro antes de agir
 
+- Usar `python -m nanobot.mcp_docker.inventory --format json` (ou `markdown`) no
+  ambiente Python do Percival para capturar identidades, transporte e referências
+  sem consultar `Config.Env`. O inventário preserva os esquemas
+  `percival.mcp-docker.*` e `io.positronic.*`; `io.positronic.run` identifica a
+  encarnação Positronic. Labels de build distinguem worktrees dirty; overrides
+  Compose são referências declaradas, não prova de qual imagem está em execução.
 - Ler `~/.nanobot/config.json` para o estado Percival e `~/.positronic/mcp/registry.json` + `~/.positronic/mcp/servers/<id>.json` para Positronic.
 - Executar `docker ps --no-trunc --format '{{.ID}} {{.Names}} {{.Image}} {{.CreatedAt}}'` e cruzar com a lista de servidores do registry/config. Containers sem pai vivo ou sem label são órfãos (ver §3.7).
 - `docker image inspect <id> --format '{{ index .Config.Labels "org.opencontainers.image.revision" }} | {{ index .Config.Labels "io.percival.build.source-diff-sha256" }}'` para confirmar a fonte da imagem.

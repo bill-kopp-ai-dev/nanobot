@@ -5,6 +5,11 @@
 - **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F1.
 - **Engine de teste:** Docker Engine 29.7.2, linux/amd64.
 
+**Atualização 2026-10-24:** F1 revalidada nos candidatos atuais OSM `04d4399` e
+Deep Research `af3b23b`; ver [relatório F1/F2](2026-10-24-f1-f2-runtime-identity-revalidation.md).
+O snapshot abaixo permanece histórico; o init atual pertence ao launcher, sem
+tini embutido, e nenhum consumidor foi promovido nesta revalidação.
+
 ## Escopo e preservação
 
 Foram corrigidos os contratos de runtime dos MCPs Deep Research e OSM conforme

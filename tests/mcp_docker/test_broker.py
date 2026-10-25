@@ -496,6 +496,7 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     assert run_args[instance_index - 1] == "--label"
     instance_id = run_args[instance_index].split("=", 1)[1]
     assert str(uuid.UUID(instance_id)) == instance_id
+    assert uuid.UUID(instance_id).version == 4
     assert label_index < network_index
     assert "--cap-drop=ALL" in run_args
     assert "--security-opt=no-new-privileges" in run_args
@@ -504,6 +505,14 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     # stop pays the full grace period and ends in SIGKILL (137) instead of
     # a clean exit (143).
     assert "--init" in run_args
+
+    # Recreating the same server keeps its name/pin but changes incarnation.
+    broker._spawn(broker.ManagedServer("agentmail", source, host))
+    next_args = invoked[1]
+    next_instance = next(value.split("=", 1)[1] for value in next_args
+                         if value.startswith("percival.mcp-docker.instance-id="))
+    assert uuid.UUID(next_instance).version == 4
+    assert next_instance != instance_id
 
 
 def test_spawn_rejects_network_policy_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:

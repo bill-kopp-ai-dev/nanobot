@@ -231,7 +231,8 @@ A12/A13/A14 permanecem abertos nos planos donos.
 **OSM**
 
 - Remover probe `pgrep` do modo stdio ou instalar/pinar explicitamente o pacote necessário e verificar que a probe detecta um processo MCP válido. Preferir não depender de ferramenta de processo não incluída.
-- Definir `tty: false` no serviço stdio; manter só um tini (o Dockerfile já o inclui).
+- Definir `tty: false` no serviço stdio e um único init. Conforme D-5 do adendo
+  2026-10-24, os candidatos atuais usam init fornecido pelo launcher, sem tini embutido.
 - Preservar health HTTP específico do profile HTTP e autenticação/regras de exposição existentes.
 
 **Verificação F1**
@@ -250,6 +251,14 @@ probe HTTP, auth/bind no OSM, init único e encerramento por SIGTERM. O relatór
 registra IDs, RepoDigests locais, configuração inspecionada, comandos, testes e
 limitações. As imagens candidatas foram mantidas para rollback; containers e
 consumidores históricos não foram alterados. O cutover permanece em F6.
+
+**Reexecução 2026-10-24 — gate local revalidado:** os candidatos limpos OSM
+`ce6de5ccd164` (`04d4399`) e Deep Research `bab6d3ced1b3` (`af3b23b`) passaram
+Compose stdio/HTTP em fixtures, `initialize`/`tools/list` (37/5 tools), health
+específico por profile, loopback, auth OSM e SIGTERM 143 nos quatro modos. PID 1
+é `docker-init` do launcher; as imagens não embutem tini. Relatório e limites:
+[`F1/F2 revalidation`](../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
+Os consumidores ativos permanecem nos pins antigos; A5/A6 não foram encerrados.
 
 ### F2 — Contrato de identidade e inventário contínuo
 
@@ -294,6 +303,19 @@ dos seis MCPs em checkouts limpos após esses commits, por isso F2 não está
 marcada concluída. F3 iniciou após os commits F2 estarem integrados; os
 candidatos F3 usam SHA HEAD + diff explícito. Não houve pull remoto de imagens,
 mutação dos consumers, cutover ou cleanup.
+
+**Reexecução 2026-10-24 — gate local concluído:** os seis builds canônicos limpos
+já produzidos em D8 (§7.1 e §7.3/C3) foram reinspecionados contra os mesmos HEADs
+limpos: Notes `c104735`, AgentMail `cd55a2f`, Weather `437a41c`, Khan `e8c5d8c`,
+OSM `04d4399` e Deep Research `af3b23b`. Versão, SHA completo, oito labels OCI e
+`linux/amd64` coincidem; nenhuma tag foi sobrescrita ou rebuild repetido. O
+inventário foi complementado para o esquema duplo D-6, proveniência de worktree,
+overrides Compose e Markdown; verificou 12 MCPs com 12 UUIDs v4 e seis pins nos
+dois gestores, sem alteração de configuração. Relatório e evidências:
+[`F1/F2 revalidation`](../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md).
+A melhoria de inventário está validada no worktree, ainda sem commit/push.
+Lint/typecheck focados passaram; checks globais têm falhas externas ao diff
+registradas no relatório. CI remoto, distribuição e cutover permanecem gates próprios.
 
 ### F3 — Reprodutibilidade, contextos e postura base
 

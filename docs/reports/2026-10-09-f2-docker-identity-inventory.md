@@ -6,6 +6,13 @@
 - **Plano:** [`padronização Docker`](../plans/2026-10-09-docker-standardization-refactor-plan.md), fase F2.
 - **Engine local observado:** Docker Engine 29.7.2, linux/amd64. Isto não demonstra compatibilidade com Engine 27.x do gate remoto.
 
+**Atualização 2026-10-24:** gate local F2 concluído pela reconciliação dos seis
+builds limpos já produzidos em D8 e reinspecionados contra os mesmos HEADs, com
+validação de pins/instâncias e complemento de inventário para o esquema duplo
+D-6. Ver [relatório F1/F2](2026-10-24-f1-f2-runtime-identity-revalidation.md).
+O texto abaixo preserva o estado histórico de 2026-10-09; a nova melhoria está
+validada no worktree, ainda sem commit/push.
+
 ## Contrato implementado
 
 ### Identidade OCI dos seis MCPs

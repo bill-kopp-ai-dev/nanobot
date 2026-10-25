@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from nanobot.mcp_docker import inventory
 
 
@@ -84,6 +86,74 @@ def test_compose_reference_reader_lists_declared_image_without_expanding_env(tmp
         "line": "3",
         "reference": "${IMAGE:-percival-example:dev}",
     }]
+
+
+def test_compose_reference_reader_includes_runtime_override(tmp_path: Path) -> None:
+    project = tmp_path / "nanobot"
+    project.mkdir()
+    override = project / "docker-compose.engine29-override.yml"
+    override.write_text("services:\n  broker:\n    image: percival-mcp-broker:local\n", encoding="utf-8")
+    assert inventory._project_references(tmp_path) == [{
+        "kind": "compose-image", "path": str(override), "line": "3",
+        "reference": "percival-mcp-broker:local",
+    }]
+
+
+def test_inventory_distinguishes_managers_sharing_an_image_without_name_inference(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    image_id = "sha256:" + "a" * 64
+    container_ids = ["b" * 64, "c" * 64]
+    label_sets = [
+        {"percival.mcp-docker.owner": "percival",
+         "percival.mcp-docker.managed-by": "percival-broker",
+         "percival.mcp-docker.server-id": "osm",
+         "percival.mcp-docker.instance-id": "broker-instance"},
+        {"io.positronic.managed": "mcp", "io.positronic.run": "positronic-run",
+         "io.positronic.server": "positronic-server", "io.positronic.server-name": "osm",
+         "unrelated.secret": "do-not-emit"},
+    ]
+    containers = {
+        cid: inventory.SEPARATOR.join([
+            cid, f"/random_{index}", image_id, image_id, "2026-10-24T00:00:00Z",
+            "running", "none", json.dumps(labels),
+            json.dumps(["CMD-SHELL", "test -f /ready || exit 1"]), "{}", "[]",
+            "true", "false", "false", "true",
+        ])
+        for index, (cid, labels) in enumerate(zip(container_ids, label_sets, strict=True))
+    }
+    image = inventory.SEPARATOR.join([
+        image_id, "[]", "[]", "2026-10-24T00:00:00Z", "linux", "amd64",
+        json.dumps({"io.percival.build.worktree": "dirty",
+                    "io.percival.build.source-diff-sha256": "d" * 64,
+                    "unrelated.secret": "do-not-emit"}), "null", "{}",
+    ])
+
+    def docker(args: list[str], *, docker_bin: str = "docker") -> str:
+        if args[:2] == ["container", "ls"]:
+            return "\n".join(container_ids)
+        if args[:2] == ["image", "ls"]:
+            return image_id
+        assert args[:3] in (["container", "inspect", "--format"], ["image", "inspect", "--format"])
+        return containers[args[-1]] if args[0] == "container" else image
+
+    monkeypatch.setattr(inventory, "_docker", docker)
+    result = inventory.collect_inventory(home=tmp_path, projects_root=tmp_path)
+    assert len(result["images"]) == 1
+    assert len(result["containers"]) == 2
+    assert result["containers"][1]["labels"]["io.positronic.run"] == "positronic-run"
+    assert result["images"][0]["labels"]["io.percival.build.worktree"] == "dirty"
+    assert "do-not-emit" not in json.dumps(result)
+    monkeypatch.setattr(inventory, "collect_inventory", lambda **kwargs: result)
+    monkeypatch.setattr("sys.argv", ["inventory", "--format", "markdown"])
+    assert inventory.main() == 0
+    markdown = capsys.readouterr().out
+    assert "| positronic | positronic | positronic-server | positronic-run |" in markdown
+    assert "| percival | percival-broker | osm | broker-instance |" in markdown
+    assert "| True/False/True |" in markdown
+    assert "test -f /ready \\|\\| exit 1" in markdown
+    rows = [line for line in markdown.splitlines() if line.startswith("| random_")]
+    assert len(rows) == 2 and all(row.replace("\\|", "").count("|") == 15 for row in rows)
 
 
 def test_config_reference_extractor_propagates_server_id_into_list_items(tmp_path: Path) -> None:
