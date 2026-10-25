@@ -205,6 +205,17 @@ permanece como follow-up obrigatório antes do cutover/cleanup que as afete.
 Containers e imagens existentes foram preservados; nenhum cutover ou ajuste de
 configuração foi executado.
 
+**Reexecução 2026-10-24 — gate concluído:** inventário corrente em
+`docs/reports/2026-10-24-f0-docker-baseline-inventory-r2.md` (reexecução read-only;
+o snapshot de 2026-10-09 permanece histórico). Decisões D-1, D-2, D-3, D-5, D-6 e o
+item 7 de labels confirmadas pelo operador e formalizadas no adendo de 2026-10-24 da
+ADR de padronização. D-4 (rotação das credenciais expostas em claro) foi encerrada
+por **aceitação formal do risco residual**, sem prazo e sem dono; revisão prevista
+antes de I3/I5 ou de migração de estado/IaC. Fechamento registrado em
+`docs/reports/2026-10-24-f0-closure-record.md`. Nenhuma mutação de imagem, container
+ou configuração foi executada nesta reexecução; os achados A1/A2/A5/A6/A7/A9/A10/
+A12/A13/A14 permanecem abertos nos planos donos.
+
 ### F1 — Correções imediatas de runtime: Deep Research e OSM
 
 **Depende de:** F0 (contrato stdio/HTTP/init/TTY aprovado).
