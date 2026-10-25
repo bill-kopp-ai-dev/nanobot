@@ -21,7 +21,7 @@ O rastreamento ativo é:
 | Plano | Papel / dono |
 | --- | --- |
 | [Padronização Docker v1.0](2026-10-09-docker-standardization-refactor-plan.md) | F0–F8 como fases e baseline; contrato-alvo/handoff IaC harmonizado |
-| [Fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12: lacunas locais, runtime/proveniência, F7/F8 |
+| [Fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12: lacunas locais, runtime/proveniência, F7/F8 |
 | [Integração KG/MCP](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | A1–A7 KG, B1–B7 MCP/browser, C1 CI e C2–C4 alvo VPS |
 | [Senha única](2026-10-11-single-password-acceptance-closure-plan.md) | A1–A9 de autenticação; rehearsal e handoff de persistência/segredos |
 | [Integração IaC](2026-10-23-iac-alignment-execution-plan.md) | I1–I9: arbitragem, runtime, Docker Hub/CI de release, bootstrap/layout/locks, índice e aquisição MCP, recuperação e aceite IaC |
@@ -61,7 +61,7 @@ foram recalculadas. Publicação, deploy, aceite local e release B13 continuam s
   pendências no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) (itens A1–A7, B1–B7, C1–C4).
 - [F4/F5 closure](closed/2026-10-10-f4-f5-closure-plan.md) e
   [F7 closure](closed/2026-10-10-f7-operations-acceptance-closure-plan.md) → fundidos no
-  [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+  [fechamento da padronização Docker F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
   (itens D1–D12); os passos de Actions e VPS migraram para C1–C4 do plano integrado, de modo que
   cada gate tem um único dono.
 

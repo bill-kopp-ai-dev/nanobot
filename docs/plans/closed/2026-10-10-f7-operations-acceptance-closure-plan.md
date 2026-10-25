@@ -1,6 +1,6 @@
 # F7 — plano de fechamento do aceite de operação e manutenção Docker
 
-- **ARQUIVADO em 2026-10-23.** Fundido com o outro plano de fechamento da padronização Docker no [plano de fechamento F4/F5/F7](../2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), que é o único dono dos itens de padronização (credencial, proveniência, Khan, duplicatas, OpenSSH, runtime, manual, skill F8 e assinatura F7). Os passos de **Actions e VPS** foram transferidos para C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), para não haver gate com dois donos. Este documento não é reaberto; preserva histórico, critérios e evidências. Ver também a [auditoria de planos](../2026-10-23-auditoria-planos-status.md).
+- **ARQUIVADO em 2026-10-23.** Fundido com o outro plano de fechamento da padronização Docker no [plano de fechamento F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), que é o único dono dos itens de padronização (credencial, proveniência, Khan, duplicatas, OpenSSH, runtime, manual, skill F8 e assinatura F7). Os passos de **Actions e VPS** foram transferidos para C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), para não haver gate com dois donos. Este documento não é reaberto; preserva histórico, critérios e evidências. Ver também a [auditoria de planos](../2026-10-23-auditoria-planos-status.md).
 - **Preparado em:** 2026-10-10; plano de trabalho, não declaração de aceite.
 - **Fonte:** [plano de padronização, F7](../2026-10-09-docker-standardization-refactor-plan.md#f7--aceite-de-operação-e-manutenção), [fechamento F4/F5](../../reports/2026-10-10-f4-f5-closure-report.md), [canário local](../../reports/2026-10-10-f7-local-stack-provisioning.md) e [governança B13](../../percival-governance.md#b13-release-authority).
 - **Objetivo:** fechar com evidência a operação local dos seis MCPs em Percival e Positronic, a rastreabilidade de imagens/commits e os gates de segurança, CI e VPS exigidos antes da assinatura F7. F8 (skill e `AGENTS.md`) permanece gate posterior independente.
@@ -95,7 +95,7 @@ O quadro de pendências no plano principal registra snapshots anteriores. Atuali
 **Registro de encerramento recomendado:** um relatório F7 único com tabela `pendência → decisão → SHA/image ID → verificação → evidência → operador/data`, links ao manual e aos relatórios F4/F5/F3, inventário pós-cutover sem segredos, URLs dos runs e declaração de risco residual. A aprovação final de B13 para release é ato separado do fechamento técnico local.
 
 **Sucessão corrigida em 2026-10-23:** D1–D12 têm dono no
-[fechamento Docker](../2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md);
+[fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md);
 CI/VPS em C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 Distribuição e contratos novos são I1–I9 do
 [plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).

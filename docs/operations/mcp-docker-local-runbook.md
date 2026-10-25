@@ -221,7 +221,7 @@ Retêm-se também o par core ativo do deploy D11
 `percival-gateway:0.1.0-b49dd8b` no container nomeado `d6-nopip` também foi
 observado ativo; é um fixture preexistente, não o gateway do Compose, e
 permanece fora de qualquer limpeza. Os resultados do scanner e os
-smoke/limites de cada B estão no [registro D8](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
+smoke/limites de cada B estão no [registro D8](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção).
 
 **Gates antes de qualquer promoção (2026-10-24):** os findings Python dos
 seis MCPs e do broker foram corrigidos — os sete image IDs B reportam zero

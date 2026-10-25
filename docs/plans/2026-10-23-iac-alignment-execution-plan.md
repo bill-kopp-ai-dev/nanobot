@@ -207,7 +207,7 @@ arbitragem preservado para rastreio, não questões ainda sem encaminhamento.
 | Assunto | Dono do gate | Uso neste plano |
 | --- | --- | --- |
 | Fases históricas F0–F8 e padrão local de imagem/runtime | [padronização Docker](2026-10-09-docker-standardization-refactor-plan.md) | Base de I2/I3/I5, não prova de distribuição |
-| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | I3/I5 usam os gates aplicáveis ao candidato; I8 amplia recuperação para core/estado completo |
+| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | I3/I5 usam os gates aplicáveis ao candidato; I8 amplia recuperação para core/estado completo |
 | A1–A7 KG; B1–B7 MCP/browser; C1 CI e C2–C4 VPS | [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | C1 continua verificação remota, não pipeline de push; C3 consome contrato de paths/IaC de I4 |
 | A1–A9 de autenticação e ensaio P2–P4 | [senha única](2026-10-11-single-password-acceptance-closure-plan.md) | Reutilizar provas do candidato; persistir verifier/segredos em I4/I8 sem copiá-los para locks |
 | Publicação, índice, aquisição, export de lock e aceite IaC | **I1–I9 deste plano** | Lacunas novas têm dono sem reabrir planos arquivados |

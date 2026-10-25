@@ -3,7 +3,7 @@
 - **Preparado em:** 2026-10-24.
 - **Objetivo:** acompanhar os gates técnicos de segurança e rehearsal que o operador decidiu adiar após encerrar administrativamente D11/F8.
 - **Estado:** D11 foi **fechada por decisão do operador nesta revisão**. Esse fechamento de escopo não equivale a aprovação dos gates técnicos abaixo. A skill Built-in está implantada e confirmada; o rehearsal da fixture passou em 24 checks e deixou 1 bloqueado. Pendências e incidente de segurança permanecem registrados neste plano para retomada posterior.
-- **Referências:** [plano integrado D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../operations/mcp-docker-local-runbook.md); [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md).
+- **Referências:** [plano integrado D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../operations/mcp-docker-local-runbook.md); [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md).
 - **Autoridade:** este plano orienta trabalho local e fixtures sintéticas. Não aprova mudanças em servidores MCP reais, pins/allowlists/credenciais, limpeza de imagens ou estado, acesso remoto, publicação, VPS ou qualquer deploy adicional. Essas ações exigem aprovação específica do operador pela interface suportada.
 
 ## 1. Estado conhecido e interpretação do diagnóstico

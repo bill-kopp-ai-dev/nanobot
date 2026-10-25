@@ -538,7 +538,7 @@ exige autorização específica e a sua própria evidência.
 
 > **Fonte de verdade a partir de 2026-10-23:** o quadro abaixo e as seções de fase **não** são
 > mais o rastreamento corrente das pendências. O acompanhamento passou para o
-> [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+> [fechamento da padronização Docker F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
 > (itens D1–D12), com os passos de Actions e VPS em C1–C4 do
 > [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
 > preservado como registro de 2026-10-10 e **não** deve ser atualizado item a item: as linhas
@@ -659,7 +659,7 @@ Evidência completa em
     evidenciados em [F4/F5 closure report](../reports/2026-10-10-f4-f5-closure-report.md);
     o que resta é C1 (Actions), D7 (runtime nos artefatos finais) e D8 (promoção dos pins).
     Critérios de aceite: itens D7, D8, D12 do
-    [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+    [fechamento da padronização F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
     e C1 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 5. **Documentar identidade e procedência dos commits** — uniformizar o
    committer em todos os repositórios via `mailmap` ou reescrevendo o commit
@@ -771,7 +771,7 @@ migração recomendada para `p-bean-labs`, revisando labels OCI antes do digest 
 Nomes decididos não comprovam acesso, publicação nem migração realizada.
 
 Os trabalhos locais independentes continuam com seus donos em D1–D12 do
-[fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
+[fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
 C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
 e A1–A9 de [senha única](2026-10-11-single-password-acceptance-closure-plan.md),
 conforme autorização de cada execução. I1/I2 não eliminam D1 (credencial), D6

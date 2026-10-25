@@ -8,7 +8,7 @@
   deployment compatíveis com o [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
 - **Autoridade:** o operador autorizou prosseguir com as pendências. Essa autorização não converte Engine 29.x em Engine 27.x, não autoriza enfraquecer o gate do broker, não seleciona um VPS ainda não identificado e não autoriza tag, release, publicação ou cutover de dados MCP reais.
 - **Fora de escopo nesta closure:** implementar o login interativo do browser-proxy SSH remoto. Por decisão do operador, ele permanece fail-closed (`remote_auth_required`) e deve ser acompanhado como trabalho separado.
-- **Plano de implementação de referência (arquivado):** [refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md); implementação A–E e evidências preservadas, pendências em §1.2. Donos ativos: F7 no [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), CI/VPS em C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) e contratos/distribuição em [I1–I9](2026-10-23-iac-alignment-execution-plan.md). Os planos arquivados são origem histórica, não donos concorrentes.
+- **Plano de implementação de referência (arquivado):** [refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md); implementação A–E e evidências preservadas, pendências em §1.2. Donos ativos: F7 no [fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), CI/VPS em C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) e contratos/distribuição em [I1–I9](2026-10-23-iac-alignment-execution-plan.md). Os planos arquivados são origem histórica, não donos concorrentes.
 
 ## 1. Baseline observado
 

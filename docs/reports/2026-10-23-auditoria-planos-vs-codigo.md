@@ -237,7 +237,7 @@ todos ancestrais de `origin/main`, e o commit `07f08314`, citado aqui, **não ex
 repositório. O arquivo `~/.nanobot/mcp-docker/operator-password` **existe** (9 bytes, modo
 0600, 2026-10-10).
 *Correção aplicada:* o literal foi redigido da árvore de trabalho; o inventário completo está
-em [plano de fechamento, §2.1](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
+em [plano de fechamento, §2.1](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
 Fato novo e decisivo: o valor exposto casa com o verificador **legado**
 `~/.nanobot/mcp-docker/operator.json` e **não** com `~/.nanobot/auth/verifier.json`, que é a
 credencial de instância vigente; nenhum código atual valida o legado, e a mutação autenticada
@@ -251,7 +251,7 @@ remediação dos 32 commits de `origin/main` permanece como risco residual aceit
 **D2 — proveniência. Válido, fechado em 2026-10-23.** O levantamento existe
 (`docs/reports/2026-10-10-f7-provenance-and-identity.md`); a decisão de atribuição
 foi tomada pelo operador e registrada na §2.2 do
-[plano de fechamento](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md):
+[plano de fechamento](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md):
 atribuição confirmada por vínculo com a API do GitHub, `.mailmap` aplicado nos
 sete repositórios sem reescrever objetos commit, identidades de automação
 preservadas e rebuild limpo dos seis MCPs a partir do HEAD, com smoke stdio 6/6.

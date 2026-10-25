@@ -77,7 +77,7 @@ Confirmar formalmente, com o operador: (a) quais identidades "Bill" representam 
 
 O relatório acima é o snapshot de 2026-10-10 e descreve o estado **antes** das
 decisões do operador. Esta seção registra o resultado. A matriz completa está
-na §2.2 do [plano de fechamento F4/F5/F7](../plans/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
+na §2.2 do [plano de fechamento F4/F5/F7](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
 
 ### 7.1 Decisões do operador
 
