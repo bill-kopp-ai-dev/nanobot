@@ -56,7 +56,7 @@ workspace / `--workspace`. An arbitrary `--config` does not move the workspace.
 | `mcp-docker/audit.jsonl`, `transitions/`, `backups/` | Gateway manager owns audit/recovery/backups and canonical `tools.mcpDocker`; backup may contain secrets and is not a public lock |
 | `mcp-docker/broker-token` | Gateway reads as owner; broker reads through a dedicated group/file mount; owner gateway UID, mode 0640 with approved token GID (or private owner-readable file in gateway-only contexts) |
 | `/app/nanobot`, `/app/scripts`, channel locks | Image-supplied readable code/data, not mutable runtime state |
-| `/app/.venv` | Readable by supported non-root users; writable by built-in UID 1000, **not** arbitrary UID 1001; contents may change if a missing channel dependency is installed at startup |
+| `/app/.venv` | Readable by supported non-root users; writable by built-in UID 1000, **not** arbitrary UID 1001. F3 candidates disable application-driven package installation at runtime; bake enabled channels/extras into the image |
 | Broker `/tmp` | Ephemeral tmpfs UID/GID 65532, mode 0700, `noexec,nosuid,nodev`; lost on recreation |
 
 The base Compose binds `~/.nanobot`. With `docker-compose.mcp-broker.yml`, **all
@@ -172,12 +172,25 @@ notifications/streaming, cancellation, resources/prompts, pagination, arbitrary 
 MCP containers or multi-session servers follows from it. I6 validates selected apps.
 Spawn remains `--pull=never`; acquisition/catalog API are not implemented by I2.
 
-The default image preinstalls WhatsApp's `neonize` and `segno` from checked-in channel
-locks; built-in WebSocket uses core dependencies. `NANOBOT_CHANNELS` selects additional
-build-time channels. Bake every enabled channel into immutable deployments. UID 1000
-can still install missing channel dependencies into `.venv` at startup; this means
-an image digest alone does not freeze subsequently installed packages. Alternate UID
-or offline deployment must use preinstalled dependencies; no silent unisolated fallback.
+The default image preinstalls WhatsApp's `neonize` and `segno`; built-in WebSocket
+uses core dependencies. `NANOBOT_CHANNELS` selects the comma-separated build-time
+channel set (include `whatsapp` explicitly when adding others). The image build
+validates the channel lock manifest, installs the union with `--require-hashes
+--no-deps`, and runs `uv pip check`. Missing or conflicting pins fail the build;
+satisfied version ranges do not bypass exact channel pins.
+
+**F3 extension (2026-10-24):** Docker candidates set
+`NANOBOT_RUNTIME_PACKAGE_INSTALL=0`. Startup reports a missing channel dependency
+without launching an installer; WebUI install/enable requiring new packages returns
+409 with rebuild guidance, before changing configuration. Preinstalled channels
+remain enableable. Use `NANOBOT_CHANNELS` / `NANOBOT_EXTRAS` and deploy a new reviewed
+image for additional dependencies. Native Python retains optional installation
+(variable absent defaults to `1`). Explicitly overriding it to `1` in Docker opts
+back into mutable development behavior and invalidates the fixed dependency-set
+claim. This is application policy, not a filesystem/shell isolation boundary;
+UID 1000 still owns the venv. Alternate UID/offline operation requires all enabled
+dependencies preinstalled. I2's recorded startup-install behavior is historical
+evidence for the earlier candidate, not the default of F3 candidates.
 
 ## 6. Conformance and downstream handoff
 

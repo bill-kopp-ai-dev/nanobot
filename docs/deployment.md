@@ -108,20 +108,25 @@ to the tunnel/proxy and localhost.
 ### Docker Compose
 
 The default image preinstalls WhatsApp dependencies. To bake other enabled
-channels into an image (recommended for deployments without PyPI access), pass
+channels into an image (required for immutable/offline deployments), pass
 a comma-separated `NANOBOT_CHANNELS` build argument:
 
 ```bash
-NANOBOT_CHANNELS=telegram,slack docker compose build
+NANOBOT_CHANNELS=whatsapp,telegram,slack docker compose build
 ```
 
-The image keeps nanobot in a virtual environment owned by its built-in non-root
-runtime user (UID 1000). If an enabled channel was not preinstalled, gateway
-startup can therefore install its manifest-declared dependencies. Rebuilding
-with `NANOBOT_CHANNELS` keeps that installation reproducible instead of relying
-on the container's writable layer. If you override the container with a
-different `--user`, bake every enabled channel into the image because that UID
-is not guaranteed write access to the virtual environment.
+The build installs the selected channel locks together with hashes and verifies
+dependency compatibility. It never falls back to unpinned manifest resolution.
+The list replaces the default `whatsapp`; include every channel you intend to use.
+
+F3 Docker candidates set `NANOBOT_RUNTIME_PACKAGE_INSTALL=0`: missing dependencies
+produce an actionable startup error, or a WebUI 409 before configuration changes.
+Rebuild with `NANOBOT_CHANNELS` or `NANOBOT_EXTRAS`, validate and deploy the new image.
+Preinstalled channels can still be enabled. Native Python optional installation is
+unchanged. Setting the variable explicitly to `1` is a mutable development opt-in;
+the fixed dependency-set claim no longer applies. This application policy does not
+make the venv a security boundary: UID 1000 still owns it, while an alternate UID
+only has read access. Bake dependencies for either UID and for offline operation.
 
 The Compose file pins the container user to the host user that owns the
 persistent `~/.nanobot` volume, so the bind-mounted state is writable end-to-
