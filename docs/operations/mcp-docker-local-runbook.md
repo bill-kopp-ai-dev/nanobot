@@ -242,8 +242,10 @@ para instalar. Depois
 de candidatos aprovados, o operador deve confirmar a janela, CAS atual,
 backup/configuração/dados compatíveis e rollback A→B→A em fixture independente
 antes de autorizar canário. Nenhum comando de mutação é fornecido neste
-snapshot. A sequência de correção e a matriz de prontidão B1–B6 estão no
-[plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md).
+snapshot. A evidência do fechamento local está no
+[plano D8 arquivado](../plans/closed/2026-10-24-d8-promotion-readiness-closure-plan.md);
+CI e distribuição permanecem sob o
+[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
 
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.
 

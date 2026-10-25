@@ -2,8 +2,9 @@
 
 - **Preparado em:** 2026-10-24.
 - **Objetivo:** fechar a D8 do [plano de fechamento F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9, removendo os findings corrigíveis dos candidatos Forky, produzindo um conjunto de candidatos com proveniência limpa e verificável, e declarando de forma explícita quais gates dependem de autorização, credencial ou infraestrutura externa do operador.
-- **Estado inicial:** D8 **parcial**. Oito candidatos locais construídos de checkouts limpos (seis MCPs + par core), sem Critical/High nos scans; pins críticos anteriores atualizados; Forky/OpenSSL/sem-`pip` verificados no runtime; contrato D7 conforme em cinco MCPs; smokes `initialize`/`tools/list` verdes; scans, SBOMs e OpenVEX por image ID registrados; retenção A/B documentada na §5.1 do [runbook](../operations/mcp-docker-local-runbook.md). Restam findings Python Medium/Low nos MCPs, findings no broker, smoke autenticado do AgentMail, CI remoto não verificado e os gates I3/B13.
-- **Referências:** [plano mestre D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [relatório F3, reconciliação D8](../reports/2026-10-10-f3-remediation-triage.md) §"Reconciliação D8"; [runbook operacional](../operations/mcp-docker-local-runbook.md) §5.1; [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md); [plano IaC I1–I9](2026-10-23-iac-alignment-execution-plan.md) §I3/§10; [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md).
+- **Estado inicial:** D8 **parcial**. Oito candidatos locais construídos de checkouts limpos (seis MCPs + par core), sem Critical/High nos scans; pins críticos anteriores atualizados; Forky/OpenSSL/sem-`pip` verificados no runtime; contrato D7 conforme em cinco MCPs; smokes `initialize`/`tools/list` verdes; scans, SBOMs e OpenVEX por image ID registrados; retenção A/B documentada na §5.1 do [runbook](../../operations/mcp-docker-local-runbook.md). Restam findings Python Medium/Low nos MCPs, findings no broker, smoke autenticado do AgentMail, CI remoto não verificado e os gates I3/B13.
+- **Estado final:** **finalizado e arquivado em 2026-10-24**. O escopo local da D8 foi concluído; B5 (CI remoto verde) e B6 (distribuição/aquisição por digest e B13) continuam pendentes e têm como sucessor o [plano adicional B5/B6](../2026-10-24-b5-b6-ci-distribution-closure-plan.md). Este encerramento não declara esses gates atendidos nem autoriza publicação ou promoção.
+- **Referências:** [plano mestre D1–D12](../2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [relatório F3, reconciliação D8](../../reports/2026-10-10-f3-remediation-triage.md) §"Reconciliação D8"; [runbook operacional](../../operations/mcp-docker-local-runbook.md) §5.1; [walkthrough D9](../../reports/2026-10-24-d9-runbook-walkthrough.md); [plano IaC I1–I9](../2026-10-23-iac-alignment-execution-plan.md) §I3/§10; [ADR I1](../../Decisions/2026-10-23-open-iac-contracts.md).
 - **Autoridade:** este plano orienta trabalho local em repositórios de produto e fixtures descartáveis. Ele **não** autoriza promoção, canário, cutover, publicação em registry, alteração de configuração de qualquer gestor, mutação de pin ativo, rotação de credencial, limpeza de imagens/containers/volumes, deploy em VPS ou preparação de comandos de promoção. Cada uma dessas ações exige autorização específica do operador pela interface suportada. Onde o plano descreve um procedimento de promoção, o texto é um **critério de prontidão**, não uma instrução executável.
 
 ## 1. Estado conhecido e gaps remanescentes
@@ -304,18 +305,18 @@ Fase B (broker) ─┴─→ Fase C (rebuild/scan/OpenVEX) ─→ Fase D (AgentM
 Fases A e B são independentes entre si e podem correr em paralelo. A Fase C exige A
 (pelo menos para os MCPs afetados) e B (para o broker). As fases D e E dependem de
 pré-requisitos externos do operador e podem ficar bloqueadas sem impedir o fechamento
-documental — desde que o bloqueio fique registrado como **não executado**, com o
-requisito nomeado. A Fase F é a única que fecha a D8, e apenas com C1–C15 em estado
-verificável.
+do escopo local — desde que o bloqueio fique registrado como **não executado**, com o
+requisito nomeado. O encerramento local não converte C10/B5 ou B6 em gates atendidos;
+as pendências são transferidas para o plano adicional B5/B6.
 
-A D8 é independente de D11, D12, I3/I9, C1–C4 e A1–A9. Fechar a D8 não fecha nenhum
-deles, e o encerramento consolidado continua dependente dos gates externos.
+A D8 é independente de D11, D12, I3/I9, C1–C4 e A1–A9. O encerramento do escopo
+local da D8 não fecha esses gates, não torna B5/B6 verdes e não implica promoção.
 
 ## 7. Registro de execução (2026-10-24)
 
 Fases A a F executadas. A evidência bruta (scans JSON, SBOMs CycloneDX e
 contratos de runtime) está em `/tmp/d8-evidence-v2/`, com os SHA-256
-registrados no [relatório F3](../reports/2026-10-10-f3-remediation-triage.md);
+registrados no [relatório F3](../../reports/2026-10-10-f3-remediation-triage.md);
 os artefatos brutos não foram copiados para o repositório.
 
 ### 7.1 Candidatos vigentes
@@ -369,7 +370,7 @@ Leitura de `docker ps`, `docker inspect` e dos labels OCI:
 | C7 — Contrato D7 | **atendido** | 4/4 medições em cinco MCPs (EOF com exit 0, SIGTERM com exit 143, zero violações). No AgentMail o harness D7 usa `--network=none` por desenho, o que bloqueia o EOF porque o lifespan exige upstream: 2/4 no harness (SIGTERM conforme) e o EOF provado conforme fora do isolamento de rede |
 | C8 — Smoke | **atendido** | 12/24/9/12/37/5 tools, idênticos ao baseline |
 | C9 — AgentMail | **atendido** | Smoke autenticado: 24 tools e `mail_get_inbox_info` respondendo HTTP 200, com redação de segredos |
-| C10 — CI | **não atendido** | Comparação **step a step** dos runs candidato e anterior registrada na §7.5. Os seis SHAs MCP têm run e **todos em failure**; cinco falham no **mesmo step** do run anterior. O core `50e6ebd0` tem `total_count: 0` — workflows desabilitados no fork por limite de uso do GitHub Actions |
+| C10 — CI | **não atendido; transferido** | Comparação **step a step** dos runs candidato e anterior registrada na §7.5. Os seis SHAs MCP têm run e **todos em failure**; cinco falham no **mesmo step** do run anterior. O core `50e6ebd0` tem `total_count: 0` — workflows desabilitados no fork por limite de uso do GitHub Actions. A correção e a obtenção de runs verdes são acompanhadas no plano adicional B5/B6 |
 | C11 — Core | **atendido** | Broker sem `zlib` afetado e sem `UNKNOWN` de `musl` (`zlib 1.3.2-r1`, `musl 1.2.6-r3`); smoke D-in-D do par core verde (18 checks, Engine 27.5.1) |
 | C12 — Retenção | **atendido** | Snapshot A/B vigente na §5.1 do runbook; pins A dos seis MCPs intactos nos dois gestores, reconfirmados por `docker ps`; par core A/B da D8 retido e distinto do par ativo do deploy D11; nenhum prune |
 | C13 — Não mutação | **atendido** | Nenhuma configuração, pin, revisão, allowlist, credencial, container de produto, volume ou registry alterado |
@@ -384,8 +385,8 @@ Leitura de `docker ps`, `docker inspect` e dos labels OCI:
 | B2 — runtime | **atendido** | Contrato D7 4/4 em cinco MCPs; smokes no baseline; AgentMail autenticado com HTTP 200 |
 | B3 — rollback | **atendido** | Par A/B registrado. Para os seis MCPs, A reconfirmado por `docker ps` nos doze containers dos dois gestores. Para o core, o par A/B da D8 (`3daabe2` → `50e6ebd0`) está retido mas **não está ativo**: o Compose roda o par do deploy D11 (`29a482c`), e um rollback do core tem de voltar ao A da D8, `2a0e5c342504…`/`c6784ebbc29a…`. Caminho A→B→A exercitado no walkthrough D9 em fixture independente |
 | B4 — retenção | **atendido** | A **política** de retenção da §5 do runbook foi aprovada textualmente pelo operador em 2026-10-24; a §5.1 foi atualizada depois com a correção factual do core (§7.2), sem alterar a política. A e B preservados, sem prune; preservados também o par core ativo do D11 e o par pré-D11 |
-| B5 — CI | **não atendido** | Seis runs MCP vermelhos. Cinco falham no **mesmo step** do run anterior (§7.5); o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run (`total_count: 0`) por bloqueio de infraestrutura do fork |
-| B6 — distribuição | **fora do escopo local** | Digest OCI publicado, aquisição homologada e B13 aprovado dependem de I3/I5 e de autorização do operador |
+| B5 — CI | **pendente; transferido** | Seis runs MCP vermelhos. Cinco falham no **mesmo step** do run anterior (§7.5); o único delta real (OSM, step 6) foi diagnosticado como **flake preexistente** do harness legado `docker-smoke-test.sh`, que fecha stdin sem aguardar a resposta de `initialize` — medição local: 3 PASS / 2 FAIL na imagem nova, 3 PASS / 3 FAIL na imagem antiga `0.5.0-bf78fa4`. O core não tem run (`total_count: 0`) por bloqueio de infraestrutura do fork. A implementação está no plano adicional B5/B6 |
+| B6 — distribuição | **pendente; transferido** | Digest OCI publicado, aquisição homologada e B13 aprovado dependem de I3/I5 e de autorização do operador. A implementação está no plano adicional B5/B6 |
 
 ### 7.5 Comparação step a step do CI remoto
 
@@ -435,10 +436,14 @@ Leitura da tabela:
 
 ### 7.6 Resíduo
 
-- **B5 permanece aberto.** A correção do `docker-smoke-test.sh` do repo OSM é um
-  defeito **preexistente** do harness, não do candidato; tratá-la exige decisão
-  do operador sobre escopo, porque muda o CI de um terceiro repo.
-- **B6 permanece fora do escopo local.** I3 foi adiado; não existe caminho de
-  aquisição por digest implementado.
-- A D8 **não está fechada**: a prontidão local está completa, mas promoção,
-  canário, cutover e publicação dependem de B5/B6 e de decisão do operador.
+- **B5 não está atendido e foi transferido** para o
+  [plano adicional B5/B6](../2026-10-24-b5-b6-ci-distribution-closure-plan.md).
+  O plano sucessor trata as falhas remotas, incluindo o harness OSM e a
+  indisponibilidade de Actions no fork, sem classificá-las como PASS.
+- **B6 não está atendido e foi transferido** para o plano adicional. I3 foi
+  adiado; não existe caminho de aquisição por digest implementado. Publicação
+  depende de B13 e de autorização explícita do operador.
+- **Estado final:** este plano está **finalizado e arquivado**; o escopo local
+  da D8 está **fechado**. B5/B6 continuam abertos sob o plano sucessor.
+  Promoção, canário, cutover e publicação não ocorreram e não são autorizados
+  por este encerramento.

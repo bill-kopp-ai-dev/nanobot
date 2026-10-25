@@ -312,9 +312,9 @@ qualquer avaliação final exige reconstrução a partir de commit limpo.
 
 ### Limitações e estado
 
-- **A D8 continua aberta:** este candidato é local. Promoção, canário, rollback,
-  retenção do par A/B e a publicação limpa dependem de checkout limpo e
-  aprovação do operador, sob a D8.
+- **Estado na análise original:** a D8 continuava aberta porque este candidato
+  era local. O escopo local foi encerrado em 2026-10-24; CI remoto e distribuição
+  continuam pendentes no [plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
 - **O gateway não foi promovido nem publicado**; nenhum registry foi tocado.
 - **O broker não foi alterado** na D6: o smoke I2 reusou o broker
   `percival-i2-broker:ses-e96f9440`, e o contrato do broker segue coberto pela D7.
@@ -468,7 +468,7 @@ rascunhos técnicos: não são waivers nem aprovação do operador.
   step** pela API pública de Actions, contra o run imediatamente anterior de
   cada repo: **cinco MCPs falham no mesmo step, com o mesmo nome**, o que
   exclui regressão dos pins. Detalhe em §7.5 do
-  [plano D8](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md). O
+  [plano D8 arquivado](../plans/closed/2026-10-24-d8-promotion-readiness-closure-plan.md). O
   OSM é o único delta real: o job `build (linux/amd64)` passou e falhou no
   step 6, no `docker-smoke-test.sh`. A causa foi diagnosticada com prova: o
   script legado usa FIFO (`mkfifo`) e fecha stdin **sem aguardar a resposta de
@@ -509,17 +509,18 @@ reportam zero findings; G3 (smoke autenticado do AgentMail) **fechado** —
 enviados. G4 (CI remoto) fica **parcial**: os seis runs MCP terminam em
 failure e o OSM tem um delta real, diagnosticado como flake preexistente do
 harness legado; o core não tem run por desativação de workflows no fork. G5
-(digest OCI, publicação e promoção) permanece **fora do escopo local**, com os
-gates I3/B13 abertos. Nenhum candidato foi promovido ou publicado; nenhum
-comando de promoção foi preparado.
+(digest OCI, publicação e promoção) não foi executado no fechamento local.
+G4/B5 e G5/B6 permanecem pendentes e foram transferidos para o
+[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
+Nenhum candidato foi promovido ou publicado; nenhum comando de promoção foi
+preparado.
 
-**Plano de fechamento:** o
-[plano D8 de prontidão de promoção](../plans/2026-10-24-d8-promotion-readiness-closure-plan.md)
-detalha as fases de correção dos pins Python nos seis MCPs, a troca de base do
-runtime do broker (a base Alpine 3.24 já em uso no estágio `docker-cli` traz
-`zlib-1.3.2-r1` e `musl-1.2.6-r3`, acima das versões corrigidas exigidas),
-rebuild/rescan/reemissão dos OpenVEX por image ID, smoke autenticado do
-AgentMail, verificação do CI remoto, retenção e reconciliação documental.
+**Planos D8:** o
+[plano de fechamento D8 arquivado](../plans/closed/2026-10-24-d8-promotion-readiness-closure-plan.md)
+preserva o escopo local concluído, a evidência e os gates não atendidos. O
+[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md)
+é o dono das correções de CI, distribuição e aquisição por digest ainda
+pendentes.
 
 **Correção de estado (2026-10-24):** a afirmação anterior de que o core não
 tinha sido enviado está superada. O core foi enviado em `297d4295`, seguido de
