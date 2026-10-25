@@ -4,20 +4,35 @@
 services:
   nanobot-gateway:
     volumes:
-      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+      # Long form, so the overlay keeps `create_host_path: false` from the base
+      # recipe. The short form would replace the whole volume entry and let the
+      # daemon create the state directory with root ownership.
+      - type: bind
+        source: ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}
+        target: /home/nanobot/.nanobot
+        bind:
+          create_host_path: false
     environment:
       PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
 
   # One-shot setup and the optional API must see the same instance as the gateway.
   nanobot-cli:
     volumes:
-      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+      - type: bind
+        source: ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}
+        target: /home/nanobot/.nanobot
+        bind:
+          create_host_path: false
     environment:
       PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
 
   nanobot-api:
     volumes:
-      - ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}:/home/nanobot/.nanobot
+      - type: bind
+        source: ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}
+        target: /home/nanobot/.nanobot
+        bind:
+          create_host_path: false
     environment:
       PERCIVAL_BROKER_TOKEN_GID: ${PERCIVAL_BROKER_TOKEN_GID:?Set dedicated token file group GID}
 
@@ -65,6 +80,8 @@ services:
         source: ${PERCIVAL_BROKER_TOKEN_HOST_PATH:?Set absolute token file path}
         target: /run/secrets/percival-broker-token
         read_only: true
+        bind:
+          create_host_path: false
     environment:
       PERCIVAL_STATE_HOST_PATH: ${PERCIVAL_STATE_HOST_PATH:?Set absolute persisted host state path}
       PERCIVAL_TOKEN_HOST_PATH: ${PERCIVAL_BROKER_TOKEN_HOST_PATH:?Set absolute token file path}

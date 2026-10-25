@@ -7,6 +7,8 @@ x-common-config: &common-config
   # when the bind-mount source is mode 0700 and root inside the container
   # lacks DAC_OVERRIDE to traverse it.
   user: "${NANOBOT_UID:-1000}:${NANOBOT_GID:-1000}"
+  # One init per process, owned by the launcher. The image embeds no tini.
+  init: true
   build:
     context: .
     dockerfile: Dockerfile
@@ -15,7 +17,20 @@ x-common-config: &common-config
       VERSION: ${PERCIVAL_IMAGE_VERSION:-0.1.0}
       GIT_SHA: ${PERCIVAL_IMAGE_REVISION:-unknown}
   volumes:
-    - ~/.nanobot:/home/nanobot/.nanobot
+    # Long form with `create_host_path: false`: a missing state directory
+    # must fail loudly at `up` time instead of being created by the daemon
+    # with root ownership. Prepare it first:
+    #   mkdir -p ~/.nanobot && chown "$(id -u):$(id -g)" ~/.nanobot
+    - type: bind
+      source: ~/.nanobot
+      target: /home/nanobot/.nanobot
+      bind:
+        create_host_path: false
+  # Read-only root filesystem. Everything the agent writes goes to the
+  # state bind mount above; /tmp is a tmpfs for runtime scratch.
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,mode=1777
   cap_drop:
     - ALL
   # With an explicit root-start override these capabilities let entrypoint.sh chown the bind mount and
