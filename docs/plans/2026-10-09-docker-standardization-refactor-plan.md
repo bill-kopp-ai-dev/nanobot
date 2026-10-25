@@ -557,8 +557,10 @@ e Deep Research `defc943`. Smokes/builds locais e correções por CI constam em
 [`F5 revalidation`](../reports/2026-10-25-f5-ci-conformance-revalidation.md).
 
 Este fechamento **não é aceite de CI remoto**: Actions de Notes, AgentMail, Khan,
-Weather e OSM passaram; Deep Research falhou em pytest sem log autenticado. O core
-`f3ad1590` não tem run/checks no SHA atual. A fase de execução/diagnóstico remoto e
+Weather e OSM passaram; Deep Research falhou em pytest sem log autenticado. No
+snapshot inicial, o core `f3ad1590` não tinha run/checks; o Actions público informa
+que workflows estão desabilitados neste fork. O SHA da branch precisa ser relido
+após habilitação, imediatamente antes da execução. A fase de execução/diagnóstico remoto e
 confronto de manifest/SBOM foi transferida ao [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md);
 C1 continua **ABERTO** sob seu dono único no plano integrado. Não houve publicação,
 promoção, pin, alteração de manager, canário ou cutover.

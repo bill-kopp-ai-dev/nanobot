@@ -18,7 +18,7 @@ Snapshot after the corrective MCP pushes of 2026-10-25. Before relying on any re
 
 | Repository | Candidate SHA | Latest observed Actions result | Required evidence still to collect |
 |---|---|---|---|
-| `nanobot` (gateway + broker) | `f3ad1590f36af054e1babaf97fdac82c5fb9a9ff` | No check-runs found for this SHA; the latest visible run is on an older SHA. Historical records say Actions was disabled for this fork. | Owner enables/runs required workflows; green core checks, `results.json`, gateway/broker manifests and CycloneDX SBOMs. |
+| `nanobot` (gateway + broker) | Re-read `main` immediately before dispatch; the initial snapshot SHA was `f3ad1590f36af054e1babaf97fdac82c5fb9a9ff` | No check-runs were found for the initial snapshot SHA. The public Actions page reports workflows are disabled on this fork. | Owner enables/runs required workflows on the then-current exact SHA; green core checks, `results.json`, gateway/broker manifests and CycloneDX SBOMs. |
 | Notes MCP | `83980418b3239be5476f6d347ceb8dad32d90e8e` | CI run #10 success. | Download manifest/SBOM and compare source, lock/base digests, labels, platform and image identity. |
 | AgentMail MCP | `68751b696b62b53fdcf893c3add9cf9e648e4391` | CI run #30 success, Python 3.11/3.12 and Docker. | Download manifest/SBOM and compare source, lock/base digests, labels, platform and image identity. |
 | Weather MCP | `144dd44078bea4c7ba35111e15442cfc6bf14398` | CI run #29 success, Python matrix and Docker HTTP/stdio workflow. | Download manifest/SBOM and compare source, lock/base digests, labels, platform and image identity. |

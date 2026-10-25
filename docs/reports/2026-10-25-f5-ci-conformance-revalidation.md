@@ -20,7 +20,7 @@ Builds locais de diagnóstico (não publicados; image IDs distintos de RepoDiges
 
 | Repositório / SHA | Run mais recente | Resultado observado |
 |---|---|---|
-| `nanobot` `f3ad1590f36af054e1babaf97fdac82c5fb9a9ff` | [check-runs](https://api.github.com/repos/bill-kopp-ai-dev/nanobot/commits/f3ad1590f36af054e1babaf97fdac82c5fb9a9ff/check-runs) | 0 checks; último run visível é de 2026-10-12, SHA antigo. |
+| `nanobot` (snapshot inicial `f3ad1590f36af054e1babaf97fdac82c5fb9a9ff`) | [check-runs](https://api.github.com/repos/bill-kopp-ai-dev/nanobot/commits/f3ad1590f36af054e1babaf97fdac82c5fb9a9ff/check-runs) | 0 checks; a página pública informa workflows desabilitados neste fork. Reler `main` após habilitação, antes de dispatch. |
 | Notes `83980418b3239be5476f6d347ceb8dad32d90e8e` | run #10, [Actions](https://github.com/bill-kopp-ai-dev/percival-notes-mcp/actions) | **success** (test + Docker image conformance). |
 | AgentMail `68751b696b62b53fdcf893c3add9cf9e648e4391` | run #30, [Actions](https://github.com/bill-kopp-ai-dev/percival-agentmail-mcp/actions) | **success** (Python 3.11/3.12 + Docker smoke); manifest/SBOM artifact present. |
 | Weather `144dd44078bea4c7ba35111e15442cfc6bf14398` | run #29, [Actions](https://github.com/bill-kopp-ai-dev/percival-weather-mcp/actions) | **success** (Python matrix + Docker profile/conformance after file-permission correction). |
