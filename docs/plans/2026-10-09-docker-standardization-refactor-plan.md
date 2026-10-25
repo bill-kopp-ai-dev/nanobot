@@ -1,12 +1,16 @@
 # Plano de refatoração — padronização dos processos Docker do Percival
 
-- **Revisão:** 2026-10-23 / v1.1 — reconciliação com I1/I2 executados da IaC aberta PBLabs.
+- **Revisão:** 2026-10-25 / v1.2 — fechamento da implementação local F5 e transferência da homologação GitHub Actions para C1.
+  Este aditamento não declara C1 verde, nem aprova B13, publicação, promoção ou deployment.
+  O plano dedicado de execução remota é [F5/C1 — Actions e artifacts](2026-10-25-f5-c1-remote-ci-closure-plan.md).
+  Revisão anterior: 2026-10-23 / v1.1 — reconciliação com I1/I2 executados da IaC aberta PBLabs.
   F0–F8 e seus relatos permanecem como histórico de execução; o rastreio atual dos
   gates locais está em D1–D12/C1–C4. Integração IaC, distribuição e catálogo passam
   a I1–I9 do [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
   I1 concluiu arquitetura/handoff (`eb4e3555`); I2 entregou runtime 1 e conformance
   local Linux/amd64 (`0e7ff072`), ambos commitados/enviados. I3 foi adiado pelo operador;
-  I4–I9 continuam pendentes. Esta revisão incorpora evidência existente, sem novo aceite.
+  I4–I9 continuam pendentes. A revisão v1.2 fecha F5 como implementação local e transfere
+  a verificação remota restante para C1; não declara aceite de C1.
 - **Fonte de evidência:** [diagnóstico consolidado Docker](../reports/2026-10-09-docker-consolidated-diagnostic-and-standardization.md).
 - **Escopo:** fluxo de build, tags/labels, Compose, entrypoints, transporte, healthchecks,
   CI, gestão local das imagens do Percival e dos seis MCPs (Notes, AgentMail, Weather,
@@ -498,17 +502,24 @@ D5/D7/D8, com C1 para Actions; F4 não recebe aceite integral por esses testes l
   render, UID/caps/`no-new-privileges`, init e broker em Engine 27.5.1. C1 precisa
   observar esse job no SHA final e conferir `results.json`/manifests/SBOM; `status`
   continua teste CLI, não readiness. Isso não substitui o browser real em B1/B4/B6.
-- MCP CI atual: AgentMail e Khan já buildam imagem e inspecionam; OSM builda amd64/arm64; Weather testa código sem Docker build; Notes e Deep Research não têm workflow Docker no checkout. Adicionar build/smoke Docker para os três últimos, e unificar os checks existentes.
+- MCP CI de implementação: cada um dos seis repositórios tem workflow próprio de build e conformance; Notes e Deep Research incluem Docker; OSM fixa `linux/amd64`, a arquitetura aprovada. O resultado remoto por SHA é verificado em C1, não inferido da existência do YAML.
 - Smoke stdio comum e sem API externa: `--version` se suportado, `initialize`, `tools/list`, stdout/stderr separados, env ausente falha sem vazamento, usuário/labels/entrypoint, TTY off, nenhum port binding.
 - Smoke HTTP por profile: endpoint, auth e bind seguro; `healthy` não depende da API externa a menos que readiness downstream esteja intencionalmente sendo testada.
 - Matriz de architecture só inclui target aprovado e comprovado. F1–F5 do plano MCP Docker first-class (WebUI+gateway+broker, Docker operations, recovery, VPS/Engine, owner acceptance) continuam gates separados; este plano não os fecha.
-- Avaliar reusable workflow ou checklist central reutilizável sem fazer os seis repos dependerem de uma publicação/ação externa não aprovada. Cada repo deve buildar no seu SHA exato.
+- Não introduzir dependência em reusable workflow/action externo não publicado/aprovado; cada repo constrói no próprio SHA. A avaliação do reuso não altera o gate.
 
-**Gate F5:** todos os seis repositórios executam build + conformance smoke em CI no
-branch/candidato; CI principal verifica Compose e broker; artefatos guardam manifest/SBOM.
-Jobs de conformance/PR não publicam imagens. O futuro pipeline protegido de release é
-I3/I5, separado e condicionado a B13; não enfraquecer F5 para habilitá-lo. Gates remotos
-no SHA candidato são C1 e devem passar antes de alegar CI fechado.
+**Gate F5 — implementação:** os sete repositórios possuem workflows próprios de CI
+com build/conformance dos MCPs, CI core para gateway/broker, e geração/upload de
+manifest/SBOM nos jobs de imagem; smokes stdio/HTTP não dependem de APIs externas.
+Jobs de conformance/PR não publicam imagens. Esta fase verifica a entrega e a
+validação local dessa implementação, não certifica uma execução remota específica.
+
+**Aceite remoto C1:** workflows verdes no SHA final dos sete repositórios, com
+`headSha` conferido e manifest/SBOM (mais `results.json` do core) baixados e
+comparados com source, lock, labels, bases e plataforma. A fonte de verdade e o
+único gate remoto são C1 no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+O pipeline de release protegido permanece em I3/I5 e condicionado a B13; F5/C1
+nunca publica imagens.
 
 **Execução 2026-10-09 — implementação revisada, commitada e enviada a `main`;
 gate remoto aberto:** os sete repositórios receberam workflows/conformance steps próprios.
@@ -523,13 +534,12 @@ ajustado para usar listener de container e arquivo read-only de token issuance o
 para WebUI, mantendo portas publicadas em loopback. Testes/smokes locais e SHAs
 base constam em [`relatório F5 CI/conformance`](../reports/2026-10-09-f5-ci-conformance.md).
 
-O gate F5 permanece aberto porque os workflows ainda não rodaram no GitHub no
-SHA candidato exato: o estado dos Actions não foi consultado (esta sessão não
-tem autenticação GitHub CLI) e os artefatos manifest/SBOM ainda não foram
-observados remotamente. F3 segue bloqueada por findings Critical/High sem
-waivers; F4 ainda precisa concluir persistência/restore e demais evidências de
-aceite. Nenhum consumer foi alterado, nenhuma imagem publicada e nenhum cutover
-foi executado.
+No snapshot de 2026-10-09, o gate remoto F5 permanecia aberto porque os workflows
+ainda não tinham run no SHA candidato exato; a autenticação e os artefatos não
+estavam disponíveis nessa sessão. Esse estado é histórico, substituído pela
+execução local de 2026-10-25 abaixo e pelo rastreio remoto C1. Naquele snapshot,
+F3/F4 e seus gates ainda estavam em andamento; nenhum consumer foi alterado,
+nenhuma imagem publicada e nenhum cutover foi executado.
 
 **Atualização após I2 (2026-10-23):** `ci.yml` passou a invocar
 `scripts/percival-i2-runtime-smoke.py` com imagens core pré-construídas; o job
@@ -538,6 +548,20 @@ substituída por provas efetivas de UID/caps/init. O wrapper
 `scripts/percival-f5-compose-smoke.sh` delega ao mesmo runner. Isso é implementação
 e prova local, sem run remoto observado; C1 permanece aberto. I2 não produziu
 scan/SBOM novo nem resolveu D6, e não reexecutou os seis workflows MCP.
+
+**Execução 2026-10-25 — F5 fechada como implementação local; C1 aberto:** a pedido
+de bill, F5 foi encerrada no escopo de entrega dos workflows e conformance. As
+correções e revisões dos seis MCPs foram commitadas/enviadas a `main`: Notes
+`83980418`, AgentMail `68751b6`, Weather `144dd440`, Khan `919b6ab`, OSM `0648425`
+e Deep Research `defc943`. Smokes/builds locais e correções por CI constam em
+[`F5 revalidation`](../reports/2026-10-25-f5-ci-conformance-revalidation.md).
+
+Este fechamento **não é aceite de CI remoto**: Actions de Notes, AgentMail, Khan,
+Weather e OSM passaram; Deep Research falhou em pytest sem log autenticado. O core
+`f3ad1590` não tem run/checks no SHA atual. A fase de execução/diagnóstico remoto e
+confronto de manifest/SBOM foi transferida ao [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md);
+C1 continua **ABERTO** sob seu dono único no plano integrado. Não houve publicação,
+promoção, pin, alteração de manager, canário ou cutover.
 
 ### F6 — Migração local controlada e cutover por serviço
 

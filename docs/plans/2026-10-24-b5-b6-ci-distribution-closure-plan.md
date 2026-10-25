@@ -1,7 +1,7 @@
 # Plano adicional B5/B6 — CI remoto e distribuição por digest
 
 - **Preparado em:** 2026-10-24.
-- **Estado:** planejado e adiado por decisão do operador; nenhuma fase foi iniciada.
+- **Estado:** B5 (CI remoto) transferido para o [plano ativo F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md); B6 distribuição/aquisição continua planejado e não iniciado.
 - **Objetivo:** assumir as pendências B5 (CI remoto) e B6 (distribuição/aquisição por digest) transferidas do escopo local concluído da D8, sem reabrir seus trabalhos já aceitos.
 - **Estimativa inicial:** B5, aproximadamente 4–8 dias de engenharia; B6, 1–3 semanas para publicação e homologação no escopo acordado. A integração completa de aquisição pelo manager pode exigir várias semanas adicionais se depender da implementação I6. Esperas por acesso, decisões e aprovações não estão incluídas.
 - **Referências:** [plano mestre D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [plano D8 arquivado](closed/2026-10-24-d8-promotion-readiness-closure-plan.md) §§7.3–7.6; [relatório F3](../reports/2026-10-10-f3-remediation-triage.md); [plano IaC I1–I9](2026-10-23-iac-alignment-execution-plan.md) §§5.3–5.6 e §10; [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md); [runbook operacional](../operations/mcp-docker-local-runbook.md) §5.1.
@@ -20,9 +20,11 @@ não declarou B5 ou B6 atendidos:
   aquisição por digest homologado. B13 e a autorização de publicação continuam
   pendentes.
 
-Este plano é o único dono dessas duas pendências. A evidência e as conclusões
-históricas permanecem no plano D8 arquivado e no relatório F3; resultados antigos
-não serão reinterpretados como gates verdes.
+O item B5 acima é um snapshot histórico de 2026-10-24. Sua execução atual foi
+transferida para o plano F5/C1 em 2026-10-25, que passa a ter o checklist operacional
+de Actions e artifacts. Este plano permanece dono apenas de B6. A evidência e as
+conclusões históricas permanecem no plano D8 arquivado e no relatório F3; resultados
+antigos não serão reinterpretados como gates verdes.
 
 **Decisão de escopo obrigatória antes da Fase B:** confirmar se a distribuição cobre
 os oito artefatos D8 (seis MCPs, gateway e broker) ou um subconjunto selecionado
@@ -54,21 +56,28 @@ publicados e adquiridos.
 1. Registrar a decisão do operador sobre o conjunto de imagens abrangido por B6 e
    o significado de “aquisição homologada”. Comparar essa decisão com I3, I5 e I6;
    abrir dependência explícita se algum contrato ainda não existir.
-2. Confirmar acesso de leitura às Actions dos seis repositórios MCP e do core.
-   Verificar a política atual do fork e identificar o owner que pode habilitar ou
-   aprovar workflows, sem alterar configurações durante a auditoria.
+2. Reconciliar a elegibilidade B6 com o estado de C1 registrado no [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md).
+   A leitura/autorização de Actions e a habilitação do core pertencem ao plano F5/C1;
+   não duplicar nem alterar workflows durante esta fase B6.
 3. Identificar o owner que pode preparar o secret de registry e o ambiente
    protegido de release. Não solicitar, copiar ou imprimir valores de credenciais.
-4. Preparar a matriz inicial `artefato → repo → SHA → workflow → estado → gate`.
+4. Preparar a matriz inicial B6 `artefato → repo → SHA → registry target → digest/pull status → gate`.
    As revisões e image IDs da D8 são baseline; não são automaticamente os candidatos
-   finais após correções.
-5. **Parar e informar** se a seleção de artefatos, o método de aquisição, a sessão
-   GitHub, o owner de Actions ou o ambiente de release não estiver disponível.
+   finais após correções. A evidência de Actions continua sob C1.
+5. **Parar e informar** se a seleção de artefatos, o método de aquisição, a elegibilidade
+   C1 ou o ambiente/owner de release não estiver disponível.
 
 **Saída:** escopo B6 decidido, owners externos nomeados e matriz de candidatos
 inicializada; nenhum workflow ou registry alterado.
 
-### Fase B — Fechar B5: Actions remotas verdes
+### Fase B — B5 transferido para F5/C1
+
+Esta fase é mantida como histórico do planejamento original e **não é mais o
+checklist operacional**. Consulte o [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md)
+para o estado pós-F4, SHAs mais recentes, jobs, pendências de acesso e critérios de
+revalidação. O gate B5/C1 permanece aberto até evidência remota no SHA exato.
+
+#### Checklist histórico de 2026-10-24 (não executar sem reconciliar)
 
 1. Reexaminar os runs e os logs de cada SHA final. Distinguir falha de código,
    configuração do workflow, ambiente/cache e bloqueio de plataforma; não inferir
@@ -189,11 +198,13 @@ cutover.
 
 ## 6. Estado e estimativa
 
-**Estado em 2026-10-24:** planejado, não iniciado. Nenhum workflow foi alterado,
-nenhuma imagem foi publicada e nenhum gestor foi modificado nesta etapa.
+**Estado em 2026-10-25:** B5 passou à execução local/remota e seu checklist foi
+transferido ao plano F5/C1. Ele permanece aberto conforme esse plano até os sete
+Actions e artifacts satisfazerem C1. B6 segue planejado/não iniciado; nenhuma imagem
+foi publicada e nenhum gestor foi modificado nesta campanha.
 
 | Trabalho | Esforço de engenharia | Dependência que pode alongar o calendário |
 | --- | --- | --- |
-| B5 | Aproximadamente 4–8 dias | Acesso a Actions; decisão do owner sobre workflows no fork; revisão/push de correções nos repositórios |
+| B5 | Transferido ao [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md) | Autenticação/Actions do core, logs Deep Research e download/confronto de artifacts |
 | B6 — publicação e pull por digest | Aproximadamente 1–3 semanas | Escopo de release, configuração protegida do registry, B13 e autorização explícita |
 | B6 — aquisição completa pelo manager/catalog | A estimar após Fase A; várias semanas se I6 exigir implementação | Contratos I5/I6 e fixture/integração homologável |
