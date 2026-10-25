@@ -1,8 +1,16 @@
 # Plano de fechamento — autenticação de senha única e aceite Docker/VPS
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** AUTH-A1–A6 →
+> [Plano 1, L03](../2026-10-25-01-product-readiness-plan.md); AUTH-A8/CI →
+> [Plano 2, D03](../2026-10-25-02-qualification-distribution-plan.md);
+> AUTH-A7/cutover e A9/VPS → [Plano 3, O06/O03/O08](../2026-10-25-03-deployment-operations-plan.md).
+> P2 continua adiado; nenhuma pendência foi executada ou aceita por esta transferência.
+> O restante é histórico/especificação; a precedência corrente e o mapa integral estão
+> no [registro de consolidação](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Preparado em:** 2026-10-11; plano solicitado antes de retomar os gates pendentes.
 - **Estado:** P0 concluído para fixação do candidato e preparação; P1 concluído e snapshot publicado em `d3b29843`. P2 adiado pelo operador; P3 aguarda autenticação do GitHub CLI; P4 aguarda seleção de VPS/staging. Closure global permanece aberta. Em 2026-10-23 as pendências A1–A9 foram reverificadas contra o código: **nenhum item foi executado**, mas os mecanismos de A2, A4 e A5 já existem no código e o baseline de Docker/`gh` estava desatualizado (§1 e §1.2). Ver
-  [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md) §3.5. Desde 2026-10-23 este plano também é o **único dono das pendências de aceite** da refatoração de senha única, cujo plano foi arquivado em `closed/` (ver §1.2).
+  [auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md) §3.5. Desde 2026-10-23 este plano também é o **único dono das pendências de aceite** da refatoração de senha única, cujo plano foi arquivado em `closed/` (ver §1.2).
 - **Objetivo:** fechar a proveniência do KG SPA embutido, a integração gateway+broker
   em Docker Server 27.x e os gates Actions/VPS de senha única, com persistência e
   deployment compatíveis com o [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
@@ -13,7 +21,7 @@
   A1–A9 abaixo continuam sob este dono. I2 e ensaios D9 provam partes do runtime,
   não o fluxo integrado de autenticação P2 nem o cutover real P2-F. C1 tem snapshot
   posterior em F5/C1, sem aceite remoto; tabelas de baseline antigas são datadas.
-- **Plano de implementação de referência (arquivado):** [refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md); implementação A–E e evidências preservadas, pendências em §1.2. Donos ativos: F7 no [fechamento Docker](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), CI/VPS em C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) e contratos/distribuição em [I1–I9](2026-10-23-iac-alignment-execution-plan.md). Os planos arquivados são origem histórica, não donos concorrentes.
+- **Plano de implementação de referência (arquivado):** [refatoração de senha única](2026-10-11-percival-single-password-auth-refactor-plan.md); implementação A–E e evidências preservadas, pendências em §1.2. Donos ativos: F7 no [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), CI/VPS em C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) e contratos/distribuição em [I1–I9](2026-10-23-iac-alignment-execution-plan.md). Os planos arquivados são origem histórica, não donos concorrentes.
 
 ## 1. Baseline observado
 
@@ -36,7 +44,7 @@
 
 ## 1.2 Etapas herdadas da refatoração de senha única — 2026-10-23
 
-- **Origem:** [plano de refatoração de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md), arquivado em 2026-10-23 com transferência integral das pendências para este plano. As etapas de implementação A–E (contrato compartilhado, núcleo do gateway, administração MCP, clientes, empacotamento/documentação) e os gates locais de 2026-10-11 (`pytest` 9348 passed / 49 skipped, `basedpyright nanobot` 0 erros, `ruff check .` limpo, SPA `251 passed` com lint e build, snapshot KG de fonte limpa `8e4ff73` publicado em `d3b29843`) permanecem como evidência encerrada. O plano arquivado **não** é reaberto.
+- **Origem:** [plano de refatoração de senha única](2026-10-11-percival-single-password-auth-refactor-plan.md), arquivado em 2026-10-23 com transferência integral das pendências para este plano. As etapas de implementação A–E (contrato compartilhado, núcleo do gateway, administração MCP, clientes, empacotamento/documentação) e os gates locais de 2026-10-11 (`pytest` 9348 passed / 49 skipped, `basedpyright nanobot` 0 erros, `ruff check .` limpo, SPA `251 passed` com lint e build, snapshot KG de fonte limpa `8e4ff73` publicado em `d3b29843`) permanecem como evidência encerrada. O plano arquivado **não** é reaberto.
 - **Regra:** toda pendência abaixo é executada e evidenciada **neste** plano. Nenhuma delas se fecha por teste local, pelo campo `Client.Version`, por tag de imagem ou por ausência de runs. O plano arquivado exigia que os gates finais e o ensaio produzissem evidência antes de declarar a refatoração implementada; essa exigência passa a valer para P2–P4 aqui.
 
 | # | Pendência herdada | Critério de aceite | Onde é executada | Estado |

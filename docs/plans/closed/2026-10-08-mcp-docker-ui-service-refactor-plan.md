@@ -1,6 +1,6 @@
 # Plano de refatoração — UI e serviço de servidores MCP Docker
 
-- **ARQUIVADO em 2026-10-23.** As etapas de implementação deste plano estão concluídas e evidenciadas; as pendências remanescentes foram **consolidadas** no [plano integrado de pendências](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), que é o único dono dos gates em aberto. Este documento não é reaberto: mantém o histórico de decisões, contratos e execução, e as decisões do operador (B* / D*) continuam vigentes. Mudança de escopo pertence ao plano integrado ou a um sucessor. Ver também a [auditoria de planos](../2026-10-23-auditoria-planos-status.md).
+- **ARQUIVADO em 2026-10-23.** As etapas de implementação deste plano estão concluídas e evidenciadas; as pendências remanescentes foram **consolidadas** no [plano integrado de pendências](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), que é o único dono dos gates em aberto. Este documento não é reaberto: mantém o histórico de decisões, contratos e execução, e as decisões do operador (B* / D*) continuam vigentes. Mudança de escopo pertence ao plano integrado ou a um sucessor. Ver também a [auditoria de planos](2026-10-23-auditoria-planos-status.md).
 - **Revisão:** 2026-10-08 / revisão de executabilidade após análise das 15 capturas e do código atual.
 - **Estado:** implementação local em andamento; evidências e gates abertos em [relatório de execução](../../reports/2026-10-08-mcp-docker-ui-refactor-execution.md).
 - **Objetivo:** tornar a instalação e a gestão de servidores MCP Docker claras e previsíveis na WebUI, mantendo alinhados os fluxos do gateway, domínio e broker.
@@ -311,7 +311,7 @@ Os Itens 1 a 7 são propostas sujeitas à validação visual, funcional e contra
 O plano não autoriza publicação, release, alteração de deployment ou execução de mutações em servidores MCP reais. A implementação deve ser verificada em ambiente controlado, usando fixture de UI/gestão e broker isolado; `deep-research` pode servir de fixture visual/read-only quando apropriado, sem reinstalá-lo nem alterar seu acesso, secrets, rede ou imagem real. Alterações de host/rede devem usar servidor descartável e gates Browser + gateway + broker, mantendo os gates VPS/deploy separados.
 
 **Sucessão corrigida em 2026-10-23:** pendências da UI/MCP têm dono no
-[plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), não
+[plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md), não
 na refatoração de senha única. Novos contratos de catálogo/aquisição pertencem ao
-[plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
+[plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
 Ver o [mapa dos arquivados](README.md); contratos e relatos acima permanecem históricos.

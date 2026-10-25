@@ -8,7 +8,7 @@
   Preparação técnica: agente. Não houve revisão humana independente.
 - **Registro de consentimento:** sessão `ses_e96f9440affe5HbhNZOSFMAKN4`, respostas
   explícitas de aprovação do conjunto, confirmação dos donos/entregáveis e `percival`.
-- **Escopo:** I1.1–I1.7 do [plano IaC](../plans/2026-10-23-iac-alignment-execution-plan.md).
+- **Escopo:** I1.1–I1.7 do [plano IaC](../plans/closed/2026-10-23-iac-alignment-execution-plan.md).
   Schemas/API abaixo são decisões de contrato, não funcionalidades já implementadas.
 - **Artefatos normativos:** [handoff e compatibilidade](../iac-p0-contract-handoff.md)
   e [snapshot documental das fontes](../references/2026-10-23-iac-source-snapshot.md).

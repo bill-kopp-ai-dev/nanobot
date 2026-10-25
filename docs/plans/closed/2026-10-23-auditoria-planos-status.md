@@ -1,5 +1,13 @@
 # Índice de planos ativos e auditoria histórica de conclusão
 
+> **Índice histórico arquivado em 2026-10-25, a pedido de bill.** A lista corrente
+> contém somente [Plano 1](../2026-10-25-01-product-readiness-plan.md),
+> [Plano 2](../2026-10-25-02-qualification-distribution-plan.md) e
+> [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> Percentuais, estados e recomendações abaixo preservam suas datas e não são
+> instruções atuais. A análise desta reorganização está no
+> [registro de consolidação](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Data:** 2026-10-23.
 - **Escopo original:** snapshot dos 9 documentos então em `docs/plans/`, antes das
   consolidações/arquivamentos abaixo. Não é a contagem nem o status corrente dos planos.
@@ -30,10 +38,10 @@ documentos Markdown na raiz de `docs/plans/` (incluindo este índice):
 | [Distribuição B6](2026-10-24-b5-b6-ci-distribution-closure-plan.md) | B6 da D8; B5 CI transferido para F5/C1, sem promoção autorizada |
 | [Acompanhamento D11](2026-10-24-d11-skill-operations-closure-plan.md) | Incidente M-1, dry-run LLM, profile HTTP e política admin; D11 administrativo fechado |
 
-**Arquivos históricos:** [F0–F8](closed/2026-10-09-docker-standardization-refactor-plan.md)
-foi fechado por transferência em 2026-10-25; [D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+**Arquivos históricos:** [F0–F8](2026-10-09-docker-standardization-refactor-plan.md)
+foi fechado por transferência em 2026-10-25; [D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
 e F7 estão encerrados com ressalvas. D11/F8 foi encerrado administrativamente. Nada
-disso fecha C1, distribuição, autenticação ou VPS. O [mapa de sucessores](closed/README.md)
+disso fecha C1, distribuição, autenticação ou VPS. O [mapa de sucessores](README.md)
 indica os donos ativos, sem contagem histórica fixa de arquivos arquivados.
 
 **Contratos vigentes:** I1 decidiu Docker Hub `pbeanlabs` e fontes GitHub; acesso e
@@ -45,7 +53,7 @@ isolamento total. Política de severidade e aceites separados continuam vigentes
 
 **Resultado desta revisão:** transferência/arquivamento e correções documentais,
 com commit/push solicitados. Nenhum gate técnico foi executado/fechado; porcentagens
-não foram recalculadas. O [relatório cruzado](../reports/2026-10-25-plans-cross-review-and-docker-handoff.md)
+não foram recalculadas. O [relatório cruzado](../../reports/2026-10-25-plans-cross-review-and-docker-handoff.md)
 registra inconsistências e verificação editorial. O antigo achado de exceções
 `.gitignore` foi reconciliado com a lista ativa nesta campanha.
 
@@ -58,17 +66,17 @@ registra inconsistências e verificação editorial. O antigo achado de exceçõ
 | 3 | < 50% | 3 | planos de execução ainda não rodados ou quase nada executado |
 
 **Atualização 2026-10-23 (pós-auditoria):** cinco planos foram arquivados em
-[`closed/`](closed/) e as suas pendências consolidadas em dois documentos ativos:
+[`closed/`](.) e as suas pendências consolidadas em dois documentos ativos:
 
-- [Plano de senha única](closed/2026-10-11-percival-single-password-auth-refactor-plan.md) →
+- [Plano de senha única](2026-10-11-percival-single-password-auth-refactor-plan.md) →
   pendências no [fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md) §1.2 (itens A1–A9).
-- [KG integração](closed/kg-integration-plan.md), [KG runtime recovery](closed/2026-10-11-kg-runtime-recovery-and-product-fix-plan.md),
-  [MCP Docker first-class](closed/2026-10-06-mcp-docker-first-class-execution-plan.md) e
-  [MCP Docker UI/service](closed/2026-10-08-mcp-docker-ui-service-refactor-plan.md) →
+- [KG integração](kg-integration-plan.md), [KG runtime recovery](2026-10-11-kg-runtime-recovery-and-product-fix-plan.md),
+  [MCP Docker first-class](2026-10-06-mcp-docker-first-class-execution-plan.md) e
+  [MCP Docker UI/service](2026-10-08-mcp-docker-ui-service-refactor-plan.md) →
   pendências no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) (itens A1–A7, B1–B7, C1–C4).
-- [F4/F5 closure](closed/2026-10-10-f4-f5-closure-plan.md) e
-  [F7 closure](closed/2026-10-10-f7-operations-acceptance-closure-plan.md) → fundidos no
-  [fechamento da padronização Docker F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
+- [F4/F5 closure](2026-10-10-f4-f5-closure-plan.md) e
+  [F7 closure](2026-10-10-f7-operations-acceptance-closure-plan.md) → fundidos no
+  [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
   (itens D1–D12); os passos de Actions e VPS migraram para C1–C4 do plano integrado, de modo que
   cada gate tem um único dono.
 
@@ -112,7 +120,7 @@ preservados.
 
 ## Grupo 2 — mais de 50% (até 90%)
 
-### [`kg-integration-plan.md`](closed/kg-integration-plan.md) — ~88% *(limítrofe do Grupo 1; **arquivado**)*
+### [`kg-integration-plan.md`](kg-integration-plan.md) — ~88% *(limítrofe do Grupo 1; **arquivado**)*
 
 | Fase | Estado |
 | --- | --- |
@@ -131,7 +139,7 @@ preservados.
 proveniência reproduzível do commit limpo do fork (resolvida no plano de senha única);
 validação do ensaio B6/B7 em dados reais (depende do operador).
 
-### [`2026-10-11-kg-runtime-recovery-and-product-fix-plan.md`](closed/2026-10-11-kg-runtime-recovery-and-product-fix-plan.md) — ~84% **(*arquivado*)**
+### [`2026-10-11-kg-runtime-recovery-and-product-fix-plan.md`](2026-10-11-kg-runtime-recovery-and-product-fix-plan.md) — ~84% **(*arquivado*)**
 
 | Fase | Estado |
 | --- | --- |
@@ -148,7 +156,7 @@ validação do ensaio B6/B7 em dados reais (depende do operador).
 sem rebuild no GET; imagem `sha256:d06d8eed…` com label de revisão conferindo; rollback
 preservado (snapshot `a2782c48…` + imagem `percival-gateway:pre-kg-29a482ce`).
 
-### [`2026-10-06-mcp-docker-first-class-execution-plan.md`](closed/2026-10-06-mcp-docker-first-class-execution-plan.md) (v1.8) — ~82% **(*arquivado*)**
+### [`2026-10-06-mcp-docker-first-class-execution-plan.md`](2026-10-06-mcp-docker-first-class-execution-plan.md) (v1.8) — ~82% **(*arquivado*)**
 
 | Fase | Estado |
 | --- | --- |
@@ -165,7 +173,7 @@ migração/rollback `~/.nanobot → .percival`; GitHub Actions verde no SHA cand
 aceite formal do operador** para o risco do deployment real. O plano diz textualmente:
 "Não marcar a capability ou plano totalmente fechado antes desses gates."
 
-### [`2026-10-08-mcp-docker-ui-service-refactor-plan.md`](closed/2026-10-08-mcp-docker-ui-service-refactor-plan.md) — ~80% *(marcado como superado; **arquivado**)*
+### [`2026-10-08-mcp-docker-ui-service-refactor-plan.md`](2026-10-08-mcp-docker-ui-service-refactor-plan.md) — ~80% *(marcado como superado; **arquivado**)*
 
 Itens 1–7 **todos implementados** no código (commit `0475065e`, base `ca9634ae`), incluindo
 as proteções de contrato exigidas: `mounts` obrigatório em `configure`
@@ -214,14 +222,14 @@ publicação do 0.1.0**.
 | P4 — inventário read-only e gate VPS | bloqueado (sem host/staging identificado) |
 | P5 — consolidação e handoff | não iniciado |
 
-### [`2026-10-10-f4-f5-closure-plan.md`](closed/2026-10-10-f4-f5-closure-plan.md) — ~15% *(pre-execução; **a execução existe** em [relatório F4/F5](../reports/2026-10-10-f4-f5-closure-report.md); **arquivado**)*
+### [`2026-10-10-f4-f5-closure-plan.md`](2026-10-10-f4-f5-closure-plan.md) — ~15% *(pre-execução; **a execução existe** em [relatório F4/F5](../../reports/2026-10-10-f4-f5-closure-report.md); **arquivado**)*
 
 Sequência de 5 passos; nenhum executado. Passo 1 parcial: o literal da senha `operator-admin`
 foi removido da versão **local** de três documentos, mas persiste no histórico/remote, sem
 rotação nem push. Passos 2–5 (fixture de dados e restore Notes/Khan, rollback nos dois
 gestores, execução de CI nos 7 SHAs, fechamento de evidência) não executados.
 
-### [`2026-10-10-f7-operations-acceptance-closure-plan.md`](closed/2026-10-10-f7-operations-acceptance-closure-plan.md) — ~5% *(a marca de supersession estava errada: era o único dono de trabalho vivo; **arquivado**)*
+### [`2026-10-10-f7-operations-acceptance-closure-plan.md`](2026-10-10-f7-operations-acceptance-closure-plan.md) — ~5% *(a marca de supersession estava errada: era o único dono de trabalho vivo; **arquivado**)*
 
 Pacotes P0–P5 (conter credencial, procedência, Khan/duplicatas, manual, runtime/CI, VPS) sem
 execução registrada; plano superado pelo de senha única.
@@ -252,7 +260,7 @@ execução registrada; plano superado pelo de senha única.
 
 As porcentagens acima são uma estimativa de leitura documental. No mesmo dia, cada pendência foi
 confrontada com o código, os testes, as imagens e o host, em
-[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+[auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md).
 
 **Nenhum item foi encontrado integralmente executado**, o que confirma a leitura: quase todo item
 aberto tem um componente de execução — rodar, no alvo, com registro — que teste local não substitui.

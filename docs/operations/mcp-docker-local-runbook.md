@@ -3,7 +3,7 @@
 - **Revisado em:** 2026-10-24 UTC; revisão 0.2 (D9).
 - **Escopo:** procedimentos de operação, atualização, rollback, incidente, revisão e retenção para os servidores MCP Docker que o Percival consome (Notes, AgentMail, Weather, Khan Calendar, OSM e Deep Research) e para o gateway/broker. Este manual **não** substitui o [runbook de migração de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md), apenas convive com ele.
 - **Autoridade:** qualquer mutação real (instalar/atualizar/rollback/parar/remover) exige a interface suportada do gestor correspondente e a aprovação específica do operador. Nada aqui é executado implicitamente.
-- **Estado da padronização:** contratos/histórico no [plano F0–F8 arquivado](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md); pendências e coordenação no [plano de continuidade](../plans/2026-10-25-docker-standardization-continuation-plan.md). F7 foi assinado com ressalvas; isso não aprova os gates remotos ou a promoção.
+- **Planos de execução:** [Plano 1 — produto local](../plans/2026-10-25-01-product-readiness-plan.md), [Plano 2 — qualificação/distribuição](../plans/2026-10-25-02-qualification-distribution-plan.md) e [Plano 3 — implantação/operação](../plans/2026-10-25-03-deployment-operations-plan.md). Contratos/histórico no [F0–F8 arquivado](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md). F7 assinado com ressalvas não aprova CI, distribuição ou promoção.
 
 ## 1. Princípios
 
@@ -266,7 +266,7 @@ antes de autorizar canário. Nenhum comando de mutação é fornecido neste
 snapshot. A evidência do fechamento local está no
 [plano D8 arquivado](../plans/closed/2026-10-24-d8-promotion-readiness-closure-plan.md);
 CI e distribuição permanecem sob o
-[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
+[Plano 2, D01/D03–D08](../plans/2026-10-25-02-qualification-distribution-plan.md).
 
 **Nunca** usar `docker image prune -a`, `docker system prune --volumes` ou `docker container prune --filter "until=..."` para liberar espaço. Cada remoção é uma lista explícita aprovada por ID/digest, com referência cruzada em registry, config e mounts.
 
@@ -309,7 +309,7 @@ antes de qualquer promoção.
 ## 6. Links e procedimentos vizinhos
 
 - [Padronização Docker arquivada](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md) — contratos e snapshots F0–F8.
-- [Continuidade Docker](../plans/2026-10-25-docker-standardization-continuation-plan.md) — pendências, candidatos, canário e referências aos donos dos gates.
+- [Plano 3 — implantação/operação](../plans/2026-10-25-03-deployment-operations-plan.md) — backup, canário, retorno, retenção e aceite no alvo; CI/candidato têm dono no Plano 2.
 - [Plano de fechamento F7](../plans/closed/2026-10-10-f7-operations-acceptance-closure-plan.md) — pacotes P0–P5 que precedem este manual.
 - [Runbook F5 — migração/recuperação de estado `~/.nanobot`→`~/.percival`](../mcp-docker-f5-runbook.md) — procedimento de cutover do estado Compose sidecar.
 - [Governança B10–B13](../percival-governance.md) — upstream/CI/release.

@@ -40,15 +40,20 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | WebUI/host compatibility | [`.agent/review-guide.md`](.agent/review-guide.md) |
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
-| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [IaC integration plan (I1–I9)](docs/plans/2026-10-23-iac-alignment-execution-plan.md), [Docker continuation](docs/plans/2026-10-25-docker-standardization-continuation-plan.md), [archived phases](docs/plans/closed/2026-10-09-docker-standardization-refactor-plan.md) |
+| Docker/IaC architecture, distribution, or deployment contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md), [Plan 3: deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md) |
 | Core runtime modes, UID/init/probes or gateway↔broker compatibility | [Runtime contract 1](docs/agent-runtime-contract.md), [I2 local conformance](docs/reports/2026-10-23-i2-runtime-contract-conformance.md) |
-| Docker runtime, provenance, MCP/browser or VPS acceptance | [Docker closure (D1–D12)](docs/plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), [integrated backlog (A/B/C)](docs/plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) |
-| Instance authentication or persistent credentials | [Single-password acceptance](docs/plans/2026-10-11-single-password-acceptance-closure-plan.md) |
+| KG, MCP/browser, authentication or local product acceptance | [Plan 1: product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md) |
+| CI, candidate provenance, image publication or acquisition | [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md) |
+| Real-state authentication cutover, backup, MCP promotion or VPS acceptance | [Plan 3: deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md) |
 
 ## Docker-first IaC boundaries
 
-- Treat the [IaC integration plan](docs/plans/2026-10-23-iac-alignment-execution-plan.md)
-  as the map of target contracts, source references and remaining implementation.
+- Use only the three active plans: [local product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md),
+  [qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md)
+  and [deployment/operations](docs/plans/2026-10-25-03-deployment-operations-plan.md).
+  The [consolidation map](docs/reports/2026-10-25-three-plan-consolidation.md) transfers
+  every prior gate, detailed subtask and acceptance case; archived plans are specifications/history,
+  not concurrent trackers. C1 now has one execution/acceptance owner, Plan 2 D03.
   I1's ADR/handoff decide P0 conflicts; separate approved direction, target interfaces
   and verified implementation. Examples are not real endpoints, namespaces, schemas
   or digests. Reports are evidence, not ADRs.
@@ -111,7 +116,7 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   homologation; only homologated artifacts enter deployment. VPS C2–C4/I9 remain separate.
 - P0 is open infrastructure only; premium GCP, entitlement, billing, marketplace,
   Kubernetes, private customer delivery and a proprietary registry need separate scope.
-  Track new integration work in I1–I9 and residual product gates in their linked plans.
+  Track implementation in L*, D* and O* of the three plans; I1–I9 remain origin IDs.
   `docs/plans/closed/` is historical; transferring a gate or editing a plan does not close it.
 
 ## Development constraints

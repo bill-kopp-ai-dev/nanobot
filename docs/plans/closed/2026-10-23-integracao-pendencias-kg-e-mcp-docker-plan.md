@@ -1,11 +1,18 @@
 # Plano integrado — pendências de KG nativo e MCP Docker no Percival
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** KG-A1–A5 e
+> MCP-B1–B6 → [Plano 1](../2026-10-25-01-product-readiness-plan.md);
+> KG-A7/MCP-B7/C1 → [Plano 2](../2026-10-25-02-qualification-distribution-plan.md);
+> KG-A6/C2–C4 → [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> Não fecha gates: o restante é histórico/especificação, não tracker corrente.
+> Ver [mapa integral e precedência](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Preparado em:** 2026-10-23, por consolidação de quatro planos cujas pendências estavam
   espalhadas e sem dono único.
 - **Estado:** ativo; abertura/auditoria de 2026-10-23, com atualização documental de
   C1 em 2026-10-25. Os demais estados e contagens abaixo são snapshots da auditoria,
   não nova inspeção do host. Nenhum gate ganhou aceite pela revisão cruzada. Evidência inicial:
-  [auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+  [auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md).
 - **Coordenação em 2026-10-25:** [continuidade Docker](2026-10-25-docker-standardization-continuation-plan.md)
   recebe F0–F8 e resíduos sem outro dono. Este plano conserva A1–A7 KG, B1–B7 MCP
   e C1–C4; D1–D12/F7 encerrados não são dependências administrativas ainda abertas.
@@ -18,10 +25,10 @@
   publicação, escrita em VPS, cutover de dados reais nem mudança de compatibilidade do broker.
   Cada item preserva o critério de aceite e o responsável do plano de origem.
 - **Planos de origem (arquivados em `closed/` em 2026-10-23):**
-  [`kg-integration-plan.md`](closed/kg-integration-plan.md) ·
-  [`2026-10-11-kg-runtime-recovery-and-product-fix-plan.md`](closed/2026-10-11-kg-runtime-recovery-and-product-fix-plan.md) ·
-  [`2026-10-06-mcp-docker-first-class-execution-plan.md`](closed/2026-10-06-mcp-docker-first-class-execution-plan.md) ·
-  [`2026-10-08-mcp-docker-ui-service-refactor-plan.md`](closed/2026-10-08-mcp-docker-ui-service-refactor-plan.md).
+  [`kg-integration-plan.md`](kg-integration-plan.md) ·
+  [`2026-10-11-kg-runtime-recovery-and-product-fix-plan.md`](2026-10-11-kg-runtime-recovery-and-product-fix-plan.md) ·
+  [`2026-10-06-mcp-docker-first-class-execution-plan.md`](2026-10-06-mcp-docker-first-class-execution-plan.md) ·
+  [`2026-10-08-mcp-docker-ui-service-refactor-plan.md`](2026-10-08-mcp-docker-ui-service-refactor-plan.md).
   As etapas concluídas desses documentos (F1–F3, F5–F8 do KG; P0–P4 e a instalação P5-B do
   runtime; F0–F2 do MCP Docker; itens 1–7 da UI) continuam válidas como evidência e não são
   reexecutadas.
@@ -83,13 +90,13 @@ assina o aceite. "Bloqueado por" indica a dependência externa que impede a exec
 
 Estes itens absorveram, em 2026-10-23, os passos de CI e VPS dos planos de fechamento da
 padronização Docker, para que exista **um único dono por gate**. O detalhe operacional vem do
-[plano F7 de fechamento](../reports/2026-10-10-f7-p4-p5-blockers.md) e do
-[runbook F5](../mcp-docker-f5-runbook.md).
+[plano F7 de fechamento](../../reports/2026-10-10-f7-p4-p5-blockers.md) e do
+[runbook F5](../../mcp-docker-f5-runbook.md).
 
 | # | Pendência | Origem | Critério de aceite | Resp. | Estado |
 | --- | --- | --- | --- | --- | --- |
 | C1 | GitHub Actions verde no SHA candidato | MCP Docker first-class (B21/F5), padronização F7 P4.3 e F4/F5 closure 4b (#3) | Jobs obrigatórios verdes nos **sete** repos (gateway/broker + 6 MCPs), `headSha` conferido, manifest/SBOM baixados e confrontados com fonte, lock e digest de base. Fixar candidatos finais após decisões D2/D3/D4 e mudanças I1/I2 que os afetem; rodar conformance intermediária sem esperar essas decisões, revalidando o candidato alterado. Conformance não publica: publicação/digest OCI/pull anônimo são I3/I5. Execução detalhada no [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md) | operador (Actions core + `gh auth`) + agente | **aberto — snapshot 2026-10-25:** Notes, AgentMail, Khan, Weather e OSM têm Actions verdes; Deep Research falha em pytest; no snapshot inicial `nanobot` SHA `f3ad1590` tinha 0 runs e a página pública reporta Actions desabilitado no fork. Manifest/SBOM não foram baixados/confrontados; logs Deep requerem autenticação |
-| C2 | Inventário real do VPS e mapeamento de layout | MCP Docker first-class (B24), padronização F7 P5; handoff I4 | Inventário read-only por `scripts/percival-vps-inventory.sh` anexado ao [relatório F0](../reports/2026-10-07-mcp-docker-f0-inventory-and-feasibility.md) §7.3; Client/Server, data-root, socket/GID, submounts, portas, proxy e diretórios separados. Confirmar destino absoluto e mapping entre estado atual `~/.nanobot`, proposta histórica `.percival` e layout IaC `/srv/pblabs/`; preservar path interno suportado. Divergência relevante vira decisão; não copiar `.env`, config, token ou inspect integral para relatório versionado | operador + agente | **bloqueado** — sem VPS identificada; layout final depende de I1/I4 e do inventário, não da mera existência de `~/.percival` |
+| C2 | Inventário real do VPS e mapeamento de layout | MCP Docker first-class (B24), padronização F7 P5; handoff I4 | Inventário read-only por `scripts/percival-vps-inventory.sh` anexado ao [relatório F0](../../reports/2026-10-07-mcp-docker-f0-inventory-and-feasibility.md) §7.3; Client/Server, data-root, socket/GID, submounts, portas, proxy e diretórios separados. Confirmar destino absoluto e mapping entre estado atual `~/.nanobot`, proposta histórica `.percival` e layout IaC `/srv/pblabs/`; preservar path interno suportado. Divergência relevante vira decisão; não copiar `.env`, config, token ou inspect integral para relatório versionado | operador + agente | **bloqueado** — sem VPS identificada; layout final depende de I1/I4 e do inventário, não da mera existência de `~/.percival` |
 | C3 | Implantação/migração, rollback e topologia no VPS | MCP Docker first-class (B23/B24), padronização F7 P5; I4/I8 | Backup/restauração do estado completo para o destino aprovado em C2/I4, sem rename automático nem divisão em paths internos não suportados; retorno ensaiado. Compose de deployment por tag+digest, **sem build no VPS**, gateway+broker compatíveis, socket só no broker, UID/GID/token/coberturas e persistência verificados. Engine Server **27.x** continua gate atual; fixar versão homologada pelo host tooling, sem usar overlay Engine 29. Browser + gateway + broker, journal/restore/boot/recreate/oito famílias no alvo; locks sob seus donos, sem avanço em falha | operador + agente | **bloqueado** — depende de C2 e I4; deploy público exige I3/I8 aplicáveis ao candidato |
 | C4 | Novo aceite formal do operador para o deploy | MCP Docker first-class (B24), padronização F7 P5 | Aceite **no alvo**, distinto de B25 e da publicação, cobrindo risco indireto residual, mounts/UID/GID, destino real aprovado, locks, backup e retorno; reconciliação pós-cutover por gestor, pins/dados e digests core, hashes/URLs, limitações e decisões. Nenhum deploy sem autorização específica e plano de retorno próprio | operador | **bloqueado** — exige C2/C3 |
 
@@ -101,7 +108,7 @@ IDs A1–A9 do plano de senha e B5/B6 da D8 têm escopos diferentes de A/B aqui:
 | Gate | Dono | Observação |
 | --- | --- | --- |
 | C1 (Actions) e C2–C4 (VPS, migração, aceite) | este plano | C1 permanece o único gate/registro de aceitação; o [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md) contém o checklist operacional de Actions/artifacts e não duplica a propriedade do gate. C2–C4 continuam neste plano. O [plano de fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md) mantém P3/P4 próprios para o candidato de autenticação; uma execução de Actions ou de VPS pode satisfazer todos, desde que cada plano registre sua própria evidência e aponte para o run/inventário comum |
-| Credencial `operator-admin` exposta, proveniência/identidade, permissão do Khan, duplicatas, OpenSSH, walkthrough do manual, skill F8 | [fechamento da padronização F4/F5/F7](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12 encerrados/arquivados; os gates C1–C4 e de autenticação mantêm seus donos ativos neste plano e no plano de senha única |
+| Credencial `operator-admin` exposta, proveniência/identidade, permissão do Khan, duplicatas, OpenSSH, walkthrough do manual, skill F8 | [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | D1–D12 encerrados/arquivados; os gates C1–C4 e de autenticação mantêm seus donos ativos neste plano e no plano de senha única |
 | F6/candidatos/rollback, exposição válida F0 D-4, observabilidade D4 e decisões residuais | [continuidade Docker, R01–R14](2026-10-25-docker-standardization-continuation-plan.md) | Sucessor ativo de F0–F8; não reabre D1–D12 nem duplica C1–C4 |
 | Incidente M-1, dry-run do agente, fixture HTTP e política admin D11 | [acompanhamento D11](2026-10-24-d11-skill-operations-closure-plan.md) | F8 administrativo encerrado; gates técnicos não convertidos em PASS |
 | A1–A9 (autenticação: Engine 27.x, elevação, proxy TLS, expiração, senha alterada, cutover real) | [fechamento de senha única](2026-10-11-single-password-acceptance-closure-plan.md) | já transferido do plano de senha única; não repetir aqui |
@@ -170,7 +177,7 @@ declarar item fechado por teste local, por `Client.Version` ou por ausência de 
 
 **2026-10-23 — reverificação contra o código (não é execução).** Todos os itens foram confrontados
 com o repositório e com o host; veredictos e evidência `arquivo:linha` em
-[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md). Nenhum item foi
+[auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md). Nenhum item foi
 executado. Três premissas foram corrigidas: B5 apontava para o repositório errado; A2 era medível sem
 A5; B1/B4/B6 eram executáveis sem harness de browser. Sete defeitos novos, fora de qualquer plano,
 estão listados em §5 do relatório.

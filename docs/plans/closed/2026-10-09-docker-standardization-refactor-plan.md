@@ -3,7 +3,7 @@
 - **Encerramento em 2026-10-25 — decisão de bill:** plano **fechado por transferência**
   e arquivado em `docs/plans/closed/`, conforme pedido explícito do operador nesta
   sessão. Todos os itens abertos foram recebidos pelo
-  [plano de continuidade](../2026-10-25-docker-standardization-continuation-plan.md),
+  [plano de continuidade](2026-10-25-docker-standardization-continuation-plan.md),
   com origem, estado, responsável, critério de fechamento e referência ao dono dos
   gates especializados. Este arquivo preserva as fases, contratos e evidências
   históricas; não é mais checklist de execução nem tracker corrente.
@@ -21,11 +21,11 @@
 
 - **Revisão:** 2026-10-25 / v1.2 — fechamento da implementação local F5 e transferência da homologação GitHub Actions para C1.
   Este aditamento não declara C1 verde, nem aprova B13, publicação, promoção ou deployment.
-  O plano dedicado de execução remota é [F5/C1 — Actions e artifacts](../2026-10-25-f5-c1-remote-ci-closure-plan.md).
+  O plano dedicado de execução remota é [F5/C1 — Actions e artifacts](2026-10-25-f5-c1-remote-ci-closure-plan.md).
   Revisão anterior: 2026-10-23 / v1.1 — reconciliação com I1/I2 executados da IaC aberta PBLabs.
   F0–F8 e seus relatos permanecem como histórico de execução; o rastreio atual dos
   gates locais está em D1–D12/C1–C4. Integração IaC, distribuição e catálogo passam
-  a I1–I9 do [plano de integração IaC](../2026-10-23-iac-alignment-execution-plan.md).
+  a I1–I9 do [plano de integração IaC](2026-10-23-iac-alignment-execution-plan.md).
   I1 concluiu arquitetura/handoff (`eb4e3555`); I2 entregou runtime 1 e conformance
   local Linux/amd64 (`0e7ff072`), ambos commitados/enviados. I3 foi adiado pelo operador;
   I4–I9 continuam pendentes. A revisão v1.2 fecha F5 como implementação local e transfere
@@ -134,7 +134,7 @@ As decisões de produto estão formalizadas em
 
 ### Contrato-alvo IaC e handoff das fases
 
-Referências correntes: [plano de integração IaC, §§1–3](../2026-10-23-iac-alignment-execution-plan.md)
+Referências correntes: [plano de integração IaC, §§1–3](2026-10-23-iac-alignment-execution-plan.md)
 e ADR/handoff I1. As cinco fontes de 2026-10-19 tiveram seus conflitos P0 arbitrados
 em I1; schemas de deployment/índice/exports e a aquisição continuam por implementar.
 O relatório comparativo é diagnóstico, não aceite.
@@ -536,7 +536,7 @@ validação local dessa implementação, não certifica uma execução remota es
 **Aceite remoto C1:** workflows verdes no SHA final dos sete repositórios, com
 `headSha` conferido e manifest/SBOM (mais `results.json` do core) baixados e
 comparados com source, lock, labels, bases e plataforma. A fonte de verdade e o
-único gate remoto são C1 no [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+único gate remoto são C1 no [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 O pipeline de release protegido permanece em I3/I5 e condicionado a B13; F5/C1
 nunca publica imagens.
 
@@ -580,7 +580,7 @@ Weather e OSM passaram; Deep Research falhou em pytest sem log autenticado. No
 snapshot inicial, o core `f3ad1590` não tinha run/checks; o Actions público informa
 que workflows estão desabilitados neste fork. O SHA da branch precisa ser relido
 após habilitação, imediatamente antes da execução. A fase de execução/diagnóstico remoto e
-confronto de manifest/SBOM foi transferida ao [plano F5/C1](../2026-10-25-f5-c1-remote-ci-closure-plan.md);
+confronto de manifest/SBOM foi transferida ao [plano F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md);
 C1 continua **ABERTO** sob seu dono único no plano integrado. Não houve publicação,
 promoção, pin, alteração de manager, canário ou cutover.
 
@@ -626,7 +626,7 @@ Evidência detalhada:
 - Aprovar manual de build/update/rollback e procedimento de incidente/health false-positive.
 - Definir revisão trimestral de bases/dependências, atualização urgente por vulnerabilidade, retention de tags locais e limite de imagens intermediárias.
 - Depois do cutover local, atualizar o inventário. No VPS, C2–C4 do
-  [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+  [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
   consomem I4 (layout/receita/locks) e I8 (recovery), incluindo Engine/mount/GID/UID e
   novo aceite específico; o plano MCP Docker arquivado é origem histórica, não dono ativo.
 - Release/publicação segue governança B13: aprovação explícita no SHA candidato, histórico/licenças/proveniência e sem publicação implícita neste plano.
@@ -645,7 +645,7 @@ exige autorização específica e a sua própria evidência.
 > mais o rastreamento corrente das pendências. O acompanhamento passou para o
 > [fechamento da padronização Docker F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
 > (itens D1–D12), com os passos de Actions e VPS em C1–C4 do
-> [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
+> [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). Este quadro é
 > preservado como registro de 2026-10-10 e **não** deve ser atualizado item a item: as linhas
 > #2, #4, #5 e #6 já tinham evidência parcial posterior, e #11 foi dividida entre D6 (OpenSSH) e
 > C1 (Actions). A incorporação posterior de I1/I2 está no quadro de evidência da §2
@@ -765,7 +765,7 @@ Evidência completa em
     o que resta é C1 (Actions), D7 (runtime nos artefatos finais) e D8 (promoção dos pins).
     Critérios de aceite: itens D7, D8, D12 do
     [fechamento da padronização F4/F5/F7](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md)
-    e C1 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
+    e C1 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md).
 5. **Documentar identidade e procedência dos commits** — uniformizar o
    committer em todos os repositórios via `mailmap` ou reescrevendo o commit
    do `percival-notes-mcp`, garantindo a proveniência exigida por B13.
@@ -877,8 +877,8 @@ Nomes decididos não comprovam acesso, publicação nem migração realizada.
 
 Os trabalhos locais independentes continuam com seus donos em D1–D12 do
 [fechamento Docker](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md),
-C1–C4 do [plano integrado](../2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
-e A1–A9 de [senha única](../2026-10-11-single-password-acceptance-closure-plan.md),
+C1–C4 do [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md)
+e A1–A9 de [senha única](2026-10-11-single-password-acceptance-closure-plan.md),
 conforme autorização de cada execução. I1/I2 não eliminam D1 (credencial), D6
 (OpenSSH), D7/D8 (artefatos finais), D9–D11 (manual/instruções) ou os gates remotos.
 Não repetir o cutover dos seis MCPs apenas porque um snapshot antigo o dizia pendente;

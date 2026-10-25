@@ -1,5 +1,12 @@
 # F5 implementation closure and C1 remote Actions verification
 
+> **Archived by consolidation on 2026-10-25 at bill's request.** C1 and WP1–WP4
+> now have one execution/acceptance owner: D03 in
+> [Plan 2](../2026-10-25-02-qualification-distribution-plan.md); WP5 handoff is D11.
+> No remote gate was closed by this transfer. The body is historical evidence and
+> specification, not a live tracker. See the
+> [complete mapping](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Prepared:** 2026-10-25, by the agent after bill requested closure of F5 and transfer of its remaining remote work.
 - **Status:** active follow-up. The **local implementation scope of F5 is closed** in the master plan; **C1 is open** until exact-SHA Actions and artifact acceptance are proven.
 - **Acceptance owner:** C1 remains owned by the [integrated pending-work plan](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md). This plan is its execution checklist, not a second acceptance gate.
@@ -11,7 +18,7 @@
 
 F5 implementation now provides per-repository Docker build/conformance workflows for the six MCPs and the Percival core workflow. The follow-up MCP fixes were pushed to `main`; five MCPs have green remote workflows, while Deep Research's latest Python test job failed. The core SHA has no current Actions run. CI artifacts are listed for some green MCP runs, but manifests/SBOMs have not been downloaded or compared with their source/build inputs.
 
-The **implementation phase** F5 was closed in the [archived 2026-10-09 plan](closed/2026-10-09-docker-standardization-refactor-plan.md). This follow-up does not claim remote C1 acceptance. No job in this plan publishes/pushes an image or tag to a registry, and no release, pin change, manager action, canary, cutover or VPS deployment is included.
+The **implementation phase** F5 was closed in the [archived 2026-10-09 plan](2026-10-09-docker-standardization-refactor-plan.md). This follow-up does not claim remote C1 acceptance. No job in this plan publishes/pushes an image or tag to a registry, and no release, pin change, manager action, canary, cutover or VPS deployment is included.
 
 ## 2. Candidate and Actions snapshot
 
@@ -27,7 +34,7 @@ Snapshot after the corrective MCP pushes of 2026-10-25. Before relying on any re
 | OSM MCP | `06484259a3bb5371c5c1551dcab0c23ccc166479` | Docker workflow run #22 success; run #21 also passed after explicit Python setup. | Download manifest/SBOM and compare source, lock/base digests, labels, platform and image identity. |
 | Deep Research MCP | `defc9434487be4db7dbc13003db1709047297471` | CI run #15 failed in pytest; run #14 also failed in pytest. Local suite passes, but the failing remote test is not identified. | Obtain authenticated logs, reproduce the exact failing test/environment, fix only the demonstrated cause, push a new SHA when authorized, and rerun all required jobs. Then download manifest/SBOM. |
 
-The detailed initial diagnosis, local verification and intermediate run history are in [F5 revalidation report](../reports/2026-10-25-f5-ci-conformance-revalidation.md). The local Engine was 29.9.2 linux/amd64; it is not the approved Engine 27.5.1 CI/target proof.
+The detailed initial diagnosis, local verification and intermediate run history are in [F5 revalidation report](../../reports/2026-10-25-f5-ci-conformance-revalidation.md). The local Engine was 29.9.2 linux/amd64; it is not the approved Engine 27.5.1 CI/target proof.
 
 ## 3. Work packages
 

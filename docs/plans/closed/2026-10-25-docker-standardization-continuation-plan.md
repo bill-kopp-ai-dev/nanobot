@@ -1,8 +1,16 @@
 # Continuidade da padronização Docker — pendências, promoção e aceites
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** Resíduos de
+> engenharia/skill → [Plano 1](../2026-10-25-01-product-readiness-plan.md);
+> candidato/segurança/CI/distribuição → [Plano 2](../2026-10-25-02-qualification-distribution-plan.md);
+> backup/promoção/operação → [Plano 3](../2026-10-25-03-deployment-operations-plan.md).
+> R01–R14 e todos os gates referenciados têm destino no
+> [mapa integral](../../reports/2026-10-25-three-plan-consolidation.md).
+> Transferência não executa F6 nem fecha gates; corpo abaixo é histórico/especificação.
+
 - **Criado em:** 2026-10-25, por decisão explícita de bill nesta sessão.
 - **Estado:** ativo; transferência documental concluída, execução técnica pendente.
-- **Origem:** [plano F0–F8 arquivado](closed/2026-10-09-docker-standardization-refactor-plan.md).
+- **Origem:** [plano F0–F8 arquivado](2026-10-09-docker-standardization-refactor-plan.md).
   O operador determinou transferir todos os itens abertos para este plano, fechar e
   arquivar o anterior, revisar os planos ativos e commitar/enviar a revisão em `main`.
 - **Resultado pretendido:** nenhum resíduo sem dono; candidato rastreado, canário e
@@ -48,16 +56,16 @@ não C1–C4 do integrado. D-4 de F0 trata chaves válidas, não o segredo legad
 | F4 | Receitas/smokes locais aprovados nas superfícies exercitadas | Nginx opcional de Deep Research sem prova de runtime |
 | F5 | Implementação local fechada | Aceite remoto C1 aberto |
 | F6/F7 histórico | Seis MCPs canariados nos dois gestores em 2026-10-10 | Não prova a promoção dos candidatos posteriores F3/D8/F5 |
-| D1–D12 / F7 | Encerrados; F7 assinado com ressalvas em 2026-10-24 | [Registro D12](../reports/2026-10-24-d12-f7-closure-record.md); B13/público/VPS não concedidos |
+| D1–D12 / F7 | Encerrados; F7 assinado com ressalvas em 2026-10-24 | [Registro D12](../../reports/2026-10-24-d12-f7-closure-record.md); B13/público/VPS não concedidos |
 | D11 / F8 | Encerramento administrativo; Built-in habilitada; fixture 24 PASS/1 BLOCKED | Dry-run LLM, HTTP, política admin e M-1 continuam abertos |
 | I1/I2 | Arquitetura/handoff e runtime 1 local concluídos | Não reexecutar por tratar esses itens como futuros; I3 adiado |
 
-Fontes: [F0](../reports/2026-10-24-f0-closure-record.md),
-[F1/F2](../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md),
-[F3](../reports/2026-10-25-f3-reproducibility-contexts-posture.md),
-[F4](../reports/2026-10-25-f4-compose-runtime-revalidation.md),
-[F5](../reports/2026-10-25-f5-ci-conformance-revalidation.md) e
-[D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
+Fontes: [F0](../../reports/2026-10-24-f0-closure-record.md),
+[F1/F2](../../reports/2026-10-24-f1-f2-runtime-identity-revalidation.md),
+[F3](../../reports/2026-10-25-f3-reproducibility-contexts-posture.md),
+[F4](../../reports/2026-10-25-f4-compose-runtime-revalidation.md),
+[F5](../../reports/2026-10-25-f5-ci-conformance-revalidation.md) e
+[D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md).
 As imagens, processos, revisões e contagens desses registros precisam ser relidos
 antes de operação real; não são o estado observado nesta campanha documental.
 
@@ -230,6 +238,6 @@ Aceite local, Actions, B13, homologação pública, autenticação e VPS/I9 são
 **2026-10-25 — registro de transferência:** inventário completo acima recebido do
 plano F0–F8 por decisão de bill; origem fechada por transferência, não por execução
 integral de F6/CI/distribuição/VPS. A revisão cruzada e seus checks estão no
-[relatório desta campanha](../reports/2026-10-25-plans-cross-review-and-docker-handoff.md).
+[relatório desta campanha](../../reports/2026-10-25-plans-cross-review-and-docker-handoff.md).
 Próxima ação técnica: bill disponibiliza acesso C1 e decide o caminho/escopo R01;
 apuração M-1 precede novo ensaio read-only do agente.

@@ -1,11 +1,18 @@
 # Distribuição por digest — B6 da D8 (B5 transferido para C1)
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** B5/C1 → D03;
+> DIST-B6 fases A/C/D e aceite → D01/D04–D08 do
+> [Plano 2](../2026-10-25-02-qualification-distribution-plan.md).
+> Seleção de artefatos/método e B13 continuam pendentes; não houve distribuição
+> ou promoção nesta transferência. Corpo abaixo histórico/especificação.
+> Ver [mapa integral e precedência](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Preparado em:** 2026-10-24.
 - **Estado:** B5 (CI remoto) transferido para o [plano ativo F5/C1](2026-10-25-f5-c1-remote-ci-closure-plan.md); B6 distribuição/aquisição continua planejado e não iniciado.
 - **Objetivo atual:** executar B6 (distribuição/aquisição por digest) transferida da D8; o checklist de CI B5 já pertence a F5/C1. Não duplicar diagnóstico ou aceite de Actions neste plano.
 - **Coordenação 2026-10-25:** [continuidade Docker](2026-10-25-docker-standardization-continuation-plan.md), R01 e DIST-B6. O nome do arquivo preserva links históricos; B6 aqui é distribuição, não o MCP-B6 Browser do plano integrado. F0–F8 foi arquivado por transferência, sem promoção.
 - **Estimativa inicial:** B5, aproximadamente 4–8 dias de engenharia; B6, 1–3 semanas para publicação e homologação no escopo acordado. A integração completa de aquisição pelo manager pode exigir várias semanas adicionais se depender da implementação I6. Esperas por acesso, decisões e aprovações não estão incluídas.
-- **Referências:** [plano mestre D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [plano D8 arquivado](closed/2026-10-24-d8-promotion-readiness-closure-plan.md) §§7.3–7.6; [relatório F3](../reports/2026-10-10-f3-remediation-triage.md); [plano IaC I1–I9](2026-10-23-iac-alignment-execution-plan.md) §§5.3–5.6 e §10; [ADR I1](../Decisions/2026-10-23-open-iac-contracts.md); [runbook operacional](../operations/mcp-docker-local-runbook.md) §5.1.
+- **Referências:** [plano mestre D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) §2.9; [plano D8 arquivado](2026-10-24-d8-promotion-readiness-closure-plan.md) §§7.3–7.6; [relatório F3](../../reports/2026-10-10-f3-remediation-triage.md); [plano IaC I1–I9](2026-10-23-iac-alignment-execution-plan.md) §§5.3–5.6 e §10; [ADR I1](../../Decisions/2026-10-23-open-iac-contracts.md); [runbook operacional](../../operations/mcp-docker-local-runbook.md) §5.1.
 - **Autoridade:** este plano não autoriza publicação, promoção, canário, cutover, alteração de gestores, pins/allowlists/credenciais, deploy em VPS ou preparação/entrega de comandos de promoção. Publicação exige aprovação B13 e autorização explícita do operador para a execução correspondente. Em qualquer gate que exija acesso ou ação manual do operador, **parar e informar** antes de prosseguir.
 
 ## 1. Contexto e escopo

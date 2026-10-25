@@ -1,10 +1,17 @@
 # Acompanhamento técnico pós-encerramento D11 — skill de operações MCP Docker
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** M-1/C8 → L01;
+> dry-run LLM/profile HTTP/política admin e matriz técnica → L11 do
+> [Plano 1](../2026-10-25-01-product-readiness-plan.md).
+> D11 administrativo continua fechado; gates técnicos e incerteza M-1 não viram PASS.
+> Corpo abaixo histórico/especificação. Ver
+> [mapa integral e precedência](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Preparado em:** 2026-10-24.
 - **Objetivo:** acompanhar os gates técnicos de segurança e rehearsal que o operador decidiu adiar após encerrar administrativamente D11/F8.
 - **Estado:** D11 foi **fechada por decisão do operador nesta revisão**. Esse fechamento de escopo não equivale a aprovação dos gates técnicos abaixo. A skill Built-in está implantada e confirmada; o rehearsal da fixture passou em 24 checks e deixou 1 bloqueado. Pendências e incidente de segurança permanecem registrados neste plano para retomada posterior.
 - **Coordenação em 2026-10-25:** [continuidade Docker, §4.2](2026-10-25-docker-standardization-continuation-plan.md#42-f8--d11-técnico). Este plano continua dono do incidente M-1 e dos gates D11 técnicos; D11/F8 administrativo e F7/D12 estão encerrados. As fases A–E abaixo são o roteiro original; §6 registra o que foi executado e §7 é a lista de retomada, sem refazer os 24 checks por omissão de leitura.
-- **Referências:** [plano integrado D1–D12](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../operations/mcp-docker-local-runbook.md); [walkthrough D9](../reports/2026-10-24-d9-runbook-walkthrough.md).
+- **Referências:** [plano integrado D1–D12](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md), §2.12; [skill](../../../nanobot/skills/mcp-docker-operations/SKILL.md); [runbook D9](../../operations/mcp-docker-local-runbook.md); [walkthrough D9](../../reports/2026-10-24-d9-runbook-walkthrough.md).
 - **Autoridade:** este plano orienta trabalho local e fixtures sintéticas. Não aprova mudanças em servidores MCP reais, pins/allowlists/credenciais, limpeza de imagens ou estado, acesso remoto, publicação, VPS ou qualquer deploy adicional. Essas ações exigem aprovação específica do operador pela interface suportada.
 
 ## 1. Estado conhecido e interpretação do diagnóstico
@@ -113,7 +120,7 @@ D11 está administrativamente fechada por decisão do operador. Estes critérios
 
 ## 6. Registro de execução e encerramento administrativo — 2026-10-25 UTC
 
-O rehearsal registrado em [relatório D11](../reports/2026-10-25-d11-skill-operations-rehearsal.md)
+O rehearsal registrado em [relatório D11](../../reports/2026-10-25-d11-skill-operations-rehearsal.md)
 foi executado pelo runner versionado em `scripts/d11/` no DinD 27.5.1. Resultado:
 24 PASS e 1 BLOCKED. C1 e C2 foram confirmados no contexto implantado/fixture;
 C4, C5, C7 e o exercício stdio de C6 passaram na fixture. O profile HTTP de

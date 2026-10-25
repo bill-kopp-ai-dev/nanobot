@@ -10,7 +10,7 @@
 
 ## 1. Transferência e cobertura
 
-O [sucessor ativo](../plans/2026-10-25-docker-standardization-continuation-plan.md)
+O [sucessor ativo](../plans/closed/2026-10-25-docker-standardization-continuation-plan.md)
 recebe R01–R14 e todos os acompanhamentos referenciados: C1/WP1–WP5, DIST-B6/B13,
 D11/M-1/D10 residual, AUTH-A1–A9, MCP-B1–B7/C2–C4, I3–I9 e KG-A1–A7.
 Não existem dois donos de aceite: cada referência mantém o plano especializado;
@@ -29,14 +29,14 @@ correções explícitas de contrato atual, nunca para transformar teste falho em
 
 | Documento | Problema / correção |
 | --- | --- |
-| [Continuidade Docker](../plans/2026-10-25-docker-standardization-continuation-plan.md) | Novo inventário completo, owners, aceites, decisões condicionais e sequência; distingue corte histórico dos candidatos novos e F6 local do caminho publicado. Gates C1/DIST-B6 preservados até decisão específica R01 |
-| [Integrado KG/MCP](../plans/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | Abertura de 2026-10-23 não era estado atual de C1; D1–D12/F7 fechados; aviso KG precisa de auth; frontend é webui/, não nanobot/webui/; D9 runtime não depende de Browser; conflito de banners KG marcado para reverificação, sem inventar resultado |
-| [Senha única](../plans/2026-10-11-single-password-acceptance-closure-plan.md) | Critério A2 ainda exigia credencial/endpoint operator-admin removidos; usa sessão/elevation/WS atual. A3 proibia senha/token em qualquer payload, incompatível com login; limitada aos campos auth permitidos, mantendo proibição de URL/storage/log e payload MCP. “Coberto por P2” esclarecido como planejado, não executado |
-| [IaC](../plans/2026-10-23-iac-alignment-execution-plan.md) | Baseline a299da09 explicitamente histórico; D1 não é bloqueio atual; risco F0 de chaves válidas é distinto. I1/I2 e D1–D12 fechados não são trabalho futuro. I3 adiado não impede preparação local autorizada; migração de owner é decisão recomendada, não transferência implícita do histórico privado |
-| [Distribuição B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md) | Removida duplicação ativa do diagnóstico CI B5 já transferido; seleção de escopo na fase A antes de C/D, não fase B histórica. Atualização de status vai ao sucessor/novo candidato, não sobrescreve relatório F3 |
-| [D11 técnico](../plans/2026-10-24-d11-skill-operations-closure-plan.md) | Distingue roteiro original A–E de §6 executada/§7 remanescente; não reabrir D8/D12. Próximas evidências vão ao acompanhamento/sucessor, preservando fechamento administrativo |
-| [F5/C1](../plans/2026-10-25-f5-c1-remote-ci-closure-plan.md) | WP1 ainda mandava executar f3ad1590 como candidato futuro; agora exige SHA atual aprovado. WP2 vincula logs #15 ao SHA histórico, não ao HEAD por inferência. C1 permanece dono único; sincronização atual aponta ao sucessor |
-| [Índice/auditoria](../plans/2026-10-23-auditoria-planos-status.md) | Tabela “corrente” ainda dizia namespace pendente/D1–D12 abertos. Atualizada; porcentagens e achados antigos ficam sob seção histórica, sem novos percentuais nem execução presumida |
+| [Continuidade Docker](../plans/closed/2026-10-25-docker-standardization-continuation-plan.md) | Novo inventário completo, owners, aceites, decisões condicionais e sequência; distingue corte histórico dos candidatos novos e F6 local do caminho publicado. Gates C1/DIST-B6 preservados até decisão específica R01 |
+| [Integrado KG/MCP](../plans/closed/2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | Abertura de 2026-10-23 não era estado atual de C1; D1–D12/F7 fechados; aviso KG precisa de auth; frontend é webui/, não nanobot/webui/; D9 runtime não depende de Browser; conflito de banners KG marcado para reverificação, sem inventar resultado |
+| [Senha única](../plans/closed/2026-10-11-single-password-acceptance-closure-plan.md) | Critério A2 ainda exigia credencial/endpoint operator-admin removidos; usa sessão/elevation/WS atual. A3 proibia senha/token em qualquer payload, incompatível com login; limitada aos campos auth permitidos, mantendo proibição de URL/storage/log e payload MCP. “Coberto por P2” esclarecido como planejado, não executado |
+| [IaC](../plans/closed/2026-10-23-iac-alignment-execution-plan.md) | Baseline a299da09 explicitamente histórico; D1 não é bloqueio atual; risco F0 de chaves válidas é distinto. I1/I2 e D1–D12 fechados não são trabalho futuro. I3 adiado não impede preparação local autorizada; migração de owner é decisão recomendada, não transferência implícita do histórico privado |
+| [Distribuição B6](../plans/closed/2026-10-24-b5-b6-ci-distribution-closure-plan.md) | Removida duplicação ativa do diagnóstico CI B5 já transferido; seleção de escopo na fase A antes de C/D, não fase B histórica. Atualização de status vai ao sucessor/novo candidato, não sobrescreve relatório F3 |
+| [D11 técnico](../plans/closed/2026-10-24-d11-skill-operations-closure-plan.md) | Distingue roteiro original A–E de §6 executada/§7 remanescente; não reabrir D8/D12. Próximas evidências vão ao acompanhamento/sucessor, preservando fechamento administrativo |
+| [F5/C1](../plans/closed/2026-10-25-f5-c1-remote-ci-closure-plan.md) | WP1 ainda mandava executar f3ad1590 como candidato futuro; agora exige SHA atual aprovado. WP2 vincula logs #15 ao SHA histórico, não ao HEAD por inferência. C1 permanece dono único; sincronização atual aponta ao sucessor |
+| [Índice/auditoria](../plans/closed/2026-10-23-auditoria-planos-status.md) | Tabela “corrente” ainda dizia namespace pendente/D1–D12 abertos. Atualizada; porcentagens e achados antigos ficam sob seção histórica, sem novos percentuais nem execução presumida |
 
 ## 3. Evidências usadas e conflitos materiais
 

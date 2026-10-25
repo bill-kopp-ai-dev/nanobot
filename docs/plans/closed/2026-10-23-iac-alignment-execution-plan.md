@@ -1,5 +1,13 @@
 # Harmonização Percival × IaC aberta PBLabs — plano de integração
 
+> **Arquivado por consolidação em 2026-10-25, a pedido de bill.** I3/I5/I6/I7 →
+> [Plano 2, D04–D09](../2026-10-25-02-qualification-distribution-plan.md);
+> I4/I8/I9 → [Plano 3, O01/O02/O09](../2026-10-25-03-deployment-operations-plan.md).
+> I1/I2 permanecem concluídos no escopo registrado e I3 continua adiado. Nenhuma
+> subtarefa ou caso V01–V24 foi dispensado: a especificação detalhada abaixo é
+> referência histórica herdada, com execução/aceite nos sucessores. Ver
+> [mapa integral e precedência](../../reports/2026-10-25-three-plan-consolidation.md).
+
 - **Preparado em:** 2026-10-23, a pedido do operador, para harmonizar os planos de
   implementação com a proposta IaC. **Estado atual:** I1 concluído no escopo de
   arquitetura/handoff e I2 concluído em conformance local Linux/amd64 em 2026-10-23,
@@ -18,8 +26,8 @@
   criação ou migração de repositório e deploy continuam sem autorização.
 - **Revisão de detalhamento:** 2026-10-23, sobre `a299da09` (árvore inicialmente limpa).
   Naquela revisão I1–I9 ficaram pendentes. A execução posterior de I1 está registrada
-  no §11 e na [ADR decidida](../Decisions/2026-10-23-open-iac-contracts.md), com
-  [handoff](../iac-p0-contract-handoff.md) e [snapshot das fontes](../references/2026-10-23-iac-source-snapshot.md).
+  no §11 e na [ADR decidida](../../Decisions/2026-10-23-open-iac-contracts.md), com
+  [handoff](../../iac-p0-contract-handoff.md) e [snapshot das fontes](../../references/2026-10-23-iac-source-snapshot.md).
   Contratos aprovados não são schemas/API já implementados.
 - **Condição de conclusão:** evidência rastreável de distribuição, implantação,
   lifecycle MCP e recuperação na parte Percival; aceite do operador em I9.
@@ -56,14 +64,14 @@ estratégia IaC → stack. As instruções no `AGENTS.md` da pasta de fontes des
 workspace; não substituem as instruções deste repositório. Exemplos, paths internos,
 nomes de APIs e schemas das fontes são propostas, não componentes homologados.
 
-O [relatório comparativo](../reports/2026-10-23-iac-strategy-vs-percival-gap-analysis.md)
+O [relatório comparativo](../../reports/2026-10-23-iac-strategy-vs-percival-gap-analysis.md)
 é insumo diagnóstico, não ADR nem aceite. Para execução, verificar o artefato atual e
 os registros mais recentes, incluindo a
-[auditoria planos × código](../reports/2026-10-23-auditoria-planos-vs-codigo.md).
+[auditoria planos × código](../../reports/2026-10-23-auditoria-planos-vs-codigo.md).
 Em particular:
 
 - **`0.1.0` já é a primeira versão pretendida de Percival**, conforme
-  [AGENTS.md](../../AGENTS.md) e [governança](../percival-governance.md). `nanobot-ai`
+  [AGENTS.md](../../../AGENTS.md) e [governança](../../percival-governance.md). `nanobot-ai`
   `0.3.5` é metadado herdado; não reabrir a decisão nem publicá-lo como release Percival.
 - Broker e manager existem: `nanobot/mcp_docker/broker.py`, `service.py`, política de
   mounts e Compose sidecar. Aproveitar essa base. Existência não fecha os gates de
@@ -73,7 +81,7 @@ Em particular:
   um digest de registry a partir de um ID local, tag ou valor de exemplo.
 - Scans de 2026-10-09 não descrevem automaticamente candidatos posteriores. A triagem
   de 2026-10-10 fechou um item documental, não concedeu waiver. Revalidar o candidato
-  pela [política de postura](../Decisions/2026-10-09-docker-image-posture-policy.md).
+  pela [política de postura](../../Decisions/2026-10-09-docker-image-posture-policy.md).
 - Compose já contém probes e `user:` não-root. Não exigir `HEALTHCHECK` HTTP global em
   imagem multimodo (CLI/gateway/API), nem tratar `USER root` no Dockerfile isoladamente
   como usuário efetivo. I2 verifica processo, entrypoint, overrides e permissões reais.
@@ -87,16 +95,16 @@ para o checkout e devem ser pinados ao SHA no relatório de implementação.
 
 | Observação direta | Consequência executável |
 | --- | --- |
-| [`contracts.py`](../../nanobot/mcp_docker/contracts.py) aceita somente `local-image`/`pinned-image`; modelos usam `extra="forbid"`. `McpDockerConfig` não contém catálogo, publisher, versão ou plataforma | I6/I7 precisam de desenho de persistência/migração; adicionar campos ao JSON atual quebra leitores antigos. Não anunciar `repository` ou `trustedCatalogs` como campos aceitos hoje |
-| [`broker.py`](../../nanobot/mcp_docker/broker.py), `ready()`/`image_reference()`/`_spawn()`: Engine rootful Server 27.x; Client 27.x/29.x; inventário obrigatório; imagem local; spawn sem pull | I4 homologa versão exata do host/Compose. I6 acrescenta aquisição autorizada sem substituir o controle de identidade no spawn |
-| `ready()` exige **um** bind de estado no gateway em `/home/nanobot/.nanobot`, com origem igual ao path inventariado. [`mount_policy.py`](../../nanobot/mcp_docker/mount_policy.py) exige token sob esse estado verificado | Um bind de estado monolítico e token dentro dele são baseline. Token separado em `/srv/pblabs/secrets/` ou fragmentação de estado exigem mudança de contrato/código e provas, não apenas Compose |
-| [`docker-compose.mcp-broker.yml`](../../docker-compose.mcp-broker.yml) só troca o bind do gateway; API/CLI da [base](../../docker-compose.yml) mantêm `~/.nanobot` | I4 deve mapear todos os serviços habilitados para o mesmo estado da instância; caso contrário, `auth init` pode criar o verifier no volume errado |
-| [`broker.py`](../../nanobot/mcp_docker/broker.py), `_exchange()`, usa `docker attach`, handshake por troca e timeout; allowlist MCP contém quatro métodos. `_name()` deriva nome apenas de `server_id` | Não presumir bridge MCP genérica, streaming/cancelamento ou duas instalações isoladas pelo nome do projeto Compose. I2/I6 delimitam suporte e testam colisões |
-| [`service.py`](../../nanobot/mcp_docker/service.py) serializa via `WebUISettingsConfig`, persiste `config.json` e recupera transições; [`client.py`](../../nanobot/mcp_docker/client.py) tem timeout HTTP de 30 s | I6 não mantém pull longo dentro da transação de configuração nem assume sucesso após timeout. I7 integra export sem criar outro writer canônico |
-| [`ci.yml`](../../.github/workflows/ci.yml) constrói as duas imagens, gera SBOM e manifests; não há etapa de scanner de vulnerabilidades nos workflows atuais | SBOM não é scan. I3 deve acrescentar enforcement da política, além do build/push protegido; alegação de Trivy no CI do relatório comparativo não se sustenta neste checkout |
+| [`contracts.py`](../../../nanobot/mcp_docker/contracts.py) aceita somente `local-image`/`pinned-image`; modelos usam `extra="forbid"`. `McpDockerConfig` não contém catálogo, publisher, versão ou plataforma | I6/I7 precisam de desenho de persistência/migração; adicionar campos ao JSON atual quebra leitores antigos. Não anunciar `repository` ou `trustedCatalogs` como campos aceitos hoje |
+| [`broker.py`](../../../nanobot/mcp_docker/broker.py), `ready()`/`image_reference()`/`_spawn()`: Engine rootful Server 27.x; Client 27.x/29.x; inventário obrigatório; imagem local; spawn sem pull | I4 homologa versão exata do host/Compose. I6 acrescenta aquisição autorizada sem substituir o controle de identidade no spawn |
+| `ready()` exige **um** bind de estado no gateway em `/home/nanobot/.nanobot`, com origem igual ao path inventariado. [`mount_policy.py`](../../../nanobot/mcp_docker/mount_policy.py) exige token sob esse estado verificado | Um bind de estado monolítico e token dentro dele são baseline. Token separado em `/srv/pblabs/secrets/` ou fragmentação de estado exigem mudança de contrato/código e provas, não apenas Compose |
+| [`docker-compose.mcp-broker.yml`](../../../docker-compose.mcp-broker.yml) só troca o bind do gateway; API/CLI da [base](../../../docker-compose.yml) mantêm `~/.nanobot` | I4 deve mapear todos os serviços habilitados para o mesmo estado da instância; caso contrário, `auth init` pode criar o verifier no volume errado |
+| [`broker.py`](../../../nanobot/mcp_docker/broker.py), `_exchange()`, usa `docker attach`, handshake por troca e timeout; allowlist MCP contém quatro métodos. `_name()` deriva nome apenas de `server_id` | Não presumir bridge MCP genérica, streaming/cancelamento ou duas instalações isoladas pelo nome do projeto Compose. I2/I6 delimitam suporte e testam colisões |
+| [`service.py`](../../../nanobot/mcp_docker/service.py) serializa via `WebUISettingsConfig`, persiste `config.json` e recupera transições; [`client.py`](../../../nanobot/mcp_docker/client.py) tem timeout HTTP de 30 s | I6 não mantém pull longo dentro da transação de configuração nem assume sucesso após timeout. I7 integra export sem criar outro writer canônico |
+| [`ci.yml`](../../../.github/workflows/ci.yml) constrói as duas imagens, gera SBOM e manifests; não há etapa de scanner de vulnerabilidades nos workflows atuais | SBOM não é scan. I3 deve acrescentar enforcement da política, além do build/push protegido; alegação de Trivy no CI do relatório comparativo não se sustenta neste checkout |
 | O job Docker de `ci.yml` contém asserção `id -u = 0` sobre CLI que herda `user: 1000:1000` | Divergência estática a reproduzir/corrigir em I2/C1 antes de reutilizar esse job como prova de permissões; não é falha de run observada nesta revisão |
-| [`Dockerfile`](../../Dockerfile) permite instalação de dependências de channels em `/app/.venv` no startup; [`entrypoint.sh`](../../entrypoint.sh) faz drop para UID 1000 no caminho root | Imagem por digest não fixa dependências instaladas depois. I2 registra channels incluídos e comportamento sem rede/UID alternativo; não habilita canais que dependem de mutação não homologada |
-| [`auth.py`](../../nanobot/cli/auth.py) oferece `auth init/change/reset/status`; `init` é interativo e recusa sobrescrever senha existente | Bootstrap precisa do setup antes do bind externo, sem senha default/flag inventada. Reexecução idempotente não pode rotacionar nem recriar credenciais |
+| [`Dockerfile`](../../../Dockerfile) permite instalação de dependências de channels em `/app/.venv` no startup; [`entrypoint.sh`](../../../entrypoint.sh) faz drop para UID 1000 no caminho root | Imagem por digest não fixa dependências instaladas depois. I2 registra channels incluídos e comportamento sem rede/UID alternativo; não habilita canais que dependem de mutação não homologada |
+| [`auth.py`](../../../nanobot/cli/auth.py) oferece `auth init/change/reset/status`; `init` é interativo e recusa sobrescrever senha existente | Bootstrap precisa do setup antes do bind externo, sem senha default/flag inventada. Reexecução idempotente não pode rotacionar nem recriar credenciais |
 
 Os relatórios anteriores têm snapshots de host, CLI e CI que podem ter envelhecido.
 Usar suas evidências com identidade/data; reconferir ferramentas e comandos instalados
@@ -153,8 +161,8 @@ F0–F8, D1–D12, C1–C4 e A1–A9 dos planos existentes conservam seus própr
 
 | ID / fase | Entrega e dono lógico | Dependências | Critério de aceite / evidência |
 | --- | --- | --- | --- |
-| **I1 / P0-A** | Contratos e arbitragem — bill decide/revisa; agente prepara | Fontes e decisões atuais; confirmações do operador nesta sessão | **Concluído em 2026-10-23 — arquitetura/handoff.** [ADR](../Decisions/2026-10-23-open-iac-contracts.md), [matriz de contratos/compatibilidade](../iac-p0-contract-handoff.md) e snapshot com hashes. Contas/names, fonte de versão, aquisições, consentimento, topologia, C1–C8 e ordem B13/público/VPS decididos. Metadata executável é I2 antes do candidato; acesso/publicação/schemas/API e demais gates continuam pendentes |
-| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | **Concluído localmente em 2026-10-23.** [Runtime contract 1](../agent-runtime-contract.md) e [relatório por I2.1–I2.6](../reports/2026-10-23-i2-runtime-contract-conformance.md): metadata/lock/fallback/defaults `0.1.0`; modos/writers/UID/GID/init/probes; bind CLI/API/gateway unificado, API opt-in; root-com-drop/Render flag fail-closed e sinais; startup/recreate/crash/persistência, matriz com broker baseline e cliente v1. 19 checks de containers em Engine 27.5.1 rootful `linux/amd64`; pytest focado, lint/typecheck passaram. Builds worktree, não release; ARM64/Render serviço/Actions/VPS não certificados. Resultado commitado e enviado em `0e7ff072` (`origin/main`), por autorização do operador |
+| **I1 / P0-A** | Contratos e arbitragem — bill decide/revisa; agente prepara | Fontes e decisões atuais; confirmações do operador nesta sessão | **Concluído em 2026-10-23 — arquitetura/handoff.** [ADR](../../Decisions/2026-10-23-open-iac-contracts.md), [matriz de contratos/compatibilidade](../../iac-p0-contract-handoff.md) e snapshot com hashes. Contas/names, fonte de versão, aquisições, consentimento, topologia, C1–C8 e ordem B13/público/VPS decididos. Metadata executável é I2 antes do candidato; acesso/publicação/schemas/API e demais gates continuam pendentes |
+| **I2 / P0-B** | Agent Runtime Contract Percival — repositório do produto | F2–F4/D7; decisões I1 disponíveis | **Concluído localmente em 2026-10-23.** [Runtime contract 1](../../agent-runtime-contract.md) e [relatório por I2.1–I2.6](../../reports/2026-10-23-i2-runtime-contract-conformance.md): metadata/lock/fallback/defaults `0.1.0`; modos/writers/UID/GID/init/probes; bind CLI/API/gateway unificado, API opt-in; root-com-drop/Render flag fail-closed e sinais; startup/recreate/crash/persistência, matriz com broker baseline e cliente v1. 19 checks de containers em Engine 27.5.1 rootful `linux/amd64`; pytest focado, lint/typecheck passaram. Builds worktree, não release; ARM64/Render serviço/Actions/VPS não certificados. Resultado commitado e enviado em `0e7ff072` (`origin/main`), por autorização do operador |
 | **I3 / P0-B** | Distribuição das imagens core — CI dos repositórios de produto | I1/I2 para preparar pipeline; I6/I7 quando incluídos no candidato final; D2/D6/D7/D8/C1 aplicáveis e B13 antes de publicar | PR build/test/scan sem push. Release aprovada via workflow protegido Buildx, permissões mínimas e token de push só no CI; capturar digest OCI e plataforma por imagem, SBOM/scan/proveniência. Pull anônimo com configuração Docker limpa + smoke independente; registro fonte→versão→digest→plataforma. Publicação não dispara deploy. Estado: **pendente, não iniciado — adiado por decisão do operador em 2026-10-23**; pré-requisitos de Docker Hub e de owner GitHub registrados no §10 |
 | **I4 / P0-C** | Handoff de deployment — contratos Percival aqui; bootstrap/Compose/locks/OpenTofu no workspace IaC separado | I1/I2; I3 para instalação pública; C2 antes de escrita em VPS | Receita de deploy sem `build:`/`:dev`, referências core por tag+digest, broker sidecar/namespace de rede preservados; config agregada validada no diretório-base real. Preflight resolve UID/GID/socket/data-root/token/nome real do gateway, paths protegidos e versões Engine/CLI. Bootstrap idempotente e caminho manual; `deployment.lock` cobre as duas imagens e compatibilidade do core, com exclusão mútua/gravação atômica após validação. Instalação limpa bem-sucedida cria lock; falha não o avança. Layout/backup/retorno ensaiados em fixture; validação estática OpenTofu antes de qualquer plan/apply autorizado. Estado: **pendente** |
 | **I5 / P0-D, P0-E, P0-G** | MCPs oficiais, template e índice — mantenedores dos MCPs e workspace do índice | I1 para identidades/schema; F2–F5/D5/D7/D8/C1 para candidatos selecionados | Weather primeiro e OSM segundo, selecionados em I1. Pipelines replicáveis com protocolo real, `server.json` no schema oficial aplicável, complemento operacional e README coerentes; publicar/homologar dois MCPs no Docker Hub, pull anônimo, digest/plataforma comprovados. Índice curado por PR com Markdown/YAML→JSON determinístico, schema versionado e pelo menos um comunitário upstream sem reatribuição/mirror. URL real ou raw em commit pinado; Pages opcional. Estado: **pendente** |
@@ -214,8 +222,8 @@ arbitragem preservado para rastreio, não questões ainda sem encaminhamento.
 
 | Assunto | Dono do gate | Uso neste plano |
 | --- | --- | --- |
-| Fases históricas F0–F8 e padrão local de imagem/runtime | [padronização arquivada](closed/2026-10-09-docker-standardization-refactor-plan.md); [continuidade ativa](2026-10-25-docker-standardization-continuation-plan.md) | Contratos/evidências históricos; resíduos ativos R01–R14 e referências de gates, não prova de distribuição |
-| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker arquivado](closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | Encerrados com limites; I3/I5 revalidam o candidato afetado, sem reabrir os IDs administrativos. R06/R07 cobrem exposição/persistência de chaves válidas, distinta do segredo legado D1 |
+| Fases históricas F0–F8 e padrão local de imagem/runtime | [padronização arquivada](2026-10-09-docker-standardization-refactor-plan.md); [continuidade ativa](2026-10-25-docker-standardization-continuation-plan.md) | Contratos/evidências históricos; resíduos ativos R01–R14 e referências de gates, não prova de distribuição |
+| D1–D12: credencial, proveniência, Khan, vulnerabilidade, runtime, pins, runbook e F7/F8 | [fechamento Docker arquivado](2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md) | Encerrados com limites; I3/I5 revalidam o candidato afetado, sem reabrir os IDs administrativos. R06/R07 cobrem exposição/persistência de chaves válidas, distinta do segredo legado D1 |
 | A1–A7 KG; B1–B7 MCP/browser; C1 CI e C2–C4 VPS | [plano integrado](2026-10-23-integracao-pendencias-kg-e-mcp-docker-plan.md) | C1 continua verificação remota, não pipeline de push; C3 consome contrato de paths/IaC de I4 |
 | A1–A9 de autenticação e ensaio P2–P4 | [senha única](2026-10-11-single-password-acceptance-closure-plan.md) | Reutilizar provas do candidato; persistir verifier/segredos em I4/I8 sem copiá-los para locks |
 | Publicação, índice, aquisição, export de lock e aceite IaC | **I1–I9 deste plano** | Lacunas novas têm dono sem reabrir planos arquivados |
@@ -281,10 +289,10 @@ com resultados por subtarefa na matriz de execução do handoff.
 explicitamente bloqueiam apenas seus consumidores. O aceite arquitetural não executa
 publicação nem concede privilégios ao LLM. Não marcar I1 fechado com ADR ainda proposto.
 
-**Executado em 2026-10-23:** [ADR decidida](../Decisions/2026-10-23-open-iac-contracts.md),
+**Executado em 2026-10-23:** [ADR decidida](../../Decisions/2026-10-23-open-iac-contracts.md),
 inventário de oito checkouts/remotes/SHAs e três workspaces ausentes, hashes das cinco
 fontes e snapshot semântico autorizado; C1–C8 e matriz de compatibilidade no
-[handoff](../iac-p0-contract-handoff.md). bill confirmou decisões e responsabilidade/
+[handoff](../../iac-p0-contract-handoff.md). bill confirmou decisões e responsabilidade/
 revisão nesta sessão. Não houve verificação técnica das contas nem criação de repo.
 
 ### 5.2 I2 — Contrato real de runtime e conformance do core
@@ -330,8 +338,8 @@ com matriz preenchida. Falha de processo/estado bloqueia promoção do candidato
 suporte é decisão explícita, não motivo para ocultar teste falho. ARM64 tem gate próprio.
 
 **Executado em 2026-10-23:** I2.1–I2.6 entregues em
-[`docs/agent-runtime-contract.md`](../agent-runtime-contract.md), com resultados,
-imagens, comandos e limites no [relatório I2](../reports/2026-10-23-i2-runtime-contract-conformance.md).
+[`docs/agent-runtime-contract.md`](../../agent-runtime-contract.md), com resultados,
+imagens, comandos e limites no [relatório I2](../../reports/2026-10-23-i2-runtime-contract-conformance.md).
 V01 coberto localmente; V02/V03/V04 têm provas locais e conservam as extensões
 I4/I8/C1/B3. Sem verifier, recusa é 401 em bootstrap/WS protegido, não proibição
 de todo listener de login; documentação corrigida conforme comportamento medido.
@@ -833,7 +841,7 @@ Para cada subtarefa/caso, registrar:
 | Conclusão | passou/falhou/não executado; limites, compensação/retorno e decisão do dono/data; bloqueio e próximo responsável quando aberto |
 
 Artefatos brutos ficam fora da fonte rastreada, conforme
-[workflow de evidência](../../.agent/workflow.md). Resumos versionados devem permitir
+[workflow de evidência](../../../.agent/workflow.md). Resumos versionados devem permitir
 localizar/verificar o resultado sem divulgar material privado. Testes herdados mantêm
 SHA/data originais e justificativa do diff não invalidante; não recebem data de execução
 nova. Evidências finais precisam existir e ser recuperáveis, não apenas nomeadas no plano.

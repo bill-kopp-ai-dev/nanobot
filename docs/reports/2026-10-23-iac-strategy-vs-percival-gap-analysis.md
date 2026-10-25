@@ -4,7 +4,7 @@
 - **Tipo:** análise comparativa de documentação de estratégia contra o estado real do código. **Não é decisão, não é plano
   de execução e não autoriza publicação, deploy ou mudança de infraestrutura.**
 - **Revisão de coerência pré-commit:** 2026-10-23. Os encaminhamentos executáveis
-  estão no [plano de integração IaC](../plans/2026-10-23-iac-alignment-execution-plan.md).
+  estão no [plano de integração IaC](../plans/closed/2026-10-23-iac-alignment-execution-plan.md).
   A revisão distingue base implementada de aceite de segurança, aquisição de imagem
   de spawn e evidência histórica de estado atual; não reexecutou gates operacionais.
 - **Estratégia analisada:** os 5 documentos em `/home/bill/Downloads/positronic-bean-IaC/` —

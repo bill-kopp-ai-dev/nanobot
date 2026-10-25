@@ -314,7 +314,7 @@ qualquer avaliação final exige reconstrução a partir de commit limpo.
 
 - **Estado na análise original:** a D8 continuava aberta porque este candidato
   era local. O escopo local foi encerrado em 2026-10-24; CI remoto e distribuição
-  continuam pendentes no [plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
+  continuam pendentes no [plano adicional B5/B6](../plans/closed/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
 - **O gateway não foi promovido nem publicado**; nenhum registry foi tocado.
 - **O broker não foi alterado** na D6: o smoke I2 reusou o broker
   `percival-i2-broker:ses-e96f9440`, e o contrato do broker segue coberto pela D7.
@@ -511,14 +511,14 @@ failure e o OSM tem um delta real, diagnosticado como flake preexistente do
 harness legado; o core não tem run por desativação de workflows no fork. G5
 (digest OCI, publicação e promoção) não foi executado no fechamento local.
 G4/B5 e G5/B6 permanecem pendentes e foram transferidos para o
-[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
+[plano adicional B5/B6](../plans/closed/2026-10-24-b5-b6-ci-distribution-closure-plan.md).
 Nenhum candidato foi promovido ou publicado; nenhum comando de promoção foi
 preparado.
 
 **Planos D8:** o
 [plano de fechamento D8 arquivado](../plans/closed/2026-10-24-d8-promotion-readiness-closure-plan.md)
 preserva o escopo local concluído, a evidência e os gates não atendidos. O
-[plano adicional B5/B6](../plans/2026-10-24-b5-b6-ci-distribution-closure-plan.md)
+[plano adicional B5/B6](../plans/closed/2026-10-24-b5-b6-ci-distribution-closure-plan.md)
 é o dono das correções de CI, distribuição e aquisição por digest ainda
 pendentes.
 
