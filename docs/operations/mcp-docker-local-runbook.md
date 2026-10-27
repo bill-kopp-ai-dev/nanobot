@@ -306,6 +306,38 @@ e hashes: [F3 2026-10-25](../reports/2026-10-25-f3-reproducibility-contexts-post
 A base de vulnerabilidades usada expira em 2026-10-26: reexecutar scan e SBOM
 antes de qualquer promoção.
 
+### 5.4 Auditoria de imagens do host (2026-10-27)
+
+Inventário, limpeza executada e postura de vulnerabilidades: relatório
+[auditoria de imagens 2026-10-27](../reports/2026-10-27-docker-image-audit-and-cleanup.md).
+A remoção foi feita por **lista nominal de image ID**, sem `image prune -a` nem
+`system prune`; o cache de build foi o único prune praticado. Estado final: 39
+imagens (13,72 GB), 2 volumes, cache de build 0, contra 170 imagens (54,67 GB),
+21 volumes e 226,3 GB de cache antes.
+
+**Correção do estado do core (2026-10-27).** A tabela da §5.1 afirma que o gateway
+ativo é `ac62466dfd99`; em 2026-10-27 o container `nanobot-nanobot-gateway-1` roda
+`d128e0ca1dee` (ver `0.1.0`, rev `40d8eb99e5ef`, tags
+`nanobot-nanobot-gateway:latest` e `percival-gateway:0.1.0-40d8eb9-d11-2e4d276142d8`),
+construído em 2026-10-24 21:38 — depois do snapshot da §5.1 (17:28). O broker
+`6ea63b38852c` (rev `29a482cec885`) continua correto. `ac62466dfd99` foi retido
+como imagem do par core D11, conforme a §5.1.
+
+**Retenção vigente após a auditoria.** Permanecem: os 12 pins ativos dos dois
+gestores (6 MCPs cada), o core em execução (`d128e0ca1dee` + `6ea63b38852c`), o
+candidato atual de cada MCP e do core (builds de 2026-10-27), os dois pares de
+rollback do core exigidos pela §5.1, as bases pinadas por digest nos Dockerfiles
+vigentes e as ferramentas de scan/SBOM. Os candidatos F3/D8 de 2026-10-24/25 foram
+removidos por superado pelos builds `iac1-*` de 2026-10-27 (0 Critical/High no mesmo
+DB de 2026-10-24). Aprovação desta limpeza: pedido explícito do operador em
+2026-10-27, por lista nominal de ID.
+
+**Ponto de atenção aberto.** As seis imagens `A` que os dois gestores têm pinadas
+continuam carregando 45 Critical/High (deep-research: 78) com o DB de 2026-10-24,
+contra 0/0 dos builds `iac1-*`. A correção está construída localmente; a promoção
+continua condicionada aos gates de CI/distribuição e à janela aprovada (ver
+§3.3/§3.4 e a auditoria, §4 e §10).
+
 ## 6. Links e procedimentos vizinhos
 
 - [Padronização Docker arquivada](../plans/closed/2026-10-09-docker-standardization-refactor-plan.md) — contratos e snapshots F0–F8.
