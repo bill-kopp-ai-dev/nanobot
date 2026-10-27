@@ -17,18 +17,28 @@
 
 ## 1. Estado antes e depois
 
-| Recurso | Antes (18:50) | Depois (19:15) | Delta |
+| Recurso | Antes (18:50) | Depois (19:35) | Delta |
 |---|---|---|---|
-| Imagens (IDs únicos) | 170 (54,67 GB; 45,7 GB recuperáveis) | **39 (13,72 GB)** | −131 imagens, −40,9 GB |
-| Containers | 17 (8 em execução) | 16 (14 em execução) | −7 obsoletos, +6 recriados pelo broker |
-| Volumes | 21 (2,498 GB; 100 % recuperáveis) | **2 (699,4 MB)** | −19 volumes, −1,80 GB |
+| Imagens (IDs únicos) | 170 (54,67 GB; 45,7 GB recuperáveis) | **37 (12,09 GB)** | −133 imagens, −42,6 GB |
+| Containers | 17 (8 em execução) | 14 (14 em execução) | −9 obsoletos, +6 recriados pelo broker |
+| Volumes | 21 (2,498 GB; 100 % recuperáveis) | **1 (699,4 MB)** | −20 volumes, −1,80 GB |
 | Cache de build | 3.391 registros (226,3 GB) | **0** | −226,3 GB |
 | Raiz do host | — | 475 GB; 284 GB em uso; 186 GB livres (61 %) | — |
 
 Nenhuma imagem em uso, nenhum pin de gestor e nenhum volume com link ativo foi
 removido. O reclaimed real de disco é o do cache de build (226,3 GB) somado às camadas
-deixadas de órfãs (≈ 40 GB); o tamanho virtual das imagens não é todo espaço físico
+deixadas de órfãs (≈ 42 GB); o tamanho virtual das imagens não é todo espaço físico
 recuperado porque camadas são compartilhadas.
+
+**Segunda passagem (19:30, autorizada pelo operador).** As duas fixtures de ensaio
+`d6-nopip` e `d7host-noinit` — mantidas na primeira passagem por decisão registrada
+no runbook §5.1 — foram removidas com o aval explícito do operador, junto com as
+imagens que as sustentavam (`percival-gateway:0.1.0-b49dd8b`, 1,33 GB, e
+`docker:27.5.1-dind`, 530 MB) e o volume anônimo `455c65df…` que ficara ligado ao
+DinD. Impacto: o harness DinD 27.5.1 passa a exigir re-pull local para a receita
+(b) da decisão `D-05` (o CI puxa a própria imagem, em `.github/workflows/ci.yml`), e a
+imagem do gateway da rev `b49dd8b` só volta por rebuild se um rollback pré-D11 for
+exigido.
 
 ## 2. Retenção aplicada (o que ficou, e por quê)
 
@@ -47,13 +57,11 @@ recuperado porque camadas são compartilhadas.
 | `2a0e5c342504` / `c6784ebbc29a` | gateway / broker D8-A (rev `3daabe2`) | alvo de rollback do core exigido pelo runbook §5.1 |
 | `d06d8eedcc4e` / `c6e370a5d56c` | gateway / broker pré-D11 | snapshot de rollback preservado (runbook §5.1) |
 | `ac62466dfd99` | gateway `0.3.5-29a482c-d11-builtin` | retenção explícita do runbook §5.1 (par core D11) |
-| `84e4c8f13ca4` | gateway `0.1.0-b49dd8b` | fixture `d6-nopip`: runbook diz "permanece fora de qualquer limpeza" |
 | `0a5c16cd68ee` | `positronic:iac-diagnostic-e869d8d18551` | artefato do diagnóstico da Etapa 1 (source `e869d8d1`) |
 | `4cee6ff3ebc4`, `2b4f19dae3a7`, `e529028263db`, `b658b05ce9c4`, `5e6baf67325a`, `41eb228142f7`, `cc9311ae7d42`, `eacce4ec0ff8`, `f6bb96a2e3c5` | bases pinadas por digest nos Dockerfiles vigentes | rebuild offline e reprodutibilidade (runbook §5: 2 digests por base) |
 | `431b37ce1acf`, `621f24939922` | `oven/bun:1.3.14-{debian,slim}` | bases pinadas do Dockerfile do agente Positronic |
 | `790fd66d1697` | `aquasec/trivy:latest` (0.76.1) | ferramenta de scan em uso |
 | `4cc92b64ca74` | `anchore/syft:v1.55.0` | ferramenta de SBOM |
-| `aa3df78ecf32` | `docker:27.5.1-dind` | harness da receita de privilégios (D-05) e gate Engine 27.x |
 | `a3d8aaa63ed8`, `be2656061b53` | `registry:2`, `alpine:3` | registry local (gate de distribuição) e base de fixture |
 
 ## 3. O que foi removido (131 imagens por ID, 7 containers, 19 volumes)
@@ -63,14 +71,14 @@ recuperado porque camadas são compartilhadas.
 | Intermediários F3/F4/F5 | 46 | `percival-*:f3-repeat-*`, `f3-sealed-repeat-*`, `f3-final-repeat-*`, `f3-clean-repeat-*`, `f5-recheck`, `f4-test` |
 | Candidatos F3/D8 superados | 8 | `percival-agentmail-mcp:0.4.0-89acdf4`, `percival-notes-mcp:0.1.5-c104735`, `percival-*:0.1.0-f2173bb`, `percival-*:0.5.0-4204213` — substituídos pelos builds `iac1-*`, mais novos e verificados |
 | Histórico do core | 12 | `percival-gateway:0.1.0-{b76ade9,ce31e52,92eeff9,6767a75}`, `percival-*:d6-forky`, `forky-probe`, `d6-nopip-build/test`, `0.1.0-50e6ebd`, `0.3.5-29a482c-d11-builtin` (tag duplicada), `percival-i2-*` |
-| Fixtures sem dono | 5 | `pinprobe:{full,libs,diag,local}` (1,0 GB; sem labels, sem referência em repo, config ou compose), `percival-remote-ssh-fixture:10.6p1` |
+| Fixtures sem dono | 7 | `pinprobe:{full,libs,diag,local}` (1,0 GB; sem labels, sem referência em repo, config ou compose), `percival-remote-ssh-fixture:10.6p1`, `percival-gateway:0.1.0-b49dd8b` e `docker:27.5.1-dind` (2ª passagem) |
 | Alias de diagnóstico | 7 | `percival-agentmail-mcp:dev`, `percival-osm:dev`, `percival-osm:local`, `percival-khan-calendar:dev`, `percival-deep-research:smoke`, `percival-gateway:forky-probe` |
 | Builds antigos do agente | 5 | `positronic:dev-{f699f311,27ca3d0f,16d5405b-dirty,b1b3eed5,07c54d5e}` (3,1 GB) |
 | Smoke test do Positronic | 1 | `positronic-mcp-local-smoke-f3-0-1:2026-10-20T15-21-35-376Z` |
 | Dangling (sem tag) | 9 | camadas órfãs de 2026-10-20 (12 MB cada) |
 | Bases/ferramentas não usadas | 12 | `nanobot-nanobot-cli:latest` (1,28 GB), `archlinux` (541 MB), `uv:0.11.32-debian` (1,49 GB), `node:24-bookworm-slim`, `python:3.11-slim`, `python:3.12-alpine3.23`, `alpine:3.20`, `busybox`, `aquasec/trivy:0.67.2` (2025-10), `docker:29.9.0-cli`, `registry` duplicatas |
-| Containers | 7 | 6 instâncias `percival-mcp-*` de 2026-10-10 (exited) + `f4probe5bhurh8-s-1` (busybox) |
-| Volumes | 19 | `trivy-f3-cache` (1,47 GB, DB de 2026-10-10 expirado), 3 volumes de registry de teste `percival-f1` (315 MB), 14 volumes anônimos vazios, `percival-state`, `percival-osm_percival-cache` |
+| Containers | 9 | 6 instâncias `percival-mcp-*` de 2026-10-10 (exited) + `f4probe5bhurh8-s-1` (busybox) + as fixtures `d6-nopip` e `d7host-noinit` (2ª passagem) |
+| Volumes | 20 | `trivy-f3-cache` (1,47 GB, DB de 2026-10-10 expirado), 3 volumes de registry de teste `percival-f1` (315 MB), 15 volumes anônimos vazios, `percival-state`, `percival-osm_percival-cache` |
 
 Correção factual: as 6 instâncias `percival-mcp-*` removidas **não** eram órfãs — eram
 instâncias antigas de 2026-10-10; o broker do Percival as recriou automaticamente em
@@ -154,8 +162,6 @@ plano de distribuição.
 | Item | Motivo | Custo |
 |---|---|---|
 | volume `positronic-percival-registry` | único artefato do registry local (`repositories/percival`), ligado ao gate de distribuição ainda aberto; apagá-lo é destrutivo e não reconstruível a partir dos repos | 667 MB |
-| `docker:27.5.1-dind` + container `d7host-noinit` | harness da receita de privilégios (D-05) e gate de Engine 27.x | 530 MB |
-| `percival-gateway:0.1.0-b49dd8b` + container `d6-nopip` | runbook §5.1: "permanece fora de qualquer limpeza" | 1,33 GB |
 | pares de rollback do core (`2a0e5c3`/`c6784eb`, `d06d8ee`/`c6e370a`) | reversibilidade exigida pelo runbook | 2,68 GB |
 
 ## 9. Verificação pós-limpeza
@@ -167,7 +173,10 @@ plano de distribuição.
 - Smoke pelos MCPs: `khan_get_status` (conf casa com o layout, lock desabilitado),
   `osm_get_health` (ok), `notes_get_status` (vault montado), `weather_get_status`
   (0.9.0 operacional), `agentmail_mail_get_version`.
-- `docker system df`: 39 imagens (13,72 GB), 2 volumes (699,4 MB), cache de build 0.
+- `docker system df`: 37 imagens (12,09 GB), 1 volume (699,4 MB), cache de build 0,
+  14 containers em execução.
+- Segunda passagem: `docker ps -a` sem `d6-nopip` nem `d7host-noinit`; volume
+  `455c65df…` removido; pins dos dois gestores relidos e ausentes = nenhum.
 
 ## 10. Decisões pendentes para o operador
 

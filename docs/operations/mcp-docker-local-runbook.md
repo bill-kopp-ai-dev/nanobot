@@ -240,8 +240,12 @@ Retêm-se também o par core ativo do deploy D11
 (`d06d8eedcc4e`/`c6e370a5d56c`), preservados pelos snapshots
 `rollback-d11-20261024` e `rollback-d11-broker-before-fix`. O gateway
 `percival-gateway:0.1.0-b49dd8b` no container nomeado `d6-nopip` também foi
-observado ativo; é um fixture preexistente, não o gateway do Compose, e
-permanece fora de qualquer limpeza. Os resultados do scanner e os
+observado ativo; é um fixture preexistente, não o gateway do Compose. **Esse
+fixture foi removido em 2026-10-27 com autorização explícita do operador**
+(§5.4): a imagem `b49dd8b` e o `docker:27.5.1-dind` do outro fixture
+(`d7host-noinit`) saíram do host, e a imagem do gateway da rev `b49dd8b` só
+volta por rebuild caso um rollback para antes do D11 seja exigido. Os resultados
+do scanner e os
 smoke/limites de cada B estão no [registro D8](../plans/closed/2026-10-23-fechamento-padronizacao-docker-f4-f5-f7-plan.md#29-d8--reconciliação-e-estado-de-promoção-2026-10-24).
 
 **Gates antes de qualquer promoção (2026-10-24):** os findings Python dos
@@ -331,6 +335,17 @@ vigentes e as ferramentas de scan/SBOM. Os candidatos F3/D8 de 2026-10-24/25 for
 removidos por superado pelos builds `iac1-*` de 2026-10-27 (0 Critical/High no mesmo
 DB de 2026-10-24). Aprovação desta limpeza: pedido explícito do operador em
 2026-10-27, por lista nominal de ID.
+
+**Segunda passagem (2026-10-27, 19:30).** Por autorização explícita do operador,
+as fixtures `d6-nopip` e `d7host-noinit` foram removidas com as imagens que as
+sustentavam (`percival-gateway:0.1.0-b49dd8b`, `docker:27.5.1-dind`) e com o
+volume anônimo ligado ao DinD. Consequências a revalidar antes de usar: a
+receita (b) da decisão `D-05` (DinD `--privileged`) exige re-pull local de
+`docker:27.5.1-dind` — o CI puxa a própria imagem em
+`.github/workflows/ci.yml` — e a imagem do gateway da rev `b49dd8b` só volta
+por rebuild caso um rollback pré-D11 seja exigido. Estado final do host: 37
+imagens (12,09 GB), 14 containers em execução, 1 volume (699,4 MB), cache de
+build 0.
 
 **Ponto de atenção aberto.** As seis imagens `A` que os dois gestores têm pinadas
 continuam carregando 45 Critical/High (deep-research: 78) com o DB de 2026-10-24,
