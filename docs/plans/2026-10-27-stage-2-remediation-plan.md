@@ -1,6 +1,6 @@
 # Stage-2 — Remediação do Percival (`nanobot`)
 
-**Data / revisão:** 2026-10-28 / 1.3.
+**Data / revisão:** 2026-10-28 / 1.4.
 **ID / estado:** S2-NB / em execução; aceite local parcial.
 **Checkout executor:** `/home/bill/Projects/nanobot`.
 **Responsável:** executor técnico local; decisões de produto/operação com bill.
@@ -33,7 +33,8 @@ segundo tracker nem restaurar exclusões automaticamente.
 - [x] Registrar SHA/worktree, ambiente e owner técnico. Baseline de execução:
   HEAD `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720`, worktree dirty preexistente;
   Python 3.12.14 em `nanobot-stage2-env`; owner executor técnico local, decisões
-  com bill. O caso 143 foi reproduzido antes da correção.
+  com bill. O caso 143 foi reproduzido antes da correção; alterações de produto/teste
+  foram commitadas em `a51802103a1cfac26e394e469f757fff1072784b`.
 - [x] Distinguir IaC **D-01..D-06** de Percival **D01..D12** e usar o mapeamento
   A-001→L06/D08, A-002→L02, A-006→L14/L15/D03 e as dependências das ações abaixo.
 - [x] D-05 continua pendente para a prova vertical/piloto. Bill autorizou apenas
@@ -112,14 +113,15 @@ evidência de seu dono, continuam abertas; remediação integral não está conc
 
 - [x] Atualizar ações/lotes, mapeamento L*/D* disponível, comandos/ambiente, testes,
   SHA inicial/candidato, resultados e limites; evidências sintéticas ficam no scratch
-  privado indicado abaixo. O HEAD não foi commitado e continua dirty.
+  privado indicado abaixo. As alterações de produto estão commitadas; exclusões
+  documentais locais preexistentes permanecem fora do commit.
 - [ ] Registrar revalidação à seção 9 do relatório de origem após revisão de bill;
   preservar baseline e veredito histórico. Decisões/pendências e respectivos owners
   já constam no estado por ação desta revisão.
 
 | Data / owner | Ações / achados | SHA inicial → final | Mudança e evidências locais | Resultado / V-* / pendências |
 |---|---|---|---|---|
-| 2026-10-28 / executor local + bill | A-001/A-002/A-003/A-004/A-005/A-006/A-008 verificadas localmente; A-007 parcial | `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720` → mesmo HEAD, worktree dirty; candidato F2 source-diff `3cf4719bf4bdf7b2fd35ae77f7e5aa071bfbc3b8e5ff53563c45d29883577b1a` | Gateway `sha256:301d1a58d6e6e6682c728facc60df47bef72370017e7d7bcec99f1ef898367ac`; broker `sha256:e9343df917b971a6a907670f8029bbff3aabb1ef09d0cf669339802c30636d88`; smoke Engine 27.5.1 completo em `~/.positronic/runtime/tmp/opencode/percival-stage2-8c2ac64/i2-_pclfmoo/results.json`; pytest 9.209 + CLI 160, BasedPyright/Ruff/WebUI/TUI gates verdes | A-007: Bill autorizou list, mas sessão WebUI autenticada não está conectada, então nenhuma chamada/recovery foi executada; A-009–A-012 dependentes/abertas; sem piloto, CI remoto, release, push ou runtime real |
+| 2026-10-28 / executor local + bill | A-001/A-002/A-003/A-004/A-005/A-006/A-008 verificadas localmente; A-007 parcial por escolha do owner | HEAD inicial `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720`; alterações de produto commitadas em `a51802103a1cfac26e394e469f757fff1072784b`. O candidato F2 foi construído antes do commit, em worktree dirty, com source-diff `3cf4719bf4bdf7b2fd35ae77f7e5aa071bfbc3b8e5ff53563c45d29883577b1a`; não é release/clean-SHA candidate. | Gateway `sha256:301d1a58d6e6e6682c728facc60df47bef72370017e7d7bcec99f1ef898367ac`; broker `sha256:e9343df917b971a6a907670f8029bbff3aabb1ef09d0cf669339802c30636d88`; smoke Engine 27.5.1 completo em `~/.positronic/runtime/tmp/opencode/percival-stage2-8c2ac64/i2-_pclfmoo/results.json`; pytest 9.209 + CLI 160, BasedPyright/Ruff/WebUI/TUI gates verdes | A-007 foi deixada parcial por Bill; A-009–A-012 dependentes/abertas; sem piloto, CI remoto, release, push ou runtime real |
 
 ### 6.1. Estado por ação em 2026-10-28
 
