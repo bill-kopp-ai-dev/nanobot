@@ -14,6 +14,7 @@ docs/plans/*
 !docs/plans/closed/
 !docs/plans/2026-10-25-01-product-readiness-plan.md
 !docs/plans/2026-10-25-02-qualification-distribution-plan.md
+!docs/plans/2026-10-27-stage-2-remediation-plan.md
 # Historico em docs/plans/closed/; mapa atual no relatorio de consolidacao de 2026-10-25:
 #   kg-integration-plan.md
 #   2026-10-11-kg-runtime-recovery-and-product-fix-plan.md
