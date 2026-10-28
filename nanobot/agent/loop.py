@@ -1978,11 +1978,8 @@ class AgentLoop:
 
         if ctx.kind is TurnKind.SYSTEM:
             logger.info("Processing system message from {}", msg.sender_id)
-        elif session.policy.log_content and not ctx.ephemeral:
-            preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
-            logger.info("Processing message from {}:{}: {}", msg.channel, msg.sender_id, preview)
         else:
-            logger.info("Processing message from {}:{}: [content hidden]", msg.channel, msg.sender_id)
+            logger.info("Processing message from {}:{}", msg.channel, msg.sender_id)
 
         self._remember_session_route(
             session,

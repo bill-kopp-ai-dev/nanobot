@@ -597,14 +597,24 @@ def _fsync_directory_after_replace(directory: Path) -> None:
             os.close(fd)
 
 
-def _write_text_atomic(path: Path, content: str, *, initial_mode: int | None = None) -> None:
+def _write_text_atomic(
+    path: Path,
+    content: str,
+    *,
+    initial_mode: int | None = None,
+    force_mode: int | None = None,
+) -> None:
     tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
     existing_mode: int | None = None
     with suppress(OSError):
         existing_mode = stat.S_IMODE(path.stat().st_mode)
     try:
         with open(tmp, "w", encoding="utf-8") as f:
-            mode = existing_mode if existing_mode is not None else initial_mode
+            mode = (
+                force_mode
+                if force_mode is not None
+                else existing_mode if existing_mode is not None else initial_mode
+            )
             if mode is not None:
                 os.chmod(tmp, mode)
             f.write(content)

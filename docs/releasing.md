@@ -42,8 +42,10 @@ uploading to PyPI, and deploying the documentation are separate operations.
    must be adapted and tested; it is **not** a completed Percival gate.
    For selected Linux targets, verify archive checksums, manifests, binary
    architecture, notices/licenses, embedded source, wheel RECORDs/tags,
-   and first launch from the installed package with an empty cache and
-   `NANOBOT_TUI_NO_DOWNLOAD=1`. Record exact-head CI and artifact hashes.
+    and first launch from the installed package with no network download. Also
+    verify that source distributions fail with actionable guidance unless an
+    external matching client is explicitly configured by `NANOBOT_TUI_BIN`.
+    Record exact-head CI and artifact hashes.
 10. **KG platform gate** (Percival only, Linux-only — operator decision
     2026-10-06): before tagging any KG-capable release, confirm that
     `.github/workflows/kg-platform.yml` is green on `ubuntu-latest`. The

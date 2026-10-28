@@ -23,7 +23,7 @@ spec.loader.exec_module(i2)
 
 def load_d9():
     source = (repo / "scripts/d11/d9_rehearsal.py").read_text()
-    namespace = {"i2": i2, "json": json, "Path": Path, "repo": repo}
+    namespace = {"Rehearsal": i2.Rehearsal, "json": json, "Path": Path}
     exec(compile(source, "d9_rehearsal", "exec"), namespace)
     return namespace["D9Rehearsal"]
 
@@ -34,6 +34,7 @@ D9Rehearsal = load_d9()
 class D11Rehearsal(D9Rehearsal):
     def __init__(self, args, scratch):
         super().__init__(args, scratch)
+        self.repo = repo
         self.context_dir = scratch / "d11-context"
         (self.context_dir / "builtin" / "mcp-docker-operations").mkdir(parents=True)
         (self.context_dir / "docs" / "operations").mkdir(parents=True)

@@ -1,13 +1,13 @@
 import json
-from pathlib import Path
 
-class D9Rehearsal(i2.Rehearsal):
+
+# Injected by the D11 loader, which imports the shared I2 harness before exec.
+class D9Rehearsal(Rehearsal):  # noqa: F821
     def finish(self):
         gateway = self.env['PERCIVAL_GATEWAY_CONTAINER_NAME']
         self.compose('up', '-d', '--no-build', '--no-deps', 'percival-mcp-broker')
-        self.wait(gateway, f"from pathlib import Path; from nanobot.mcp_docker.client import BrokerClient; assert BrokerClient(Path('/home/nanobot/.nanobot/mcp-docker/broker-token')).action('health','broker',{{}})['ready'] is True")
-        original = self.ids[self.args.gateway_image]
-        source = (repo / 'tests/mcp_docker/runtime_server.py').read_text()
+        self.wait(gateway, "from pathlib import Path; from nanobot.mcp_docker.client import BrokerClient; assert BrokerClient(Path('/home/nanobot/.nanobot/mcp-docker/broker-token')).action('health','broker',{})['ready'] is True")
+        source = (self.repo / 'tests/mcp_docker/runtime_server.py').read_text()
         dockerfile_a = f"FROM {self.args.gateway_image}\nUSER 1000:1000\nENTRYPOINT " + json.dumps(['python', '-u', '-c', source]) + '\n'
         source_b = source.replace('"pong"', '"pong-b"')
         dockerfile_b = f"FROM {self.args.gateway_image}\nUSER 1000:1000\nENTRYPOINT " + json.dumps(['python', '-u', '-c', source_b]) + '\n'
@@ -80,7 +80,6 @@ asyncio.run(main())
         ping('pong')
         excluded = mutate('exclude')
         assert excluded['state'] == 'excluded' and excluded.get('backup')
-        section = self.exec(gateway, f"from pathlib import Path; from nanobot.config.loader import load_config; p=Path('{state}/config.json'); print(load_config(p).tools.mcp_docker.revision)").stdout.strip()
         restore_code = f"""
 import json
 from pathlib import Path

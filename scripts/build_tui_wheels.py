@@ -21,8 +21,6 @@ import zipfile
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 
-from nanobot.cli.tui_launcher import _verified_release_archive
-
 ROOT = Path(__file__).resolve().parents[1]
 # Minimums verified against BOTH the Bun executable and its embedded OpenTUI library.
 # Linux binaries use glibc, not musl; macOS binaries require macOS 13.
@@ -33,10 +31,88 @@ PLATFORMS = {
     "linux-x64": "manylinux_2_17_x86_64",
     "win32-x64": "win_amd64",
 }
+_TUI_RELEASE_FILES = (
+    "THIRD_PARTY_NOTICES.txt",
+    "RELINKING.md",
+    "SOURCE_OFFER.md",
+    "LICENSE",
+    "BUN-1.3.13-LICENSE.md",
+    "LGPL-2.0.txt",
+    "LGPL-2.1.txt",
+    "nanobot-tui-source.tar.gz",
+)
+_TUI_RELEASE_LIMITS = {
+    "THIRD_PARTY_NOTICES.txt": 4 * 1024 * 1024,
+    "RELINKING.md": 256 * 1024,
+    "SOURCE_OFFER.md": 256 * 1024,
+    "LICENSE": 256 * 1024,
+    "BUN-1.3.13-LICENSE.md": 1024 * 1024,
+    "LGPL-2.0.txt": 256 * 1024,
+    "LGPL-2.1.txt": 256 * 1024,
+    "nanobot-tui-source.tar.gz": 20 * 1024 * 1024,
+    "MANIFEST.sha256": 64 * 1024,
+}
 
 
 def _digest(data: bytes) -> str:
     return "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+
+
+def _release_bundle_names(asset: str) -> tuple[str, ...]:
+    return (asset, *_TUI_RELEASE_FILES, "MANIFEST.sha256")
+
+
+def _release_manifest(raw: bytes, asset: str) -> dict[str, str]:
+    expected_names = set(_release_bundle_names(asset)[:-1])
+    try:
+        lines = raw.decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise ValueError("TUI release manifest is not valid UTF-8") from exc
+    checksums: dict[str, str] = {}
+    for line in lines:
+        digest, separator, name = line.partition("  ")
+        digest = digest.lower()
+        if (
+            separator != "  "
+            or name not in expected_names
+            or name in checksums
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise ValueError("TUI release manifest is malformed")
+        checksums[name] = digest
+    if set(checksums) != expected_names:
+        raise ValueError("TUI release manifest is incomplete")
+    return checksums
+
+
+def _verified_release_archive(raw: bytes, asset: str) -> dict[str, bytes]:
+    """Validate an externally supplied release bundle before wheel packaging."""
+    expected_names = set(_release_bundle_names(asset))
+    files: dict[str, bytes] = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            entries = archive.infolist()
+            names = [entry.filename for entry in entries if not entry.is_dir()]
+            if len(names) != len(entries) or len(names) != len(set(names)):
+                raise ValueError("TUI release archive contains invalid entries")
+            if set(names) != expected_names:
+                raise ValueError("TUI release archive is incomplete")
+            for entry in entries:
+                limit = 150 * 1024 * 1024 if entry.filename == asset else _TUI_RELEASE_LIMITS[
+                    entry.filename
+                ]
+                if entry.file_size == 0 or entry.file_size > limit:
+                    raise ValueError(f"TUI release file has an invalid size: {entry.filename}")
+                files[entry.filename] = archive.read(entry)
+    except zipfile.BadZipFile as exc:
+        raise ValueError("TUI release archive is not a valid ZIP file") from exc
+
+    checksums = _release_manifest(files["MANIFEST.sha256"], asset)
+    for name, expected in checksums.items():
+        if hashlib.sha256(files[name]).hexdigest() != expected:
+            raise ValueError(f"TUI release file failed verification: {name}")
+    return files
 
 
 def _source_files(raw: bytes) -> dict[str, bytes]:

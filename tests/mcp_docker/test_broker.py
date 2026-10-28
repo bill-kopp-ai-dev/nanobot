@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import json
 import uuid
+from io import StringIO
 
 import pytest
+from loguru import logger
 
+from nanobot.agent.hook import AgentHookContext
+from nanobot.agent.progress_hook import AgentProgressHook
+from nanobot.events import AgentEvent, EventSink
 from nanobot.mcp_docker import broker
+from nanobot.providers.base import ToolCallRequest
 
 
 def test_docker_client_29_can_target_engine27_but_engine29_is_fixture_only() -> None:
@@ -24,6 +31,76 @@ def test_container_lookup_distinguishes_absent_from_engine_offline(monkeypatch: 
     with pytest.raises(broker.BrokerError) as failure:
         broker._inspect("weather")
     assert failure.value.status == 503
+
+
+@pytest.mark.parametrize(("label", "value"), [
+    ("owner", None), ("owner", "foreign"), ("managed-by", None),
+    ("managed-by", "foreign"), ("server-id", "other"),
+    ("instance-id", None), ("instance-id", "not-a-uuid"),
+])
+def test_inspect_rejects_incomplete_or_foreign_container_identity(
+    monkeypatch: pytest.MonkeyPatch, label: str, value: str | None,
+) -> None:
+    labels = {
+        "percival.mcp-docker.owner": "percival",
+        "percival.mcp-docker.managed-by": "percival-broker",
+        "percival.mcp-docker.server-id": "weather",
+        "percival.mcp-docker.instance-id": "123e4567-e89b-42d3-a456-426614174000",
+    }
+    label_key = f"percival.mcp-docker.{label}"
+    if value is None:
+        labels.pop(label_key)
+    else:
+        labels[label_key] = value
+    monkeypatch.setattr(broker, "docker", lambda *_args: json.dumps([{
+        "Config": {"Labels": labels}, "Id": "container-id", "State": {"Status": "created"},
+    }]))
+
+    with pytest.raises(broker.BrokerError, match="owned by another application"):
+        broker._inspect("weather")
+
+
+def test_exclude_preserves_historical_container_without_complete_ownership(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(broker, "ready", lambda: object())
+    monkeypatch.setattr(broker, "_STORE", {})
+    monkeypatch.setattr(broker, "docker", lambda *args: calls.append(args) or json.dumps([{
+        "Id": "foreign-container-id",
+        "Config": {"Labels": {"percival.mcp-docker.server-id": "weather"}},
+    }]))
+
+    with pytest.raises(broker.BrokerError, match="owned by another application"):
+        broker.action("exclude", "weather", {"expected_confirmation": "weather"})
+
+    assert calls == [("inspect", "percival-mcp-weather")]
+
+
+@pytest.mark.asyncio
+async def test_operational_logs_never_include_tool_arguments() -> None:
+    output = StringIO()
+    sink_id = logger.add(output, level="INFO", format="{message}")
+    hook = AgentProgressHook(EventSink(publish=_discard_event), log_content=True)
+    context = AgentHookContext(iteration=1, messages=[], tool_calls=[
+        ToolCallRequest(id="call-1", name="lookup", arguments={"query": "synthetic-secret-canary"}),
+    ])
+    try:
+        await hook.before_execute_tools(context)
+        await hook.on_provider_tool_event(context, {
+            "phase": "start", "name": "provider_lookup", "call_id": "call-2",
+            "arguments": {"query": "synthetic-provider-canary"},
+        })
+    finally:
+        logger.remove(sink_id)
+
+    logs = output.getvalue()
+    assert "synthetic-secret-canary" not in logs
+    assert "synthetic-provider-canary" not in logs
+    assert "Tool call: lookup" in logs
+    assert "Provider-hosted tool call: provider_lookup" in logs
+
+
+async def _discard_event(_event: AgentEvent) -> None:
+    return None
 
 
 def test_actions_check_readiness_and_exclusion_confirmation(monkeypatch: pytest.MonkeyPatch) -> None:

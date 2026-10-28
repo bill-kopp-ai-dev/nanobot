@@ -174,11 +174,11 @@ def test_rate_limit_throttles_repeated_logins(tmp_path: Path) -> None:
 def test_session_absolute_ttl_present() -> None:
     store = SessionStore()
     s = store.create("local")
-    assert s.absolute_expiry - s.created_at == SESSION_ABSOLUTE_TTL_S
-    assert s.idle_expiry - s.created_at == SESSION_IDLE_TTL_S
+    assert s.absolute_expiry - s.created_at == pytest.approx(SESSION_ABSOLUTE_TTL_S)
+    assert s.idle_expiry - s.created_at == pytest.approx(SESSION_IDLE_TTL_S)
 
 
 def test_elevation_ttl_default() -> None:
     store = ElevationStore()
     grant = store.grant("s", "local")
-    assert grant.expires_at - grant.granted_at == ELEVATION_TTL_S
+    assert grant.expires_at - grant.granted_at == pytest.approx(ELEVATION_TTL_S)

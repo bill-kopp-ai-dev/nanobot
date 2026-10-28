@@ -414,8 +414,11 @@ class DockerMcpService:
     def _backup(self, config: Config, server_id: str, action: str) -> Path:
         section = config.tools.mcp_docker
         stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
-        folder = self.root / "backups" / f"{stamp}-{server_id}-{uuid.uuid4().hex}"
-        folder.mkdir(parents=True, mode=0o700)
+        backup_root = self.root / "backups"
+        backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(backup_root, 0o700)
+        folder = backup_root / f"{stamp}-{server_id}-{uuid.uuid4().hex}"
+        folder.mkdir(mode=0o700)
         manifest = {
             "schemaVersion": 1,
             "action": action,

@@ -49,11 +49,11 @@ workspace / `--workspace`. An arbitrary `--config` does not move the workspace.
 
 | Path / surface | Reader/writer and retention contract |
 | --- | --- |
-| `config.json`, provider/API credentials | Gateway/config admin; validated JSON, atomically saved mode 0600; backup privately before migration |
+| `config.json`, provider/API credentials | Gateway/config admin; validated JSON, atomically saved mode 0600 on every replace (including legacy permissive files); backup privately before migration |
 | `auth/verifier.json` and auth/session files | Instance credential controller; `auth init/change/status` use the selected config parent; plaintext password is not persisted |
 | `sessions/`, `webui/`, `media/`, `logs/`, gateway runtime metadata | Instance data; preserve with config; clients do not become a second agent writer |
 | `workspace/` (memory, KG and other work), cron/trigger data | Agent/runtime-owned; explicit external workspace paths require their own persistence and backup |
-| `mcp-docker/audit.jsonl`, `transitions/`, `backups/` | Gateway manager owns audit/recovery/backups and canonical `tools.mcpDocker`; backup may contain secrets and is not a public lock |
+| `mcp-docker/audit.jsonl`, `transitions/`, `backups/` | Gateway manager owns audit/recovery/backups and canonical `tools.mcpDocker`; backup directories are 0700 and manifests 0600; backup may contain secrets and is not a public lock |
 | `mcp-docker/broker-token` | Gateway reads as owner; broker reads through a dedicated group/file mount; owner gateway UID, mode 0640 with approved token GID (or private owner-readable file in gateway-only contexts) |
 | `/app/nanobot`, `/app/scripts`, channel locks | Image-supplied readable code/data, not mutable runtime state |
 | `/app/.venv` | Readable by supported non-root users; writable by built-in UID 1000, **not** arbitrary UID 1001. F3 candidates disable application-driven package installation at runtime; bake enabled channels/extras into the image |

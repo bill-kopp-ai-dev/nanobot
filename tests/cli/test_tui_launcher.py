@@ -1,7 +1,4 @@
-import hashlib
-import io
 import subprocess
-import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,7 +10,6 @@ from nanobot.cli.agent import agent
 from nanobot.cli.tui_launcher import (
     TuiSessionError,
     TuiUnavailableError,
-    _download_release_tui,
     _ensure_gateway,
     _initial_tui_chat_id,
     _initial_tui_workspace,
@@ -23,32 +19,6 @@ from nanobot.cli.tui_launcher import (
     resolve_tui_command,
 )
 from nanobot.config.schema import Config, ModelPresetConfig
-
-
-def _release_archive(
-    asset: str,
-    *,
-    binary: bytes = b"native-tui",
-    omit: str | None = None,
-) -> tuple[bytes, bytes]:
-    files = {
-        asset: binary,
-        **{name: f"contents of {name}\n".encode() for name in tui_launcher._TUI_RELEASE_FILES},
-    }
-    if omit:
-        files.pop(omit)
-    manifest = "".join(
-        f"{hashlib.sha256(content).hexdigest()}  {name}\n" for name, content in files.items()
-    ).encode()
-    files["MANIFEST.sha256"] = manifest
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, content in files.items():
-            archive.writestr(name, content)
-    payload = output.getvalue()
-    archive_name = f"{asset}.zip"
-    checksum = f"{hashlib.sha256(payload).hexdigest()}  {archive_name}\n".encode()
-    return payload, checksum
 
 
 @pytest.mark.parametrize(
@@ -365,11 +335,6 @@ def test_source_checkout_does_not_fall_back_to_a_release_tui_without_bun(
         lambda: source_dir,
     )
     monkeypatch.setattr("nanobot.cli.tui_launcher.shutil.which", lambda _name: None)
-    monkeypatch.setattr(
-        "nanobot.cli.tui_launcher._download_release_tui",
-        lambda _asset: pytest.fail("a source checkout must not download a release TUI"),
-    )
-
     with pytest.raises(TuiUnavailableError, match="source checkout requires Bun"):
         resolve_tui_command()
 
@@ -580,147 +545,33 @@ def test_source_checkout_fails_when_locked_dependencies_cannot_be_refreshed(
         _resolve_source_tui_command(source_dir, "bun")
 
 
-def test_release_tui_is_verified_and_cached(
+def test_unbundled_install_requires_explicit_external_tui(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    asset = "nanobot-tui-linux-x64"
-    binary = b"native-tui"
-    archive, checksum = _release_archive(asset, binary=binary)
-    downloads: list[str] = []
+    project_root = tmp_path / "installed"
+    module_path = project_root / "nanobot" / "cli" / "tui_launcher.py"
+    module_path.parent.mkdir(parents=True)
+    monkeypatch.setattr(tui_launcher, "__file__", str(module_path))
+    monkeypatch.setattr(tui_launcher, "_source_checkout_tui_dir", lambda: None)
+    monkeypatch.delenv("NANOBOT_TUI_BIN", raising=False)
+    monkeypatch.setattr(tui_launcher.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(tui_launcher.platform, "machine", lambda: "x86_64")
 
-    def read_asset(url: str, *, max_bytes: int) -> bytes:
-        downloads.append(url)
-        return checksum if url.endswith(".sha256") else archive
-
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.cli.tui_launcher._read_release_asset", read_asset)
-
-    target = _download_release_tui(asset)
-
-    assert target == tmp_path / "bin" / "tui" / "9.9.9" / asset
-    assert target.read_bytes() == binary
-    for name in (*tui_launcher._TUI_RELEASE_FILES, "MANIFEST.sha256"):
-        assert (target.parent / name).is_file()
-    assert len(downloads) == 2
-
-    assert _download_release_tui(asset) == target
-    assert len(downloads) == 2
+    with pytest.raises(TuiUnavailableError, match="operator-approved distribution"):
+        resolve_tui_command(data_dir=tmp_path / "unused-data")
 
 
-def test_release_tui_replaces_a_corrupted_cached_binary(
+def test_explicit_external_tui_binary_is_used(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    binary = b"native-tui"
-    asset = "nanobot-tui-linux-x64"
-    archive, checksum = _release_archive(asset, binary=binary)
-    downloads: list[str] = []
+    executable = tmp_path / "percival-tui"
+    executable.write_bytes(b"external-tui")
+    executable.chmod(0o755)
+    monkeypatch.setenv("NANOBOT_TUI_BIN", str(executable))
 
-    def read_asset(url: str, *, max_bytes: int) -> bytes:
-        downloads.append(url)
-        return checksum if url.endswith(".sha256") else archive
-
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.cli.tui_launcher._read_release_asset", read_asset)
-
-    target = _download_release_tui(asset)
-    assert target is not None
-    target.write_bytes(b"corrupted")
-
-    assert _download_release_tui(asset) == target
-    assert target.read_bytes() == binary
-    assert len(downloads) == 4
-
-
-def test_release_tui_replaces_corrupted_cached_notices(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    asset = "nanobot-tui-linux-x64"
-    archive, checksum = _release_archive(asset)
-    downloads: list[str] = []
-
-    def read_asset(url: str, *, max_bytes: int) -> bytes:
-        downloads.append(url)
-        return checksum if url.endswith(".sha256") else archive
-
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr("nanobot.cli.tui_launcher._read_release_asset", read_asset)
-
-    target = _download_release_tui(asset)
-    assert target is not None
-    notices = target.parent / "THIRD_PARTY_NOTICES.txt"
-    notices.write_text("corrupted", encoding="utf-8")
-
-    assert _download_release_tui(asset) == target
-    assert notices.read_bytes() == b"contents of THIRD_PARTY_NOTICES.txt\n"
-    assert len(downloads) == 4
-
-
-def test_release_tui_rejects_bad_checksum(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    asset = "nanobot-tui-linux-x64"
-    archive, _checksum = _release_archive(asset)
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr(
-        "nanobot.cli.tui_launcher._read_release_asset",
-        lambda url, *, max_bytes: (
-            f"{'0' * 64}  {asset}.zip\n".encode() if url.endswith(".sha256") else archive
-        ),
-    )
-
-    with pytest.raises(TuiUnavailableError, match="checksum"):
-        _download_release_tui(asset)
-
-
-def test_release_tui_rejects_an_archive_without_required_notices(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    asset = "nanobot-tui-linux-x64"
-    archive, checksum = _release_archive(asset, omit="THIRD_PARTY_NOTICES.txt")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr(
-        "nanobot.cli.tui_launcher._read_release_asset",
-        lambda url, *, max_bytes: checksum if url.endswith(".sha256") else archive,
-    )
-
-    with pytest.raises(TuiUnavailableError, match="archive is incomplete"):
-        _download_release_tui(asset)
-
-
-def test_release_tui_rejects_an_empty_required_file(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    asset = "nanobot-tui-linux-x64"
-    archive, _checksum = _release_archive(asset)
-    source = io.BytesIO(archive)
-    output = io.BytesIO()
-    with zipfile.ZipFile(source) as original, zipfile.ZipFile(output, "w") as rebuilt:
-        for entry in original.infolist():
-            content = b"" if entry.filename == "SOURCE_OFFER.md" else original.read(entry)
-            rebuilt.writestr(entry.filename, content)
-    payload = output.getvalue()
-    checksum = f"{hashlib.sha256(payload).hexdigest()}  {asset}.zip\n".encode()
-
-    monkeypatch.setattr("nanobot.cli.tui_launcher.__version__", "9.9.9")
-    monkeypatch.setattr("nanobot.cli.tui_launcher.get_data_dir", lambda: tmp_path)
-    monkeypatch.setattr(
-        "nanobot.cli.tui_launcher._read_release_asset",
-        lambda url, *, max_bytes: checksum if url.endswith(".sha256") else payload,
-    )
-
-    with pytest.raises(TuiUnavailableError, match="invalid size"):
-        _download_release_tui(asset)
+    assert resolve_tui_command() == [str(executable)]
 
 
 def test_gateway_reuse_requires_the_matching_managed_instance(

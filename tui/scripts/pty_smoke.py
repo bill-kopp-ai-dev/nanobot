@@ -75,9 +75,19 @@ def _wait_for_exit(pid: int, timeout: float) -> int:
 def main() -> int:
     if os.name != "posix":
         raise SystemExit("PTY smoke test requires POSIX")
-    bun = shutil.which("bun")
-    if not bun:
-        raise SystemExit("bun is required")
+    explicit_binary = os.environ.get("NANOBOT_TUI_BIN", "").strip()
+    if explicit_binary:
+        binary = Path(explicit_binary).expanduser().resolve(strict=False)
+        if not binary.is_file():
+            raise SystemExit(f"NANOBOT_TUI_BIN does not exist: {binary}")
+        command = [str(binary)]
+        mode = "external binary"
+    else:
+        bun = shutil.which("bun")
+        if not bun:
+            raise SystemExit("bun is required when NANOBOT_TUI_BIN is not set")
+        command = [bun, "src/index.ts"]
+        mode = "source checkout"
     env = {
         **os.environ,
         "NANOBOT_TUI_WS_URL": "ws://127.0.0.1:9/ws",
@@ -98,7 +108,7 @@ def main() -> int:
     pid, master = pty.fork()
     if pid == 0:
         os.chdir(ROOT)
-        os.execvpe(bun, [bun, "src/index.ts"], env)
+        os.execvpe(command[0], command, env)
 
     output = bytearray()
     reaped = False
@@ -163,7 +173,7 @@ def main() -> int:
     ):
         if escape in output:
             raise AssertionError(f"TUI painted a fixed background: {escape!r}")
-    print("PTY smoke test passed: Unicode input, resize, restoration, and session resume")
+    print(f"PTY smoke test passed ({mode}): Unicode input, resize, restoration, and session resume")
     return 0
 
 

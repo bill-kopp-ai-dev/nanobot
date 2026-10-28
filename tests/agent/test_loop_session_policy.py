@@ -145,7 +145,7 @@ async def test_turn_tool_selection_preserves_empty_registries(tmp_path, monkeypa
 
 @pytest.mark.parametrize("privacy", ["temporary", "quiet", "ordinary"])
 @pytest.mark.parametrize("structured", [True, False])
-async def test_session_policy_controls_tool_logs_and_result_offload(
+async def test_operational_tool_logs_hide_content_and_results_still_offload(
     tmp_path, privacy, structured,
 ) -> None:
     loop = _loop(tmp_path, [])
@@ -180,7 +180,7 @@ async def test_session_policy_controls_tool_logs_and_result_offload(
     content = next(m["content"] for m in messages if m["role"] == "tool")
     preview = content[0]["text"] if structured else content
     offload_root = tmp_path / ".nanobot" / "tool-results"
-    assert (secret in "\n".join(logs)) is (privacy == "ordinary")
+    assert secret not in "\n".join(logs)
     if structured:
         assert content[1] == image
     if privacy == "temporary":

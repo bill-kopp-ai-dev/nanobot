@@ -198,7 +198,7 @@ jobs:
       # later uv run sync pruning the packages installed by the previous step.
       - name: Lint with ruff
         if: matrix.coverage
-        run: uv run --no-sync ruff check nanobot tests conftest.py
+        run: uv run --no-sync ruff check .
 
       - name: Type check with BasedPyright (strict)
         if: matrix.coverage
@@ -445,7 +445,7 @@ jobs:
               uv sync --all-extras --dev --python 3.12
               uv run --no-sync python -m scripts.install_channel_dependencies --all-channels
               uv pip check --python /tmp/nanobot-arch-venv/bin/python
-              uv run --no-sync ruff check nanobot tests conftest.py
+              uv run --no-sync ruff check .
               uv run --no-sync basedpyright
               uv run --no-sync pytest -n auto --dist loadfile --ignore=tests/cli/test_commands.py
               uv run --no-sync pytest tests/cli/test_commands.py

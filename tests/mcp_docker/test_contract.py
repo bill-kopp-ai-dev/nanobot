@@ -211,7 +211,13 @@ def test_eight_families_and_cas(tmp_path: Path) -> None:
         act("exclude", expected_confirmation="not-weather")
     backup_dir = act("exclude", expected_confirmation="weather")["backup"]
     assert domain.list()["servers"] == {}
-    assert len(list((tmp_path / "mcp-docker" / "backups").iterdir())) == 2
+    backups_root = tmp_path / "mcp-docker" / "backups"
+    backups = list(backups_root.iterdir())
+    assert len(backups) == 2
+    assert stat.S_IMODE(backups_root.stat().st_mode) == 0o700
+    for backup in backups:
+        assert stat.S_IMODE(backup.stat().st_mode) == 0o700
+        assert stat.S_IMODE((backup / "manifest.json").stat().st_mode) == 0o600
     backup_actions = {item["action"] for item in domain.list()["backups"]}
     assert backup_actions == {"update-image", "exclude"}
     with pytest.raises(DomainError, match="confirmation must equal server_id"):

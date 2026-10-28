@@ -19,7 +19,7 @@ class RecordingHook(AgentHook):
 
 @pytest.mark.parametrize("ephemeral", [True, False])
 @pytest.mark.parametrize("hosted", [True, False])
-async def test_tool_log_privacy_preserves_user_visible_progress(ephemeral, hosted) -> None:
+async def test_tool_logs_hide_arguments_and_preserve_user_visible_progress(ephemeral, hosted) -> None:
     secret = "synthetic-private-argument-测试"
     events: list[dict] = []
 
@@ -47,7 +47,7 @@ async def test_tool_log_privacy_preserves_user_visible_progress(ephemeral, hoste
 
     assert events[0]["arguments"] == {"query": secret}
     assert "web_search" in "\n".join(logs)
-    assert (secret in "\n".join(logs)) is not ephemeral
+    assert secret not in "\n".join(logs)
 
 
 def test_turn_hook_context_preserves_legacy_positional_arguments(tmp_path) -> None:

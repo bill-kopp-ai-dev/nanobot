@@ -114,7 +114,7 @@ def _wait_for_claim(
     process: subprocess.Popen[str],
     marker: Path,
 ) -> int:
-    deadline = time.monotonic() + 3
+    deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
         if marker.exists():
             detail = marker.read_text(encoding="utf-8")

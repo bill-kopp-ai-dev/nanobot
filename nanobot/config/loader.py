@@ -199,7 +199,11 @@ def _save_config_locked(config: Config, path: Path) -> None:
             data.setdefault("providers", {})[alias] = settings
 
     # Temp + replace so a crash mid-write cannot leave a truncated config.json.
-    _write_text_atomic(path, json.dumps(data, indent=2, ensure_ascii=False), initial_mode=0o600)
+    _write_text_atomic(
+        path,
+        json.dumps(data, indent=2, ensure_ascii=False),
+        force_mode=0o600,
+    )
 
 
 def merge_missing_defaults(existing: object, defaults: object) -> object:

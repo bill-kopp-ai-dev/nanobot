@@ -54,7 +54,7 @@ def make_bundle(directory, target, *, stale_source=False, wrong_architecture=Fal
         binary[:2] = b"MZ"
         struct.pack_into("<I", binary, 60, 64)
         binary[64:70] = b"PE\x00\x00\x64\x86"
-    files = {name: b"license material\n" for name in tui_launcher._TUI_RELEASE_FILES}
+    files = {name: b"license material\n" for name in packager._TUI_RELEASE_FILES}
     files[asset] = b"wrong executable" if wrong_architecture else bytes(binary)
     source = runpy.run_path(str(packager.ROOT / "tui/scripts/package-release.py"))
     files["nanobot-tui-source.tar.gz"] = source["_source_archive"](packager.ROOT / "tui")
@@ -121,7 +121,7 @@ def test_platform_wheel_record_permissions_and_complete_bundle(tmp_path, candida
 def test_rejects_bad_native_bundle(tmp_path, candidate, kwargs, error):
     wheel, _ = candidate
     make_bundle(tmp_path, "linux-x64", **kwargs)
-    with pytest.raises((ValueError, tui_launcher.TuiUnavailableError), match=error):
+    with pytest.raises(ValueError, match=error):
         packager.build_wheel(wheel, tmp_path, tmp_path / "wheels", "linux-x64")
     assert not (tmp_path / "wheels").exists()
 
@@ -160,14 +160,13 @@ def test_rejects_damaged_archive_checksum(tmp_path, candidate):
      ("Linux", "aarch64", "linux-arm64"), ("Linux", "x86_64", "linux-x64"),
      ("Windows", "AMD64", "win32-x64")],
 )
-def test_installed_tui_never_downloads_or_requires_bun(tmp_path, monkeypatch, system, machine, target):
+def test_installed_tui_uses_bundled_binary_without_bun(tmp_path, monkeypatch, system, machine, target):
     installed = tmp_path / "site-packages/nanobot"
     launcher = installed / "cli/tui_launcher.py"
     launcher.parent.mkdir(parents=True)
     launcher.touch()
     monkeypatch.setattr(tui_launcher, "__file__", str(launcher))
     monkeypatch.delenv("NANOBOT_TUI_BIN", raising=False)
-    monkeypatch.setenv("NANOBOT_TUI_NO_DOWNLOAD", "1")
     monkeypatch.setattr(tui_launcher.platform, "system", lambda: system)
     monkeypatch.setattr(tui_launcher.platform, "machine", lambda: machine)
     monkeypatch.setattr(tui_launcher, "os", SimpleNamespace(
@@ -181,7 +180,6 @@ def test_installed_tui_never_downloads_or_requires_bun(tmp_path, monkeypatch, sy
     def unexpected(*args, **kwargs):
         pytest.fail("An installed platform wheel must not download or look for Bun")
 
-    monkeypatch.setattr(tui_launcher, "_download_release_tui", unexpected)
     monkeypatch.setattr(tui_launcher.shutil, "which", unexpected)
     cache = tmp_path / "empty-cache"
     assert tui_launcher.resolve_tui_command(data_dir=cache) == [str(binary)]

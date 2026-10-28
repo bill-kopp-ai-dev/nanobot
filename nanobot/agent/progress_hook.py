@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from loguru import logger
@@ -123,12 +122,7 @@ class AgentProgressHook(AgentHook):
             await self._publish(ProgressEvent(
                 content=tool_hint, tool_hint=True, tool_events=[payload],
             ))
-            logger.info(
-                "Provider-hosted tool call: {}({})",
-                name,
-                json.dumps(arguments, ensure_ascii=False)[:200]
-                if self._log_content else "[content hidden]",
-            )
+            logger.info("Provider-hosted tool call: {}", name)
             return
         await self._publish(ProgressEvent(tool_events=[payload]))
 
@@ -144,11 +138,7 @@ class AgentProgressHook(AgentHook):
                 content=tool_hint or "", tool_hint=True, tool_events=tool_events,
             ))
         for tc in context.tool_calls:
-            args_str = (
-                json.dumps(tc.arguments, ensure_ascii=False)[:200]
-                if self._log_content else "[content hidden]"
-            )
-            logger.info("Tool call: {}({})", tc.name, args_str)
+            logger.info("Tool call: {}", tc.name)
 
     async def emit_reasoning(self, reasoning_content: str | None) -> None:
         """Publish a reasoning chunk; channel plugins decide whether to render."""

@@ -147,7 +147,17 @@ def _inspect(server_id: str) -> dict[str, Any] | None:
     container = cast(dict[str, Any], data[0])
     config = container.get("Config")
     labels: object = cast(dict[str, object], config).get("Labels", {}) if isinstance(config, dict) else {}
-    if not isinstance(labels, dict) or cast(dict[str, object], labels).get("percival.mcp-docker.server-id") != server_id:
+    if not isinstance(labels, dict):
+        raise BrokerError("container name owned by another application")
+    identity = cast(dict[str, object], labels)
+    instance_id = identity.get("percival.mcp-docker.instance-id")
+    try:
+        valid_instance_id = isinstance(instance_id, str) and str(uuid.UUID(instance_id)) == instance_id
+    except ValueError:
+        valid_instance_id = False
+    if (identity.get("percival.mcp-docker.owner") != "percival" or
+        identity.get("percival.mcp-docker.managed-by") != "percival-broker" or
+        identity.get("percival.mcp-docker.server-id") != server_id or not valid_instance_id):
         raise BrokerError("container name owned by another application")
     return container
 

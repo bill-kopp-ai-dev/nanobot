@@ -265,7 +265,7 @@ def test_enable_browserbase_writes_scrubbed_config_payload(
     )
 
     assert payload["requires_restart"] is True
-    assert payload["last_action"]["ok"] is True
+    assert payload["last_action"]["ok"] is True, payload["last_action"]
     assert payload["last_action"]["installed"] is True
     assert payload["last_action"]["verification"] == ["config_present"]
     preset = next(row for row in payload["presets"] if row["name"] == "browserbase")
@@ -500,7 +500,7 @@ def test_test_mcp_preset_inspects_tools_outside_the_enabled_allowlist(
 
     payload = asyncio.run(mcp_presets_test_action({"name": ["playwright"]}))
 
-    assert payload["last_action"]["tool_count"] == 20
+    assert payload["last_action"]["tool_count"] == 20, payload["last_action"]
     assert len(payload["last_action"]["tool_names"]) == 20
     row = next(item for item in payload["presets"] if item["name"] == "playwright")
     assert row["enabled_tools"] == ["mcp_playwright_browser_navigate"]

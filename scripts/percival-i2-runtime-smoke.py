@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import tempfile
 import time
@@ -54,20 +55,32 @@ class Rehearsal:
         print(f"PASS: {name}", flush=True)
 
     def docker(self, *args, **kwargs):
-        return run(["docker", *args], env=self.env, **kwargs)
+        # The fixture daemon's TCP control API is loopback-only in its own
+        # network namespace. The controller enters that namespace via exec;
+        # product containers cannot route to the Engine API.
+        command = ["docker", "exec"]
+        if kwargs.get("input") is not None:
+            command.append("-i")
+        return run([*command, self.name, "docker", *args], env=self.env, **kwargs)
 
     def compose(self, *args, **kwargs):
-        return run(["docker", "compose", "-p", self.name,
-                    "--env-file", str(self.scratch / "compose.env"),
-                    "-f", str(ROOT / "docker-compose.yml"),
-                    "-f", str(ROOT / "docker-compose.mcp-broker.yml"),
-                    "-f", str(self.scratch / "compose.yaml"), *args], env=self.env, **kwargs)
+        compose_env = {key: value for key, value in self.env.items()
+                       if key.startswith(("PERCIVAL_", "NANOBOT_"))}
+        (self.scratch / "compose.env").write_text(
+            "".join(f"{key}={value}\n" for key, value in sorted(compose_env.items()))
+        )
+        return self.docker("compose", "-p", self.name,
+                           "--env-file", "/fixture/compose.env",
+                           "-f", "/fixture/docker-compose.yml",
+                           "-f", "/fixture/docker-compose.mcp-broker.yml",
+                           "-f", "/fixture/compose.yaml", *args, **kwargs)
 
     def cli(self, *args, **kwargs):
         return self.compose("run", "--rm", "--no-deps", "-T", "nanobot-cli", *args, **kwargs)
 
     def exec(self, container, code, **kwargs):
-        return self.docker("exec", "-i", container, "python", "-", input=code, **kwargs)
+        return run(["docker", "exec", "-i", self.name, "docker", "exec", "-i", container,
+                    "python", "-"], env=self.env, input=code, **kwargs)
 
     def inspect(self, name):
         return json.loads(self.docker("inspect", name).stdout)[0]
@@ -95,12 +108,11 @@ except urllib.error.HTTPError as e:
 
     def start(self):
         run(["docker", "run", "-d", "--name", self.name, "--privileged",
-             "--publish", "127.0.0.1::2375", "-e", "DOCKER_TLS_CERTDIR=",
-             "--mount", f"type=bind,src={self.scratch},dst=/fixture", DIND])
+             "-e", "DOCKER_TLS_CERTDIR=",
+             "--mount", f"type=bind,src={self.scratch},dst=/fixture", DIND,
+             "dockerd", "--host=unix:///var/run/docker.sock",
+             "--host=tcp://127.0.0.1:2375"])
         self.created = True
-        outer = json.loads(run(["docker", "inspect", self.name]).stdout)[0]
-        port = outer["NetworkSettings"]["Ports"]["2375/tcp"][0]["HostPort"]
-        self.env["DOCKER_HOST"] = f"tcp://127.0.0.1:{port}"
         deadline = time.monotonic() + 60
         while self.docker("info", ok=False).returncode:
             assert time.monotonic() < deadline, "disposable daemon did not start"
@@ -113,8 +125,9 @@ except urllib.error.HTTPError as e:
             # Transfer exact local bytes; no registry login or rebuild in dind.
             archive = self.scratch / "image.tar"
             run(["docker", "save", "-o", str(archive), image])
-            self.docker("load", "-i", str(archive), timeout=180)
-            archive.unlink()
+            run(["docker", "cp", str(archive), f"{self.name}:/fixture/image.tar"])
+            self.docker("load", "-i", "/fixture/image.tar", timeout=180)
+            run(["docker", "exec", self.name, "rm", "-f", "/fixture/image.tar"])
             info = json.loads(self.docker("image", "inspect", image).stdout)[0]
             assert info["Os"] == "linux" and info["Architecture"] == "amd64"
             assert info["Config"]["Labels"]["org.opencontainers.image.version"] == "0.1.0"
@@ -124,8 +137,9 @@ except urllib.error.HTTPError as e:
         if self.args.old_broker_image:
             archive = self.scratch / "old-broker.tar"
             run(["docker", "save", "-o", str(archive), self.args.old_broker_image])
-            self.docker("load", "-i", str(archive))
-            archive.unlink()
+            run(["docker", "cp", str(archive), f"{self.name}:/fixture/old-broker.tar"])
+            self.docker("load", "-i", "/fixture/old-broker.tar")
+            run(["docker", "exec", self.name, "rm", "-f", "/fixture/old-broker.tar"])
             self.ids[self.args.old_broker_image] = json.loads(self.docker("image", "inspect", self.args.old_broker_image).stdout)[0]["Id"]
         socket_gid = run(["docker", "exec", self.name, "stat", "-c", "%g", "/var/run/docker.sock"]).stdout.strip()
         self.env.update({
@@ -137,7 +151,6 @@ except urllib.error.HTTPError as e:
             "PERCIVAL_MCP_BROKER_IMAGE": self.args.broker_image,
             "HOME": str(self.scratch / "unused-home"),
         })
-        (self.scratch / "compose.env").write_text("")
         (self.scratch / "compose.yaml").write_text(f"""
 services:
   nanobot-gateway:
@@ -156,14 +169,16 @@ services:
     build: !reset null
     restart: "no"
 """)
+        for filename in ("docker-compose.yml", "docker-compose.mcp-broker.yml"):
+            run(["docker", "cp", str(ROOT / filename), f"{self.name}:/fixture/{filename}"])
         config = json.loads(self.compose("--profile", "cli", "--profile", "api", "config", "--format", "json").stdout)
         for name in ("nanobot-gateway", "nanobot-api", "nanobot-cli"):
             mounts = [v for v in config["services"][name]["volumes"] if v["target"] == STATE]
             assert len(mounts) == 1 and mounts[0]["source"] == "/fixture/state"
-        # Initialize owners inside the disposable host; no sudo on the real host.
-        self.docker("run", "--rm", "--user", "0:0", "--entrypoint", "sh",
-                    "--mount", "type=bind,src=/fixture,dst=/fixture", self.args.gateway_image,
-                    "-c", "mkdir -p /fixture/state/mcp-docker && chown -R 1000:1000 /fixture/state")
+        # Initialize the fixture bind in the daemon's own host namespace; no
+        # product container gets a host-path bind to the controller scratch.
+        run(["docker", "exec", self.name, "mkdir", "-p", "/fixture/state/mcp-docker"])
+        run(["docker", "exec", self.name, "chown", "-R", "1000:1000", "/fixture/state"])
         self.record("Compose CLI/API/gateway share exactly one state bind")
 
     def permissions(self):
@@ -213,15 +228,55 @@ services:
         config["gateway"]["heartbeat"]["enabled"] = False
         config["api"]["apiKey"] = ""
         config_path.write_text(json.dumps(config))
+        config_path.chmod(0o644)
         self.cli("onboard", "--refresh")
+        assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
         no_key = self.compose("run", "--rm", "--no-deps", "-T", "nanobot-api", ok=False)
         assert no_key.returncode == 1 and "api_key" in no_key.stdout
-        no_password_id = self.compose("run", "-d", "--no-deps", "nanobot-gateway").stdout.strip()
+        # Compare the old one-off path with the canonical service lifecycle.
+        one_off = self.compose("run", "-d", "--no-deps", "nanobot-gateway").stdout.strip()
+        self.wait(one_off, self.http(8765, "/webui/bootstrap", 401))
+        one_off_before = self.inspect(one_off)
+        self.docker("stop", "--time", "60", one_off)
+        one_off_after = self.inspect(one_off)
+        self.results.append({
+            "check": "one-off Compose gateway stop diagnostic",
+            "status": "observed",
+            "host_init": one_off_before["HostConfig"].get("Init"),
+            "exit_code": one_off_after["State"]["ExitCode"],
+        })
+        print(f"OBSERVED: one-off Compose gateway: HostConfig.Init={one_off_before['HostConfig'].get('Init')}, "
+              f"exit={one_off_after['State']['ExitCode']}", flush=True)
+        self.docker("rm", one_off)
+
+        # Exercise the canonical long-running service lifecycle as well.
+        no_password_id = self.env["PERCIVAL_GATEWAY_CONTAINER_NAME"]
+        self.compose("up", "-d", "--no-build", "--no-deps", "nanobot-gateway")
+        self.wait(no_password_id, self.http(18790, "/health"))
         # The unauthenticated sign-in page may listen; protected bootstrap must refuse access.
         self.wait(no_password_id, self.http(8765, "/webui/bootstrap", 401))
-        self.docker("stop", "--time", "60", no_password_id)
-        assert self.inspect(no_password_id)["State"]["ExitCode"] == 0
-        self.docker("rm", no_password_id)
+        signal_state = self.exec(no_password_id, """
+import json
+from pathlib import Path
+rows=[]
+for p in Path('/proc').glob('[0-9]*/status'):
+    try:
+        row=dict(line.split(':',1) for line in p.read_text().splitlines() if ':' in line)
+        if row.get('Pid','').strip() == '1' or row.get('PPid','').strip() == '1':
+            rows.append({k: row.get(k,'').strip() for k in ('Name','Pid','PPid','SigCgt','SigIgn')})
+    except OSError:
+        pass
+print(json.dumps(rows))
+""").stdout.strip()
+        self.results.append({"check": "gateway signal-handler state at health readiness", "status": "observed",
+                             "processes": json.loads(signal_state)})
+        print(f"OBSERVED: gateway signal state {signal_state}", flush=True)
+        self.compose("stop", "nanobot-gateway")
+        stopped = self.inspect(no_password_id)
+        assert stopped["HostConfig"].get("Init") is True, stopped["HostConfig"].get("Init")
+        assert stopped["Config"].get("StopSignal") == "SIGTERM", stopped["Config"].get("StopSignal")
+        assert stopped["State"]["ExitCode"] == 0, stopped["State"]
+        self.record("Compose gateway init=true; unauthenticated bootstrap denied; idle SIGTERM exits 0")
         self.cli("auth", "init", input=PASSWORD + "\n" + PASSWORD + "\n")
         assert "is configured" in self.cli("auth", "status").stdout
         # Capture all auth bytes, regardless of the verifier's private filename.
@@ -242,7 +297,7 @@ services:
         self.docker("run", "--rm", "--user", "0:0", "--entrypoint", "sh",
                     "--mount", "type=bind,src=/fixture/state,dst=/state", self.args.gateway_image,
                     "-c", "chown 1000:65532 /state/mcp-docker/broker-token; chmod 640 /state/mcp-docker/broker-token")
-        self.record("onboard/status/auth init/change/status on shared state; missing verifier/API key and reinit denied")
+        self.record("onboard repairs permissive config mode to 0600; status/auth init/change and missing-key/reinit guards pass")
 
     def process(self, container, uid):
         result = self.exec(container, """
@@ -280,11 +335,27 @@ print(json.dumps(rows))
         broker = self.name + "-percival-mcp-broker-1"
         self.wait(gateway, f"from nanobot.mcp_docker.client import BrokerClient; from pathlib import Path; "
                   f"assert BrokerClient(Path('{STATE}/mcp-docker/broker-token')).action('health','broker',{{}})['ready'] is True")
+        tcp_denied = self.exec(gateway, r"""
+import socket
+from pathlib import Path
+routes = Path('/proc/net/route').read_text().splitlines()[1:]
+gateways = [str(__import__('ipaddress').IPv4Address(int(row.split()[2],16).to_bytes(4,'little')))
+            for row in routes if row.split()[1] == '00000000']
+assert gateways, 'default route missing from gateway fixture'
+for address in gateways:
+    try:
+        with socket.create_connection((address,2375),timeout=1):
+            raise AssertionError('gateway reached Docker Engine TCP API')
+    except OSError:
+        pass
+""")
+        assert tcp_denied.returncode == 0
         self.docker("exec", broker, "python3", "-m", "nanobot.mcp_docker.probe")
         self.process(gateway, 1000)
         self.process(broker, 65532)
         self.exec(gateway, "import shutil; from pathlib import Path; assert shutil.which('docker') is None; assert not Path('/var/run/docker.sock').exists()")
-        self.record("single init/non-root zero effective capabilities; delayed broker and authenticated probe", processes={"gateway": self.process(gateway,1000), "broker": self.process(broker,65532)})
+        self.record("Engine API TCP denied from gateway; broker socket/probe authorized; single init/non-root zero capabilities",
+                    processes={"gateway": self.process(gateway,1000), "broker": self.process(broker,65532)})
         # API is a separate run: do not start another writer beside the gateway.
         started = time.monotonic()
         self.compose("stop", "nanobot-gateway")
