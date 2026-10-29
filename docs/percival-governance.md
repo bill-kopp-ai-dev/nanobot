@@ -1,5 +1,17 @@
 # Percival: upstream, CI and release governance
 
+## Company ownership and decision authority
+
+Percival and the related PBLabs projects belong to Positronic Bean Labs
+(PBLabs), owned by Bill Kopp (`bill.kopp.dev@gmail.com`). Bill is the sole
+final decision-maker for decisions requiring owner or company approval.
+Technical review, implementation, and routine operations may be delegated, but
+delegation does not transfer final approval authority. The company site,
+`labs.positronicbean.com`, is under development and is not an operational
+service or endpoint. This ownership statement does not itself change repository
+or registry namespaces, grant runtime access, or authorize publication,
+deployment, or production changes.
+
 **Operator decision:** 2026-10-06. Percival is an independent project derived
 from HKUDS/nanobot. Development continues in the current private repository;
 after the planned changes and validation, the operator will create a separate

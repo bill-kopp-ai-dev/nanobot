@@ -3,8 +3,16 @@
 - **Data:** 2026-10-23; baseline local `a299da0951d2d7c20f3879519cecf4032e794ca5`.
 - **Estado:** pacote de contratos semânticos 1, decidido para I1 pela
   [ADR](Decisions/2026-10-23-open-iac-contracts.md). Não são schemas/API executáveis.
-- **Dono e revisor atual de todos os domínios abaixo:** bill, conforme confirmação
-  nesta sessão; agente prepara as mudanças. Não há alegação de revisão independente.
+- **Propriedade e autoridade:** os projetos PBLabs, incluindo Percival e IaC,
+  pertencem à Positronic Bean Labs (PBLabs), de Bill Kopp
+  (`bill.kopp.dev@gmail.com`). Bill é o único decisor final para aprovações que
+  exijam autoridade do owner/empresa. Revisões técnicas e execução podem ser
+  delegadas, sem transferir essa aprovação final. O site
+  `labs.positronicbean.com` está em desenvolvimento e não é serviço operacional.
+- **Dono e revisor atual dos domínios abaixo:** Bill Kopp; o agente prepara as
+  mudanças. Não há alegação de revisão independente. Operadores técnicos podem
+  executar atividades autorizadas, mas publicação, deploy ou mudança de produção
+  não são autorizados por este handoff.
 - **Evidência de entrada:** [snapshot/hashes das fontes](references/2026-10-23-iac-source-snapshot.md).
   O plano IaC já tinha revisão local não commitada; foi preservada e complementada.
 - **Atualização posterior I2:** [runtime 1 entregue](agent-runtime-contract.md) e
@@ -36,9 +44,11 @@ Todos os paths são relativos a `~/Projects/`. As URLs de origem foram observada
 | Template | planejado `mcp-server-template/` / `<owner>/mcp-server-template` | não existe nesse workspace | bill cria/configura antes de I5a; reutilizar MCPs existentes |
 | Fonte pública Percival | futuro repo `<owner>/percival`; não é o checkout privado atual | não verificado remotamente | revisão/criação/publicação com bill antes de release aberta |
 
-`<owner>` é `bill-kopp-ai-dev` antes da migração e `p-bean-labs` após migração
-explicitamente executada. Não substituir remotes/labels/trust a partir desta variável
-sem verificar o estado real. A listagem de `~/Projects` não prova inexistência remota.
+`<owner>` é um namespace GitHub, não uma identidade pessoal nem a entidade dona:
+`bill-kopp-ai-dev` antes da migração e `p-bean-labs` após migração explicitamente
+executada. A titularidade empresarial por PBLabs e a autoridade final de Bill não
+executam a migração nem alteram remotes/labels/trust. Verifique o estado real antes
+de qualquer alteração. A listagem de `~/Projects` não prova inexistência remota.
 Nenhum checkout externo foi modificado nesta execução.
 
 ### Acessos e dependências externas
