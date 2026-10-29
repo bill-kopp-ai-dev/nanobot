@@ -57,6 +57,12 @@ mantê-las abertas neste plano até atribuição rastreável, sem recriar tracke
   imagem base; operações dependentes usam pin aprovado e janela única datada;
   suporte/limitação de cancelamento e deadlines é registrado por transporte,
   método e deadline, sem obrigação geral de implementar cancelamento.
+- [x] `R-11` (2026-10-29): Trivy foi escolhido como scanner padrão e está
+  instalado. O agente pode executá-lo autonomamente quando necessário em
+  candidatos locais, cobrindo todas as severidades, atualizando a Vulnerability
+  DB e registrando versão, data da DB, SHA e image ID; preferir TAR do candidato
+  sem montar Docker socket.
+  O scan não aprova VEX, release ou promoção, que seguem os gates de `R-07`.
 
 ## 3. Backlog integral e critérios de aceite
 
@@ -73,7 +79,7 @@ continuam pendentes. Prioridade é a da ação de origem, não uma nova classifi
 | A-005 | F-005 / P2 | Aplicar regra de permissão de config sensível no owner do config, sem mudar todos os writers genéricos | Decisão para arquivos existentes e backups; S2-C01 | Criação e replace com 0600 ou recusa documentada; backup restrito; fixture 0644 não preserva exposição inadvertidamente |
 | A-006 | F-006 / P1 | Investigar readiness curta, igualdade de floats, branding WebUI e símbolos indefinidos em `scripts/d11/d9_rehearsal.py`; alinhar comando Ruff/CI | L14/L15/D03; ambiente lock/SDK/toolchains | Suíte, CLI, typecheck, lint e frontend pertinentes verdes no candidato; causas e scope de Ruff explicados; sem mascarar skips/retries; sem `ruff format` |
 | A-007 | F-007 / P2 | Manter inventário fonte→imagem→instância, separando saved/observed/connectivity; preparar reconciliação no manager existente | D01/D03; owner e janela próprios para runtime real | Inventário datado e sanitizado; imagem e revisão efetivas identificadas; stopped sob demanda não vira falha por inferência |
-| A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan | D04 histórico; DB/scanner atuais; gate `R-07` | Decisão por CVE ligada ao image ID e VEX assinado pelo owner; CVEs herdados da imagem base seguem a postura por herança; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
+| A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan com Trivy (`R-11`) | Vulnerability DB atualizada; candidato identificado; gate `R-07` | Scan Trivy de todas as severidades ligado a SHA/image ID e DB; decisão por CVE e VEX assinado pelo owner; CVEs herdados da imagem base seguem a postura por herança; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
 | A-009 | F-009 / P2 | Integrar catálogo, aquisição, policy independente e export no manager/broker existentes; CAS/migração explícita | D07/D08/D09; S2-C01/C02/C03; etapas 2/4/5 IaC | Matriz negativa de origem/digest/policy; export atômico sem segredo; estado canônico único; local-only permanece até contrato aprovado |
 | A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; Notes, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão. Bill decidiu implementar `resources/list/read` e `prompts/list/get` para Notes (recurso estático e prompts anunciados); gate por server ativo e capability descoberta. Streaming, resource templates e cancelamento ficam fora deste escopo salvo requisito separado. |
 | A-011 | F-011 / P2 | Especificar restrições do produto e entregar requisito de preflight de writers/instâncias à IaC; produto testa o contrato que controla | Dono IaC implementa bundle/preflight na etapa 3; runtime 1 | Fixture recusa segundo writer e segunda instância no daemon antes de mutar; mudar nome Compose não é isolamento de instalação |
