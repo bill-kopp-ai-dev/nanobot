@@ -37,9 +37,22 @@ segundo tracker nem restaurar exclusões automaticamente.
   foram commitadas em `a51802103a1cfac26e394e469f757fff1072784b`.
 - [x] Distinguir IaC **D-01..D-06** de Percival **D01..D12** e usar o mapeamento
   A-001→L06/D08, A-002→L02, A-006→L14/L15/D03 e as dependências das ações abaixo.
-- [x] D-05 continua pendente para a prova vertical/piloto. Bill autorizou apenas
-  o ensaio local descartável DinD; A-001 foi corrigida antes da integração sintética
-  com o broker. Nenhum piloto foi executado.
+- [x] Decisão `R-02` (2026-10-28): a receita restrita já vigente foi registrada;
+  o default de mounts passa a ser `[]`, com mounts explícitos e `null` como
+  operação separada, sujeita a confirmação e auditoria. A mudança no broker e
+  seu teste continuam como execução pendente; nenhum piloto foi executado.
+- [x] Decisão `R-03` (2026-10-28): removida a exigência de estimar esforço,
+  custo ou prazo.
+- [x] Decisão `R-05` (2026-10-28): o tracker F3 canônico será mantido em
+  `pblabs-mcp-index`, por imagem publicada; checkouts apontam para ele em vez
+  de manter cópias.
+- [x] Decisões `R-06` a `R-09` (2026-10-28): metadata MCP usa schema externo
+  de `server.json` e extensão operacional `pblabs.app.yaml`, com manifests em
+  `pblabs-mcp-index` e sem dependência do Docker MCP Catalog; promoção exige
+  VEX por CVE associado ao image ID e assinado pelo owner, herdando CVEs da
+  imagem base; operações dependentes usam pin aprovado e janela única datada;
+  suporte/limitação de cancelamento e deadlines é registrado por transporte,
+  método e deadline, sem obrigação geral de implementar cancelamento.
 
 ## 3. Backlog integral e critérios de aceite
 
@@ -56,9 +69,9 @@ continuam pendentes. Prioridade é a da ação de origem, não uma nova classifi
 | A-005 | F-005 / P2 | Aplicar regra de permissão de config sensível no owner do config, sem mudar todos os writers genéricos | Decisão para arquivos existentes e backups; S2-C01 | Criação e replace com 0600 ou recusa documentada; backup restrito; fixture 0644 não preserva exposição inadvertidamente |
 | A-006 | F-006 / P1 | Investigar readiness curta, igualdade de floats, branding WebUI e símbolos indefinidos em `scripts/d11/d9_rehearsal.py`; alinhar comando Ruff/CI | L14/L15/D03; ambiente lock/SDK/toolchains | Suíte, CLI, typecheck, lint e frontend pertinentes verdes no candidato; causas e scope de Ruff explicados; sem mascarar skips/retries; sem `ruff format` |
 | A-007 | F-007 / P2 | Manter inventário fonte→imagem→instância, separando saved/observed/connectivity; preparar reconciliação no manager existente | D01/D03; owner e janela próprios para runtime real | Inventário datado e sanitizado; imagem e revisão efetivas identificadas; stopped sob demanda não vira falha por inferência |
-| A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan | D04 histórico; DB/scanner atuais | Decisão por CVE/artefato; evidência dos bytes corrigidos; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
+| A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan | D04 histórico; DB/scanner atuais; gate `R-07` | Decisão por CVE ligada ao image ID e VEX assinado pelo owner; CVEs herdados da imagem base seguem a postura por herança; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
 | A-009 | F-009 / P2 | Integrar catálogo, aquisição, policy independente e export no manager/broker existentes; CAS/migração explícita | D07/D08/D09; S2-C01/C02/C03; etapas 2/4/5 IaC | Matriz negativa de origem/digest/policy; export atômico sem segredo; estado canônico único; local-only permanece até contrato aprovado |
-| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; app selecionada, receita isolada; etapa 5 IaC | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão; resources/prompts/streaming testados se oferecidos, senão recusados/declarados |
+| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; app selecionada, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão; registrar suporte ou limitação por transporte/método/deadline; resources/prompts/streaming testados se oferecidos, senão recusados/declarados. Não há obrigação geral de implementar cancelamento |
 | A-011 | F-011 / P2 | Especificar restrições do produto e entregar requisito de preflight de writers/instâncias à IaC; produto testa o contrato que controla | Dono IaC implementa bundle/preflight na etapa 3; runtime 1 | Fixture recusa segundo writer e segunda instância no daemon antes de mutar; mudar nome Compose não é isolamento de instalação |
 | A-012 | F-012 / P2 | Definir e ensaiar shutdown/recovery carregado no broker, preservando store/journal e dados | Escopo I8 carregado a reautorizar; S2-C01 | Calls ativas têm término/erro limitado documentado; restart reconcilia operação sem duplicação; não confundir idle/crash sintético com recovery real |
 
@@ -68,11 +81,13 @@ Estas subtarefas complementares não alteram as 12 ações de origem.
 
 | ID | Origem / execução aqui | Aceite compartilhado |
 |---|---|---|
-| S2-NB-X01 | AgentMail A-006/A-008; Research A-005/A-009; Khan A-001/A-002/A-008; OSM A-008 e Weather A-005: implementar perfis explícitos de mounts, init, secrets por arquivo e lifecycle conforme S2-C01 | API stateless sem bind do host (`mounts=[]`); vault/workspace com bind estreito; nenhum caminho protegido reaberto; credencial por referência; defaults legados preservados ou migração aprovada; teste do consumidor |
+| S2-NB-X01 | AgentMail A-006/A-008; Research A-005/A-009; Khan A-001/A-002/A-008; OSM A-008 e Weather A-005: implementar perfis explícitos de mounts, init, secrets por arquivo e lifecycle conforme S2-C01 | API stateless sem bind do host (`mounts=[]`); vault/workspace com bind estreito; nenhum caminho protegido reaberto; credencial por referência; acesso total (`null`) somente como operação separada, confirmada e auditada; teste do consumidor |
 | S2-NB-X02 | Khan A-005 e gates de qualificação dos MCPs: receber scans/manifests por candidato e coordenar o CI do gateway quando exigido | Evidência por SHA/image ID/manifest digest e DB; CI remoto não fechado por teste local; retorno para cada plano MCP |
 
-Rotação D-04 é pessoalmente do owner do broker; implementar entrega por arquivo
-não revoga a chave anterior. Nunca incluir o segredo em evidência ou plano.
+O risco de rotação da chave de teste do Deep Research foi explicitamente aceito
+em `R-01`; este plano não deve solicitar nem executar essa rotação. A entrega por
+arquivo continua sendo requisito de configuração, sem implicar revogação da chave.
+Nunca incluir o segredo em evidência ou plano.
 
 ## 4. Ordem dos lotes e dependências
 
@@ -82,12 +97,14 @@ não revoga a chave anterior. Nunca incluir o segredo em evidência ou plano.
    na qualificação. A-007 prepara inventário sem trocar pins reais.
 3. **Lote NB-3:** A-009/A-010 após contratos/ADR; A-011 com a IaC, A-012 após
    retomada de escopo; S2-NB-X02 com candidatos e gate de distribuição.
-4. Piloto Percival + Notes só em plano próprio depois de IaC D-05/D-06 e
-   condições Notes. Este documento não cria receita operacional de piloto.
+4. Piloto Percival + Notes só em plano próprio, depois da implementação e
+   evidência do perfil `R-02`, das condições Notes e das autorizações operacionais
+   aplicáveis. `R-03` remove qualquer requisito de dimensionamento prévio; este
+   documento não cria receita operacional de piloto.
 
 Alterações em ownership podem impedir adoção de recursos legados: recusar adoção
 não comprovada é preferível a remover recurso de outro dono. Dados e rollback são
-preservados. Sem prazo/horas prometidos; dimensionar por lote com bill (IaC D-06).
+preservados. Não há requisito de estimar esforço, custo ou prazo (`R-03`).
 
 ## 5. Qualificação e condições de conclusão técnica
 
