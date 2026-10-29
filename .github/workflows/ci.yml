@@ -460,7 +460,6 @@ jobs:
     env:
       DOCKER_HOST: tcp://127.0.0.1:2375
       DOCKER_TLS_CERTDIR: ""
-      F2_SMOKE_PARENT: ${{ runner.temp }}
       F2_GATEWAY_IMAGE: percival-f2-gateway:ci
       F2_BROKER_IMAGE: percival-mcp-broker:ci
     services:
@@ -503,6 +502,8 @@ jobs:
           docker build -t "$F2_GATEWAY_IMAGE" .
           docker build -f Dockerfile.mcp-broker -t "$F2_BROKER_IMAGE" .
       - name: Exercise gateway + sidecar topology, operations and guards
+        env:
+          F2_SMOKE_PARENT: ${{ runner.temp }}
         run: bash scripts/percival-f2-docker-smoke.sh
       - name: Retain daemon diagnostics on failure
         if: failure()
