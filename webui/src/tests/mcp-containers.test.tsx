@@ -435,6 +435,7 @@ describe("MCP container observability page", () => {
       expect.objectContaining({
         server_id: "weather",
         configuration: expect.objectContaining({ mounts: null }),
+        expected_confirmation: "weather",
       }),
       expect.any(Number),
     ));

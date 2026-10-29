@@ -375,6 +375,7 @@ class MCPServerConfig(Base):
     headers: dict[str, str] = Field(default_factory=dict)  # HTTP/SSE: custom headers
     tool_timeout: int = 30  # seconds before a tool call is cancelled
     enabled_tools: list[str] = Field(default_factory=lambda: ["*"])  # Only register these tools; accepts raw MCP names or wrapped mcp_<server>_<tool> names; ["*"] = all capabilities (tools, resources, prompts); any restriction = only listed tools, no resources/prompts
+    allow_resources_prompts: bool = False  # Explicitly expose read-only MCP resources/prompts; managed Docker servers set this only after owner approval.
     strict_tools: bool = False  # send `strict: true` on this server's function schemas; opt-in because strict mode also constrains the schema itself (see Tool.strict)
 
 

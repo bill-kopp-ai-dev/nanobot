@@ -1792,6 +1792,22 @@ async def test_resource_wrapper_execute_handles_error() -> None:
     assert result == "(MCP resource read failed: RuntimeError)"
 
 
+@pytest.mark.asyncio
+async def test_managed_resource_wrapper_rechecks_activation_gate() -> None:
+    calls = 0
+
+    async def read_resource(_uri: str) -> object:
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(contents=[])
+
+    wrapper = _make_resource_wrapper(SimpleNamespace(read_resource=read_resource))
+    wrapper.set_managed_gate(lambda: False)
+    result = await wrapper.execute()
+    assert is_tool_error_result(result)
+    assert calls == 0
+
+
 # ---------------------------------------------------------------------------
 # MCPPromptWrapper tests
 # ---------------------------------------------------------------------------
@@ -1891,6 +1907,22 @@ async def test_prompt_wrapper_execute_handles_error() -> None:
     assert result == "(MCP prompt call failed: RuntimeError)"
 
 
+@pytest.mark.asyncio
+async def test_managed_prompt_wrapper_rechecks_activation_gate() -> None:
+    calls = 0
+
+    async def get_prompt(_name: str, arguments: dict | None = None) -> object:
+        nonlocal calls
+        calls += 1
+        return SimpleNamespace(messages=[])
+
+    wrapper = _make_prompt_wrapper(SimpleNamespace(get_prompt=get_prompt))
+    wrapper.set_managed_gate(lambda: False)
+    result = await wrapper.execute()
+    assert is_tool_error_result(result)
+    assert calls == 0
+
+
 # ---------------------------------------------------------------------------
 # connect_mcp_servers: resources + prompts integration
 # ---------------------------------------------------------------------------
@@ -1959,6 +1991,62 @@ async def test_connect_registers_resources_and_prompts(
     assert "mcp_test_tool_a" in registry.tool_names
     assert "mcp_test_resource_res_b" in registry.tool_names
     assert "mcp_test_prompt_prompt_c" in registry.tool_names
+
+
+@pytest.mark.asyncio
+async def test_connect_can_explicitly_enable_resources_and_prompts_with_tool_allowlist(
+    fake_mcp_runtime: dict[str, object | None],
+) -> None:
+    fake_mcp_runtime["session"] = _make_fake_session_with_capabilities(
+        tool_names=["tool_a", "tool_b"],
+        resource_names=["res_b"],
+        prompt_names=["prompt_c"],
+    )
+    registry = ToolRegistry()
+    stacks = await connect_mcp_servers(
+        {"test": MCPServerConfig(
+            command="fake", enabled_tools=["tool_a"], allow_resources_prompts=True,
+        )},
+        registry,
+    )
+    for stack in stacks.values():
+        await stack.aclose()
+
+    assert registry.tool_names == [
+        "mcp_test_tool_a", "mcp_test_resource_res_b", "mcp_test_prompt_prompt_c",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_connect_skips_capabilities_not_advertised_during_initialize(
+    fake_mcp_runtime: dict[str, object | None],
+) -> None:
+    session = _make_fake_session_with_capabilities(
+        tool_names=["demo"], resource_names=["unused"], prompt_names=["unused"],
+    )
+
+    async def initialize() -> SimpleNamespace:
+        return SimpleNamespace(
+            capabilities=SimpleNamespace(tools={}, resources=None, prompts=None),
+        )
+
+    session.initialize = initialize
+
+    async def unexpected() -> object:
+        raise AssertionError("MCPProvider probed an unadvertised capability")
+
+    session.list_resources = unexpected
+    session.list_prompts = unexpected
+    fake_mcp_runtime["session"] = session
+    registry = ToolRegistry()
+    stacks = await connect_mcp_servers(
+        {"test": MCPServerConfig(command="fake", allow_resources_prompts=True)},
+        registry,
+    )
+    for stack in stacks.values():
+        await stack.aclose()
+
+    assert registry.tool_names == ["mcp_test_demo"]
 
 
 # ---------------------------------------------------------------------------

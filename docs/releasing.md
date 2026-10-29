@@ -76,7 +76,7 @@ The steps below are retained to identify which build and license checks
 must be adapted for selected Linux targets; do not treat the five-platform
 outputs as Percival artifacts.
 
-Use Bun 1.3.13 and a clean checkout. The local build and packaging scripts do not require a
+Use Bun 1.4.4 and a clean checkout. The local build and packaging scripts do not require a
 tag or GitHub Release. Run targets sequentially because native dependency preparation modifies
 the shared `node_modules` directory:
 

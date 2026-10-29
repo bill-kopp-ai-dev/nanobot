@@ -121,7 +121,10 @@ except urllib.error.HTTPError as e:
         assert version == "27.5.1", version
         self.inner_ready = True
         self.record("isolated rootful Docker Server 27.5.1", server=version)
-        for image in (self.args.gateway_image, self.args.broker_image):
+        images = [self.args.gateway_image, self.args.broker_image]
+        if self.args.notes_image:
+            images.append(self.args.notes_image)
+        for image in images:
             # Transfer exact local bytes; no registry login or rebuild in dind.
             archive = self.scratch / "image.tar"
             run(["docker", "save", "-o", str(archive), image])
@@ -130,7 +133,8 @@ except urllib.error.HTTPError as e:
             run(["docker", "exec", self.name, "rm", "-f", "/fixture/image.tar"])
             info = json.loads(self.docker("image", "inspect", image).stdout)[0]
             assert info["Os"] == "linux" and info["Architecture"] == "amd64"
-            assert info["Config"]["Labels"]["org.opencontainers.image.version"] == "0.1.0"
+            if image in (self.args.gateway_image, self.args.broker_image):
+                assert info["Config"]["Labels"]["org.opencontainers.image.version"] == "0.1.0"
             self.ids[image] = info["Id"]
         self.docker("run", "--rm", "--network", "none", "--entrypoint", "python3",
                     self.args.broker_image, "-c", "import nanobot; assert nanobot.__version__ == '0.1.0'")
@@ -424,6 +428,18 @@ async def check():
 asyncio.run(check())
 """
         self.wait(gateway, call)
+        if self.args.notes_image:
+            run(["docker", "exec", self.name, "mkdir", "-p", "/notes-profile-scratch/notes-vault"])
+            run(["docker", "exec", self.name, "chown", "-R", "65532:65532", "/notes-profile-scratch"])
+            notes_driver = (ROOT / "tests/mcp_docker/notes_profile_driver.py").read_text()
+            notes_driver = notes_driver.replace(
+                "from __future__ import annotations\n",
+                "from __future__ import annotations\n"
+                f"import os; os.environ['NOTES_IMAGE_ID']={self.ids[self.args.notes_image]!r}\n",
+                1,
+            )
+            self.exec(gateway, notes_driver)
+            self.record("Notes MCP tools, static resource and prompts through the managed broker")
         # Frozen v1 caller: intentionally does not import today's client/producer.
         self.exec(gateway, f"""
 import json, urllib.request
@@ -482,8 +498,8 @@ except urllib.error.HTTPError as e:
         assert denied.returncode == 1
         self.record("invalid broker token: HTTP 401 and readiness exit 1")
         self.docker("stop", "--time", "10", broker)
-        assert self.inspect(broker)["State"]["ExitCode"] == 143
-        self.record("broker SIGTERM exit 143 (no application drain); owned persistent MCP retained")
+        assert self.inspect(broker)["State"]["ExitCode"] == 0
+        self.record("broker SIGTERM drain exits 0; manager-owned persistent MCP retained")
 
     def root_drop(self):
         self.docker("run", "--rm", "--user", "0:0", "--entrypoint", "mkdir",
@@ -560,6 +576,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gateway-image", required=True)
     parser.add_argument("--broker-image", required=True)
+    parser.add_argument("--notes-image", help="Optional Notes image for managed resources/prompts smoke")
     parser.add_argument("--old-broker-image", help="Optional independently built baseline broker for cross-version replay")
     parser.add_argument("--scratch-parent", type=Path, required=True)
     args = parser.parse_args()

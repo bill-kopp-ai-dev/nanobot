@@ -157,6 +157,38 @@ def test_configure_rejects_missing_mounts(tmp_path: Path) -> None:
     assert domain.config.load().tools.mcp_docker.configurations["alpha"].mounts == ["/srv/data"]
 
 
+def test_configure_requires_server_confirmation_to_widen_access_and_audits_change(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    broker = FakeBroker()
+    domain = DockerMcpService(WebUISettingsConfig(path), broker)
+    domain.act("install", payload("alpha", 0, source={"type": "local-image", "reference": IMAGE},
+                                   configuration={"mounts": ["/srv/data"], "network": "none"}))
+    initial_calls = len(broker.calls)
+
+    for confirmation in (None, "wrong"):
+        extra = {} if confirmation is None else {"expected_confirmation": confirmation}
+        with pytest.raises(DomainError, match="confirmation must equal server_id") as exc:
+            domain.act("configure", payload(
+                "alpha", 1, expected_server_revision=0, **extra,
+                configuration={"mounts": None, "network": "none"},
+            ))
+        assert exc.value.status == 400
+        assert len(broker.calls) == initial_calls
+        assert domain.config.load().tools.mcp_docker.configurations["alpha"].mounts == ["/srv/data"]
+
+    domain.act("configure", payload(
+        "alpha", 1, expected_server_revision=0, expected_confirmation="alpha",
+        configuration={"mounts": None, "network": "none"},
+    ))
+    assert domain.config.load().tools.mcp_docker.configurations["alpha"].mounts is None
+    events = domain.list()["history"]
+    assert any(event.get("scope_change") == "host_mounts_to_full" and event["phase"] == "committed"
+               for event in events)
+    audit = (tmp_path / "mcp-docker" / "audit.jsonl").read_text()
+    assert '"scope_change": "host_mounts_to_full"' in audit
+    assert "/srv/data" not in audit
+
+
 def test_update_image_with_same_identity_is_rejected_for_fresh_server(tmp_path: Path) -> None:
     """After a fresh ``install`` the very first ``update-image`` with the
     same image identity must be rejected so callers cannot trigger a no-op
@@ -672,6 +704,7 @@ def test_managed_server_mapping_and_wrapper_rechecks_gate(tmp_path: Path) -> Non
     managed_name = "percival_docker_weather"
     assert managed_name in servers and "generic" in servers
     assert servers[managed_name].enabled_tools == ["forecast"]
+    assert servers[managed_name].allow_resources_prompts is True
     assert servers[managed_name].headers["Authorization"] == "Bearer " + "t" * 64
 
     allowed = True

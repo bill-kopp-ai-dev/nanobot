@@ -322,6 +322,7 @@ export function McpDockerManagement({
         network,
         env: envObject(envRows),
       },
+      ...(needsBroaderConfirm ? { expected_confirmation: scopeConfirmId } : {}),
     }, { success: t("mcpDocker.configureComplete", { defaultValue: "Host configuration saved; the broker restarted the server when needed." }) });
     if (result) { setDraftDirty(false); setDraftConflict(false); }
   };

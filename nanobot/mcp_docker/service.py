@@ -406,9 +406,14 @@ class DockerMcpService:
                 datetime.fromisoformat(at)
             except ValueError:
                 continue
-            events.append({"at": at, "action": action, "server_id": server_id,
-                           "phase": phase, "revision": revision,
-                           "correlation_id": correlation_id})
+            event = {"at": at, "action": action, "server_id": server_id,
+                     "phase": phase, "revision": revision,
+                     "correlation_id": correlation_id}
+            scope_change = raw_event.get("scope_change")
+            if scope_change in {"host_mounts_to_full", "network_none_to_bridge",
+                                "host_mounts_to_full+network_none_to_bridge"}:
+                event["scope_change"] = scope_change
+            events.append(event)
         return list(reversed(events))
 
     def _backup(self, config: Config, server_id: str, action: str) -> Path:
@@ -436,21 +441,27 @@ class DockerMcpService:
             os.fsync(handle.fileno())
         return folder
 
-    def _audit(self, action: str, server_id: str, phase: str, revision: int, correlation_id: str) -> None:
+    def _audit(
+        self, action: str, server_id: str, phase: str, revision: int,
+        correlation_id: str, *, scope_change: str | None = None,
+    ) -> None:
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         path = self.root / "audit.jsonl"
         fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
         with os.fdopen(fd, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps({"at": datetime.now(UTC).isoformat(), "action": action,
-                                     "server_id": server_id, "phase": phase,
-                                     "revision": revision, "correlation_id": correlation_id}) + "\n")
+            event = {"at": datetime.now(UTC).isoformat(), "action": action,
+                     "server_id": server_id, "phase": phase,
+                     "revision": revision, "correlation_id": correlation_id}
+            if scope_change is not None:
+                event["scope_change"] = scope_change
+            handle.write(json.dumps(event) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
 
     def act(self, action: str, payload: dict[str, Any]) -> dict[str, Any]:
         allowed: dict[str, set[str]] = {
             "install": {"source", "configuration"},
-            "configure": {"configuration"},
+            "configure": {"configuration", "expected_confirmation"},
             "disable-tool": {"tool"}, "enable-tool": {"tool"},
             "activate": set(), "deactivate": set(),
             "update-image": {"source"}, "restart": set(),
@@ -515,6 +526,16 @@ class DockerMcpService:
                 host = self._host(payload["configuration"], section.configurations.get(server_id)) if action in {"install", "configure"} else None
             except (ValidationError, KeyError, ValueError) as exc:
                 raise DomainError(400, "invalid image or host configuration") from exc
+            scope_changes: list[str] = []
+            if action == "configure" and current is not None and host is not None:
+                previous_host = section.configurations[server_id]
+                if previous_host.mounts is not None and host.mounts is None:
+                    scope_changes.append("host_mounts_to_full")
+                if previous_host.network == "none" and host.network == "bridge":
+                    scope_changes.append("network_none_to_bridge")
+                if scope_changes and payload.get("expected_confirmation") != server_id:
+                    raise DomainError(400, "confirmation must equal server_id when increasing host or network access")
+            scope_change = "+".join(scope_changes) if scope_changes else None
             if action == "update-image" and current and source == current.source:
                 raise DomainError(409, "image identity is unchanged")
             tool = payload.get("tool")
@@ -537,7 +558,8 @@ class DockerMcpService:
                 "started_at": datetime.now(UTC).isoformat(),
             }
             self._write_transition(server_id, journal)
-            self._audit(action, server_id, "started", section.revision, correlation_id)
+            self._audit(action, server_id, "started", section.revision, correlation_id,
+                        scope_change=scope_change)
             old_source = current.source.model_dump(mode="json") if current else None
             broker_succeeded = False
             try:
@@ -615,13 +637,16 @@ class DockerMcpService:
                             "source": old_source,
                         })
                     except Exception:
-                        self._audit(action, server_id, "compensation-failed", section.revision, correlation_id)
+                        self._audit(action, server_id, "compensation-failed", section.revision,
+                                    correlation_id, scope_change=scope_change)
                 if action == "install" and broker_succeeded:
                     try:
                         self.broker.action("exclude", server_id, {"expected_confirmation": server_id})
                     except Exception:
-                        self._audit(action, server_id, "compensation-failed", section.revision, correlation_id)
-                self._audit(action, server_id, "failed", section.revision, correlation_id)
+                        self._audit(action, server_id, "compensation-failed", section.revision,
+                                    correlation_id, scope_change=scope_change)
+                self._audit(action, server_id, "failed", section.revision, correlation_id,
+                            scope_change=scope_change)
                 try:
                     recovered = self._recover_transition(server_id, journal, section.revision)
                 except Exception:
@@ -633,7 +658,8 @@ class DockerMcpService:
                 )
                 self._write_transition(server_id, journal)
                 raise
-            self._audit(action, server_id, "committed", section.revision, correlation_id)
+            self._audit(action, server_id, "committed", section.revision, correlation_id,
+                        scope_change=scope_change)
             journal.update(state="committed", committed_revision=section.revision,
                            finished_at=datetime.now(UTC).isoformat())
             self._write_transition(server_id, journal)

@@ -20,9 +20,13 @@ As ações imediatas são:
 3. C01/C03: conteúdo aprovado por Bill em 2026-10-29 na revisão IaC
    `bf9c25201453f1f9c89b9a49030def4b2a053599`; vincular essa revisão aos consumidores.
 4. A-011: Bill já é o responsável pela IaC; não há nomeação ou handoff adicional.
-   Resta implementar e provar o preflight técnico.
-5. Confirmar onde está o checkout/repositório canônico `pblabs-mcp-index` e quem o
-   mantém, pois as fontes consultadas não deixam o estado atual inequívoco.
+    Resta implementar e provar o preflight técnico.
+ 5. C02 foi aprovado por Bill em 2026-10-29. A-010 passou localmente em DinD
+   descartável Engine 27.5.1, incluindo Notes `resources/list/read` e
+   `prompts/list/get`, chamadas concorrentes e cleanup do manager. Ainda faltam
+   candidato limpo/CI remoto; isso não aprova runtime, piloto ou release.
+6. Bill decidiu deferir o índice `pblabs-mcp-index` até identificar seu owner/path.
+   Não criar repo nem escolher uma cópia por inferência.
 
 Não compartilhe senhas, tokens, chaves, valores de secrets ou arquivos de credencial
 no chat, neste guia ou nos artefatos de CI. Configure acesso somente pelo mecanismo
@@ -185,17 +189,21 @@ a aprovação do texto.
 3. A aprovação dos documentos não equivale à implementação/validação dos schemas,
    à adoção por um deployment ou à autorização para publicar, implantar ou mutar
    runtime.
-4. Confirme o owner e a localização atual de `pblabs-mcp-index`. Os documentos
-   consultados divergem sobre sua existência. Se não houver checkout, indique quem
-   o criará e onde; criação de repositório remoto é ação separada e precisa de
-   autorização própria.
-5. Para S2-C02, confirme com a coordenação IaC em qual repositório ficará o ADR do
-   executor/transporte. A receita do broker está definida por R-02/R-10; o ADR deve descrever a
-   arquitetura existente e suas fronteiras, não inventar outro broker.
+4. Bill decidiu deferir o índice até haver evidência do owner/path. “Checkout
+   canônico” significa a única cópia Git/repo designada como fonte de verdade para
+   manifests e schemas, com owner e revisão rastreáveis; `~/.nanobot` é estado/runtime
+   (verificado como não Git), não o índice. `~/Projects/pblabs-mcp-index` não existe
+   localmente. Não criar repo remoto sem autorização própria.
+5. **Destino C02 escolhido por Bill em 2026-10-29:** IaC `docs/decisions/`.
+   Bill aprovou em conteúdo o ADR
+   `docs/decisions/2026-10-29-iac-c02-percival-executor-transport.md` (revision
+   0.2-approved), incluindo implementar resources/prompts na bridge Notes. O arquivo
+   ainda não tem SHA commitado para vínculo imutável e aprovação não equivale a adoção
+   em deployment nem autorização operacional.
 
-**Aceite para a pendência:** aprovação de conteúdo registrada e revisão local
-identificada (concluídos); SHA vinculado ao teste do consumidor. A aprovação
-registrada aqui não substitui essa evidência nem os gates de implementação.
+**Aceite para a pendência:** C02 está aprovado; após obter commit SHA, vinculá-lo ao
+Percival e ao consumidor. Executar testes de capabilities no candidato limpo e CI
+autenticado. A aprovação não substitui essa evidência nem os gates de implementação.
 
 ## 4. A-011 — preflight implementado pelo owner da IaC
 
@@ -207,11 +215,22 @@ fornece fixture/teste de consumidor; a IaC é dona do preflight do bundle/instal
 ### Estado e execução
 
 Bill é o responsável pelos projetos e pela IaC; não há nomeação nem handoff
-adicional a fazer. Na inspeção dos checkouts em 2026-10-29, não foi encontrado
-script ou teste executável de preflight na IaC, nem uma fixture consumidora
-específica de A-011 no Percival. **Portanto, ainda não há comando para executar
-este teste.** Primeiro é preciso implementar a proteção na IaC e a fixture/teste
-de contrato no Percival.
+adicional a fazer. Na inspeção read-only em 2026-10-29, a árvore da IaC contém
+documentação e evidências, mas não contém `scripts/`, `bootstrap/`, `compose/` ou
+`tests/` executáveis de preflight. O `AGENTS.md` da IaC descreve esses diretórios
+como estrutura recomendada, não como implementação presente; também adverte que o
+workspace local não deve ser presumido como o repositório público `pblabs-iac`.
+Não foi encontrada fixture consumidora específica de A-011 no Percival. **Ainda
+não há comando para executar este teste.**
+
+Antes de implementar, fechar em uma especificação curta dois detalhes técnicos que
+determinam o desenho correto: (a) identidade do daemon Docker, para que nomes de
+projeto Compose distintos não contornem a detecção; (b) coordenação atômica e
+durável entre processos concorrentes, de modo que uma recusa ocorra antes de
+qualquer escrita/ação no daemon. O preflight deve falhar fechado se não puder
+estabelecer essas propriedades. Esta restrição de instalação única vale para o
+aceite A-011 desta campanha; não altera por si só a arquitetura geral, que prevê
+segregação de instalações onde suportada.
 
 Quando esses artefatos existirem, execute-os somente em fixture descartável ou
 ambiente isolado, nunca contra o daemon/runtime real. A validação deve demonstrar:
@@ -223,6 +242,10 @@ ambiente isolado, nunca contra o daemon/runtime real. A validação deve demonst
    mutar.
 4. Alterar o nome do projeto Compose não contorna a recusa.
 5. O estado da fixture antes e depois de cada tentativa recusada é idêntico.
+
+Adicione também uma prova de corrida: iniciar duas tentativas em paralelo no daemon
+descartável e demonstrar que exatamente uma adquire o direito de mutar, enquanto a
+outra recusa antes da primeira mutação.
 
 Depois da implementação, use o comando canônico que os repositórios documentarem
 para rodar a fixture e os testes do preflight. Registre os SHAs de ambos os

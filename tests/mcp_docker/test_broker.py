@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import http.server
 import json
+import threading
+import urllib.error
 import uuid
 from io import StringIO
+from urllib.request import Request, urlopen
 
 import pytest
 from loguru import logger
@@ -31,6 +35,75 @@ def test_container_lookup_distinguishes_absent_from_engine_offline(monkeypatch: 
     with pytest.raises(broker.BrokerError) as failure:
         broker._inspect("weather")
     assert failure.value.status == 503
+
+
+def test_mcp_responses_must_match_their_request_id() -> None:
+    broker._validate_mcp_response_id({"id": 41}, {"id": 41, "result": {}})
+    with pytest.raises(broker.BrokerError, match="response ID mismatch"):
+        broker._validate_mcp_response_id({"id": 41}, {"id": 42, "result": {}})
+
+
+@pytest.mark.parametrize(
+    ("failure", "message"),
+    [("timeout", "response timed out"), ("eof", "closed transport")],
+)
+def test_mcp_attach_is_reaped_after_eof_or_timeout(
+    monkeypatch: pytest.MonkeyPatch, failure: str, message: str,
+) -> None:
+    class Input:
+        closed = False
+
+        def write(self, _value: str) -> None:
+            return None
+
+        def flush(self) -> None:
+            return None
+
+        def close(self) -> None:
+            self.closed = True
+
+    class Output:
+        reads = 0
+
+        def readline(self) -> bytes:
+            self.reads += 1
+            if self.reads == 1:
+                return b'{"jsonrpc":"2.0","id":-1,"result":{"capabilities":{}}}\n'
+            return b""
+
+    class Process:
+        def __init__(self) -> None:
+            self.stdin = Input()
+            self.stdout = Output()
+            self.killed = False
+            self.waited = False
+
+        def kill(self) -> None:
+            self.killed = True
+
+        def wait(self, *, timeout: int) -> int:
+            assert timeout == 5
+            self.waited = True
+            return 0
+
+    process = Process()
+    monkeypatch.setattr(broker, "_running", lambda _server_id: True)
+    monkeypatch.setattr(broker.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    select_calls = 0
+
+    def select(readers: list[object], _writers: list[object], _errors: list[object], _timeout: int):
+        nonlocal select_calls
+        select_calls += 1
+        if select_calls == 1 or failure == "eof":
+            return readers, [], []
+        return [], [], []
+
+    monkeypatch.setattr(broker.select, "select", select)
+    with pytest.raises(broker.BrokerError, match=message):
+        broker._exchange("notes", {"jsonrpc": "2.0", "id": 8, "method": "tools/list"})
+
+    assert process.killed and process.waited and process.stdin.closed
+    assert select_calls == 2
 
 
 @pytest.mark.parametrize(("label", "value"), [
@@ -101,6 +174,155 @@ async def test_operational_logs_never_include_tool_arguments() -> None:
 
 async def _discard_event(_event: AgentEvent) -> None:
     return None
+
+
+def test_discovery_paginates_and_stores_resources_and_prompts(monkeypatch: pytest.MonkeyPatch) -> None:
+    server = broker.ManagedServer(
+        "notes",
+        broker.DockerImageSource(type="local-image", reference="sha256:" + "a" * 64),
+        broker.DockerHostConfig(),
+    )
+    monkeypatch.setattr(broker, "_STORE", {"notes": server})
+    calls: list[tuple[str, object]] = []
+
+    def exchange(_server_id: str, payload: dict[str, object]) -> dict[str, object]:
+        method = str(payload["method"])
+        params = payload.get("params", {})
+        cursor = params.get("cursor") if isinstance(params, dict) else None
+        calls.append((method, cursor))
+        if method == "resources/list":
+            if cursor is None:
+                return {"result": {
+                    "resources": [{"uri": "notes://guide/one"}], "nextCursor": "page-2",
+                }}
+            return {"result": {"resources": [{"uri": "notes://guide/two"}]}}
+        if method == "prompts/list":
+            return {"result": {"prompts": [{"name": "notes_create_concept"}]}}
+        raise AssertionError(method)
+
+    monkeypatch.setattr(broker, "_exchange", exchange)
+
+    def exchange_tools_with_handshake(
+        _server_id: str, payload: dict[str, object],
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        assert payload["method"] == "tools/list"
+        return (
+            {"result": {"capabilities": {"resources": {}, "prompts": {}}}},
+            {"result": {"tools": [{"name": "notes_read"}]}},
+        )
+
+    monkeypatch.setattr(broker, "_exchange_with_handshake", exchange_tools_with_handshake)
+
+    assert broker._discover("notes") == ["notes_read"]
+    assert server.resources == ["notes://guide/one", "notes://guide/two"]
+    assert server.prompts == ["notes_create_concept"]
+    assert server.resources_supported is True
+    assert server.prompts_supported is True
+    assert calls == [
+        ("resources/list", None),
+        ("resources/list", "page-2"),
+        ("prompts/list", None),
+    ]
+
+
+def test_discovery_does_not_probe_unadvertised_optional_capabilities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = broker.ManagedServer(
+        "fixture",
+        broker.DockerImageSource(type="local-image", reference="sha256:" + "a" * 64),
+        broker.DockerHostConfig(),
+    )
+    monkeypatch.setattr(broker, "_STORE", {"fixture": server})
+    calls: list[str] = []
+
+    def exchange_with_handshake(
+        _server_id: str, payload: dict[str, object],
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        method = str(payload["method"])
+        calls.append(method)
+        if method == "tools/list":
+            return (
+                {"result": {"capabilities": {"tools": {}}}},
+                {"result": {"tools": [{"name": "ping"}]}},
+            )
+        raise AssertionError(f"unadvertised method was probed: {method}")
+
+    monkeypatch.setattr(broker, "_exchange_with_handshake", exchange_with_handshake)
+
+    assert broker._discover("fixture") == ["ping"]
+    assert calls == ["tools/list"]
+    assert server.resources_supported is False
+    assert server.prompts_supported is False
+
+
+def test_broker_routes_only_discovered_resource_and_prompt_capabilities(
+    tmp_path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token_file = tmp_path / "token"
+    token_file.write_text("t" * 64)
+    token_file.chmod(0o600)
+    monkeypatch.setenv("PERCIVAL_BROKER_TOKEN_FILE", str(token_file))
+    monkeypatch.setattr(broker, "_running", lambda _server_id: True)
+    server = broker.ManagedServer(
+        "notes",
+        broker.DockerImageSource(type="local-image", reference="sha256:" + "a" * 64),
+        broker.DockerHostConfig(),
+    )
+    server.resources = ["notes://guide/okf-v0.2"]
+    server.prompts = ["notes_create_concept"]
+    server.resources_supported = True
+    server.prompts_supported = True
+    monkeypatch.setattr(broker, "_STORE", {"notes": server})
+
+    def exchange(_server_id: str, payload: dict[str, object]) -> dict[str, object]:
+        method = payload["method"]
+        if method == "resources/list":
+            return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"resources": [
+                {"uri": "notes://guide/okf-v0.2"}, {"uri": "notes://hidden"},
+            ]}}
+        if method == "prompts/list":
+            return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"prompts": [
+                {"name": "notes_create_concept"}, {"name": "hidden_prompt"},
+            ]}}
+        return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"contents": []}}
+
+    monkeypatch.setattr(broker, "_exchange", exchange)
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), broker.Handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        headers = {"Authorization": "Bearer " + "t" * 64}
+
+        def post(method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+            request = Request(
+                f"http://127.0.0.1:{httpd.server_port}/mcp/notes",
+                data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}).encode(),
+                headers=headers,
+                method="POST",
+            )
+            with urlopen(request, timeout=3) as response:
+                return json.loads(response.read())
+
+        assert post("resources/list")["result"]["resources"] == [
+            {"uri": "notes://guide/okf-v0.2"},
+        ]
+        assert post("prompts/list")["result"]["prompts"] == [
+            {"name": "notes_create_concept"},
+        ]
+        post("resources/read", {"uri": "notes://guide/okf-v0.2"})
+        post("prompts/get", {"name": "notes_create_concept", "arguments": {"topic": "test"}})
+        for method, params, expected_error in (
+            ("resources/read", {"uri": "notes://hidden"}, "resource unavailable"),
+            ("prompts/get", {"name": "hidden_prompt"}, "prompt unavailable"),
+        ):
+            with pytest.raises(urllib.error.HTTPError) as denied:
+                post(method, params)
+            assert json.loads(denied.value.read())["error"] == expected_error
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=2)
 
 
 def test_actions_check_readiness_and_exclusion_confirmation(monkeypatch: pytest.MonkeyPatch) -> None:

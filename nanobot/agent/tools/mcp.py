@@ -795,6 +795,10 @@ class MCPResourceWrapper(_MCPWrapperBase):
             "required": [],
         }
         self._resource_timeout = resource_timeout
+        self._managed_gate: Callable[[], bool] | None = None
+
+    def set_managed_gate(self, gate: Callable[[], bool]) -> None:
+        self._managed_gate = gate
 
     @property
     def name(self) -> str:
@@ -818,6 +822,8 @@ class MCPResourceWrapper(_MCPWrapperBase):
         retried_transient = False
         refreshed_session = False
         while True:
+            if self._managed_gate is not None and not self._managed_gate():
+                return ToolResult.error("(Managed Docker MCP resource is unavailable)")
             try:
                 result = await asyncio.wait_for(
                     self._session.read_resource(self._uri),
@@ -897,6 +903,7 @@ class MCPPromptWrapper(_MCPWrapperBase):
             "Returns a filled prompt template that can be used as a workflow guide."
         )
         self._prompt_timeout = prompt_timeout
+        self._managed_gate: Callable[[], bool] | None = None
 
         # Build parameters from prompt arguments
         properties: dict[str, Any] = {}
@@ -913,6 +920,9 @@ class MCPPromptWrapper(_MCPWrapperBase):
             "properties": properties,
             "required": required,
         }
+
+    def set_managed_gate(self, gate: Callable[[], bool]) -> None:
+        self._managed_gate = gate
 
     @property
     def name(self) -> str:
@@ -937,6 +947,8 @@ class MCPPromptWrapper(_MCPWrapperBase):
         retried_transient = False
         refreshed_session = False
         while True:
+            if self._managed_gate is not None and not self._managed_gate():
+                return ToolResult.error("(Managed Docker MCP prompt is unavailable)")
             try:
                 result = await asyncio.wait_for(
                     self._session.get_prompt(self._prompt_name, arguments=kwargs),
@@ -1172,7 +1184,49 @@ async def connect_mcp_servers(
 
             read = _filter_malformed_mcp_progress_notifications(read, name)
             session = await server_stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
+            initialize_result = await session.initialize()
+            server_capabilities = getattr(initialize_result, "capabilities", None)
+            supports_resources = (
+                server_capabilities is None
+                or getattr(server_capabilities, "resources", None) is not None
+            )
+            supports_prompts = (
+                server_capabilities is None
+                or getattr(server_capabilities, "prompts", None) is not None
+            )
+
+            def managed_server_active(expected_source: str) -> bool:
+                if managed_spec is None:
+                    return True
+                config_path, server_id = managed_spec
+                try:
+                    from nanobot.config.loader import load_config
+
+                    section = load_config(config_path).tools.mcp_docker
+                    current = section.servers.get(server_id)
+                    return bool(
+                        _mcp_docker_transition_resolved(config_path, server_id)
+                        and current is not None
+                        and current.active
+                        and current.state == "running"
+                        and current.source.reference == expected_source
+                    )
+                except Exception:
+                    return False
+
+            async def collect_pages(method: Callable[..., Awaitable[Any]], key: str) -> list[Any]:
+                page = await method()
+                entries = list(getattr(page, key, []) or [])
+                seen_cursors: set[str] = set()
+                cursor = getattr(page, "nextCursor", None)
+                while cursor is not None:
+                    if cursor in seen_cursors:
+                        raise ValueError(f"MCP {key} returned a repeated pagination cursor")
+                    seen_cursors.add(cursor)
+                    page = await method(params=types.PaginatedRequestParams(cursor=cursor))
+                    entries.extend(getattr(page, key, []) or [])
+                    cursor = getattr(page, "nextCursor", None)
+                return entries
 
             # Finish discovery before registering tools so a failed page leaves no partial set.
             page = await session.list_tools()
@@ -1227,14 +1281,10 @@ async def connect_mcp_servers(
                         source: str = expected_source,
                     ) -> bool:
                         try:
-                            section = load_config(config_path).tools.mcp_docker
-                            current = section.servers.get(server_id)
+                            current = load_config(config_path).tools.mcp_docker.servers.get(server_id)
                             return bool(
-                                _mcp_docker_transition_resolved(config_path, server_id)
+                                managed_server_active(source)
                                 and current is not None
-                                and current.active
-                                and current.state == "running"
-                                and current.source.reference == source
                                 and raw_name in current.tools
                                 and raw_name not in current.tools_disabled
                             )
@@ -1272,22 +1322,36 @@ async def connect_mcp_servers(
                         ", ".join(available_wrapped_names) or "(none)",
                     )
 
-            # Only register resources and prompts when no tool restriction is
-            # active.  enabledTools is a per-*tool* allowlist; resources and
-            # prompts have no equivalent name filter, so they must be skipped
-            # whenever the operator specified a tool subset.  An empty list
-            # (deny-all) or a list of specific tool names both indicate that
-            # the operator intended to restrict capabilities — registering
-            # unrestricted resource/prompt wrappers would violate that intent.
-            # The default ["*"] (allow-all) means no restriction was intended.
-            register_extras = allow_all_tools and managed_spec is None
+            # Resources/prompts are separately enabled for managed servers; the
+            # tool allowlist remains independent. Never probe a capability the
+            # server did not advertise during initialize.
+            register_extras = allow_all_tools or cfg.allow_resources_prompts
             if register_extras:
+                managed_source: str | None = None
+                if managed_spec is not None:
+                    from nanobot.config.loader import load_config
+
+                    _config_path, managed_server_id = managed_spec
+                    initial_server = load_config(_config_path).tools.mcp_docker.servers.get(
+                        managed_server_id
+                    )
+                    if initial_server is None:
+                        raise ValueError("managed MCP server is no longer configured")
+                    managed_source = initial_server.source.reference
                 try:
-                    resources_result = await session.list_resources()
-                    for resource in resources_result.resources:
+                    resources = (
+                        await collect_pages(session.list_resources, "resources")
+                        if supports_resources else []
+                    )
+                    for resource in resources:
                         wrapper = MCPResourceWrapper(
                             session, name, resource, resource_timeout=cfg.tool_timeout
                         )
+                        if managed_source is not None:
+                            wrapper.set_managed_gate(
+                                lambda source=managed_source:
+                                managed_server_active(source)
+                            )
                         registry.register(wrapper)
                         registered_count += 1
                         logger.debug(
@@ -1301,11 +1365,19 @@ async def connect_mcp_servers(
                     )
 
                 try:
-                    prompts_result = await session.list_prompts()
-                    for prompt in prompts_result.prompts:
+                    prompts = (
+                        await collect_pages(session.list_prompts, "prompts")
+                        if supports_prompts else []
+                    )
+                    for prompt in prompts:
                         wrapper = MCPPromptWrapper(
                             session, name, prompt, prompt_timeout=cfg.tool_timeout
                         )
+                        if managed_source is not None:
+                            wrapper.set_managed_gate(
+                                lambda source=managed_source:
+                                managed_server_active(source)
+                            )
                         registry.register(wrapper)
                         registered_count += 1
                         logger.debug(
@@ -1320,7 +1392,7 @@ async def connect_mcp_servers(
             else:
                 logger.info(
                     "MCP server '{}': skipping resource/prompt registration "
-                    "(enabledTools does not include '*' — only tools allowed)",
+                    "(not explicitly enabled)",
                     name,
                 )
 
@@ -1449,6 +1521,7 @@ def _configured_servers(config: Config) -> dict[str, MCPServerConfig]:
             type="streamableHttp", url=f"http://127.0.0.1:18081/mcp/{server_id}",
             headers={"Authorization": f"Bearer {token}", "X-Percival-Revision": str(server.revision)},
             enabled_tools=[raw for raw in server.tools if raw not in server.tools_disabled],
+            allow_resources_prompts=True,
         )
     return servers
 

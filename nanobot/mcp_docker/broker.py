@@ -13,8 +13,10 @@ import json
 import os
 import re
 import select
+import signal
 import subprocess
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any, cast
@@ -29,7 +31,10 @@ PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
                    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
                    "hydrate", "status", "observe", "health"})
-MCP = frozenset({"initialize", "notifications/initialized", "tools/list", "tools/call"})
+MCP = frozenset({
+    "initialize", "notifications/initialized", "tools/list", "tools/call",
+    "resources/list", "resources/read", "prompts/list", "prompts/get",
+})
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
 
@@ -168,6 +173,11 @@ def _running(server_id: str) -> bool:
     return bool(isinstance(state, dict) and cast(dict[str, object], state).get("Running") is True)
 
 
+def _validate_mcp_response_id(request: dict[str, Any], response: dict[str, Any]) -> None:
+    if "id" in request and response.get("id") != request["id"]:
+        raise BrokerError("MCP response ID mismatch", 503)
+
+
 def _remove(server_id: str) -> None:
     if _inspect(server_id) is not None:
         docker("rm", "-f", _name(server_id))  # never -v
@@ -295,7 +305,9 @@ def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
         raise BrokerError("MCP container did not start", 503)
 
 
-def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
+def _exchange_with_handshake(
+    server_id: str, request: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
     if not _running(server_id):
         raise BrokerError("server not running")
     proc = subprocess.Popen([DOCKER, "attach", "--sig-proxy=false", _name(server_id)],
@@ -316,7 +328,9 @@ def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
         data: object = json.loads(raw)
         if not isinstance(data, dict):
             raise BrokerError("MCP response malformed")
-        return cast(dict[str, Any], data)
+        response = cast(dict[str, Any], data)
+        _validate_mcp_response_id(message, response)
+        return response
 
     try:
         handshake = send({"jsonrpc": "2.0", "id": -1, "method": "initialize", "params": {
@@ -328,9 +342,11 @@ def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
         assert proc.stdin is not None
         proc.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
         proc.stdin.flush()
-        if request["method"] == "initialize":
-            return {"jsonrpc": "2.0", "id": request.get("id"), "result": handshake["result"]}
-        return send(request)
+        response = (
+            {"jsonrpc": "2.0", "id": request.get("id"), "result": handshake["result"]}
+            if request["method"] == "initialize" else send(request)
+        )
+        return handshake, response
     except (OSError, ValueError) as exc:
         raise BrokerError("MCP transport failed", 503) from exc
     finally:
@@ -340,13 +356,73 @@ def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
         proc.wait(timeout=5)
 
 
+def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    _handshake, response = _exchange_with_handshake(server_id, request)
+    return response
+
+
 def _discover(server_id: str) -> list[str]:
-    response = _exchange(server_id, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+    handshake, response = _exchange_with_handshake(server_id, {
+        "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
+    })
+    handshake_result = handshake.get("result")
+    capabilities = (
+        cast(dict[str, object], handshake_result).get("capabilities")
+        if isinstance(handshake_result, dict) else None
+    )
+    capability_map = cast(dict[str, object], capabilities) if isinstance(capabilities, dict) else {}
+    supports_resources = isinstance(capability_map.get("resources"), dict)
+    supports_prompts = isinstance(capability_map.get("prompts"), dict)
     result = response.get("result")
     tools: object = cast(dict[str, object], result).get("tools") if isinstance(result, dict) else None
     if not isinstance(tools, list) or not tools or any(not isinstance(item, dict) or not isinstance(cast(dict[str, object], item).get("name"), str) for item in cast(list[object], tools)):
         raise BrokerError("MCP tools/list returned no valid tools")
-    return [str(cast(dict[str, object], item)["name"]) for item in cast(list[object], tools)]
+    names = [str(cast(dict[str, object], item)["name"]) for item in cast(list[object], tools)]
+    with _LOCK:
+        server = _STORE.get(server_id)
+    if server is not None:
+        server.resources_supported = supports_resources
+        server.prompts_supported = supports_prompts
+        server.resources = (
+            _discover_collection(server_id, "resources/list", "resources", "uri")
+            if supports_resources else []
+        )
+        server.prompts = (
+            _discover_collection(server_id, "prompts/list", "prompts", "name")
+            if supports_prompts else []
+        )
+    return names
+
+
+def _discover_collection(server_id: str, method: str, field: str, name_field: str) -> list[str]:
+    values: list[str] = []
+    cursor: str | None = None
+    seen_cursors: set[str] = set()
+    while True:
+        params = {"cursor": cursor} if cursor is not None else {}
+        try:
+            response = _exchange(server_id, {
+                "jsonrpc": "2.0", "id": 3, "method": method, "params": params,
+            })
+        except BrokerError:
+            break  # A tool-only server may close the stdio stream on unknown methods.
+        result = response.get("result")
+        entries = cast(dict[str, object], result).get(field) if isinstance(result, dict) else None
+        if not isinstance(entries, list):
+            break  # The server does not implement this optional MCP capability.
+        for entry in cast(list[object], entries):
+            if isinstance(entry, dict):
+                name = cast(dict[str, object], entry).get(name_field)
+                if isinstance(name, str) and name:
+                    values.append(name)
+        next_cursor = cast(dict[str, object], result).get("nextCursor") if isinstance(result, dict) else None
+        if next_cursor is None:
+            break
+        if not isinstance(next_cursor, str) or next_cursor in seen_cursors:
+            raise BrokerError(f"MCP {method} returned an invalid pagination cursor")
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+    return values
 
 
 def _observe(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -408,6 +484,10 @@ class ManagedServer:
         self.active = True
         self.disabled: set[str] = set()
         self.tools: list[str] = []
+        self.resources: list[str] = []
+        self.prompts: list[str] = []
+        self.resources_supported = False
+        self.prompts_supported = False
         self.lock = threading.RLock()
 
 
@@ -691,16 +771,86 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         name = cast(dict[str, object], params).get("name") if isinstance(params, dict) else None
                         if not isinstance(name, str) or name in server.disabled or name not in server.tools:
                             raise BrokerError("tool unavailable")
+                    elif method == "resources/list" and not server.resources_supported:
+                        raise BrokerError("resources unavailable")
+                    elif method == "resources/read":
+                        params = payload.get("params")
+                        uri = cast(dict[str, object], params).get("uri") if isinstance(params, dict) else None
+                        if not server.resources_supported or not isinstance(uri, str) or uri not in server.resources:
+                            raise BrokerError("resource unavailable")
+                    elif method == "prompts/list" and not server.prompts_supported:
+                        raise BrokerError("prompts unavailable")
+                    elif method == "prompts/get":
+                        params = payload.get("params")
+                        name = cast(dict[str, object], params).get("name") if isinstance(params, dict) else None
+                        if not server.prompts_supported or not isinstance(name, str) or name not in server.prompts:
+                            raise BrokerError("prompt unavailable")
                     result = _exchange(server_id, payload)
                     if method == "tools/list" and isinstance(result.get("result"), dict):
                         listed = result["result"].get("tools", [])
                         result["result"]["tools"] = [t for t in listed if isinstance(t, dict) and cast(dict[str, object], t).get("name") not in server.disabled]
+                    elif method == "resources/list" and isinstance(result.get("result"), dict):
+                        listed = result["result"].get("resources", [])
+                        result["result"]["resources"] = [
+                            item for item in listed if isinstance(item, dict)
+                            and cast(dict[str, object], item).get("uri") in server.resources
+                        ]
+                    elif method == "prompts/list" and isinstance(result.get("result"), dict):
+                        listed = result["result"].get("prompts", [])
+                        result["result"]["prompts"] = [
+                            item for item in listed if isinstance(item, dict)
+                            and cast(dict[str, object], item).get("name") in server.prompts
+                        ]
             else:
                 raise BrokerError("not found", 404)
             self.send_json(200, result)
         except (BrokerError, ValueError, TypeError, KeyError, OSError) as exc:
             error = exc if isinstance(exc, BrokerError) else BrokerError("invalid broker request", 400)
             self.send_json(error.status, {"error": str(error)})
+
+
+class DrainingThreadingHTTPServer(http.server.ThreadingHTTPServer):
+    """Stop accepting requests, then bound the wait for active handlers."""
+
+    daemon_threads = True
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._drain_condition = threading.Condition()
+        self._active_requests = 0
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        with self._drain_condition:
+            self._active_requests += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._finish_request()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._finish_request()
+
+    def _finish_request(self) -> None:
+        with self._drain_condition:
+            self._active_requests -= 1
+            self._drain_condition.notify_all()
+
+    def wait_for_drain(self, timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        with self._drain_condition:
+            while self._active_requests:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._drain_condition.wait(remaining)
+            return True
+
+
+SHUTDOWN_DRAIN_SECONDS = 25
 
 
 def main() -> None:
@@ -712,9 +862,28 @@ def main() -> None:
     if not Path(os.environ["PERCIVAL_BROKER_TOKEN_FILE"]).is_file():
         raise SystemExit("broker token unavailable")
     ready()
-    service = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    service = DrainingThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print("percival mcp broker ready", flush=True)
-    service.serve_forever()
+    stopping = threading.Event()
+
+    def request_shutdown(_signum: int, _frame: Any) -> None:
+        if stopping.is_set():
+            return
+        stopping.set()
+        print(f"broker shutdown requested; draining for up to {SHUTDOWN_DRAIN_SECONDS}s", flush=True)
+        # BaseServer.shutdown() must run on a thread other than serve_forever().
+        threading.Thread(target=service.shutdown, name="broker-shutdown", daemon=True).start()
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
+    try:
+        service.serve_forever()
+        drained = service.wait_for_drain(SHUTDOWN_DRAIN_SECONDS)
+        print("broker requests drained" if drained else "broker drain deadline exceeded", flush=True)
+    finally:
+        service.server_close()
+    if not drained:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

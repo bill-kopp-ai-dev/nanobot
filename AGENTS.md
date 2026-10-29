@@ -22,13 +22,13 @@ as described below. Read the [project governance
 decision](docs/percival-governance.md) before sync, contribution, CI or
 publication work.
 
-I1's [open IaC decision](docs/Decisions/2026-10-23-open-iac-contracts.md) fixes the
-current GitHub owner as `bill-kopp-ai-dev`, future owner as `p-bean-labs`, and Docker
-Hub namespace as `pbeanlabs` (operator-confirmed; publication access not yet verified).
-The private development remote stays `bill-kopp-ai-dev/nanobot`; the separately reviewed
-public source repository is named `percival`. Account migration and public disclosure
-are separate actions. Read the [contract handoff](docs/iac-p0-contract-handoff.md) for
-owners, schemas, source snapshots and downstream implementation gates.
+The prior I1 ADR and historical plan/report files were removed from this checkout
+by the operator's 2026-10-29 documentation cleanup. The surviving
+[contract handoff](docs/iac-p0-contract-handoff.md) is a historical snapshot, not
+an executable schema or current plan. Use the active [Stage-2 tracker](docs/plans/2026-10-27-stage-2-remediation-plan.md)
+for current implementation decisions and verify account/namespace state before any
+external action. The private development remote remains `bill-kopp-ai-dev/nanobot`;
+account migration and public disclosure are separate actions.
 
 On 2026-10-23 the operator deferred I3; other local work keeps its own authorization.
 Before the first public publication (I3.4), review the recommended owner migration with the operator:
@@ -51,22 +51,17 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 | WebUI/host compatibility | [`.agent/review-guide.md`](.agent/review-guide.md) |
 | Upstream intake or contribution | [`docs/percival-governance.md`](docs/percival-governance.md), [`RUNBOOK-sync-upstream.md`](RUNBOOK-sync-upstream.md) |
 | Percival release or publication | [`docs/percival-governance.md`](docs/percival-governance.md), [`docs/kg-release-notes.md`](docs/kg-release-notes.md), [`docs/releasing.md`](docs/releasing.md) |
-| Docker/IaC architecture or distribution contracts | [I1 ADR](docs/Decisions/2026-10-23-open-iac-contracts.md), [contract handoff](docs/iac-p0-contract-handoff.md), [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md) |
-| Core runtime modes, UID/init/probes or gateway↔broker compatibility | [Runtime contract 1](docs/agent-runtime-contract.md), [I2 local conformance](docs/reports/2026-10-23-i2-runtime-contract-conformance.md) |
-| KG, MCP/browser, authentication or local product acceptance | [Plan 1: product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md) |
-| CI, candidate provenance, image publication or acquisition | [Plan 2: qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md) |
-| Deploy/VPS, real-state cutover, production backup/restore, MCP promotion/canary | [Deferred scope record](docs/plans/closed/2026-10-25-03-deployment-operations-plan.md); explicitly out of active scope |
+| Docker/IaC architecture, runtime compatibility or distribution contracts | [Stage-2 tracker](docs/plans/2026-10-27-stage-2-remediation-plan.md), [runtime contract](docs/agent-runtime-contract.md), [contract handoff](docs/iac-p0-contract-handoff.md) |
+| KG, MCP/browser, authentication, CI or local product acceptance | [Stage-2 tracker](docs/plans/2026-10-27-stage-2-remediation-plan.md) and the current owning product plan |
+| Deploy/VPS, real-state cutover, production backup/restore, MCP promotion/canary | Explicitly deferred by Stage-2 §8.1; requires a new decision and separate plan |
 
 ## Docker-first IaC boundaries
 
-- Use only the two active plans: [local product readiness](docs/plans/2026-10-25-01-product-readiness-plan.md)
-  and [qualification/distribution](docs/plans/2026-10-25-02-qualification-distribution-plan.md).
-  Deployment/production rollout/VPS activities are deferred in the
-  [archived scope record](docs/plans/closed/2026-10-25-03-deployment-operations-plan.md),
-  not active work and not a blocker for these two plans.
-  The [consolidation map](docs/reports/2026-10-25-three-plan-consolidation.md) transfers
-  every prior gate, detailed subtask and acceptance case; archived plans are specifications/history,
-  not concurrent trackers. C1 now has one execution/acceptance owner, Plan 2 D03.
+- The current Percival campaign tracker is [Stage-2 remediation](docs/plans/2026-10-27-stage-2-remediation-plan.md),
+  with [owner actions](docs/plans/2026-10-29-stage-2-owner-actions-guide.md) for external dependencies.
+  The former product-readiness, qualification/distribution and closed-plan files were
+  removed by the operator on 2026-10-29; do not restore them or treat their old paths
+  as current trackers. Deployment/production rollout/VPS remain deferred by Stage-2 §8.1.
   I1's ADR/handoff decide P0 conflicts; separate approved direction, target interfaces
   and verified implementation. Examples are not real endpoints, namespaces, schemas
   or digests. Reports are evidence, not ADRs.
@@ -130,8 +125,9 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   are deferred and are not current plan-completion criteria.
 - P0 is open infrastructure only; premium GCP, entitlement, billing, marketplace,
   Kubernetes, private customer delivery and a proprietary registry need separate scope.
-  Track current implementation in L* and D* of the two active plans; I1–I9 remain origin IDs.
-  `docs/plans/closed/` is historical and includes deferred work; archiving/transferring does not close a gate.
+   Track current Percival implementation in A-001–A-012 and S2-NB-X01/X02 of the
+   Stage-2 tracker; I1–I9 remain source-origin IDs. Removed legacy trackers and their
+   deletion do not close an acceptance gate or imply that transferred work is complete.
 
 ## Development constraints
 

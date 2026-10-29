@@ -1,6 +1,6 @@
 # Stage-2 — Remediação do Percival (`nanobot`)
 
-**Data / revisão:** 2026-10-29 / 1.5.
+**Data / revisão:** 2026-10-29 / 1.6.
 **ID / estado:** S2-NB / em execução; aceite local parcial.
 **Checkout executor:** `/home/bill/Projects/nanobot`.
 **Responsável:** executor técnico local; decisões de produto/operação com bill.
@@ -75,7 +75,7 @@ continuam pendentes. Prioridade é a da ação de origem, não uma nova classifi
 | A-007 | F-007 / P2 | Manter inventário fonte→imagem→instância, separando saved/observed/connectivity; preparar reconciliação no manager existente | D01/D03; owner e janela próprios para runtime real | Inventário datado e sanitizado; imagem e revisão efetivas identificadas; stopped sob demanda não vira falha por inferência |
 | A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan | D04 histórico; DB/scanner atuais; gate `R-07` | Decisão por CVE ligada ao image ID e VEX assinado pelo owner; CVEs herdados da imagem base seguem a postura por herança; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
 | A-009 | F-009 / P2 | Integrar catálogo, aquisição, policy independente e export no manager/broker existentes; CAS/migração explícita | D07/D08/D09; S2-C01/C02/C03; etapas 2/4/5 IaC | Matriz negativa de origem/digest/policy; export atômico sem segredo; estado canônico único; local-only permanece até contrato aprovado |
-| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; app selecionada, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão; registrar suporte ou limitação por transporte/método/deadline; resources/prompts/streaming testados se oferecidos, senão recusados/declarados. Não há obrigação geral de implementar cancelamento |
+| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; Notes, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão. Bill decidiu implementar `resources/list/read` e `prompts/list/get` para Notes (recurso estático e prompts anunciados); gate por server ativo e capability descoberta. Streaming, resource templates e cancelamento ficam fora deste escopo salvo requisito separado. |
 | A-011 | F-011 / P2 | Especificar restrições do produto e entregar requisito de preflight de writers/instâncias à IaC; produto testa o contrato que controla | Dono IaC implementa bundle/preflight na etapa 3; runtime 1 | Fixture recusa segundo writer e segunda instância no daemon antes de mutar; mudar nome Compose não é isolamento de instalação |
 | A-012 | F-012 / P2 | Definir e ensaiar shutdown/recovery carregado no broker, preservando store/journal e dados | Escopo I8 carregado a reautorizar; S2-C01 | Calls ativas têm término/erro limitado documentado; restart reconcilia operação sem duplicação; não confundir idle/crash sintético com recovery real |
 
@@ -136,8 +136,10 @@ evidência de seu dono, continuam abertas; remediação integral não está conc
 
 - [x] Atualizar ações/lotes, mapeamento L*/D* disponível, comandos/ambiente, testes,
   SHA inicial/candidato, resultados e limites; evidências sintéticas ficam no scratch
-  privado indicado abaixo. As alterações de produto estão commitadas; exclusões
-  documentais locais preexistentes permanecem fora do commit.
+  privado indicado abaixo. Alterações de produto e documentação desta revisão
+  permanecem no worktree, sem commit/push solicitado. A limpeza documental de 85
+  arquivos foi commitada anteriormente em `c185b51a`; referências quebradas no
+  `AGENTS.md` e `.positronic/PROJECT.md` foram alinhadas ao tracker vigente nesta revisão.
 - [ ] Registrar revalidação à seção 9 do relatório de origem após revisão de bill;
   preservar baseline e veredito histórico. Decisões/pendências e respectivos owners
   já constam no estado por ação desta revisão.
@@ -145,6 +147,81 @@ evidência de seu dono, continuam abertas; remediação integral não está conc
 | Data / owner | Ações / achados | SHA inicial → final | Mudança e evidências locais | Resultado / V-* / pendências |
 |---|---|---|---|---|
 | 2026-10-28 / executor local + bill | A-001/A-002/A-003/A-004/A-005/A-006/A-008 verificadas localmente; A-007 parcial por escolha do owner | HEAD inicial `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720`; alterações de produto commitadas em `a51802103a1cfac26e394e469f757fff1072784b`. O candidato F2 foi construído antes do commit, em worktree dirty, com source-diff `3cf4719bf4bdf7b2fd35ae77f7e5aa071bfbc3b8e5ff53563c45d29883577b1a`; não é release/clean-SHA candidate. | Gateway `sha256:301d1a58d6e6e6682c728facc60df47bef72370017e7d7bcec99f1ef898367ac`; broker `sha256:e9343df917b971a6a907670f8029bbff3aabb1ef09d0cf669339802c30636d88`; smoke Engine 27.5.1 completo em `~/.positronic/runtime/tmp/opencode/percival-stage2-8c2ac64/i2-_pclfmoo/results.json`; pytest 9.209 + CLI 160, BasedPyright/Ruff/WebUI/TUI gates verdes | A-007 foi deixada parcial por Bill; A-009–A-012 dependentes/abertas; sem piloto, CI remoto, release, push ou runtime real |
+| 2026-10-29 / executor local + bill | E5/S2-NB-X01 parcial; A-004 atualizado; A-012 verificada em fixture | HEAD `c185b51a9df72dca1c52dd4db1c391adfe9a12af` mais worktree modificado; sem candidato limpo. Notes consumido a partir do checkout local HEAD `7101caea83f74ed97f975df22aef2e587978d944`, preservando a exclusão documental preexistente `docs/search-benchmark.md`. | `tests/mcp_docker`: 98 passed; BasedPyright 0 erros; Ruff passou; WebUI MCP 17 passed, lint/build passaram. Bun 1.4.4 oficial: `check`, 255 testes, build, PTY smoke, notices e archive Linux x64 passaram; testes wheel/launcher/package: 49 passed. A-012 DinD Engine 27.5.1: chamada em voo completou; SIGTERM/drain exit 0 em 4,40 s; restart reconciliou mesma instância (ID estável, RestartCount 0). Notes profile DinD: 12 tools registradas, `notes_write`/`notes_read` passaram, mount protegido recusado e vault sintético limpo ao remover DinD. | A-004 continua parcial: proveniência por arquivo/hunk, SHA limpo, B13 e CI remoto abertos. A-007 segue adiada. A-009/A-010/A-011 e outros consumidores X01 continuam dependentes de contrato/índice/ADR. A-012 tem aceite local sintético, não runtime real/piloto. Sem alteração dos containers Percival ativos, publicação ou release. |
+| 2026-10-29 / executor local | A-010 implementada e homologada em fixture descartável; C02 aprovado por Bill | HEAD `c185b51a9df72dca1c52dd4db1c391adfe9a12af`; worktree sem commit/candidato limpo. ADR C02 aprovado em conteúdo, ainda sem SHA commitado. Tags locais de smoke e image IDs estão no resultado I2; labels `GIT_SHA` apontam para HEAD-base e não constituem identidade de release. | Broker encaminha `resources/list/read` e `prompts/list/get`, descobre capacidades anunciadas/paginadas, valida IDs de resposta e restringe `read/get` a URI/nome descoberto. MCPProvider mantém allowlist de tools independente, registra extras para managed servers explicitamente configurados, e wrappers revalidam active/running/source. Notes DinD exercitou tool read/write, recurso estático e dois prompts em chamadas concorrentes; cleanup pelo manager. `tests/mcp_docker/test_broker.py`, `test_contract.py` e `tests/tools/test_mcp_tool.py`: 189 passed; Ruff e BasedPyright dos módulos alterados sem erros. | A-010 passou localmente em Engine descartável 27.5.1; streaming, resource templates e cancelamento seguem fora do escopo acordado. Permanecem sem SHA limpo, CI remoto e homologação de release/runtime/piloto. |
+
+### 6.2. Evidência desta iteração — 2026-10-29
+
+- **E5 / confirmação de aumento de escopo:** `DockerMcpService.act("configure")`
+  agora recusa ampliação de mounts restritos para Full ou rede `none` para `bridge`
+  sem `expected_confirmation == server_id`. A WebUI envia o valor digitado. O audit
+  registra `scope_change` com enum permitido (`host_mounts_to_full`,
+  `network_none_to_bridge` ou ambos), sem guardar paths ou secrets. Teste direto cobre
+   ausência/valor errado antes de broker calls, sucesso com confirmação e leitura do
+   audit; regressão WebUI exige que a confirmação siga na mutation.
+- **E5 / perfil Notes:** imagem construída no DinD isolado a partir do checkout local
+  Notes HEAD `7101caea83f74ed97f975df22aef2e587978d944`, sem incluir a exclusão
+  documental preexistente no contexto Docker. Image ID local Notes:
+  `sha256:ef440f295966b0c6e9fcfff084b64ea05bb9c4a8b3e7000c305e6b41aa578402`.
+  Docker Server observado: 27.5.1 no DinD acima. Manager configurado somente no DinD com
+  `mounts=["/notes-profile-scratch/notes-vault"]`, `network="none"` e
+  `PERCIVAL_NOTES_VAULT_PATH=/host/notes-profile-scratch/notes-vault`. Handshake
+  registrou 12 tools; `notes_write`/`notes_read` com conteúdo sintético passaram.
+  Tentativa de ampliar mount a `/var/lib/docker` foi recusada e o perfil salvo
+  permaneceu estreito. Notes foi excluído pela API do manager, depois DinD e scratch
+  foram removidos. Isso testa perfil de consumidor em fixture; não homologa release,
+   manager real ou piloto.
+- **E6 / extensão aprovada e homologação local:** Bill decidiu implementar
+  resources/prompts na bridge Notes e aprovou C02 em 2026-10-29. Broker e MCPProvider
+  encaminham `resources/list/read` e `prompts/list/get`, respeitam capabilities
+  anunciadas no `initialize`, paginam discovery e verificam correlação de IDs; o
+  broker limita `read/get` às URIs/nomes descobertos. Tools mantêm allowlist própria;
+  wrappers revalidam active/running/source. Notes foi exercitado via manager no DinD
+  Engine 27.5.1: tool read/write, resource estático e dois prompts em chamadas
+  concorrentes; o driver validou o mount sintético estreito e excluiu o servidor pelo
+  manager. O I2 smoke completo, incluindo ausência de attach órfão após as chamadas,
+  passou: `/home/bill/.positronic/runtime/tmp/opencode/i2-wx29as0p/results.json`.
+  Última execução inclui novos testes de EOF/timeout com subprocesso simulado e ID
+  divergente: 189 testes focados passaram; Ruff e BasedPyright focados passaram.
+  Imagens de smoke (não-candidatas) registradas no JSON: gateway
+    `sha256:7a33ad1164ee0abd9c2e3a9abcc8b4f190fefb92af1bfba000a80a6c07941002`, broker
+   `sha256:11c5a42f360a00760dc4a6fcc2905cce6f134fb6d51ad5b912c84a0793313f0a` e Notes
+   `sha256:9680e3866e55133c5ad53db4b5b9ddbd3524649a794dc60b5e04b6def0ee0c71`.
+    Foram construídas de worktree dirty com `GIT_SHA` igual ao HEAD-base; IDs/tag provam
+    o par usado no ensaio, não a identidade de um candidato.
+- **E6 / matriz R-09 de método e deadline:** `initialize`, `tools/list/call`,
+  `resources/list/read` e `prompts/list/get` são encaminhados somente se as
+  capabilities correspondentes forem anunciadas; `notifications/initialized` recebe
+  202. Listagens paginam; `read` exige URI estática descoberta, `get` exige prompt
+  descoberto e chamadas de tools continuam sob allowlist/disabled gate. Resposta com
+  `id` diferente do request é recusada (HTTP 503). Broker response wait = 18 s; attach
+  é encerrado e aguardado até 5 s em timeout/EOF, com cleanup unit-testado. A smoke
+  Notes cobriu concorrência; timeout/EOF de attach foram exercitados com subprocesso
+  simulado, não por espera real de 18 s em DinD. Streaming, templates de resource e
+  cancelamento não são suportados/não reivindicados no escopo atual.
+- **E8 / A-012:** o DinD `docker:27.5.1-dind` foi iniciado com digest verificado
+  (`sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce`), acesso restrito a `127.0.0.1`, e scratch sintético
+  privado. A fixture `tests/mcp_docker/fixtures/a012/` expõe uma tool `delay` e grava
+  marker no path sintético. Broker e gateway foram construídos localmente em imagens
+  de teste; não são candidatos de release. O stop do broker enviou SIGTERM enquanto
+  a chamada estava comprovadamente em voo; resposta completou em 4,40 s, logs
+  registraram drain e exit code foi 0. Após `docker start` e `MCPProvider.connect`,
+  a tool voltou a funcionar sem criar outro container. Os containers de teste foram
+  removidos através do manager/API e o DinD descartável foi removido.
+- **A-004 / Bun:** Bill decidiu atualizar para a release estável mais recente;
+  em 2026-10-29 era Bun 1.4.4, release oficial de 2026-10-22, commit
+  `38afee6c84fcf48c0edb2466aa4b27d287a59c30`. O asset Linux x64 foi conferido contra
+  o digest publicado pelo GitHub (`sha256:bf8ccbfb2b0b80159e0f9a6d15c55317add8077534dbc6130a3edb52fccb395c`). A nota de licença do
+  mesmo tag foi comparada byte a byte e tem SHA-256
+  `362fe32c954ec829240bd7429c53d705eef08c6bfa45ffc2d02005f857cba4dd`.
+  Alterados os pins de CI/release, `@types/bun`, lockfile, `RELINKING.md`, release
+  notices, wheel/archive packagers e documentação de release. Artefato gerado só
+  localmente; B13, provenance map e CI remoto continuam pendentes.
+- **CI remoto:** run #52/`4086251288` não foi verificado. O endpoint GitHub retorna
+  404 para este repositório privado; o `gh` local é wrapper do mise que para diante
+  da configuração global não confiada. Não foi alterada nem confiada configuração
+  global para contornar isso. A-002 permanece aberta até obter link/logs autenticados,
+  SHA completo, resultado por job e artifacts.
 
 ### 6.1. Estado por ação em 2026-10-28
 
@@ -159,9 +236,9 @@ evidência de seu dono, continuam abertas; remediação integral não está conc
 | A-007 | Parcial — Bill escolheu deixar parcial | Inventário read-only 2026-10-28 reportou 45 imagens/14 containers/21 referências; config salva revision 18/schema 1 e seis MCPs Percival com estado salvo `running`/image ID local correspondendo aos containers `running` e labels próprios. Bill decidiu não prosseguir com `list()` nesta sessão. MCP handshake/conectividade seguem desconhecidos; gateway/broker ativos são revisions anteriores, sem troca de pins. |
 | A-008 | Verificada localmente — escopo candidato | Bill aprovou `not affected` apenas para o image ID final `sha256:301d1a58d6e6e6682c728facc60df47bef72370017e7d7bcec99f1ef898367ac`. Trivy 0.76.1/DB 2026-10-28: gateway 1 Medium `CVE-2026-49138` (`nanobot-ai 0.1.0`, scanner sugere 0.2.1), broker 0. NVD descreve SSRF via auto-redirect; código valida redirects manualmente e pinna DNS, fix commit `545294c` é ancestral e 3 testes de redirect privado passaram. Sem aprovação de publicação nem waiver de release. Evidência em `~/.positronic/runtime/tmp/opencode/percival-stage2-8c2ac64/scan-summary.json`. |
 | A-009 | Não iniciada | Aguardando contratos/ADR, S2-C01/C02/C03, D07–D09 e etapas 2/4/5; local-only permanece. |
-| A-010 | Não iniciada | Aguardando app/receita aprovada e D08; smoke sintético não homologa resources/prompts/streaming/cancelamento de app real. |
-| A-011 | Não iniciada | Entrega à IaC/preflight depende do owner IaC e runtime contract; este retorno só informa o estado. |
-| A-012 | Não iniciada | I8 carregado precisa de reautorização; smoke cobre idle/SIGKILL sintéticos, não drain sob carga/recovery real. |
+| A-010 | Aceite local sintético; pendente fora do ambiente local | Notes e bridge resources/prompts exercitados em DinD isolado; sem SHA limpo/CI autenticado nem release, runtime ou piloto. Streaming, resource templates e cancelamento fora do escopo aprovado. |
+| A-011 | Investigação concluída; implementação pendente | Bill é o owner IaC. A árvore atual não contém preflight ou fixture executáveis; especificar identidade do daemon e coordenação atômica antes de implementar. A prova deve cobrir corrida e nomes Compose distintos no daemon descartável. |
+| A-012 | Aceite local sintético; runtime real pendente | DinD isolado validou chamada em voo, SIGTERM/drain e restart/reconcile da instância; ver §6.2. Sem runtime real ou piloto. |
 
 O smoke final registra ainda gateway/API exit 0 em idle, broker exit 143 sem drain,
 stdio EOF exit 0, pair recreation/hydrate e identidade alternativa UID/GID 1001.
@@ -215,15 +292,15 @@ e preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-ac
 | Lote | Itens | Trabalho / aceite verificável | Dependências e dono |
 |---|---|---|---|
 | E0 — Reconciliação | Preparação, L*/D*, estado atual | Relê `AGENTS.md`, workflow, contratos, runbook, handoff e Git; a decisão de Bill em 2026-10-29 declara obsoletos os trackers L*/D* antigos e mantém somente os planos ativos vigentes. Referências históricas servem como proveniência, não como fonte de execução; qualquer ação ainda sem destino/owner permanece aberta neste plano até encaminhamento rastreável. Atualiza baseline SHA/worktree e separa evidência local, externa e histórica. | Decisão de obsolescência registrada. Não restaurar trackers; não inferir que itens sem owner/destino foram resolvidos. Mudança futura de owner exige atualização de um plano ativo, sem criar cópia concorrente. |
-| E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | Conteúdo C01/C03 aprovado por Bill em 2026-10-29 conforme commit IaC `bf9c25201453f1f9c89b9a49030def4b2a053599`; vincular esse SHA imutável aos consumidores e verificar schemas/compatibilidade. Localizar o owner e checkout de `pblabs-mcp-index`; confirmar com coordenação IaC onde ficará o ADR C02 do executor/transporte existente. Não reabrir os formatos R-06 nem o conteúdo aprovado; grace/drain e perfis por app ainda requerem implementação/validação. | Revisão de conteúdo concluída, mas adoção por deployment e implementação dos schemas não provadas. Checkout/owner atual de `pblabs-mcp-index` e destino do ADR C02 ainda precisam ser confirmados. R-10 registra o default amplo do Percival; R-06/R-09 seguem válidas. |
+| E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | Conteúdo C01/C03 aprovado por Bill em 2026-10-29 conforme commit IaC `bf9c25201453f1f9c89b9a49030def4b2a053599`; vincular esse SHA imutável aos consumidores e verificar schemas/compatibilidade. Bill aprovou em conteúdo o ADR C02 em `docs/decisions/2026-10-29-iac-c02-percival-executor-transport.md`; arquivo alterado localmente, ainda sem SHA imutável. `~/.nanobot` foi verificado e não é Git checkout; Bill decidiu deferir o índice até identificar owner/path de `pblabs-mcp-index`; `~/Projects/pblabs-mcp-index` não existe localmente. Não reabrir R-06/R-09/R-10. | C02 aprovado como decisão, mas SHA ainda indisponível e adoção/deployments não verificados. C01/C03 sem adoção formal. Índice continua diferido por decisão do owner; não criar repo por inferência. |
 | E2 — A-007 + trackers | A-007, NB-11 | A consulta do manager foi adiada por Bill em 2026-10-29 até as atualizações do agente Percival estarem concluídas e a instalação alvo estar efetivamente rodando a nova imagem. Antes de retomar, identificar instalação e verificar versão/SHA ou image ID em execução; então usar a página autenticada Contêineres MCP, revisar estado salvo/observado/conectividade e registrar qualquer recovery de `list()`. Recursos históricos sem ownership comprovado ficam recusados/não adotados até decisão explícita. | Não abrir nem atualizar a página ainda: `list()` é chamado automaticamente ao carregar e a cada 30 s, podendo executar `recover_pending()` e acionar o broker. A autorização anterior para a consulta não é instrução para fazê-la agora. Localização e procedimento estão no guia do owner; inventário read-only abaixo não substitui o manager. Não editar config/audit/registry. |
-| E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Percival mantém o TUI como componente do produto no checkout. Documentar proveniência por arquivo/componente, distinguir herança upstream e alterações Percival, preservar licenças/avisos aplicáveis e confirmar que o wheel é construído dessa fonte; alinhar Bun com o pin de CI (ou atualizar ambos por mudança justificada), executar B13 e PTY/packaging no candidato de SHA limpo. Concluir CI remoto `main` e matriz Python 3.14; guardar logs/artifacts e reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE sem mascarar skip/retry. | Revisão inicial e checks locais registrados abaixo. Run Actions `Test Suite` #52 (`4086251288`) foi disparado em `main`; a captura registrou `Queued` e SHA abreviado `fead9`. Bill reportou falha, mas a evidência enviada não identifica run concluído, SHA completo, job/log ou causa. Não declarar CI aprovado nem inferir causa; acompanhar/confirmar run e registrar resultados/artifacts. Python 3.14 local passou com dois testes excluídos por `npx` ausente, não substitui Actions. Proveniência por arquivo/hunk, decisão sobre Bun 1.3.13 e gates de SHA limpo/B13 ainda pendentes. |
+| E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Bill decidiu usar a última release estável, Bun 1.4.4; os dois workflows, lockfile, `@types/bun`, licença e referências de relinking foram alinhados. Checks TUI locais passaram com 1.4.4. Ainda documentar proveniência por arquivo/hunk, executar B13 e empacotar em SHA limpo; concluir CI remoto `main`/Python 3.14 e reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE sem mascarar skips/retries. | O run Actions `Test Suite` #52 (`4086251288`) tem falha reportada por Bill, mas falta resultado concluído, SHA completo, job/log e artifacts; não inferir causa. O endpoint público retorna 404 para este repositório privado e o wrapper local de `gh` bloqueia o uso por configuração mise não confiável. Bun 1.4.4 passou localmente; CI remoto, provenance map, candidato limpo e B13 continuam abertos. |
 | E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Decisão de Bill em 2026-10-29: reconstruir e escanear primeiro o candidato exato, registrando SBOM e identificadores; se houver atualização corrigida compatível, preferi-la e repetir os gates; caso contrário, avaliar a vulnerabilidade no candidato e então decidir VEX justificado, correção/mitigação ou bloqueio. Integrar scan/manifest e evidência VEX no gate de CI; não reutilizar o parecer `not_affected` do image ID anterior. | O candidato limpo `d0687402` foi construído e escaneado localmente; há 1 finding MEDIUM no gateway e nenhum finding no broker. O finding está reancorado à fonte/code-fix do SHA atual, mas nenhuma postura/VEX foi assinada para os novos image IDs. Evidência abaixo; decisão R-07, gates remotos e promoção permanecem abertos. Sem push ou promoção implícitos. |
-| E5 — Broker e consumidor | S2-NB-X01; A-009 | Implementar/testar o default host amplo R/W conforme R-10/B23, mantendo máscaras de controle, state/credentials e sem socket; perfis explícitos `[]` e binds estreitos continuam disponíveis por app. Ampliação de um perfil já reduzido exige confirmação/auditoria. Preservar valores configurados em migração, sem mutar runtime; init/sinais/secrets por referência e lifecycle conforme conteúdo C01 aprovado. Atualizar testes do consumidor Notes, incluindo configuração explícita do vault, e negativos de caminhos protegidos. Depois iniciar A-009: policy independente, catálogo/aquisição sob pin aprovado, CAS/migração e export atômico do único estado canônico. | A aprovação de conteúdo C01/C03 no SHA IaC `bf9c25201453f1f9c89b9a49030def4b2a053599` remove a pendência de revisão e permite avançar para implementação/teste local; ainda é preciso vincular o SHA e provar schemas/consumidor. C02/ADR e `pblabs-mcp-index` seguem sem owner/localização confirmados. R-10 reconcilia R-02 com B14/B22/B23 em `.positronic/PROJECT.md`; preservar as mount protections exigidas por `AGENTS.md`. |
-| E6 — A-010 bridge | A-010 | Avançar a preparação/homologação da bridge usando Notes, app de referência confirmada por Bill em 2026-10-29. Por transporte/método/deadline, verificar respostas correlacionadas, chamadas concorrentes, EOF/timeout sem attach órfão; testar capabilities anunciadas (resources/prompts/streaming) ou declarar recusa/limite explícito. Registrar matriz R-09; não implementar cancelamento sem requisito demonstrado. | A aprovação de conteúdo C01/C03 remove a revisão comum como bloqueio; ainda faltam ADR C02, vínculo do contrato ao consumidor e receita isolada/candidato para homologar app real. Fixtures sintéticas podem antecipar depuração, mas não contam como homologação de app real. |
+| E5 — Broker e consumidor | S2-NB-X01; A-009 | O broker mantém default host amplo R/W conforme R-10/B23, com máscaras obrigatórias e sem socket direto; perfis explícitos `[]` e binds estreitos seguem disponíveis. Esta revisão adicionou confirmação obrigatória no backend para ampliar mounts a Full ou rede `none`→`bridge`, com audit de enum da mudança, sem persistir paths/secrets. Perfil Notes foi testado com vault sintético, mount estreito explícito e env para `/host/<mount>`; ferramenta de escrita/leitura funcionou e caminho protegido foi recusado. Ainda materializar/testar metadata por app. Depois iniciar A-009: policy independente, catálogo/aquisição sob pin aprovado, CAS/migração e export atômico do único estado canônico. | C01/C03 foram aprovados em conteúdo no SHA IaC `bf9c25201453f1f9c89b9a49030def4b2a053599`; falta vincular SHA, provar schemas/adoção. Bill aprovou C02 em conteúdo; índice `pblabs-mcp-index` foi explicitamente diferido. Os ensaios foram locais em fixtures; sem mutação de runtime ativo. |
+| E6 — A-010 bridge | A-010 | Broker/MCPProvider implementam `resources/list/read` e `prompts/list/get` para Notes, com descoberta paginada condicionada a capabilities anunciadas, validação de IDs correlacionados, gate por estado/source e allowlist de URI/nome descoberto. C01/C03 continuam sem adoção; C02 foi aprovado por Bill; índice canônico diferido. | 189 testes focados passaram. I2 DinD Engine 27.5.1 concluído com Notes: tools `notes_write`/`notes_read`, resource estático e dois prompts em chamadas concorrentes; vault sintético estreito, cleanup pelo manager, restart/hydrate e verificação de ausência de attach órfão passaram. EOF/timeout de `_exchange` cobertos em teste subprocesso simulado. Evidência: `/home/bill/.positronic/runtime/tmp/opencode/i2-wx29as0p/results.json`. Streaming, resource templates e cancelamento seguem fora do escopo; sem CI remoto, runtime ativo, piloto ou release. |
 | E7 — A-011 preflight | A-011 | Bill já é o owner/responsável pela IaC; não há handoff/nomeação adicional. Implementar no dono IaC o preflight: no mesmo daemon, segunda instalação/writer deve ser recusada antes de mutação; Compose project name não prova isolamento. Implementar fixture/teste consumidor no Percival, integrar ao bundle/preflight da etapa 3 e vincular SHAs/resultados. | Na inspeção de 2026-10-29 não havia preflight executável na IaC nem fixture A-011 específica no Percival; portanto ainda não há comando para rodar. Usar somente fixture descartável/ambiente isolado e provar estado inalterado após recusas. |
-| E8 — A-012 shutdown/recovery | A-012 | Bill autorizou em 2026-10-29 um ensaio isolado descartável: daemon DinD exclusivo, um broker e uma fixture MCP; manter chamada em voo, provocar shutdown/restart e observar término/erro, reconciliação e ausência de duplicação. Usar somente estado/dados sintéticos e não tocar containers ativos do Percival. | A aprovação do conteúdo C01 em `bf9c25201453f1f9c89b9a49030def4b2a053599` remove a pendência de revisão de conteúdo do contrato, mas o cenário/falha controlada e ferramentas DinD ainda precisam ser preparados; nenhum dado/runtime real autorizado. Se o requisito for limitado por design, obter aceite explícito e documentar a limitação; idle/SIGKILL não contam como recovery carregado. |
-| E9 — Gate de piloto e retorno | V-PILOT, seção 9, coordenador | Reconciliar V-* no SHA/image ID candidato e por app; resolver dependências de Notes, CI e autorizações operacionais. Confirmar owner/localização do `pblabs-mcp-index`. Só então redigir plano próprio de piloto Percival + Notes para revisão/autorização separada. Acrescentar revalidação à seção 9 do relatório de origem sem alterar baseline; registrar evidência, owners e pendências no plano local e atualizar S2-NB nas seções 3/7 do coordenador. | Aprovação explícita de Bill para piloto e operações correspondentes; owners dos projetos dependentes; CI e gates da distribuição concluídos. Não iniciar deploy/VPS/cutover ou I3/B13 por inferência. |
+| E8 — A-012 shutdown/recovery | A-012 | Ensaio autorizado executado em DinD descartável com broker e fixture MCP sintética: chamada em voo, SIGTERM, drain, restart/reconcile e verificação de uma única instância. Nenhum container/runtime ativo do Percival foi tocado. | Conteúdo C01 aprovado no SHA IaC `bf9c25201453f1f9c89b9a49030def4b2a053599`; evidência local de fixture agora registrada abaixo. Permanece sem homologar runtime real; o timeout máximo de 25 s não foi consumido integralmente no ensaio. |
+| E9 — Gate de piloto e retorno | V-PILOT, seção 9, coordenador | Reconciliar V-* no SHA/image ID candidato e por app; resolver dependências de Notes, CI e autorizações operacionais. O índice `pblabs-mcp-index` permanece diferido por decisão de Bill e precisa ser retomado/definido antes de manifests/piloto. Só então redigir plano próprio de piloto Percival + Notes para revisão/autorização separada. Acrescentar revalidação à seção 9 do relatório de origem sem alterar baseline; registrar evidência, owners e pendências no plano local e atualizar S2-NB nas seções 3/7 do coordenador. | Aprovação explícita de Bill para piloto e operações correspondentes; owners dos projetos dependentes; CI e gates da distribuição concluídos. Não iniciar deploy/VPS/cutover ou I3/B13 por inferência. |
 
 #### E2 — A-007: evidência read-only de 2026-10-29
 
@@ -237,7 +314,7 @@ recovery de `list()` nem readiness MCP. Bill adiou a consulta autenticada até a
 atualização do agente e confirmação da nova imagem em execução; nenhum container ou
 estado foi alterado nesta etapa.
 
-#### E3 — A-004: revisão inicial de proveniência e pacote (2026-10-29)
+#### E3 — A-004: revisão inicial de proveniência e pacote (2026-10-29; antes da decisão Bun 1.4.4)
 
 | Área | Evidência no checkout | Estado / limite |
 |---|---|---|
@@ -246,7 +323,7 @@ estado foi alterado nesta etapa.
 | Pacote e relinking | `tui/package.json` fixa `@opentui/core` em `0.5.11`; `tui/RELINKING.md` declara Bun `1.3.13`, OpenTUI e revisões de origem do runtime. `ci.yml` usa Bun `1.3.13` no job TUI (`1.3.6` no job WebUI). | A decisão pendente é se manter o pin atual ou alterar conjuntamente CI/build local. Bun disponível localmente é `1.4.2`; `check` e testes passaram nessa versão, sem equivaler ao pin CI. |
 | Avisos e fonte correspondente | O bundle chama o projeto de `nanobot`, inclui a licença MIT herdada, avisos do Bun/OpenTUI e textos LGPL-2.0/2.1. `SOURCE_OFFER.md` ainda atribui a oferta por três anos à HKUDS e direciona pedidos ao upstream; o arquivo de source inclui `tui/`, `packages/client-events/` e licenças/build scripts. | Antes de distribuição como Percival, o owner deve revisar titularidade/atribuição e substituir ou confirmar a oferta de fonte correspondente e seu responsável. Não foram alterados avisos/licenças nem feita conclusão jurídica nesta revisão. |
 | Verificação local | `pytest tests/cli/test_tui_wheels.py tests/cli/test_tui_release_packaging.py tests/cli/test_tui_launcher.py -q`: 49 passed. Bun `1.4.2`: `bun run check` passou; `bun run test`: 255 passed. | Não foi executado `bun run build`, smoke PTY, build de candidato TUI em SHA limpo, Bun `1.3.13`, CI remoto, B13 ou publicação. |
-| Python 3.14 / suíte | Em Python `3.14.8`, após `uv sync --all-extras --dev` e instalação das dependências de canais, `pytest -k 'not test_test_mcp_preset_connects_and_reports_tools and not test_test_mcp_preset_inspects_tools_outside_the_enabled_allowlist'`: 9.365 passed, 51 skipped, 2 deselected; `uv pip check` sem conflitos (170 pacotes). O teste de contrato Matrix que falhou antes por `nh3` passou após instalar as dependências de canal. | Os dois testes excluídos exigem `npx`, ausente no host; sem exclusão, falham por precondição ambiental `npx` ausente, não por teste de protocolo. Isso é execução local, não CI remoto. `gh` não está instalado nesta máquina e não houve verificação independente do Actions; o guia do owner registra run #52 iniciado e falha reportada, ainda sem logs/artifacts verificados. |
+| Python 3.14 / suíte | Em Python `3.14.8`, após `uv sync --all-extras --dev` e instalação das dependências de canais, `pytest -k 'not test_test_mcp_preset_connects_and_reports_tools and not test_test_mcp_preset_inspects_tools_outside_the_enabled_allowlist'`: 9.365 passed, 51 skipped, 2 deselected; `uv pip check` sem conflitos (170 pacotes). O teste de contrato Matrix que falhou antes por `nh3` passou após instalar as dependências de canal. | Os dois testes excluídos exigem `npx`, ausente no host; sem exclusão, falham por precondição ambiental `npx` ausente, não por teste de protocolo. Isso é execução local, não CI remoto. O wrapper `gh` é bloqueado pela configuração mise não confiada; a página pública da API retorna 404 para o repositório privado. Não houve verificação independente do Actions; o guia do owner registra run #52 iniciado e falha reportada, ainda sem logs/artifacts verificados. |
 
 #### E4 — A-008: candidato e triagem inicial (2026-10-29)
 
@@ -313,12 +390,10 @@ As decisões abaixo são gates específicos; até serem resolvidas, somente os l
 independentes e não mutacionais podem avançar:
 
 1. **A-004 / TUI — origem decidida em 2026-10-29:** declarar o TUI como componente
-   próprio do Percival, cuja fonte é o código mantido no checkout. O executor deve
-   registrar proveniência e licença e distinguir claramente o que é original,
-   herdado e modificado, preservando atribuições/avisos aplicáveis. **Pendente:**
-   confirmar se Bun segue o pin atual do CI (`1.3.13`) ou se CI e build local serão
-   atualizados em conjunto para outro pin. Até essa escolha, E3 permanece parcialmente
-   bloqueado no gate de reprodutibilidade.
+   próprio do Percival, com código herdado e modificado que exige proveniência por
+   arquivo/hunk e avisos atribuídos. Bill decidiu em 2026-10-29 atualizar o runtime
+   para Bun 1.4.4; workflows e materiais de build/licença foram alinhados e passaram
+   localmente. Proveniência, SHA limpo e review B13 continuam pendentes.
 2. **A-007 — status atualizado pelo guia de 2026-10-29:** embora tenha havido
    autorização anterior para consultar `list()` e aceitar recovery incidental, Bill
    adiou a execução até as atualizações do agente estarem concluídas e a nova imagem
@@ -339,9 +414,9 @@ independentes e não mutacionais podem avançar:
 5. **A-012 — decisão registrada em 2026-10-29:** autorizado ensaio I8 isolado e
    descartável em daemon DinD exclusivo, com um broker e uma fixture MCP, chamada em
    voo, shutdown/restart e verificação de término/erro, reconciliação e ausência de
-   duplicação. Somente estado/dados sintéticos; sem tocar containers ativos do
-   Percival. O conteúdo C01 foi aprovado; o ensaio ainda aguarda preparação do cenário
-   e validação do contrato aplicável. Esta autorização não inclui runtime real.
+   duplicação. Bill aprovou limite máximo de drain de 25 s, com 30 s de stop grace
+   no Compose. Ensaio sintético executado em 2026-10-29 e registrado em E8; a
+   autorização não inclui runtime real.
 6. **E0 / trackers — decisão registrada em 2026-10-29:** declarar obsoletos os
    trackers L*/D* antigos e seguir somente os planos ativos vigentes. Não restaurar
    nem usar os trackers antigos como fontes de execução. Essa decisão não encerra
@@ -353,15 +428,36 @@ independentes e não mutacionais podem avançar:
 8. **Mounts — decisão `R-10`, 2026-10-29:** Bill determinou manter o acesso amplo
    como default do broker Percival, supersedendo R-02 quanto ao default `[]`. Perfis
    explícitos `[]` (nenhum bind) e mounts estreitos continuam disponíveis; qualquer
-   aumento de escopo a partir de um perfil mais restrito requer confirmação e
-   auditoria. Nenhuma alteração de runtime foi autorizada.
+    aumento de escopo a partir de um perfil mais restrito requer confirmação e
+    auditoria. Nenhuma alteração de runtime foi autorizada.
+9. **TUI / Bun — decisão de 2026-10-29:** atualizar para a última versão estável
+   disponível, Bun 1.4.4; alinhar workflow CI/release, lockfile, relinking e notices.
+   A decisão foi implementada e verificada localmente, sem autorização para publicar.
+10. **C02 — decisão aprovada por Bill em 2026-10-29:** IaC `docs/decisions/` é o
+     destino canônico do ADR de executor/transporte. O documento
+     `docs/decisions/2026-10-29-iac-c02-percival-executor-transport.md` registra a
+     decisão de implementar resources/prompts no Stage-2; ainda não tem SHA commitado
+     para vínculo imutável. Aprovação de C02 não adota C01/C03 em deployments.
+11. **CI privado / GitHub CLI — decisão de acesso:** Bill autorizou instalar o
+    `github-cli` oficial; pacote Arch `github-cli 2.102.1-1` foi verificado, mas
+    `sudo pacman -S` não pôde prosseguir porque a sessão não tem TTY/senha sudo.
+    `/usr/bin/gh` continua ausente; não se passou senha/token nem se confiou a
+    configuração mise global. Bill precisa instalar/autenticar localmente pelo
+    fluxo de navegador, ou fornecer evidência autenticada do run #52.
+ 12. **A-010 / capabilities Notes — decisão de Bill e resultado local:** implementar
+      resources/list, resources/read, prompts/list e prompts/get para Notes; a allowlist
+      de tools fica independente e o broker limita read/get ao conjunto anunciado.
+      DinD Engine 27.5.1 e matriz local R-09 passaram conforme §6.2; 189 testes focados
+      passaram. Resta CI remoto e candidato limpo; static resources only. Templates,
+      streaming e cancelamento seguem fora de escopo.
 
 **Bloqueadores e condições de retomada:** resultado verificável do run Actions
 `4086251288` (SHA completo, conclusão, jobs/logs e artifacts); retomar manager só após
 agente atualizado e imagem identificada em execução; vincular C01/C03 aprovado aos
 consumidores e verificar implementação; confirmar checkout/owner de
-`pblabs-mcp-index` e destino do ADR C02; implementar/testar A-011, com Bill como
-responsável pela IaC; decidir Bun/proveniência do TUI e resolver VEX para image IDs
+`pblabs-mcp-index` (deferido até haver owner/path); vincular C02 ao SHA commitado;
+implementar/testar A-011, com Bill como
+responsável pela IaC; concluir proveniência/B13 do TUI e resolver VEX para image IDs
 exatos conforme R-07. Se algum recurso estiver indisponível, registrar owner e
 condição de retomada, sem converter transferência em aceite.
 
