@@ -73,7 +73,6 @@ def main() -> None:
         assert len(state["tools"]) >= (9 if server_id == "f2weather" else 30)
         asyncio.run(call_and_gate(server_id, tool, args))
         mutate("configure", server_id, configuration={**config, "mounts": ["/etc"]})
-        mutate("configure", server_id, configuration=config)
         mutate("configure", server_id, configuration={**config, "mounts": []})
         minimum = DOMAIN.list()["servers"][server_id]
         assert minimum["configuration"]["mounts"] == []
