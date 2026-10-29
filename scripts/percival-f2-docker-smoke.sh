@@ -19,16 +19,10 @@ STATE="$(mktemp -d "$PARENT/percival-f2-state-XXXXXX")"
 TOKEN_FILE="$STATE/mcp-docker/broker-token"
 mkdir -p "$STATE/mcp-docker"
 chmod 700 "$STATE" "$STATE/mcp-docker"
-python3 -c 'import secrets,sys; open(sys.argv[1],"w").write(secrets.token_hex(32))' "$TOKEN_FILE"
-if [[ "$EUID" == 0 || "$(id -u)" == 1000 ]]; then
-  chown "1000:$TOKEN_GID" "$TOKEN_FILE"
-else
-  sudo chown "1000:$TOKEN_GID" "$TOKEN_FILE"
-fi
-chmod 640 "$TOKEN_FILE"
 # The gateway runs as UID 1000, while GitHub-hosted runners commonly create
 # scratch paths as UID 1001. Give the fixture state to the gateway before the
-# bind mount; keep the broker token's separate group/mode above.
+# bind mount. Create the token inside the gateway so the file's UID/GID are the
+# same IDs that the gateway and broker see through their bind mounts.
 if [[ "$EUID" == 0 || "$(id -u)" == 1000 ]]; then
   chown 1000:1000 "$STATE" "$STATE/mcp-docker"
 else
@@ -70,6 +64,7 @@ for _ in {1..40}; do
   sleep 0.25
 done
 [[ "$(docker inspect -f '{{.State.Running}}' "$GATEWAY")" == true ]] || { docker logs "$GATEWAY" >&2; exit 1; }
+docker exec --user 1000:1000 "$GATEWAY" python -c 'import secrets; from pathlib import Path; p=Path("/home/nanobot/.nanobot/mcp-docker/broker-token"); p.write_text(secrets.token_hex(32)); p.chmod(0o640)'
 docker exec --user 1000:1000 "$GATEWAY" python -c 'import os,stat; from pathlib import Path; s=Path("/home/nanobot/.nanobot/mcp-docker/broker-token").stat(); group=int(os.environ.get("PERCIVAL_BROKER_TOKEN_GID","65532")); mode=stat.S_IMODE(s.st_mode); print("token uid={} gid={} mode={:04o} expected_gid={} allowed={}".format(s.st_uid,s.st_gid,mode,group,s.st_uid in {os.getuid(),0} and not mode & 0o027 and (not mode & 0o040 or s.st_gid == group)))'
 
 BROKER_ID="$(PERCIVAL_DISPOSABLE_ENGINE29=1 docker run -d --name "$BROKER" \
