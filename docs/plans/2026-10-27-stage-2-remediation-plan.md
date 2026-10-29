@@ -22,14 +22,17 @@ e [D-01..D-06](../../../positronic-bean-IaC/docs/decisions/2026-10-27-iac-stage-
 Este plano permanece o tracker local desta campanha. Não retoma deploy/VPS/cutover,
 I3/B13 ou gates adiados. Os planos ativos L*/D* seguem localmente excluídos; o
 mapeamento disponível no relatório/coordenador foi preservado sem recriar esses
-arquivos. A reconciliação final dos owners L*/D* ainda depende de bill; não criar um
-segundo tracker nem restaurar exclusões automaticamente.
+arquivos. Decisão de Bill em 2026-10-29: trackers L*/D* antigos são obsoletos; seguir
+somente os planos ativos vigentes. Referências legadas permanecem como proveniência,
+não como trackers ativos. A decisão não fecha automaticamente ações sem destino/owner:
+mantê-las abertas neste plano até atribuição rastreável, sem recriar trackers.
 
 ## 2. Preparação obrigatória da execução
 
-- [ ] Ler `AGENTS.md`, `.agent/workflow.md`, runtime contract, runbook e handoff;
+- [x] Ler `AGENTS.md`, `.agent/workflow.md`, runtime contract, runbook e handoff;
   reconciliar com bill os trackers L*/D* localmente excluídos. A leitura foi feita;
-  os trackers ausentes não foram restaurados e sua reconciliação segue pendente.
+  Bill decidiu em 2026-10-29 que os trackers antigos são obsoletos e que somente os
+  planos ativos vigentes serão usados. Arquivos ausentes não foram restaurados.
 - [x] Registrar SHA/worktree, ambiente e owner técnico. Baseline de execução:
   HEAD `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720`, worktree dirty preexistente;
   Python 3.12.14 em `nanobot-stage2-env`; owner executor técnico local, decisões
@@ -37,10 +40,11 @@ segundo tracker nem restaurar exclusões automaticamente.
   foram commitadas em `a51802103a1cfac26e394e469f757fff1072784b`.
 - [x] Distinguir IaC **D-01..D-06** de Percival **D01..D12** e usar o mapeamento
   A-001→L06/D08, A-002→L02, A-006→L14/L15/D03 e as dependências das ações abaixo.
-- [x] Decisão `R-02` (2026-10-28): a receita restrita já vigente foi registrada;
-  o default de mounts passa a ser `[]`, com mounts explícitos e `null` como
-  operação separada, sujeita a confirmação e auditoria. A mudança no broker e
-  seu teste continuam como execução pendente; nenhum piloto foi executado.
+- [x] Decisão `R-02` (2026-10-28): registro histórico da receita restrita e da
+  proposta `mounts=[]` por default. Em 2026-10-29, Bill supersedeu formalmente
+  R-02 quanto ao default de mounts por `R-10`: manter o acesso amplo como default,
+  conforme B14/B22/B23–B25; ver seção 8.5. O registro da receita vigente permanece
+  histórico. Nenhuma mudança de runtime foi autorizada por essa decisão.
 - [x] Decisão `R-03` (2026-10-28): removida a exigência de estimar esforço,
   custo ou prazo.
 - [x] Decisão `R-05` (2026-10-28): o tracker F3 canônico será mantido em
@@ -81,7 +85,7 @@ Estas subtarefas complementares não alteram as 12 ações de origem.
 
 | ID | Origem / execução aqui | Aceite compartilhado |
 |---|---|---|
-| S2-NB-X01 | AgentMail A-006/A-008; Research A-005/A-009; Khan A-001/A-002/A-008; OSM A-008 e Weather A-005: implementar perfis explícitos de mounts, init, secrets por arquivo e lifecycle conforme S2-C01 | API stateless sem bind do host (`mounts=[]`); vault/workspace com bind estreito; nenhum caminho protegido reaberto; credencial por referência; acesso total (`null`) somente como operação separada, confirmada e auditada; teste do consumidor |
+| S2-NB-X01 | AgentMail A-006/A-008; Research A-005/A-009; Khan A-001/A-002/A-008; OSM A-008 e Weather A-005: implementar perfis explícitos de mounts, init, secrets por arquivo e lifecycle conforme S2-C01 | Default do broker Percival: acesso host amplo R/W, com máscaras/exclusões de superfícies de controle, estado e credenciais conforme B23–B25; sem acesso direto ao socket. Cada app declara e configura seu perfil: `[]` para nenhum bind, mounts estreitos quando necessários; não depender do default para stateless. Aumentar escopo de perfil configurado exige confirmação/auditoria; teste do consumidor |
 | S2-NB-X02 | Khan A-005 e gates de qualificação dos MCPs: receber scans/manifests por candidato e coordenar o CI do gateway quando exigido | Evidência por SHA/image ID/manifest digest e DB; CI remoto não fechado por teste local; retorno para cada plano MCP |
 
 O risco de rotação da chave de teste do Deep Research foi explicitamente aceito
@@ -98,7 +102,7 @@ Nunca incluir o segredo em evidência ou plano.
 3. **Lote NB-3:** A-009/A-010 após contratos/ADR; A-011 com a IaC, A-012 após
    retomada de escopo; S2-NB-X02 com candidatos e gate de distribuição.
 4. Piloto Percival + Notes só em plano próprio, depois da implementação e
-   evidência do perfil `R-02`, das condições Notes e das autorizações operacionais
+   evidência do perfil de mounts conforme `R-10`/C01, das condições Notes e das autorizações operacionais
    aplicáveis. `R-03` remove qualquer requisito de dimensionamento prévio; este
    documento não cria receita operacional de piloto.
 
@@ -173,3 +177,141 @@ Docker socket no scanner.
   Sem acesso à IaC: entregar resumo e ficar **aguardando sincronização**. Somente
   declarar concluído quando os aceites e o retorno estiverem atendidos; registrar
   parcial/bloqueado se houver pendências, sem converter transferência em solução.
+
+## 8. Plano de execução para os itens ainda abertos
+
+**Revisão:** 2026-10-29. **Owner do produto e das decisões:** Bill Kopp
+(`bill.kopp.dev@gmail.com`). **Executor técnico:** Positronic, sob autorização
+específica para operações externas ou runtime real. Este plano detalha a execução
+dos resíduos identificados em S2-NB e não substitui este tracker nem o plano
+coordenador IaC. O relatório de itens abertos de 2026-10-28 é uma fonte de contexto;
+onde divergir deste estado local, os critérios e a evidência serão revalidados antes
+de declarar aceite. Para providências do owner que destravam CI, manager, contratos
+e preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-actions-guide.md).
+
+### 8.1 Regras de execução e fronteiras
+
+- Fechar primeiro as decisões/documentos comuns que destravam vários itens; executar
+  em paralelo somente tarefas independentes e locais. Não inferir implementação a
+  partir de um contrato aprovado, nem aceite remoto a partir de testes locais.
+- Escopo deste plano: A-007 e resíduos de A-002/A-004/A-008; A-009–A-012;
+  S2-NB-X01/X02; reconciliação dos trackers L*/D*; revalidação da seção 9 do
+  relatório de origem; atualização do plano coordenador IaC. A-001/A-003/A-005/A-006
+  e o aceite local já registrado de A-004/A-008 são preservados, sem repetição
+  desnecessária de testes se as fontes/evidências permanecerem aplicáveis.
+- Nenhuma publicação, push, release, criação de repositório remoto, alteração de
+  credenciais, mudança de pin em runtime, adoção/remoção de container real ou piloto
+  está autorizada por este plano. Cada operação requer autorização específica,
+  janela e procedimento do owner; D-05/R-02/R-10 registram a política/receita, não
+  autorizam uma execução operacional.
+- A-011 é um requisito entregue à IaC, não uma tarefa cujo aceite pertença somente
+  ao Percival. A-012 exige ensaio carregado/recovery real apenas após contrato,
+  escopo e autorização; fixtures sintéticas não fecham esse aceite.
+
+### 8.2 Sequência de trabalho e aceites
+
+| Lote | Itens | Trabalho / aceite verificável | Dependências e dono |
+|---|---|---|---|
+| E0 — Reconciliação | Preparação, L*/D*, estado atual | Relê `AGENTS.md`, workflow, contratos, runbook, handoff e Git; a decisão de Bill em 2026-10-29 declara obsoletos os trackers L*/D* antigos e mantém somente os planos ativos vigentes. Referências históricas servem como proveniência, não como fonte de execução; qualquer ação ainda sem destino/owner permanece aberta neste plano até encaminhamento rastreável. Atualiza baseline SHA/worktree e separa evidência local, externa e histórica. | Decisão de obsolescência registrada. Não restaurar trackers; não inferir que itens sem owner/destino foram resolvidos. Mudança futura de owner exige atualização de um plano ativo, sem criar cópia concorrente. |
+| E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | Revisão com Bill do runtime/lifecycle, perfis de mounts e secrets, init/sinais/drain, limites por transporte; fixa schema externo `server.json` + `pblabs.app.yaml` e destino `pblabs-mcp-index`; registra ADR do executor/transporte a partir do broker existente. Versionar apenas após aceite do owner; verificar compatibilidade com consumidores e defaults existentes. | C01/C03 são documentos comuns no checkout IaC/índice; C02 no owner definido pelo coordenador. Este checkout não existe para C03 no momento da leitura (`docs/mcp-app-contract.md` ausente em nanobot). R-10 registra o default amplo do Percival; R-06/R-09 seguem válidas. Grace/drain e perfis por app ainda requerem especificação/teste. |
+| E2 — A-007 + trackers | A-007, NB-11 | Decisão de Bill em 2026-10-29: executar diretamente `list()` pela interface autenticada, aceitando que `recover_pending()` possa reconciliar transições, atualizar journal/config ou acionar o broker. A autorização cobre esse efeito colateral da chamada; antes de invocar, reler revisão/CAS e identidade do manager. Registrar resultado e quaisquer recoveries; gerar inventário datado/sanitizado sem segredos. Recursos históricos sem ownership comprovado ficam recusados/não adotados até decisão explícita. | Consulta e recovery incidental autorizados por Bill em 2026-10-29. Execução aguarda disponibilidade da interface autenticada do manager nesta sessão; não simular nem substituir por edição manual em config/audit/registry. |
+| E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Percival mantém o TUI como componente próprio no checkout. Documentar proveniência por arquivo/componente, distinguir código original, herdado e modificado, preservar licenças/avisos aplicáveis e confirmar que o wheel é construído dessa fonte; alinhar Bun com o pin de CI (ou atualizar ambos por mudança justificada), executar B13 e PTY/packaging no candidato de SHA limpo. Rodar CI remoto `main` e matriz Python 3.14; guardar logs/artifacts e reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE sem mascarar skip/retry. | Decisão de origem própria confirmada por Bill em 2026-10-29. Falta inventário de proveniência/licenças e escolha do pin Bun. Acesso e workflows Actions ativos; execução CI não equivale a autorização para publicar. O owner aprova changelog/release notes se houver candidato de release. |
+| E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Decisão de Bill em 2026-10-29: reconstruir e escanear primeiro o candidato exato, registrando SBOM e identificadores; se houver atualização corrigida compatível, preferi-la e repetir os gates; caso contrário, avaliar a vulnerabilidade no candidato e então decidir VEX justificado, correção/mitigação ou bloqueio. Integrar scan/manifest e evidência VEX no gate de CI; não reutilizar o parecer `not_affected` do image ID anterior. | Abordagem de triagem decidida por Bill. A postura final depende do scan atual e será assinada por Bill conforme R-07 quando aplicável. CI/gate de distribuição deve estar disponível. Sem push ou promoção implícitos. |
+| E5 — Broker e consumidor | S2-NB-X01; A-009 | Implementar/testar o default host amplo R/W conforme R-10/B23, mantendo máscaras de controle, state/credentials e sem socket; perfis explícitos `[]` e binds estreitos continuam disponíveis por app. Ampliação de um perfil já reduzido exige confirmação/auditoria. Preservar valores configurados em migração, sem mutar runtime; init/sinais/secrets por referência e lifecycle conforme C01. Atualizar testes do consumidor Notes, incluindo configuração explícita do vault, e negativos de caminhos protegidos. Usar Notes como app de referência confirmada por Bill em 2026-10-29; depois iniciar A-009: policy independente, catálogo/aquisição sob pin aprovado, CAS/migração e export atômico do único estado canônico. | C01/C02/C03 revisados; contratos IaC das etapas 2/4/5. R-10 reconcilia R-02 com B14/B22/B23 em `.positronic/PROJECT.md`; preservar as mount protections exigidas por `AGENTS.md`. |
+| E6 — A-010 bridge | A-010 | Homologar a bridge usando Notes, app de referência confirmada por Bill em 2026-10-29. Por transporte/método/deadline, verificar respostas correlacionadas, chamadas concorrentes, EOF/timeout sem attach órfão; testar capabilities anunciadas (resources/prompts/streaming) ou declarar recusa/limite explícito. Registrar matriz R-09; não implementar cancelamento sem requisito demonstrado. | Receita isolada de Notes, contrato/ADR e candidato aprovado. Fixtures sintéticas podem antecipar depuração, mas não contam como homologação de app real. |
+| E7 — A-011 preflight | A-011 | Publicar ao owner IaC o contrato testável: no mesmo daemon, segunda instalação/writer deve ser recusada antes de mutação; Compose project name não prova isolamento. Adicionar fixture de consumidor que demonstra a condição e integrar ao bundle/preflight da etapa 3; receber resultado do owner IaC no aceite. | Owner IaC implementa o preflight. Ação Percival fecha somente quando teste do contrato e evidência do preflight IaC forem vinculados. |
+| E8 — A-012 shutdown/recovery | A-012 | Bill autorizou em 2026-10-29 um ensaio isolado descartável: daemon DinD exclusivo, um broker e uma fixture MCP; manter chamada em voo, provocar shutdown/restart e observar término/erro, reconciliação e ausência de duplicação. Usar somente estado/dados sintéticos e não tocar containers ativos do Percival. Após definir C01, registrar limites e evidência de store/journal/dados pelo manager. | Autorização do escopo isolado concedida por Bill em 2026-10-29; execução ainda depende de contrato C01, cenário/falha controlada e ferramentas disponíveis. Nenhum dado/runtime real autorizado. Se o requisito for limitado por design, obter aceite explícito e documentar a limitação; idle/SIGKILL não contam como recovery carregado. |
+| E9 — Gate de piloto e retorno | V-PILOT, seção 9, coordenador | Reconciliar V-* no SHA/image ID candidato e por app; resolver dependências de Notes e autorizações operacionais. Só então redigir plano próprio de piloto Percival + Notes para revisão/autorização separada. Acrescentar revalidação à seção 9 do relatório de origem sem alterar baseline; registrar evidência, owners e pendências no plano local e atualizar S2-NB nas seções 3/7 do coordenador. | Aprovação explícita de Bill para piloto e operações correspondentes; owners dos projetos dependentes; CI e gates da distribuição concluídos. Não iniciar deploy/VPS/cutover ou I3/B13 por inferência. |
+
+### 8.3 Decisões e ações requeridas de Bill
+
+As decisões abaixo são gates específicos; até serem resolvidas, somente os lotes
+independentes e não mutacionais podem avançar:
+
+1. **A-004 / TUI — origem decidida em 2026-10-29:** declarar o TUI como componente
+   próprio do Percival, cuja fonte é o código mantido no checkout. O executor deve
+   registrar proveniência e licença e distinguir claramente o que é original,
+   herdado e modificado, preservando atribuições/avisos aplicáveis. **Pendente:**
+   confirmar se Bun segue o pin atual do CI (`1.3.13`) ou se CI e build local serão
+   atualizados em conjunto para outro pin. Até essa escolha, E3 permanece parcialmente
+   bloqueado no gate de reprodutibilidade.
+2. **A-007 — decisão registrada em 2026-10-29:** Bill autorizou executar diretamente
+   `list()` pela interface autenticada, aceitando eventual recovery incidental por
+   `recover_pending()`. **Execução ainda pendente** da disponibilidade da interface
+   autenticada nesta sessão. Se aparecerem recursos históricos sem ownership
+   comprovado, mantê-los recusados/não adotados até Bill decidir com evidência.
+3. **A-008/X02 — abordagem decidida em 2026-10-29:** reconstruir e escanear o
+   candidato exato, com SBOM e identificadores registrados. Se houver atualização
+   corrigida compatível, preferi-la e repetir os gates. Se não houver ou não for
+   apropriada, avaliar a vulnerabilidade nesse candidato e então escolher entre VEX
+   justificado, correção/mitigação ou bloqueio. A postura final continua pendente
+   dos resultados; VEX e promoção não estão aprovados antecipadamente. A herança e
+   assinatura do owner seguem R-07; pareceres de outros image IDs não se transferem.
+4. **A-009/A-010 — decisão registrada em 2026-10-29:** usar Notes como app de
+   referência para catálogo/consumidor e homologação da bridge. A escolha não
+   substitui a aprovação de receita isolada nem a evidência de teste exigida.
+5. **A-012 — decisão registrada em 2026-10-29:** autorizado ensaio I8 isolado e
+   descartável em daemon DinD exclusivo, com um broker e uma fixture MCP, chamada em
+   voo, shutdown/restart e verificação de término/erro, reconciliação e ausência de
+   duplicação. Somente estado/dados sintéticos; sem tocar containers ativos do
+   Percival. Execução aguarda contrato C01 e preparação do cenário. Esta autorização
+   não inclui runtime real.
+6. **E0 / trackers — decisão registrada em 2026-10-29:** declarar obsoletos os
+   trackers L*/D* antigos e seguir somente os planos ativos vigentes. Não restaurar
+   nem usar os trackers antigos como fontes de execução. Essa decisão não encerra
+   automaticamente ações sem destino ou owner claro; elas permanecem abertas neste
+   plano até encaminhamento rastreável.
+7. **V-PILOT/publicação:** decidir em etapa própria se autoriza o piloto e, em
+   separado, publicação/push. A autorização de DinD descartável já registrada não
+   cobre nenhuma dessas operações.
+8. **Mounts — decisão `R-10`, 2026-10-29:** Bill determinou manter o acesso amplo
+   como default do broker Percival, supersedendo R-02 quanto ao default `[]`. Perfis
+   explícitos `[]` (nenhum bind) e mounts estreitos continuam disponíveis; qualquer
+   aumento de escopo a partir de um perfil mais restrito requer confirmação e
+   auditoria. Nenhuma alteração de runtime foi autorizada.
+
+**Bloqueadores de infraestrutura/coordenação, não decisões de produto:** acesso a
+Actions CI remoto e execução de Python 3.14; disponibilidade do manager autenticado;
+owner IaC para aceitar/implementar A-011; revisão/versionamento dos contratos nos
+checkouts donos; CI de distribuição com armazenamento de SBOM/scan/VEX. Se algum
+recurso estiver indisponível, registrar o item como bloqueado com owner e condição
+de retomada, sem converter transferência em aceite.
+
+### 8.4 Critério de encerramento
+
+S2-NB só poderá ser marcado concluído quando cada ação A-001–A-012 e S2-NB-X01/X02
+tiver resultado rastreável (verificada, limitação aceita ou transferência com dono,
+aceite e dependência explicitados), os V-* aplicáveis estiverem reconciliados para
+os candidatos exatos, a revalidação histórica estiver anexada e o retorno às seções
+3/7 do coordenador estiver atualizado. Transferência sem evidência do dono permanece
+pendente; publicação, runtime real e piloto são gates separados e não serão inferidos
+do aceite local.
+
+### 8.5 Decisão `R-10` — default amplo de mounts do broker Percival
+
+**Decidido por Bill em 2026-10-29.** O Percival mantém o acesso amplo R/W ao host
+como default de mounts, conforme a diretriz histórica B14 e sua revisão B22/B23–B25.
+Esta decisão supersede R-02, de 2026-10-28, **somente quanto ao default restrito
+`mounts=[]` e à exigência de tornar o Full uma operação excepcional**. O registro da
+receita de execução restrita já vigente não é desfeito.
+
+- Estado default equivale ao comportamento legado: bind da raiz do host com as
+  exclusões/máscaras existentes para socket/superfícies de controle, estado e
+  credenciais Percival; o gateway/MCP não recebe Docker socket. Isso não é isolamento
+  total e preserva o risco indireto aceito em B23–B25.
+- `mounts=[]` continua significando nenhum bind; paths explícitos continuam
+  suportados e precisam ser estreitos. Apps stateless devem declarar/configurar
+  explicitamente `[]`, sem depender do default amplo.
+- Aumentar o escopo de um perfil já mais restrito para Full exige confirmação tipada
+  e auditoria. Registros legados/existentes devem manter sua configuração efetiva;
+  não migrar nem mutar runtime implicitamente.
+- O contrato comum deve dizer que cada broker declara seu default; o default amplo é
+  específico do broker Percival e não concede privilégios por metadata MCP. Owners
+  dos consumidores devem confirmar seus perfis por app, inclusive Notes.
+- Atualizar C01, C03 quando descrevem perfis de execução, o plano coordenador e os
+  planos consumidores. Preservar o relatório de 2026-10-28 como snapshot histórico e
+  acrescentar a decisão posterior como adendo, sem reescrever as evidências coletadas.
+
+R-10 decide a política, mas **não autoriza mudança de código/runtime, piloto,
+publicação ou deploy**. A implementação permanece pendente de contrato versionado,
+testes de broker/consumidores e autorização operacional específica.
