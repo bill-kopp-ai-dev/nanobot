@@ -70,6 +70,7 @@ for _ in {1..40}; do
   sleep 0.25
 done
 [[ "$(docker inspect -f '{{.State.Running}}' "$GATEWAY")" == true ]] || { docker logs "$GATEWAY" >&2; exit 1; }
+docker exec "$GATEWAY" python -c 'import os,stat; from pathlib import Path; s=Path("/home/nanobot/.nanobot/mcp-docker/broker-token").stat(); print("token uid={} gid={} mode={:04o} expected_gid={}".format(s.st_uid,s.st_gid,stat.S_IMODE(s.st_mode),os.environ.get("PERCIVAL_BROKER_TOKEN_GID")))'
 
 BROKER_ID="$(PERCIVAL_DISPOSABLE_ENGINE29=1 docker run -d --name "$BROKER" \
   --network "container:$GATEWAY" --cap-drop=ALL --security-opt=no-new-privileges \
