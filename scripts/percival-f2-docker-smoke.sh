@@ -7,7 +7,10 @@ ROOT="$(git rev-parse --show-toplevel)"
 DOCKER_ROOT="$(docker info --format '{{.DockerRootDir}}')"
 SOCKET=/var/run/docker.sock
 SOCKET_GID="${F2_DOCKER_SOCKET_GID:-$(stat -c %g "$SOCKET")}" # daemon socket GID
-TOKEN_GID="${F2_BROKER_TOKEN_GID:-$(id -g)}"
+# The gateway's nanobot user has primary GID 1000; the broker joins that group
+# to read the shared token without granting access to the daemon socket.
+TOKEN_GID="${F2_BROKER_TOKEN_GID:-1000}"
+[[ "$TOKEN_GID" == 1000 ]] || { echo "fixture requires the gateway's token GID 1000" >&2; exit 2; }
 GATEWAY=percival-f2-smoke-gateway
 BROKER=percival-f2-smoke-broker
 PARENT="${F2_SMOKE_PARENT:-/home/bill/.positronic/runtime/tmp/opencode}"
@@ -17,12 +20,18 @@ TOKEN_FILE="$STATE/mcp-docker/broker-token"
 mkdir -p "$STATE/mcp-docker"
 chmod 700 "$STATE" "$STATE/mcp-docker"
 python3 -c 'import secrets,sys; open(sys.argv[1],"w").write(secrets.token_hex(32))' "$TOKEN_FILE"
-chgrp "$TOKEN_GID" "$TOKEN_FILE"
+if [[ "$EUID" == 0 || "$(id -g)" == "$TOKEN_GID" ]]; then
+  chgrp "$TOKEN_GID" "$TOKEN_FILE"
+else
+  sudo chgrp "$TOKEN_GID" "$TOKEN_FILE"
+fi
 chmod 640 "$TOKEN_FILE"
 # The gateway runs as UID 1000, while GitHub-hosted runners commonly create
 # scratch paths as UID 1001. Give the fixture state to the gateway before the
 # bind mount; keep the broker token's separate group/mode above.
-if [[ "$(id -u)" != 1000 || "$(id -g)" != 1000 ]]; then
+if [[ "$EUID" == 0 || "$(id -u)" == 1000 ]]; then
+  chown 1000:1000 "$STATE" "$STATE/mcp-docker"
+else
   sudo chown 1000:1000 "$STATE" "$STATE/mcp-docker"
 fi
 WEATHER="$(docker image inspect percival-f2-weather:source-b5032f4 --format '{{.Id}}')"
@@ -35,7 +44,7 @@ FAIL_IMAGE="$(docker image inspect alpine:3.20 --format '{{.Id}}')"
 cleanup() {
   docker rm -f "$BROKER" "$GATEWAY" >/dev/null 2>&1 || true
   docker rm -f percival-mcp-f2weather percival-mcp-f2osm >/dev/null 2>&1 || true
-  if [[ "$(id -u)" == 1000 ]]; then
+  if [[ "$EUID" == 0 || "$(id -u)" == 1000 ]]; then
     rm -rf "$STATE"
   else
     sudo rm -rf "$STATE"

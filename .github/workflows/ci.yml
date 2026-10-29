@@ -346,8 +346,10 @@ jobs:
               assert "no-new-privileges:true" in service["security_opt"]
           PY
       - name: Gateway, WebUI, API auth/health and Compose conformance
+        # The controller reads protected 0600 fixture files that the product
+        # writes as UID 1000; the hosted runner itself is UID 1001.
         run: >-
-          python3 scripts/percival-i2-runtime-smoke.py
+          sudo --preserve-env=RUNNER_TEMP python3 scripts/percival-i2-runtime-smoke.py
           --gateway-image percival-gateway:ci --broker-image percival-mcp-broker:ci
           --scratch-parent "$RUNNER_TEMP"
 
