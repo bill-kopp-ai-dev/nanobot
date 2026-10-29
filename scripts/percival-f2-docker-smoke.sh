@@ -70,7 +70,7 @@ for _ in {1..40}; do
   sleep 0.25
 done
 [[ "$(docker inspect -f '{{.State.Running}}' "$GATEWAY")" == true ]] || { docker logs "$GATEWAY" >&2; exit 1; }
-docker exec "$GATEWAY" python -c 'import os,stat; from pathlib import Path; s=Path("/home/nanobot/.nanobot/mcp-docker/broker-token").stat(); print("token uid={} gid={} mode={:04o} expected_gid={}".format(s.st_uid,s.st_gid,stat.S_IMODE(s.st_mode),os.environ.get("PERCIVAL_BROKER_TOKEN_GID")))'
+docker exec --user 1000:1000 "$GATEWAY" python -c 'import os,stat; from pathlib import Path; s=Path("/home/nanobot/.nanobot/mcp-docker/broker-token").stat(); group=int(os.environ.get("PERCIVAL_BROKER_TOKEN_GID","65532")); mode=stat.S_IMODE(s.st_mode); print("token uid={} gid={} mode={:04o} expected_gid={} allowed={}".format(s.st_uid,s.st_gid,mode,group,s.st_uid in {os.getuid(),0} and not mode & 0o027 and (not mode & 0o040 or s.st_gid == group)))'
 
 BROKER_ID="$(PERCIVAL_DISPOSABLE_ENGINE29=1 docker run -d --name "$BROKER" \
   --network "container:$GATEWAY" --cap-drop=ALL --security-opt=no-new-privileges \
