@@ -20,10 +20,10 @@ TOKEN_FILE="$STATE/mcp-docker/broker-token"
 mkdir -p "$STATE/mcp-docker"
 chmod 700 "$STATE" "$STATE/mcp-docker"
 python3 -c 'import secrets,sys; open(sys.argv[1],"w").write(secrets.token_hex(32))' "$TOKEN_FILE"
-if [[ "$EUID" == 0 || "$(id -g)" == "$TOKEN_GID" ]]; then
-  chgrp "$TOKEN_GID" "$TOKEN_FILE"
+if [[ "$EUID" == 0 || "$(id -u)" == 1000 ]]; then
+  chown "1000:$TOKEN_GID" "$TOKEN_FILE"
 else
-  sudo chgrp "$TOKEN_GID" "$TOKEN_FILE"
+  sudo chown "1000:$TOKEN_GID" "$TOKEN_FILE"
 fi
 chmod 640 "$TOKEN_FILE"
 # The gateway runs as UID 1000, while GitHub-hosted runners commonly create
