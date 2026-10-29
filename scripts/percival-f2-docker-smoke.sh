@@ -19,6 +19,12 @@ chmod 700 "$STATE" "$STATE/mcp-docker"
 python3 -c 'import secrets,sys; open(sys.argv[1],"w").write(secrets.token_hex(32))' "$TOKEN_FILE"
 chgrp "$TOKEN_GID" "$TOKEN_FILE"
 chmod 640 "$TOKEN_FILE"
+# The gateway runs as UID 1000, while GitHub-hosted runners commonly create
+# scratch paths as UID 1001. Give the fixture state to the gateway before the
+# bind mount; keep the broker token's separate group/mode above.
+if [[ "$(id -u)" != 1000 || "$(id -g)" != 1000 ]]; then
+  sudo chown 1000:1000 "$STATE" "$STATE/mcp-docker"
+fi
 WEATHER="$(docker image inspect percival-f2-weather:source-b5032f4 --format '{{.Id}}')"
 OSM="$(docker image inspect percival-f2-osm:source-ca3c397 --format '{{.Id}}')"
 WEATHER_OLD="$(docker image inspect percival-f2-weather:source-996302b --format '{{.Id}}')"
@@ -29,7 +35,11 @@ FAIL_IMAGE="$(docker image inspect alpine:3.20 --format '{{.Id}}')"
 cleanup() {
   docker rm -f "$BROKER" "$GATEWAY" >/dev/null 2>&1 || true
   docker rm -f percival-mcp-f2weather percival-mcp-f2osm >/dev/null 2>&1 || true
-  rm -rf "$STATE"
+  if [[ "$(id -u)" == 1000 ]]; then
+    rm -rf "$STATE"
+  else
+    sudo rm -rf "$STATE"
+  fi
 }
 trap cleanup EXIT
 docker rm -f "$BROKER" "$GATEWAY" >/dev/null 2>&1 || true

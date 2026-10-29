@@ -107,12 +107,15 @@ async def test_packaged_spa_graph_in_browser(
              f"--user-data-dir={profile}", f"{origin}/kg-interface/#/graph"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        deadline = asyncio.get_running_loop().time() + 30
+        devtools_deadline = asyncio.get_running_loop().time() + 30
         debug_port = profile / "DevToolsActivePort"
-        while not debug_port.is_file() and asyncio.get_running_loop().time() < deadline:
+        while not debug_port.is_file() and asyncio.get_running_loop().time() < devtools_deadline:
             await asyncio.sleep(0.1)
         assert debug_port.is_file(), "Chromium DevTools did not start"
         cdp_port = int(debug_port.read_text().splitlines()[0])
+        # Give the SPA a full readiness window after Chromium itself has started;
+        # slow hosted runners should not spend this budget on browser startup.
+        deadline = asyncio.get_running_loop().time() + 45
         async with httpx.AsyncClient(trust_env=False) as client:
             pages = (await client.get(f"http://127.0.0.1:{cdp_port}/json/list")).json()
         page = next(item for item in pages if item.get("type") == "page")
