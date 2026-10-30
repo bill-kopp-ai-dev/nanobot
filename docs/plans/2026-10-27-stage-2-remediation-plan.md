@@ -1001,18 +1001,49 @@ autorizou commits locais separados após a verificação; não houve push.
   os dois VEX aprovados em E20 atualizados aos IDs E21, mais CVEs associados a helpers
   ausentes e às mitigações de `mount`.
 - Bill aprovou as duas disposições gateway (`CVE-2026-60002` fixed; `CVE-2026-49138`
-  not_affected) e as declarações de utilitários ausentes/mitigações mount para E21. O VEX
-  owner-approved PURL-scoped está em
+  not_affected), declarações de utilitários ausentes/mitigações mount e, em seguida,
+  cinco disposições OpenSSH adicionais: `CVE-2026-106553`, `CVE-2026-106555`,
+  `CVE-2026-59999` e `CVE-2026-60000` como `not_affected` (sshd ausente), e
+  `CVE-2026-106583` como `fixed` (OpenSSH 10.6p1). O VEX owner-approved PURL-scoped,
+  versão 4 com 15 statements, está em
   `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-pair-openvex-owner-approved.json`
-  (9 statements; SHA-256 `a03ceb0c36983f56a14a29772d911506f735aea23c315878ee2a403a78dec3d3`).
-  Trivy aplicado diagnosticamente filtrou os IDs declarados nos dois reports de validação:
-  gateway `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-gateway-vex-owner-validation-2.json`
-  (SHA-256 `66613365b2edb0f58cad06f1ca244262c17032144e7a9eb682307440d98580ff`) e broker
-  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-broker-vex-owner-validation-2.json`
-  (SHA-256 `aa8f4353bb272dcd406f40cfcbdb0f5de321d238c715bc5d9239e2f776775b12d`). O scan
-  bruto E21 continua preservado; aprovação VEX não é assinatura criptográfica ou
-  sign-off de release. CVEs não cobertos, reconciliação integral de licenças e B13
-  continuam pendentes. Sem push, publicação, release ou deploy.
+  (SHA-256 `20ff4fd93f955913b27b402787252b72ec4ad13b4841b5b6d3be7db6ec30ce0a`).
+  Trivy 0.76.1, DB `UpdatedAt=2026-10-30T13:06:28Z`, aplicado diagnosticamente ao
+  VEX completo omitiu os IDs declarados conforme o escopo de cada produto. Relatórios
+  finais: gateway `...-gateway-vex-owner-validation-5.json` (SHA-256
+  `385e1dd19f79b229215fdd41bdad3a9af9568f0953cc74efd07b1102611bdde9`; 333 findings,
+  incluindo `CVE-2026-8458` HIGH ainda afetado) e broker
+  `...-broker-vex-owner-validation-5.json` (SHA-256
+  `0528410f009f90541f83dddeac35f766069c13756652b4777f60fe119dff4bcf`; 121 findings,
+  sem HIGH/CRITICAL). Bill também aprovou `CVE-2026-54369` como `not_affected` /
+  `inline_mitigations_already_exist` nos dois image IDs E21 somente para perfis Compose
+  suportados, com base na ausência observada de caller ACL privilegiado após o drop de
+  privilégios; essa declaração foi validada e removida dos dois resultados. Permanecem
+  findings HIGH/CRITICAL não cobertos no gateway, incluindo libcurl, OpenSSH e perl;
+  não são liberados por este VEX. O scan bruto E21 permanece preservado; VEX não é
+  assinatura criptográfica nem sign-off de release. Reconciliação integral de licenças
+  e B13 continuam pendentes. Sem push, publicação, release ou deploy.
+- **Auditoria de reachability (2026-10-30):** `CVE-2026-54369` está nos dois images
+  em `libacl1 2.3.2-2+b1`; `CVE-2026-8458` está no gateway em
+  `libcurl3t64-gnutls 8.14.1-2+deb13u7`. O Debian Security Tracker descreve
+  `CVE-2026-54369` em funções pathname-based de ACL e exige caller privilegiado com
+  pathname controlável; `tar` está presente e liga a `libacl.so.1`, mas as imagens
+  executam os agentes sem root nos perfis suportados (gateway UID 1000/capabilities
+  restritas; broker UID 65532/capabilities removidas). O entrypoint padrão, quando
+  inicializa como root, executa `chown -R` e `setpriv` antes de iniciar o agente; não
+  foi identificada chamada ACL privilegiada nesse caminho. Bill aprovou a disposição
+  `not_affected` limitada aos perfis suportados; ela foi adicionada ao VEX owner-approved
+  v4 e confirmada pela varredura diagnóstica final.
+  Para `CVE-2026-8458`, o Tracker exige reutilização de conexão HTTP com Negotiate auth
+  entre diferentes service names. A aplicação usa Dulwich no GitStore (`nanobot/utils/gitstore.py`),
+  mas o image gateway também inclui `/usr/bin/git` e `git-remote-http`, que liga a
+  `libcurl-gnutls.so.4`; o agente pode iniciar ferramentas do sistema. Não foi
+  localizada configuração/código que habilite o cenário Negotiate, porém não foram
+  inspecionados secrets/configuração de runtime. Reachability condicional permanece
+  aberta e não há base para VEX `not_affected`. Fontes consultadas: Debian Security
+  Tracker, [`CVE-2026-54369`](https://security-tracker.debian.org/tracker/CVE-2026-54369)
+  e [`CVE-2026-8458`](https://security-tracker.debian.org/tracker/CVE-2026-8458),
+  em 2026-10-30. Sem alteração de imagem; findings continuam no gate.
 
 ### 8.3 Decisões registradas e ações do owner
 
