@@ -97,7 +97,7 @@ RUN --mount=type=bind,from=openssh-builder,source=/tmp/openssh-client.deb,target
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
         ca-certificates git bubblewrap libmagic1 \
-        libffi8 libsqlite3-0 libreadline8 libncursesw6 libtinfo6 \
+        libedit2 libffi8 libsqlite3-0 libreadline8 libncursesw6 libtinfo6 \
         libdb5.3 libgdbm6 libbz2-1.0 liblzma5 libuuid1 libzstd1 zlib1g && \
     dpkg -i /tmp/openssh-client.deb && \
     chmod u-s /usr/bin/mount && \
