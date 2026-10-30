@@ -392,7 +392,7 @@ preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-acti
 | E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | Estado-base desta etapa: C01/C03 com conteúdo aprovado por Bill no SHA IaC local `bf9c25201453f1f9c89b9a49030def4b2a053599`; C02 aprovado sem exigir SHA agora. O índice local tinha schemas, seis manifests draft e catálogo vazio. | **Atualização:** integração dos perfis/schema 0.2 ao manager/broker foi implementada e testada localmente em E14/E15. Permanecem sem remote, release OCI/digests, claim autenticado e pipeline; ver E14 e §8.3 item 19 para estado atual. |
 | E2 — A-007 + trackers | A-007, NB-11 | Bill adiou a consulta do manager até depois do próximo ciclo de execução do plano. Após esse ciclo, identificar instalação e confirmar versão/SHA ou image ID em execução; então usar a página autenticada Contêineres MCP, revisar estado salvo/observado/conectividade e registrar recovery de `list()`. | Não abrir/atualizar a página antes desse marco; `list()` pode executar `recover_pending()` e acionar o broker. A localização e o procedimento estão no guia do owner. Não editar config/audit/registry. |
 | E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Estado observado naquela coleta: Bun 1.4.4 e materiais alinhados; mapa Git file/hunk de `51a5d382` (91 arquivos/2.516 hunks) em `docs/provenance/tui-lineage-51a5d382.md`; build/PTY TUI e CI remoto ainda pendentes naquele momento. O mapa não é avaliação jurídica. | **Reconciliação posterior:** build/PTY local passou (E6), CI #67 passou TUI/WebUI para `5e6b2b68` (E15) e o candidato limpo atual está em E16. B13 continua pendente. Os gates ambientais e #52 descritos aqui são histórico daquela coleta, não estado atual. |
-| E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Registro-base de `51a5d382`: Trivy encontrou 1 MEDIUM no gateway e 0 no broker; código contém fix upstream `545294c`; VEX foi então draft e sem decisão. | **Atualização E20:** candidato Debian stable com OpenSSH Portable 10.6p1, Remote SSH regression e I2 DinD smoke passaram; SBOM/rescan exatos estão registrados em E20. Trivy ainda classifica Debian-source CVEs como affected, inclusive CVE-2026-60002 no pacote local; VEX draft existe, não aprovado. 100/74 findings de licença de pacotes OS e outros CVEs continuam pendentes. Sem release/sign-off. |
+| E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Registro-base de `51a5d382`: Trivy encontrou 1 MEDIUM no gateway e 0 no broker; código contém fix upstream `545294c`; VEX foi então draft e sem decisão. | **Atualização E20:** candidato Debian stable com OpenSSH Portable 10.6p1, Remote SSH regression e I2 DinD smoke passaram; SBOM/rescan exatos estão registrados em E20. Bill aprovou VEX `fixed` para CVE-2026-60002 e `not_affected` para CVE-2026-49138 somente no gateway ID `sha256:f3a8…`; validação Trivy confirma match PURL. Outros CVEs e 100/74 findings de licença de pacotes OS seguem abertos. Sem B13/sign-off/publicação. |
 | E5 — Broker e consumidor | S2-NB-X01; A-009 | Fundação canônica local do índice no commit `6a23188`; worktree atualizado com schema 0.2, seis manifests draft, nomes candidatos `io.github.p-bean-labs/*`, matriz de perfis e `catalog.schema.1.0` com hashes do snapshot. `catalog.yaml` permanece vazio. Manager/broker agora consomem snapshot local somente sob hash registrado, validam schema 0.2 e `server.json`, mapeiam mounts/env por consumidor e protegem aquisição por policy independente + digest/plataforma exatos. `tests/test_catalog.py`: 9 passed; manager/broker/rotas: 269 passed; build local do broker e gateway passou. Evidência de contrato em `docs/mcp-manager-contract.md`. | Decisões de Bill: GitHub oficial `p-bean-labs`, Docker Hub `pbeanlabs`; AgentMail usa env `secret` tipado até suporte a arquivo; catálogo local por enquanto; policy independente em arquivo read-only. O índice não tem remoto nem release OCI/digest, portanto o catálogo não oferece instalação real; o arquivo de policy de exemplo é vazio e aquisição fica desabilitada até provisionamento explícito. Namespace Registry permanece candidato até autenticação/claim. Sem mutação de runtime ou pull de MCP. |
 | E6 — A-010 bridge | A-010 | Broker/MCPProvider mantêm `resources/list/read` e `prompts/list/get` para Notes, com descoberta paginada condicionada a capabilities, validação de IDs e allowlist de URI/nome descoberto. O código da bridge não foi alterado pelo trabalho de catálogo. | Baseline limpo em `b3e25d73` tinha apenas alterações documentais sobre `9735441c`; suíte focada então passou (189). Na revisão atual, após mudanças adjacentes no broker, `tests/mcp_docker/test_broker.py`, `test_contract.py` e `tests/tools/test_mcp_tool.py`: 190 passed. I2 DinD Engine 27.5.1 existente validou Notes: tools `notes_write`/`notes_read`, resource estático, dois prompts concorrentes, cleanup, restart/hydrate e ausência de attach órfão. Sem deploy ou runtime ativo; validação pós-deploy permanece pendente de alvo e autorização que Bill confirmará depois. Streaming, resource templates e cancelamento seguem fora do escopo. |
 | E7 — A-011 preflight | A-011 | `scripts/preflight.py`/`docs/preflight.md` na IaC (`79cb3ad`) e fixture consumidora no Percival (`22b9e33`); integração posterior ao entrypoint `bootstrap/install.sh` registrada em E15. O wrapper reserva claim durável por daemon e lock temporário de writer durante o comando. | Unidade com Docker fake e teste de integração do entrypoint passaram (E15); DinD descartável Docker 27.5.1: concorrência exit 0/2, segunda instalação recusada antes do comando sem alterar daemon. O bootstrap não busca, autentica nem valida bundles e não instala no host; bundle P0-C completo permanece ausente. |
@@ -932,22 +932,18 @@ autorizou commits locais separados após a verificação; não houve push.
   systemd, acl e util-linux; seguem sujeitos a revisão/disposição separada. O MEDIUM
   `CVE-2026-49138` de `nanobot-ai 0.1.0` também reaparece; o VEX owner-approved de E16
   não se transfere a estes IDs.
-- **VEX:** rascunho de duas disposições para este gateway ID em
-  `/home/bill/.positronic/runtime/tmp/opencode/percival-openssh-backport-adc9f222-gateway-openvex-draft.json`:
-  `CVE-2026-60002` como `fixed`, apoiado pela release upstream e regressão; e
-  `CVE-2026-49138` como `not_affected / vulnerable_code_not_present`, apoiado pelo
-  commit de correção e suíte de segurança (18 passed no SHA, sem diff no código web
-  entre `035735b8` e `adc9f222`). Os produtos estão limitados por PURL ao image e aos
-  subcomponentes exatos. A aplicação diagnóstica do VEX em Trivy filtrou os dois IDs
-  do relatório de validação
-  `/home/bill/.positronic/runtime/tmp/opencode/percival-openssh-backport-adc9f222-gateway-trivy-vex-draft-validation-3.json`
-  (SHA-256 `067b951c8cea8e5b8c5358f096b29892e8e318bb9b1af9054f71aa56c30fae80`); o scan
-  bruto E20 permanece preservado. Rascunho (SHA-256
-  `762ef2a9a44cb6deecb5165cc29eebb05d65d7f446e72a67f7e4ce0ac4687050`) não aprovado
-  nem assinado pelo owner; outros CVEs affected não estão cobertos.
-- **Estado:** backport e smoke passam; o scan fonte Debian ainda requer VEX/disposição
-  para o OpenSSH local e triagem dos demais CVEs. A reconciliação licença-a-pacote e
-  sign-off B13 continuam abertos; sem publicação autorizada.
+- **VEX:** Bill aprovou em 2026-10-30 duas disposições limitadas ao gateway ID
+  `sha256:f3a8ec67185eecbec8935709a642394d5a4bfd7d42d5c8c2de6abd427887c69f`:
+  `CVE-2026-60002` como `fixed`, com base em OpenSSH Portable 10.6p1 e regressão; e
+  `CVE-2026-49138` como `not_affected / vulnerable_code_not_present`, com base no fix de
+  código e 18 testes. O VEX owner-approved, PURL-scoped, está em
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-openssh-backport-adc9f222-gateway-openvex-owner-approved.json`
+  (SHA-256 `964c41c778c4268e8db0c628aabc4428c3c1f112ab7e2b19ddaec1102a05fb56`). Trivy
+  aplicado diagnosticamente ao VEX filtrou os dois IDs; o scan bruto E20 permanece
+  preservado. Isso não é assinatura criptográfica ou sign-off de release; outros CVEs
+  affected não estão cobertos.
+- **Estado:** backport, regressão e smoke passam; os CVEs restantes, reconciliação
+  licença-a-pacote e sign-off B13 continuam abertos; sem publicação autorizada.
 
 ### 8.3 Decisões registradas e ações do owner
 
@@ -1078,8 +1074,8 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     `Dockerfile.mcp-broker` usa `python:3.12-slim-trixie`, ambos com digest fixado. O
     candidato E19 usou OpenSSH Trixie 10.0p2. Por decisão de Bill, E20 backporta
     OpenSSH Portable 10.6p1 com SHA upstream fixado; Remote SSH regression e I2 DinD
-    passaram no novo par. Trivy ainda reporta CVEs associados à fonte Debian, exigindo
-    revisão VEX e disposição dos demais findings antes de aprovação de release.
+    passaram no novo par. Bill aprovou VEX para dois CVEs no gateway E20; os CVEs
+    restantes associados à fonte Debian ainda exigem revisão/disposição antes de release.
 22. **A-004 / B13 — resposta de Bill em 2026-10-30:** candidato de revisão
     `035735b8`; Bill está satisfeito e aprova a atribuição e os avisos do TUI; pretende
     prosseguir com a distribuição após o fechamento das pendências aplicáveis. Esta
@@ -1095,8 +1091,9 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     instala OpenSSH Portable 10.6p1 compilado contra Trixie, com SHA-256 upstream fixado;
     Remote SSH regression e I2 DinD smoke passaram nos image IDs E20. O Trivy ainda
     classifica CVE-2026-60002 como affected por ausência de versão corrigida Debian
-    stable. VEX draft `fixed` preparado para revisão de Bill; a decisão de backport não
-    equivale a VEX aprovado, aceite de outros CVEs ou sign-off de release.
+    stable. Bill aprovou VEX `fixed` para CVE-2026-60002 e `not_affected` para
+    CVE-2026-49138 somente no gateway E20; isso não aceita os outros CVEs nem é sign-off
+    de release.
 
 **Pendências técnicas e condições de retomada:** X02 foi reconciliado em E15; run #52
 falhou no startup por problema do arquivo de workflow, enquanto run #67 no SHA
@@ -1106,10 +1103,11 @@ não existe e não foi instalado. A-012 está encerrada nesta fase em fixture-on
 decisão de Bill. E16 registra o novo par local, o VEX owner-approved do gateway
 `sha256:5303c329…` e o smoke integrado DinD concluído. `V-PILOT` está parcial: falta
 executar os prompts E9 numa sessão Percival ativa, ainda indisponível nesta conversa.
-O primeiro artefato de imagem deve ser `linux/amd64` com runtime Debian stable slim;
-o candidato limpo Debian stable com OpenSSH backport e scans/smokes está em E20. VEX,
-disposição de outros CVEs, reconciliação integral de licenças e B13 seguem abertos; E16
-(Forky/Alpine) e E19 (OpenSSH 10.0) são históricos.
+O primeiro artefato de imagem deve ser `linux/amd64` com runtime Debian stable slim; o
+candidato limpo com OpenSSH backport, SBOMs e scans está em E20. As duas disposições
+VEX do gateway estão registradas em E20 sem assinatura criptográfica. Disposição de
+outros CVEs, reconciliação integral de licenças e B13 seguem abertas; E16 (Forky/Alpine)
+e E19 (OpenSSH 10.0) são históricos.
 Também permanece a revisão B13/proveniência/licenças do TUI, agora sem exigir oferta
 escrita ou documento de relinking por decisão registrada no item 20. Permanecem também
 os passos de A-009/X01: publicar/migrar o índice quando autorizado, autenticar o claim Registry, incluir
