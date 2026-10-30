@@ -23,6 +23,7 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
+from nanobot.mcp_docker.acquisition_policy import AcquisitionPolicyError, load_acquisition_policy
 from nanobot.mcp_docker.contracts import SERVER_ID, DockerHostConfig, DockerImageSource
 from nanobot.mcp_docker.mount_policy import MountPolicy
 
@@ -30,7 +31,7 @@ DOCKER = "/usr/bin/docker"
 PROTOCOL = "2025-03-26"
 ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activate",
                    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
-                   "hydrate", "status", "observe", "health"})
+                   "hydrate", "status", "observe", "health", "acquire"})
 MCP = frozenset({
     "initialize", "notifications/initialized", "tools/list", "tools/call",
     "resources/list", "resources/read", "prompts/list", "prompts/get",
@@ -136,6 +137,32 @@ def image_reference(source: DockerImageSource) -> str:
     return reference
 
 
+def _acquire(reference_value: object, platform_value: object) -> dict[str, str]:
+    if not isinstance(reference_value, str) or not isinstance(platform_value, str):
+        raise BrokerError("invalid catalog acquisition request", 400)
+    try:
+        source = DockerImageSource(type="pinned-image", reference=reference_value)
+        policy = load_acquisition_policy()
+        policy.authorize(source.reference, platform_value)
+    except (ValidationError, AcquisitionPolicyError) as exc:
+        raise BrokerError("catalog acquisition rejected by broker policy", 403) from exc
+    try:
+        image_reference(source)
+    except ImageMissingError:
+        docker("pull", "--platform", platform_value, source.reference, timeout=300)
+    image_reference(source)
+    try:
+        inspected = docker(
+            "image", "inspect", "--format", "{{.Id}}|{{.Os}}/{{.Architecture}}", source.reference,
+        )
+    except BrokerError as exc:
+        raise BrokerError("acquired image could not be inspected", 503) from exc
+    image_id, separator, actual_platform = inspected.partition("|")
+    if not separator or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id) or actual_platform != platform_value:
+        raise BrokerError("acquired image platform or identity did not match policy", 503)
+    return {"repositoryDigest": source.reference, "imageId": image_id, "platform": actual_platform}
+
+
 def _name(server_id: str) -> str:
     return "percival-mcp-" + server_id
 
@@ -206,7 +233,7 @@ def _spawn(server: ManagedServer) -> None:
             "--label", f"percival.mcp-docker.instance-id={instance_id}",
             f"--network={server.host.network}", "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
-            *policy.docker_args(server.host.mounts)]
+            *policy.docker_args(server.host.mounts, server.host.app_mounts)]
     for key, value in _resolved_env(server.host).items():
         args += ["-e", f"{key}={value}"]
     docker(*args, reference)
@@ -231,7 +258,7 @@ def _spawn(server: ManagedServer) -> None:
         ):
             raise BrokerError("minimum host access has unexpected binds")
     tmpfs = cast(dict[str, object], host_config).get("Tmpfs")
-    plan = policy.docker_args(server.host.mounts)
+    plan = policy.docker_args(server.host.mounts, server.host.app_mounts)
     required_covers = [plan[i + 1].split(":", 1)[0]
                        for i, token in enumerate(plan[:-1]) if token == "--tmpfs"]
     if required_covers and (not isinstance(tmpfs, dict) or not all(
@@ -270,7 +297,7 @@ def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
         host_config.get("Privileged") is True):
         raise BrokerError("stopped MCP container configuration mismatch")
 
-    plan = policy.docker_args(server.host.mounts)
+    plan = policy.docker_args(server.host.mounts, server.host.app_mounts)
     expected_mounts = sorted(plan[index + 1] for index, arg in enumerate(plan[:-1]) if arg == "--mount")
     raw_mounts = host_config.get("Mounts")
     if raw_mounts is None and not expected_mounts:
@@ -284,11 +311,14 @@ def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
         mount = cast(dict[str, object], raw)
         options = mount.get("BindOptions")
         read_only = mount.get("ReadOnly")
-        if (mount.get("Type") != "bind" or (read_only is not None and read_only is not False) or
+        if (mount.get("Type") != "bind" or (read_only is not None and type(read_only) is not bool) or
             not isinstance(mount.get("Source"), str) or not isinstance(mount.get("Target"), str) or
             not isinstance(options, dict) or cast(dict[str, object], options).get("NonRecursive") is not True):
             raise BrokerError("stopped MCP container mount policy mismatch")
-        mounts.append(f"type=bind,src={mount['Source']},dst={mount['Target']},bind-recursive=disabled")
+        readonly_option = ",readonly" if read_only is True else ""
+        mounts.append(
+            f"type=bind,src={mount['Source']},dst={mount['Target']},bind-recursive=disabled{readonly_option}"
+        )
     covers = dict(plan[index + 1].split(":", 1) for index, arg in enumerate(plan[:-1]) if arg == "--tmpfs")
     tmpfs = host_config.get("Tmpfs")
     if sorted(mounts) != expected_mounts or (tmpfs if tmpfs is not None else {}) != covers:
@@ -533,17 +563,28 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
     if op == "health":
         if data:
             raise BrokerError("unsupported broker health fields", 400)
-        return {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
+        try:
+            policy = load_acquisition_policy()
+            acquisition_supported = bool(policy.allowed_repositories and policy.allowed_platforms)
+        except AcquisitionPolicyError:
+            acquisition_supported = False
+        return {"ready": True, "minimumMountsSupported": True,
+                "supportedNetworks": ["none", "bridge"], "appMountsSupported": True,
+                "catalogAcquisitionSupported": acquisition_supported}
     if op == "observe":
         if set(data) != {"source"}:
             raise BrokerError("unsupported observation fields", 400)
         return _observe(server_id, data)
+    if op == "acquire":
+        if set(data) != {"reference", "platform"}:
+            raise BrokerError("unsupported catalog acquisition fields", 400)
+        return _acquire(data.get("reference"), data.get("platform"))
     fields = {"install": {"source", "configuration"}, "configure": {"configuration"},
               "update-image": {"source"}, "disable-tool": {"tool"}, "enable-tool": {"tool"},
               "reconcile": {"source", "configuration", "active", "tools_disabled"},
               "recover": {"source", "configuration", "active", "tools_disabled", "running"},
               "hydrate": {"source", "configuration", "active", "tools_disabled", "tools"},
-              "exclude": {"expected_confirmation"}}
+              "exclude": {"expected_confirmation"}, "acquire": {"reference", "platform"}}
     if set(data) - fields.get(op, set()):
         raise BrokerError("unsupported broker action fields", 400)
     if op == "exclude" and data.get("expected_confirmation") != server_id:

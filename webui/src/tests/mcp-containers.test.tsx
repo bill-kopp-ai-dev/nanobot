@@ -109,6 +109,63 @@ describe("MCP container observability page", () => {
     expect(await screen.findByRole("heading", { name: "weather" })).toBeInTheDocument();
   });
 
+  it("installs a hash-pinned catalog app with explicit mount mapping, typed secret and local consent", async () => {
+    vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
+    const digest = "docker.io/pbeanlabs/example-mcp@sha256:" + "a".repeat(64);
+    const app = {
+      id: "pblabs.example",
+      name: "io.github.p-bean-labs/example-mcp",
+      version: "1.2.3",
+      sourceClass: "official" as const,
+      platform: "linux/amd64",
+      repositoryDigest: digest,
+      needsNetwork: true,
+      environmentVariables: [{ name: "API_KEY", required: true, secret: true }],
+      mounts: [{ target: "/data", kind: "data" as const, access: "read-write" as const, required: true }],
+    };
+    const first: McpDockerSnapshot = {
+      ...snapshot(),
+      schemaVersion: 2,
+      revision: 4,
+      servers: {},
+      minimumMountsSupported: true,
+      appMountsSupported: true,
+      catalogAcquisitionSupported: true,
+      supportedNetworks: ["none", "bridge"],
+      localCatalogCandidate: { status: "ready", snapshotSha256: "b".repeat(64), appCount: 1 },
+      catalogs: [{ catalogId: "pblabs", snapshotSha256: "b".repeat(64), status: "ready", apps: [app] }],
+    };
+    const installed: McpDockerSnapshot = {
+      ...first,
+      revision: 5,
+      servers: { example: { ...snapshot().servers.weather, serverId: "example" } },
+    };
+    vi.mocked(fetchMcpDockerSnapshot).mockResolvedValueOnce(first).mockResolvedValue(installed);
+    const client = clientStub();
+    vi.mocked(client.requestMutation).mockResolvedValueOnce({ revision: 5, server: "example" });
+    render(<ClientProvider client={client} token="token" session={sessionStub()}><McpContainersPage /></ClientProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "Add MCP server" }));
+    fireEvent.change(await screen.findByLabelText("Catalog app"), { target: { value: "pblabs:pblabs.example" } });
+    fireEvent.change(screen.getByLabelText("Manager server ID"), { target: { value: "example" } });
+    fireEvent.change(screen.getByLabelText(/Host source for \/data/), { target: { value: "/srv/example-data" } });
+    fireEvent.change(screen.getByLabelText("API_KEY (secret, required)"), { target: { value: "fixture-secret" } });
+    const confirmation = "example/pblabs.example@1.2.3";
+    fireEvent.change(screen.getByLabelText(`Type ${confirmation} to consent to acquisition and install`), { target: { value: confirmation } });
+    fireEvent.click(screen.getByRole("button", { name: "Acquire pinned digest and install" }));
+    await waitFor(() => expect(client.requestMutation).toHaveBeenCalledWith("settings.mcp_docker.install_catalog", expect.objectContaining({
+      catalog_id: "pblabs",
+      app_id: "pblabs.example",
+      server_id: "example",
+      expected_revision: 4,
+      expected_confirmation: confirmation,
+      mount_sources: { "/data": "/srv/example-data" },
+      environment: { API_KEY: { kind: "secret", value: "fixture-secret" } },
+      host_mounts: [],
+      network: "bridge",
+    }), expect.any(Number)));
+    expect(await screen.findByRole("heading", { name: "example" })).toBeInTheDocument();
+  });
+
   it("blocks unchanged image updates and keeps the modal confirmation contextual", async () => {
     vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
     vi.mocked(fetchMcpDockerSnapshot).mockResolvedValue(snapshot());
@@ -145,7 +202,7 @@ describe("MCP container observability page", () => {
     fireEvent.change(screen.getByLabelText(/Type weather to confirm increased host or network access/), { target: { value: "weather" } });
     fireEvent.click(screen.getByRole("button", { name: "Save configuration" }));
     await waitFor(() => expect(client.requestMutation).toHaveBeenCalledWith("settings.mcp_docker.configure", expect.objectContaining({
-      configuration: { persistent: false, mounts: null, network: "bridge", env: {} },
+      configuration: { persistent: false, mounts: null, network: "bridge", env: {}, app_mounts: [] },
       expected_server_revision: 2,
     }), expect.any(Number)));
   });

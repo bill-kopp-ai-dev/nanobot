@@ -183,6 +183,22 @@ def _save_config_locked(config: Config, path: Path) -> None:
                     if revision > config.tools.mcp_docker.revision:
                         raise ValueError("mcpDocker CAS conflict: reload config before saving")
     data = config.model_dump(mode="json", by_alias=True)
+    # Schema 1 is intentionally written in its historical shape so an older
+    # gateway can still read it. Catalog trust/profile fields are materialized
+    # only by the explicit schema-2 migration.
+    tools_value = data.get("tools")
+    tools_data = cast(dict[str, Any], tools_value) if isinstance(tools_value, dict) else None
+    mcp_value = tools_data.get("mcpDocker") if tools_data is not None else None
+    mcp_data = cast(dict[str, Any], mcp_value) if isinstance(mcp_value, dict) else None
+    if isinstance(mcp_data, dict) and mcp_data.get("schemaVersion") == 1:
+        for key in ("installationId", "trustedCatalogs", "appReleases"):
+            mcp_data.pop(key, None)
+        raw_configurations_value = mcp_data.get("configurations")
+        if isinstance(raw_configurations_value, dict):
+            raw_configurations = cast(dict[str, Any], raw_configurations_value)
+            for raw_host in raw_configurations.values():
+                if isinstance(raw_host, dict):
+                    cast(dict[str, Any], raw_host).pop("appMounts", None)
     # OAuth credentials live in dedicated token stores. Persist only the
     # non-credential request settings consumed by these provider backends.
     for alias, provider in (

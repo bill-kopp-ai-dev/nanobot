@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pblabs:schema:mcp-catalog:1.0",
+  "title": "PBLabs generated MCP catalog snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "app_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": { "const": "0.2" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["version", "sha256"]
+    },
+    "server_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "const": "schemas/server.schema.2025-12-11.json" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["path", "sha256"]
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,99}$" },
+          "source_class": { "enum": ["official", "community"] },
+          "version": { "type": "string", "minLength": 1 },
+          "server_json": { "type": "string", "minLength": 1 },
+          "server_json_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "manifest": { "type": "string", "minLength": 1 },
+          "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "documentation": { "type": "string", "minLength": 1 },
+          "documentation_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        },
+        "required": [
+          "id", "source_class", "version", "server_json", "server_json_sha256",
+          "manifest", "manifest_sha256", "documentation", "documentation_sha256"
+        ]
+      }
+    }
+  },
+  "required": ["schema_version", "app_schema", "server_schema", "entries"]
+}

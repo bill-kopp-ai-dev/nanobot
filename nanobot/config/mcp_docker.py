@@ -6,14 +6,18 @@ from nanobot.mcp_docker.contracts import (
     REDACTED_SECRET,
     REPO_DIGEST,
     SERVER_ID,
+    DockerAppMount,
     DockerEnvValue,
     DockerHostConfig,
     DockerImageSource,
     DockerServer,
+    ManagedAppReference,
     McpDockerConfig,
+    TrustedCatalogConfig,
 )
 
 __all__ = [
     "ENV_NAME", "IMAGE_ID", "REDACTED_SECRET", "REPO_DIGEST", "SERVER_ID",
-    "DockerEnvValue", "DockerHostConfig", "DockerImageSource", "DockerServer", "McpDockerConfig",
+    "DockerEnvValue", "DockerAppMount", "DockerHostConfig", "DockerImageSource", "DockerServer",
+    "ManagedAppReference", "McpDockerConfig", "TrustedCatalogConfig",
 ]

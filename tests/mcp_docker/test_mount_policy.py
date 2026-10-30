@@ -4,12 +4,13 @@ from pathlib import Path
 
 import pytest
 
+from nanobot.config.mcp_docker import DockerAppMount
 from nanobot.mcp_docker.mount_policy import MountPolicy, host_mount_targets, resolve_host_path
 
 
 def test_host_mount_table_and_symlink_aliases(tmp_path: Path) -> None:
     root = tmp_path / "host"
-    for rel in ("run", "var/lib/docker", "home/bill/.nanobot", "home/bill/.nanobot/mcp-docker"):
+    for rel in ("run", "var/lib/docker", "home/bill/.nanobot", "home/bill/.nanobot/mcp-docker", "srv/calendar"):
         (root / rel).mkdir(parents=True, exist_ok=True)
     (root / "var/run").symlink_to("/run")
     (root / "run/docker.sock").touch()
@@ -28,6 +29,18 @@ def test_host_mount_table_and_symlink_aliases(tmp_path: Path) -> None:
     assert any("/host/var/lib/docker:" in value for value in args)
     assert any("/host/home/bill/.nanobot:" in value for value in args)
     assert not any("src=/run," in value for value in args)
+    mapped = policy.docker_args([], [DockerAppMount(
+        source="/srv/calendar", target="/data", read_only=True, kind="data",
+    )])
+    assert mapped == ["--mount", "type=bind,src=/srv/calendar,dst=/data,bind-recursive=disabled,readonly"]
+    with pytest.raises(ValueError, match="explicit reduced"):
+        policy.docker_args(None, [DockerAppMount(
+            source="/srv/calendar", target="/data", read_only=False, kind="data",
+        )])
+    with pytest.raises(ValueError, match="must not also be exposed"):
+        policy.docker_args(["/srv"], [DockerAppMount(
+            source="/srv/calendar", target="/data", read_only=False, kind="data",
+        )])
     with pytest.raises(ValueError):
         policy.docker_args(["/home/bill/.nanobot"])
     with pytest.raises(ValueError):

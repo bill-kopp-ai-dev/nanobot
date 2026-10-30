@@ -48,7 +48,9 @@ class FakeBroker:
         if self.fail:
             raise BrokerUnavailableError("offline")
         if operation == "health":
-            return {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
+            return {"ready": True, "minimumMountsSupported": True,
+                    "supportedNetworks": ["none", "bridge"], "appMountsSupported": True,
+                    "catalogAcquisitionSupported": False}
         if operation == "status":
             return {"registered": True}
         if operation == "hydrate":
@@ -81,6 +83,9 @@ def test_config_schema_rejects_unsupported_image_version_and_missing_configurati
     config = load_config(tmp_path / "config.json")
     save_config(config, tmp_path / "config.json")
     assert stat.S_IMODE((tmp_path / "config.json").stat().st_mode) == 0o600
+    serialized = json.loads((tmp_path / "config.json").read_text())
+    assert "appMounts" not in serialized["tools"]["mcpDocker"]["configurations"]
+    assert "trustedCatalogs" not in serialized["tools"]["mcpDocker"]
 
 
 def test_secret_roundtrip_reference_and_rollback(tmp_path: Path) -> None:
@@ -155,6 +160,43 @@ def test_configure_rejects_missing_mounts(tmp_path: Path) -> None:
     assert "mounts is required" in exc.value.args[0]
     # Persisted configuration remains the reduced version.
     assert domain.config.load().tools.mcp_docker.configurations["alpha"].mounts == ["/srv/data"]
+
+
+def test_schema_v1_migration_is_explicit_cas_backed_up_and_preserves_servers(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    domain = DockerMcpService(WebUISettingsConfig(path), FakeBroker())
+    domain.act("install", payload(
+        "alpha", 0,
+        source={"type": "local-image", "reference": IMAGE},
+        configuration={"mounts": [], "network": "none"},
+    ))
+    before = load_config(path)
+    assert before.tools.mcp_docker.schema_version == 1
+    with pytest.raises(DomainError, match="type MCP-Docker-v1-to-v2"):
+        domain.migrate_schema(1, "wrong")
+    with pytest.raises(DomainError) as conflict:
+        domain.migrate_schema(0, "MCP-Docker-v1-to-v2")
+    assert conflict.value.status == 409
+
+    result = domain.migrate_schema(1, "MCP-Docker-v1-to-v2")
+
+    after = load_config(path).tools.mcp_docker
+    assert after.schema_version == 2
+    assert after.revision == 2
+    assert after.installation_id == result["installationId"]
+    assert "alpha" in after.servers
+    snapshot = path.parent / "mcp-docker" / "backups" / result["backupId"] / "config-v1.json"
+    assert stat.S_IMODE(snapshot.stat().st_mode) == 0o600
+    backup = json.loads(snapshot.read_text())
+    assert backup["tools"]["mcpDocker"]["schemaVersion"] == 1
+    assert "appMounts" not in backup["tools"]["mcpDocker"]["configurations"]["alpha"]
+
+    restored = domain.restore_schema_v1(
+        result["backupId"], 2, f"restore:{result['backupId']}",
+    )
+    assert restored["schemaVersion"] == 1
+    assert restored["revision"] == 3
+    assert load_config(path).tools.mcp_docker.servers["alpha"].source.reference == IMAGE
 
 
 def test_configure_requires_server_confirmation_to_widen_access_and_audits_change(tmp_path: Path) -> None:
@@ -488,8 +530,9 @@ async def test_managed_retry_recovers_existing_stopped_container_after_broker_re
     started: list[str] = []
 
     class NoBinds:
-        def docker_args(self, mounts: list[str] | None) -> list[str]:
+        def docker_args(self, mounts: list[str] | None, app_mounts: list | None = None) -> list[str]:
             assert mounts == []
+            assert app_mounts == []
             return []
 
     def inspect(_server_id: str) -> dict:

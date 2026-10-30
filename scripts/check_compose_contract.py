@@ -112,6 +112,8 @@ class ServiceSpec:
     # Host paths that are system mounts rather than data directories. They are
     # always present, so the "must exist" rule does not apply to them.
     system_mounts: tuple[str, ...] = ()
+    # Container destinations that must be mounted read-only for this recipe.
+    read_only_mount_targets: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -167,6 +169,38 @@ RECIPES: dict[str, RecipeSpec] = {
             "PERCIVAL_DOCKER_SOCKET_GID",
             "PERCIVAL_BROKER_TOKEN_HOST_PATH",
             "PERCIVAL_GATEWAY_CONTAINER_NAME",
+        ),
+        opt_in_overlay=True,
+    ),
+    "core-catalog": RecipeSpec(
+        compose_files=(
+            "docker-compose.yml",
+            "docker-compose.mcp-broker.yml",
+            "docker-compose.mcp-catalog.yml",
+        ),
+        services={
+            "nanobot-gateway": ServiceSpec(
+                role="core-http", restart="persistent",
+                read_only_mount_targets=("/run/pblabs-mcp-index",),
+            ),
+            "nanobot-api": ServiceSpec(role="core-http", restart="none"),
+            "nanobot-cli": ServiceSpec(role="core-cli", restart="none"),
+            "percival-mcp-broker": ServiceSpec(
+                role="sidecar",
+                restart="persistent",
+                system_mounts=("/var/run/docker.sock", "/", "/proc/1/mountinfo"),
+                read_only_mount_targets=("/run/secrets/percival-mcp-acquisition-policy.json",),
+            ),
+        },
+        env_prefixes=("PERCIVAL_", "NANOBOT_"),
+        required_vars=(
+            "PERCIVAL_STATE_HOST_PATH",
+            "PERCIVAL_BROKER_TOKEN_GID",
+            "PERCIVAL_DOCKER_SOCKET_GID",
+            "PERCIVAL_BROKER_TOKEN_HOST_PATH",
+            "PERCIVAL_GATEWAY_CONTAINER_NAME",
+            "PERCIVAL_MCP_INDEX_HOST_PATH",
+            "PERCIVAL_BROKER_POLICY_HOST_PATH",
         ),
         opt_in_overlay=True,
     ),
@@ -475,6 +509,10 @@ def check_service(
 
     # --- persistence identity ---------------------------------------------
     volumes = [v for v in (rendered.get("volumes") or []) if isinstance(v, dict)]
+    for target in expected.read_only_mount_targets:
+        matches = [volume for volume in volumes if volume.get("target") == target]
+        if len(matches) != 1 or matches[0].get("read_only") is not True:
+            error("volumes", f"{target} must be declared exactly once and mounted read-only")
     user = str(rendered.get("user") or "")
     if expected.require_user and not re.fullmatch(r"\d+:\d+", user):
         error("user", "service must declare a numeric effective user as '<uid>:<gid>'")
@@ -674,6 +712,7 @@ def check_recipe(
 DEFAULT_REPO_ROOTS = {
     "core": ".",
     "core-broker": ".",
+    "core-catalog": ".",
     "notes": "../percival-notes-mcp",
     "agentmail": "../percival-agentmail-mcp",
     "weather": "../percival-weather-mcp",

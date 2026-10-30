@@ -343,7 +343,11 @@ def test_authenticated_health_only_checks_broker_readiness(monkeypatch: pytest.M
     calls: list[str] = []
     monkeypatch.setattr(broker, "ready", lambda: calls.append("ready"))
     monkeypatch.setattr(broker, "_STORE", {})
-    assert broker.action("health", "broker", {}) == {"ready": True, "minimumMountsSupported": True, "supportedNetworks": ["none", "bridge"]}
+    assert broker.action("health", "broker", {}) == {
+        "ready": True, "minimumMountsSupported": True,
+        "supportedNetworks": ["none", "bridge"], "appMountsSupported": True,
+        "catalogAcquisitionSupported": False,
+    }
     assert calls == ["ready"]
     assert broker._STORE == {}
 
@@ -361,7 +365,7 @@ def test_update_same_image_rejects_before_removing_container(monkeypatch: pytest
 
 def test_minimum_access_spawn_checks_effective_binds(monkeypatch: pytest.MonkeyPatch) -> None:
     class NoBinds:
-        def docker_args(self, mounts: list[str] | None) -> list[str]:
+        def docker_args(self, mounts: list[str] | None, app_mounts: list | None = None) -> list[str]:
             assert mounts == []
             return []
 
@@ -413,7 +417,7 @@ def test_reconcile_starts_owned_stopped_container_without_replacing_it(monkeypat
     calls: list[tuple[str, ...]] = []
 
     class NoBinds:
-        def docker_args(self, mounts: list[str] | None) -> list[str]:
+        def docker_args(self, mounts: list[str] | None, app_mounts: list | None = None) -> list[str]:
             assert mounts == []
             return []
 
@@ -487,7 +491,7 @@ def test_reconcile_rejects_stopped_container_with_configuration_drift(
     else:
         container["Config"]["Env"] = ["TEST=old"]
     class NoBinds:
-        def docker_args(self, _mounts: list[str] | None) -> list[str]:
+        def docker_args(self, _mounts: list[str] | None, _app_mounts: list | None = None) -> list[str]:
             return []
 
     calls: list[tuple[str, ...]] = []
@@ -511,7 +515,7 @@ def test_reconcile_stopped_container_verifies_bind_and_cover_plan(monkeypatch: p
     cover = "/host/srv/data/private:rw,noexec,nosuid,nodev,mode=0700"
 
     class CoveredBinds:
-        def docker_args(self, mounts: list[str] | None) -> list[str]:
+        def docker_args(self, mounts: list[str] | None, app_mounts: list | None = None) -> list[str]:
             assert mounts == ["/srv/data"]
             return ["--mount", bind, "--tmpfs", cover]
 
@@ -759,7 +763,7 @@ def test_spawn_uses_configured_network(monkeypatch: pytest.MonkeyPatch) -> None:
     invoked: list[list[str]] = []
 
     class _EmptyPolicy:
-        def docker_args(self, _mounts: list[str] | None) -> list[str]:
+        def docker_args(self, _mounts: list[str] | None, _app_mounts: list | None = None) -> list[str]:
             return []
 
     monkeypatch.setattr(broker, "ready", lambda: _EmptyPolicy())
@@ -820,7 +824,7 @@ def test_spawn_rejects_network_policy_mismatch(monkeypatch: pytest.MonkeyPatch) 
     trust the config alone."""
 
     class _EmptyPolicy:
-        def docker_args(self, _mounts: list[str] | None) -> list[str]:
+        def docker_args(self, _mounts: list[str] | None, _app_mounts: list | None = None) -> list[str]:
             return []
 
     monkeypatch.setattr(broker, "ready", lambda: _EmptyPolicy())

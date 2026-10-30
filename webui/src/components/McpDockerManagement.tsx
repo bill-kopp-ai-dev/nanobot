@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { elevate, ElevationError } from "@/lib/bootstrap";
 
 type Server = McpDockerSnapshot["servers"][string];
+type CatalogApp = NonNullable<McpDockerSnapshot["catalogs"]>[number]["apps"][number];
+type CatalogChoice = { catalogId: string; app: CatalogApp };
 type EnvRow = { id: number; name: string; kind: "plain" | "secret" | "reference"; value: string };
 
 const SECRET_SENTINEL = "_REDACTED_MCP_ENV_SECRET";
@@ -139,6 +141,16 @@ export function McpDockerManagement({
   const [updateReviewed, setUpdateReviewed] = useState(false);
   const [updateReference, setUpdateReference] = useState("");
   const [updateType, setUpdateType] = useState<"local-image" | "pinned-image">("local-image");
+  const [catalogIdToRegister, setCatalogIdToRegister] = useState("pblabs");
+  const [catalogRegisterConfirmation, setCatalogRegisterConfirmation] = useState("");
+  const [schemaMigrationConfirmation, setSchemaMigrationConfirmation] = useState("");
+  const [catalogSelection, setCatalogSelection] = useState("");
+  const [catalogServerId, setCatalogServerId] = useState("");
+  const [catalogMountSources, setCatalogMountSources] = useState<Record<string, string>>({});
+  const [catalogEnvironment, setCatalogEnvironment] = useState<Record<string, string>>({});
+  const [catalogNetwork, setCatalogNetwork] = useState<"none" | "bridge">("none");
+  const [catalogInstallConfirmation, setCatalogInstallConfirmation] = useState("");
+  const [schemaRestoreConfirmations, setSchemaRestoreConfirmations] = useState<Record<string, string>>({});
 
   useEffect(() => { onDraftChange?.(draftDirty); }, [draftDirty, onDraftChange]);
 
@@ -154,6 +166,14 @@ export function McpDockerManagement({
     setUpdateConfirmId("");
     setExcludeConfirmId("");
     setRestoreConfirmId({});
+    setCatalogRegisterConfirmation("");
+    setSchemaMigrationConfirmation("");
+    setCatalogInstallConfirmation("");
+    setCatalogSelection("");
+    setCatalogServerId("");
+    setCatalogMountSources({});
+    setCatalogEnvironment({});
+    setSchemaRestoreConfirmations({});
     setDraftDirty(false);
     setDraftConflict(false);
   }, [snapshot.revision]);
@@ -206,12 +226,34 @@ export function McpDockerManagement({
   }, [selectedId, selected, draftDirty]);
 
   const elevated = session.elevated;
+  const selectedAppRelease = selectedId ? snapshot.appReleases?.[selectedId] : undefined;
   const enabled = elevated && !busy && snapshot.pendingTransitions.length === 0 && !snapshotStale && (awaitingRevision === null || snapshot.revision >= awaitingRevision);
   const mounts = mountMode === "full" ? null : mountMode === "minimum" ? [] : mountsText.split(/\r?\n/).map((path) => path.trim()).filter(Boolean);
   const needsBroaderConfirm = useMemo(() => broaderMountAccess(
     selected?.configuration.mounts,
     mounts,
   ) || (selected?.configuration.network === "none" && network === "bridge"), [mounts, network, selected?.configuration.mounts, selected?.configuration.network]);
+  const catalogChoices = useMemo<CatalogChoice[]>(() => (snapshot.catalogs ?? [])
+    .filter((catalog) => catalog.status === "ready")
+    .flatMap((catalog) => catalog.apps.map((app) => ({ catalogId: catalog.catalogId, app }))), [snapshot.catalogs]);
+  const selectedCatalogChoice = catalogChoices.find((choice) => `${choice.catalogId}:${choice.app.id}` === catalogSelection);
+  const catalogInstallPhrase = selectedCatalogChoice
+    ? `${catalogServerId.trim()}/${selectedCatalogChoice.app.id}@${selectedCatalogChoice.app.version}`
+    : "";
+  const catalogRequiredMountMissing = selectedCatalogChoice?.app.mounts.some((mount) => mount.required && !catalogMountSources[mount.target]?.trim()) ?? false;
+  const catalogInvalidMount = selectedCatalogChoice?.app.mounts.some((mount) => {
+    const value = catalogMountSources[mount.target]?.trim();
+    return Boolean(value && invalidHostPaths([value]));
+  }) ?? false;
+  const catalogMissingEnvironment = selectedCatalogChoice?.app.environmentVariables.some(
+    (variable) => variable.required && !catalogEnvironment[variable.name]?.trim(),
+  ) ?? false;
+  const catalogBrokerReady = snapshot.minimumMountsSupported === true && snapshot.appMountsSupported === true && snapshot.catalogAcquisitionSupported === true;
+  const catalogInstallReady = Boolean(
+    enabled && snapshot.schemaVersion === 2 && catalogBrokerReady && selectedCatalogChoice &&
+    /^[a-z][a-z0-9-]{0,39}$/.test(catalogServerId.trim()) && !catalogRequiredMountMissing &&
+    !catalogInvalidMount && !catalogMissingEnvironment && catalogInstallConfirmation === catalogInstallPhrase,
+  );
 
   const failMessage = useCallback((reason: unknown) => {
     if (reason instanceof ApiError) {
@@ -312,6 +354,75 @@ export function McpDockerManagement({
     }
   };
 
+  const registerLocalCatalog = async () => {
+    const candidate = snapshot.localCatalogCandidate;
+    const catalogId = catalogIdToRegister.trim();
+    if (!candidate || candidate.status !== "ready" || !candidate.snapshotSha256) return;
+    await invoke("register-catalog", {
+      catalog_id: catalogId,
+      snapshot_sha256: candidate.snapshotSha256,
+      expected_revision: snapshot.revision,
+      expected_confirmation: catalogRegisterConfirmation,
+    }, { success: "Local catalog snapshot pinned; entries remain subject to broker policy and per-install consent." });
+    setCatalogRegisterConfirmation("");
+  };
+
+  const migrateCatalogConfig = async () => {
+    await invoke("migrate-schema", {
+      expected_revision: snapshot.revision,
+      expected_confirmation: schemaMigrationConfirmation,
+    }, { success: "MCP configuration migrated to schema 2 with a private v1 backup." });
+    setSchemaMigrationConfirmation("");
+  };
+
+  const exportCapabilities = async () => {
+    await invoke("export-capabilities", {}, { success: "Sanitized capabilities.lock exported from the current manager state." });
+  };
+
+  const restoreSchema = async (backupId: string) => {
+    await invoke("restore-schema-v1", {
+      backup_id: backupId,
+      expected_revision: snapshot.revision,
+      expected_confirmation: schemaRestoreConfirmations[backupId] ?? "",
+    }, { success: "MCP schema restored to v1 from the migration snapshot." });
+    setSchemaRestoreConfirmations((current) => ({ ...current, [backupId]: "" }));
+  };
+
+  const submitCatalogInstall = async () => {
+    if (!selectedCatalogChoice) return;
+    const { app, catalogId } = selectedCatalogChoice;
+    const serverId = catalogServerId.trim();
+    const mountSources: Record<string, string> = {};
+    for (const [target, source] of Object.entries(catalogMountSources)) {
+      if (source.trim()) mountSources[target] = source.trim();
+    }
+    const environment: Record<string, { kind: "secret" | "plain"; value: string }> = {};
+    for (const variable of app.environmentVariables) {
+      const value = catalogEnvironment[variable.name]?.trim() ?? "";
+      if (value) environment[variable.name] = { kind: variable.secret ? "secret" : "plain", value };
+    }
+    const result = await invoke("install-catalog", {
+      catalog_id: catalogId,
+      app_id: app.id,
+      server_id: serverId,
+      expected_revision: snapshot.revision,
+      expected_confirmation: catalogInstallConfirmation,
+      mount_sources: mountSources,
+      environment,
+      host_mounts: [],
+      network: catalogNetwork,
+    }, { success: `Installed ${app.name}@${app.version} from the pinned local catalog.` });
+    if (result?.servers[serverId]) {
+      onInstalled(serverId);
+      setInstallOpen(false);
+      setCatalogSelection("");
+      setCatalogServerId("");
+      setCatalogMountSources({});
+      setCatalogEnvironment({});
+      setCatalogInstallConfirmation("");
+    }
+  };
+
   const submitConfigure = async () => {
     if (!selected || !selectedId) return;
     const result = await invoke("configure", {
@@ -321,6 +432,7 @@ export function McpDockerManagement({
         mounts,
         network,
         env: envObject(envRows),
+        app_mounts: selected.configuration.appMounts ?? [],
       },
       ...(needsBroaderConfirm ? { expected_confirmation: scopeConfirmId } : {}),
     }, { success: t("mcpDocker.configureComplete", { defaultValue: "Host configuration saved; the broker restarted the server when needed." }) });
@@ -422,6 +534,63 @@ export function McpDockerManagement({
 
       {installOpen && <section className="rounded-xl border p-4" aria-label="Add MCP server"><div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Add MCP server</h2><Button variant="outline" onClick={() => { setInstallOpen(false); setInstallReviewed(false); setInstallConfirmId(""); }}>Cancel</Button></div>
         {!enabled && <p className="mt-3 text-sm text-muted-foreground">Enter the instance password above and load a current snapshot to install a server.</p>}
+        {enabled && <section className="mt-4 space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4" aria-label="PBLabs catalog install">
+          <h3 className="font-semibold">PBLabs local catalog</h3>
+          <p className="text-sm text-muted-foreground">Catalog snapshots are local and hash-pinned. Installation pulls only an exact digest permitted by the separately provisioned broker policy; no catalog entry can grant host access.</p>
+          {snapshot.localCatalogCandidate?.status === "ready" ? <p className="break-all font-mono text-xs">Available snapshot SHA-256: {snapshot.localCatalogCandidate.snapshotSha256} · {snapshot.localCatalogCandidate.appCount} approved app(s)</p> : <p className="text-xs text-muted-foreground">No local index is provisioned in this gateway.</p>}
+          {snapshot.schemaVersion !== 2 ? <div className="space-y-2 rounded-md border p-3">
+            <p className="text-sm">Schema 2 is required to pin catalogs and app profiles. Migration creates a private v1 backup and uses the current config revision.</p>
+            <Label>Type MCP-Docker-v1-to-v2<Input value={schemaMigrationConfirmation} onChange={(event) => setSchemaMigrationConfirmation(event.target.value)} /></Label>
+            <Button variant="outline" disabled={busy || schemaMigrationConfirmation !== "MCP-Docker-v1-to-v2"} onClick={() => void migrateCatalogConfig()}>Migrate manager config</Button>
+          </div> : <>
+            {snapshot.localCatalogCandidate?.status === "ready" && <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <Label>Catalog ID<Input value={catalogIdToRegister} onChange={(event) => { setCatalogIdToRegister(event.target.value); setCatalogRegisterConfirmation(""); }} placeholder="pblabs" /></Label>
+              <Label>Type the catalog ID to trust this snapshot<Input value={catalogRegisterConfirmation} onChange={(event) => setCatalogRegisterConfirmation(event.target.value)} /></Label>
+              <Button variant="outline" disabled={busy || !/^[a-z][a-z0-9-]{0,39}$/.test(catalogIdToRegister.trim()) || catalogRegisterConfirmation !== catalogIdToRegister.trim() || snapshot.catalogs?.some((catalog) => catalog.catalogId === catalogIdToRegister.trim())} onClick={() => void registerLocalCatalog()}>Pin local snapshot</Button>
+            </div>}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" disabled={busy} onClick={() => void exportCapabilities()}>Export capabilities.lock</Button>
+              {!catalogBrokerReady && <span className="text-xs text-amber-700 dark:text-amber-300">Broker mount/acquisition policy support is unavailable; catalog installation is disabled.</span>}
+            </div>
+            {(snapshot.catalogs?.length ?? 0) > 0 && <div className="space-y-2 text-sm">
+              <h4 className="font-medium">Trusted snapshots</h4>
+              {snapshot.catalogs?.map((catalog) => <div key={catalog.catalogId} className="rounded-md border p-3">
+                <p className="font-medium">{catalog.catalogId} · {catalog.status} · {catalog.apps.length} app(s)</p>
+                <p className="break-all font-mono text-xs text-muted-foreground">{catalog.snapshotSha256}</p>
+              </div>)}
+            </div>}
+            {catalogChoices.length === 0 ? <p className="text-sm text-muted-foreground">No approved app releases are present in a trusted local snapshot yet.</p> : <div className="space-y-3 rounded-md border p-3">
+              <h4 className="font-medium">Install an approved app release</h4>
+              <Label>Catalog app<select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={catalogSelection} onChange={(event) => {
+                const selectedValue = event.target.value;
+                setCatalogSelection(selectedValue);
+                const choice = catalogChoices.find((item) => `${item.catalogId}:${item.app.id}` === selectedValue);
+                setCatalogMountSources(Object.fromEntries((choice?.app.mounts ?? []).map((mount) => [mount.target, ""])));
+                setCatalogEnvironment(Object.fromEntries((choice?.app.environmentVariables ?? []).map((variable) => [variable.name, ""])));
+                setCatalogNetwork(choice?.app.needsNetwork ? "bridge" : "none");
+                setCatalogServerId("");
+                setCatalogInstallConfirmation("");
+              }}><option value="">Select a pinned app</option>{catalogChoices.map((choice) => <option key={`${choice.catalogId}:${choice.app.id}`} value={`${choice.catalogId}:${choice.app.id}`}>{choice.app.name} · {choice.app.version}</option>)}</select></Label>
+              {selectedCatalogChoice && <>
+                <div className="space-y-1 text-xs text-muted-foreground"><p>Registry name: <code>{selectedCatalogChoice.app.name}</code> · {selectedCatalogChoice.app.sourceClass} · {selectedCatalogChoice.app.platform}</p><p className="break-all font-mono">OCI: {selectedCatalogChoice.app.repositoryDigest}</p><p>Host access is fixed to no broad binds; declared data paths are mapped directly to their container targets.</p></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Label>Manager server ID<Input value={catalogServerId} onChange={(event) => { setCatalogServerId(event.target.value); setCatalogInstallConfirmation(""); }} placeholder="example-server" /></Label>
+                  <Label>Network access<select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={catalogNetwork} onChange={(event) => setCatalogNetwork(event.target.value as "none" | "bridge")}><option value="none">none</option>{selectedCatalogChoice.app.needsNetwork && snapshot.supportedNetworks?.includes("bridge") && <option value="bridge">bridge</option>}</select></Label>
+                </div>
+                {selectedCatalogChoice.app.mounts.map((mount) => <Label key={mount.target}>Host source for {mount.target} ({mount.kind}, {mount.access}{mount.required ? ", required" : ", optional"})<Input value={catalogMountSources[mount.target] ?? ""} onChange={(event) => setCatalogMountSources((current) => ({ ...current, [mount.target]: event.target.value }))} placeholder="Absolute installation-specific path" /></Label>)}
+                {selectedCatalogChoice.app.environmentVariables.map((variable) => <Label key={variable.name}>{variable.name} ({variable.secret ? "secret" : "configuration"}{variable.required ? ", required" : ", optional"})<Input type={variable.secret ? "password" : "text"} autoComplete="new-password" value={catalogEnvironment[variable.name] ?? ""} onChange={(event) => setCatalogEnvironment((current) => ({ ...current, [variable.name]: event.target.value }))} /></Label>)}
+                <Label>Type {catalogInstallPhrase} to consent to acquisition and install<Input value={catalogInstallConfirmation} onChange={(event) => setCatalogInstallConfirmation(event.target.value)} /></Label>
+                {(catalogRequiredMountMissing || catalogInvalidMount || catalogMissingEnvironment) && <p role="alert" className="text-sm text-destructive">Provide every required mount source and environment value using canonical absolute paths and declared variables.</p>}
+                <Button disabled={!catalogInstallReady} onClick={() => void submitCatalogInstall()}>Acquire pinned digest and install</Button>
+              </>}
+            </div>}
+            {snapshot.backups.filter((backup) => backup.action === "migrate-schema").map((backup) => <div key={backup.backupId} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <p className="text-xs">Schema v1 backup {backup.backupId}; rollback is permitted only if manager app/server state is unchanged.</p>
+              <Label>Type restore:{backup.backupId}<Input value={schemaRestoreConfirmations[backup.backupId] ?? ""} onChange={(event) => setSchemaRestoreConfirmations((current) => ({ ...current, [backup.backupId]: event.target.value }))} /></Label>
+              <Button variant="outline" disabled={busy || schemaRestoreConfirmations[backup.backupId] !== `restore:${backup.backupId}`} onClick={() => void restoreSchema(backup.backupId)}>Restore schema 1</Button>
+            </div>)}
+          </>}
+        </section>}
       {enabled && <div className="mt-4 space-y-4">
         <p className="text-sm text-amber-700 dark:text-amber-300">Only an exact image ID or RepoDigest already available locally is accepted; no pull. Full host file access is the default with mandatory control-plane covers.</p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -447,10 +616,10 @@ export function McpDockerManagement({
 
       {enabled && (
         <>
-          {snapshot.backups.length > 0 && <details className="rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Restore an excluded server ({snapshot.backups.filter((backup) => !snapshot.servers[backup.serverId]).length} eligible)</summary><section className="mt-4 space-y-3">
+          {snapshot.backups.some((backup) => backup.action !== "migrate-schema") && <details className="rounded-xl border p-4"><summary className="cursor-pointer font-semibold">Restore an excluded server ({snapshot.backups.filter((backup) => backup.action !== "migrate-schema" && !snapshot.servers[backup.serverId]).length} eligible)</summary><section className="mt-4 space-y-3">
             <h2 className="font-semibold">Restore an excluded server</h2>
             <p className="text-sm text-muted-foreground">Restore checks the backup checksum, refuses to overwrite an existing server, and reconciles Docker before committing config.</p>
-            {snapshot.backups.map((backup) => <div key={backup.backupId} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            {snapshot.backups.filter((backup) => backup.action !== "migrate-schema").map((backup) => <div key={backup.backupId} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <div><code>{backup.serverId}</code><p className="text-xs text-muted-foreground">{backup.backupId} · revision {backup.sourceRevision}{backup.action ? ` · before ${backup.action}` : " · legacy backup (origin not recorded)"}</p>{snapshot.servers[backup.serverId] && <p className="text-xs">Server exists; this backup cannot overwrite it.</p>}</div>
               <Label>Type the server ID to restore<Input value={restoreConfirmId[backup.backupId] ?? ""} onChange={(event) => setRestoreConfirmId((current) => ({ ...current, [backup.backupId]: event.target.value }))} /></Label>
               <Button variant="outline" disabled={busy || Boolean(snapshot.servers[backup.serverId]) || restoreConfirmId[backup.backupId] !== backup.serverId} onClick={() => void invoke("restore", { backup_id: backup.backupId, expected_revision: snapshot.revision, expected_confirmation: restoreConfirmId[backup.backupId] }, { success: "Server restored from backup and reconciled." })}>Restore</Button>
@@ -463,7 +632,7 @@ export function McpDockerManagement({
               <Button variant="outline" disabled={busy || !selected.active} onClick={() => void serverAction("restart", {}, { success: t("mcpDocker.restartComplete", { defaultValue: "Server restarted; its current observed state is shown below." }) })}>{t("mcpDocker.restart", { defaultValue: "Restart" })}</Button>
               {selected.active ? <Button variant="outline" disabled={busy} onClick={() => void serverAction("deactivate", {}, { success: t("mcpDocker.deactivateComplete", { defaultValue: "Server deactivated; tools remain in the registry but are no longer exposed." }) })}>{t("mcpDocker.deactivate", { defaultValue: "Deactivate" })}</Button> : <Button variant="outline" disabled={busy} onClick={() => void serverAction("activate", {}, { success: t("mcpDocker.activateComplete", { defaultValue: "Server reactivated; tools are exposed again." }) })}>{t("mcpDocker.activate", { defaultValue: "Activate" })}</Button>}
               {selected.configuration.persistent && selected.active && (selected.dockerObservation === "stopped" ? <Button variant="outline" disabled={busy} onClick={() => void serverAction("start", {}, { success: t("mcpDocker.startComplete", { defaultValue: "Persistent container started." }) })}>{t("mcpDocker.start", { defaultValue: "Start" })}</Button> : <Button variant="outline" disabled={busy || selected.dockerObservation !== "running"} onClick={() => void serverAction("stop", {}, { success: t("mcpDocker.stopComplete", { defaultValue: "Persistent container stopped." }) })}>{t("mcpDocker.stop", { defaultValue: "Stop" })}</Button>)}
-              <Button variant="outline" disabled={selected.state === "stopped-persistent"} title={selected.state === "stopped-persistent" ? "Start the persistent server before updating its image" : undefined} onClick={() => setUpdateOpen(true)}>Update image</Button>
+              <Button variant="outline" disabled={selected.state === "stopped-persistent" || Boolean(selectedAppRelease)} title={selectedAppRelease ? "Catalog-managed image identity is immutable; exclude and reinstall from a newer trusted catalog release." : selected.state === "stopped-persistent" ? "Start the persistent server before updating its image" : undefined} onClick={() => setUpdateOpen(true)}>Update image</Button>
             </div>
 
             <Dialog open={updateOpen} onOpenChange={(open) => { setUpdateOpen(open); if (!open) { setUpdateReviewed(false); setUpdateConfirmId(""); } }}>

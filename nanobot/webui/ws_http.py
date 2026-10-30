@@ -264,6 +264,8 @@ _WEBUI_MUTATION_PATHS = {
         for action in (
             "install", "configure", "disable-tool", "enable-tool", "activate",
             "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
+            "migrate-schema", "register-catalog", "install-catalog", "export-capabilities",
+            "restore-schema-v1",
         )
     },
 }

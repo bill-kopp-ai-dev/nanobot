@@ -129,6 +129,27 @@ async def test_mutations_require_webui_and_session_elevation(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_catalog_and_schema_mutations_always_require_local_operator_consent(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    config.tools.mcp_docker.allow_remote_admin = True
+    save_config(config, path)
+    controller = _controller(tmp_path)
+    session_id = _install_session(controller)
+    settings = router(path, controller=controller)
+    remote = SimpleNamespace(remote_address=("198.51.100.2", 4567))
+
+    for action in ("migrate-schema", "restore-schema-v1", "register-catalog", "install-catalog"):
+        response = await settings.dispatch(
+            remote,
+            request(action, {}, session_id=session_id),
+            f"/api/settings/mcp-docker/{action}",
+        )
+        assert response.status_code == 403
+        assert json.loads(response.body)["error"].startswith("This catalog or schema operation")
+
+
+@pytest.mark.asyncio
 async def test_restore_requires_server_confirmation_and_maps_broker_rejection(tmp_path: Path) -> None:
     controller = _controller(tmp_path)
     settings = router(tmp_path / "config.json", controller=controller)

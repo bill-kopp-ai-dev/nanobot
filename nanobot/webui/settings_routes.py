@@ -9,6 +9,7 @@ import re
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 
+from pydantic import ValidationError
 from websockets.http11 import Request as WsRequest
 from websockets.http11 import Response
 
@@ -19,6 +20,7 @@ from nanobot.api.runtime import ApiRuntime, api_runtime_paths
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.registry import load_channel_plugin
 from nanobot.channels.validation import validate_channel_config
+from nanobot.config.mcp_docker import DockerEnvValue
 from nanobot.mcp_docker.client import BrokerClient, BrokerRejectedError, BrokerUnavailableError
 from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.pairing import approve_code, deny_code, list_pending
@@ -81,6 +83,8 @@ _MCP_RELOAD_TIMEOUT_SECONDS = 15.0
 _MCP_DOCKER_ACTIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
     "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
+    "migrate-schema", "register-catalog", "install-catalog", "export-capabilities",
+    "restore-schema-v1",
 })
 _MCP_DOCKER_PREFIX = "/api/settings/mcp-docker/"
 _query_first = contracts.query_first
@@ -410,6 +414,8 @@ class WebUISettingsRouter:
             return self._error_response(400, "Invalid action payload")
         if not local and not self.settings.config.load().tools.mcp_docker.allow_remote_admin:
             return self._error_response(403, "Remote administration disabled")
+        if action in {"migrate-schema", "restore-schema-v1", "register-catalog", "install-catalog"} and not local:
+            return self._error_response(403, "This catalog or schema operation requires local operator consent")
         session_id = _read_session_cookie(request.headers)
         try:
             self._access.require_elevation(session_id)
@@ -443,6 +449,105 @@ class WebUISettingsRouter:
             except BrokerUnavailableError:
                 return self._error_response(503, "Docker MCP broker unavailable")
             result["mcp_runtime"] = await self._reload_mcp_runtime()
+            return self._json_response(result)
+        if action == "migrate-schema":
+            revision = payload.get("expected_revision")
+            confirmation = payload.get("expected_confirmation")
+            if type(revision) is not int or not isinstance(confirmation, str):
+                return self._error_response(400, "expected_revision and expected_confirmation are required")
+            try:
+                result = await asyncio.to_thread(self._mcp_docker.migrate_schema, revision, confirmation)
+            except DomainError as exc:
+                return self._error_response(exc.status, str(exc))
+            return self._json_response(result)
+        if action == "restore-schema-v1":
+            backup_id = payload.get("backup_id")
+            revision = payload.get("expected_revision")
+            confirmation = payload.get("expected_confirmation")
+            if not isinstance(backup_id, str) or type(revision) is not int or not isinstance(confirmation, str):
+                return self._error_response(400, "backup_id, expected_revision and confirmation are required")
+            try:
+                result = await asyncio.to_thread(
+                    self._mcp_docker.restore_schema_v1, backup_id, revision, confirmation,
+                )
+            except DomainError as exc:
+                return self._error_response(exc.status, str(exc))
+            return self._json_response(result)
+        if action == "register-catalog":
+            catalog_id = payload.get("catalog_id")
+            snapshot_sha256 = payload.get("snapshot_sha256")
+            revision = payload.get("expected_revision")
+            confirmation = payload.get("expected_confirmation")
+            if (not isinstance(catalog_id, str) or not isinstance(snapshot_sha256, str) or
+                type(revision) is not int or not isinstance(confirmation, str)):
+                return self._error_response(400, "catalog pin, revision and confirmation are required")
+            try:
+                result = await asyncio.to_thread(
+                    self._mcp_docker.register_catalog, catalog_id, snapshot_sha256, revision, confirmation,
+                )
+            except DomainError as exc:
+                return self._error_response(exc.status, str(exc))
+            return self._json_response(result)
+        if action == "install-catalog":
+            catalog_id = payload.get("catalog_id")
+            app_id = payload.get("app_id")
+            server_id = payload.get("server_id")
+            revision = payload.get("expected_revision")
+            confirmation = payload.get("expected_confirmation")
+            mount_sources = payload.get("mount_sources", {})
+            raw_environment = payload.get("environment", {})
+            host_mounts = payload.get("host_mounts")
+            network = payload.get("network")
+            if (not isinstance(catalog_id, str) or not isinstance(app_id, str) or
+                not isinstance(server_id, str) or type(revision) is not int or
+                not isinstance(confirmation, str) or not isinstance(mount_sources, dict) or
+                not isinstance(raw_environment, dict) or not isinstance(host_mounts, list) or
+                (network is not None and not isinstance(network, str))):
+                return self._error_response(400, "invalid catalog install configuration")
+            mount_source_values = cast(dict[object, object], mount_sources)
+            if any(not isinstance(target, str) or not isinstance(source, str)
+                   for target, source in mount_source_values.items()):
+                return self._error_response(400, "invalid catalog mount mapping")
+            typed_mount_sources = {
+                cast(str, target): cast(str, source)
+                for target, source in mount_source_values.items()
+            }
+            try:
+                environment: dict[str, DockerEnvValue] = {}
+                for name, value in cast(dict[object, object], raw_environment).items():
+                    if not isinstance(name, str):
+                        return self._error_response(400, "invalid catalog environment configuration")
+                    environment[name] = DockerEnvValue.model_validate(value)
+                host_mount_values = cast(list[object], host_mounts)
+                if any(not isinstance(path_value, str) for path_value in host_mount_values):
+                    return self._error_response(400, "invalid catalog host access profile")
+                result = await asyncio.to_thread(
+                    self._mcp_docker.install_catalog_app,
+                    catalog_id=catalog_id,
+                    app_id=app_id,
+                    server_id=server_id,
+                    expected_revision=revision,
+                    expected_confirmation=confirmation,
+                    mount_sources=typed_mount_sources,
+                    environment=environment,
+                    host_mounts=cast(list[str], host_mount_values),
+                    network=network,
+                )
+            except (DomainError, ValidationError) as exc:
+                if isinstance(exc, DomainError):
+                    return self._error_response(exc.status, str(exc))
+                return self._error_response(400, "invalid secret configuration")
+            except BrokerRejectedError:
+                return self._error_response(502, "Docker MCP broker rejected catalog acquisition or install")
+            except BrokerUnavailableError:
+                return self._error_response(503, "Docker MCP broker unavailable")
+            result["mcp_runtime"] = await self._reload_mcp_runtime()
+            return self._json_response(result)
+        if action == "export-capabilities":
+            try:
+                result = await asyncio.to_thread(self._mcp_docker.export_capabilities)
+            except DomainError as exc:
+                return self._error_response(exc.status, str(exc))
             return self._json_response(result)
         try:
             result = await asyncio.to_thread(self._mcp_docker.act, action, dict(payload))

@@ -1,0 +1,24 @@
+# Optional overlay. The trust policy is provisioned outside the catalog and is
+# mounted read-only; without this overlay, catalog image acquisition is disabled.
+services:
+  nanobot-gateway:
+    volumes:
+      - type: bind
+        source: ${PERCIVAL_MCP_INDEX_HOST_PATH:?Set the local trusted MCP index checkout}
+        target: /run/pblabs-mcp-index
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      PERCIVAL_MCP_INDEX_ROOT: /run/pblabs-mcp-index
+
+  percival-mcp-broker:
+    volumes:
+      - type: bind
+        source: ${PERCIVAL_BROKER_POLICY_HOST_PATH:?Set the provisioned broker policy file}
+        target: /run/secrets/percival-mcp-acquisition-policy.json
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      PERCIVAL_BROKER_POLICY_FILE: /run/secrets/percival-mcp-acquisition-policy.json

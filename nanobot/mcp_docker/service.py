@@ -17,17 +17,23 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from nanobot.config.mcp_docker import (
     REDACTED_SECRET,
     SERVER_ID,
+    DockerEnvValue,
     DockerHostConfig,
     DockerImageSource,
     DockerServer,
+    ManagedAppReference,
+    McpDockerConfig,
+    TrustedCatalogConfig,
 )
 from nanobot.config.schema import Config
 from nanobot.mcp_docker.broker import BrokerError
+from nanobot.mcp_docker.catalog import CatalogError, load_catalog_snapshot, resolve_app_profile
 from nanobot.mcp_docker.client import BrokerRejectedError, BrokerUnavailableError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
@@ -92,6 +98,8 @@ class DockerMcpService:
             broker_capabilities = {
                 "minimumMountsSupported": health.get("minimumMountsSupported") is True,
                 "supportedNetworks": ["none", "bridge"] if health.get("supportedNetworks") == ["none", "bridge"] else ["none"],
+                "appMountsSupported": health.get("appMountsSupported") is True,
+                "catalogAcquisitionSupported": health.get("catalogAcquisitionSupported") is True,
             }
         except (BrokerUnavailableError, BrokerRejectedError, BrokerError) as exc:
             broker_status = {"status": "unavailable", **broker_problem(exc)}
@@ -170,7 +178,480 @@ class DockerMcpService:
             "history": self._history(),
             "pendingTransitions": pending_transitions,
             "backups": self._backups(),
+            "catalogs": self._catalog_summaries(section),
+            "localCatalogCandidate": self._local_catalog_candidate(),
+            "appReleases": {
+                server_id: release.model_dump(mode="json", by_alias=True)
+                for server_id, release in section.app_releases.items()
+            },
         }
+
+    def _local_catalog_candidate(self) -> dict[str, Any]:
+        try:
+            root = self._catalog_root()
+            catalog_path = root / "public" / "catalog.json"
+            if catalog_path.is_symlink():
+                raise CatalogError("catalog snapshot must not be a symlink")
+            raw = catalog_path.read_bytes()
+            snapshot_sha256 = hashlib.sha256(raw).hexdigest()
+            apps = load_catalog_snapshot(root, snapshot_sha256)
+            return {"status": "ready", "snapshotSha256": snapshot_sha256, "appCount": len(apps)}
+        except (CatalogError, DomainError, OSError):
+            return {"status": "unavailable"}
+
+    @staticmethod
+    def _catalog_root() -> Path:
+        raw = os.environ.get("PERCIVAL_MCP_INDEX_ROOT")
+        if not raw:
+            raise DomainError(503, "local MCP index is not provisioned")
+        root = Path(raw)
+        if not root.is_absolute() or root.is_symlink():
+            raise DomainError(503, "local MCP index path is invalid")
+        try:
+            resolved = root.resolve(strict=True)
+        except OSError as exc:
+            raise DomainError(503, "local MCP index is unavailable") from exc
+        if not resolved.is_dir():
+            raise DomainError(503, "local MCP index is unavailable")
+        return resolved
+
+    def _catalog_summaries(self, section: McpDockerConfig) -> list[dict[str, Any]]:
+        result: list[dict[str, Any]] = []
+        for catalog_id, trusted in sorted(section.trusted_catalogs.items()):
+            try:
+                apps = load_catalog_snapshot(Path(trusted.root), trusted.snapshot_sha256)
+                result.append({
+                    "catalogId": catalog_id,
+                    "snapshotSha256": trusted.snapshot_sha256,
+                    "status": "ready",
+                    "apps": [{
+                        "id": app.app_id,
+                        "name": app.mcp_name,
+                        "version": app.version,
+                        "sourceClass": app.source_class,
+                        "platform": app.platform,
+                        "repositoryDigest": app.repository_digest,
+                        "needsNetwork": app.needs_network,
+                        "environmentVariables": [
+                            {"name": variable.name, "required": variable.required, "secret": variable.secret}
+                            for variable in app.environment_variables
+                        ],
+                        "mounts": [
+                            {"target": mount.target, "kind": mount.kind,
+                             "access": mount.access, "required": mount.required}
+                            for mount in app.mounts
+                        ],
+                    } for app in apps],
+                })
+            except (CatalogError, OSError):
+                result.append({
+                    "catalogId": catalog_id,
+                    "snapshotSha256": trusted.snapshot_sha256,
+                    "status": "stale",
+                    "apps": [],
+                })
+        return result
+
+    def migrate_schema(self, expected_revision: int, expected_confirmation: str) -> dict[str, Any]:
+        """Explicitly migrate the canonical MCP config from v1 to v2 under CAS."""
+        if expected_confirmation != "MCP-Docker-v1-to-v2":
+            raise DomainError(400, "type MCP-Docker-v1-to-v2 to confirm the schema migration")
+        if type(expected_revision) is not int or expected_revision < 0:
+            raise DomainError(400, "expected_revision must be a nonnegative integer")
+        if self.recover_pending():
+            raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before migration")
+
+        def transaction(path: Path) -> dict[str, Any]:
+            from nanobot.config.loader import load_config, save_config
+
+            config = load_config(path)
+            section = config.tools.mcp_docker
+            if section.revision != expected_revision:
+                raise DomainError(409, "Docker MCP revision conflict")
+            if section.schema_version != 1:
+                raise DomainError(409, "MCP Docker config is not schema version 1")
+            if self._has_pending_unresolved():
+                raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before migration")
+            raw = path.read_bytes() if path.exists() else b"{}\n"
+            backup_id = datetime.now(UTC).strftime("schema-v1-%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:12]
+            backup_dir = self.root / "backups" / backup_id
+            backup_dir.mkdir(parents=True, mode=0o700)
+            os.chmod(backup_dir, 0o700)
+            snapshot_path = backup_dir / "config-v1.json"
+            fd = os.open(snapshot_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(raw)
+                handle.flush()
+                os.fsync(handle.fileno())
+            manifest = {
+                "schemaVersion": 1,
+                "action": "migrate-schema",
+                "source_revision": section.revision,
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+            manifest_path = backup_dir / "manifest.json"
+            manifest_fd = os.open(manifest_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(manifest_fd, "w", encoding="utf-8") as handle:
+                json.dump(manifest, handle, sort_keys=True)
+                handle.flush()
+                os.fsync(handle.fileno())
+            section.schema_version = 2
+            section.installation_id = str(uuid.uuid4())
+            section.revision += 1
+            save_config(config, path)
+            correlation_id = uuid.uuid4().hex
+            self._audit("migrate-schema", "catalog", "committed", section.revision,
+                        correlation_id)
+            return {
+                "schemaVersion": section.schema_version,
+                "revision": section.revision,
+                "installationId": section.installation_id,
+                "backupId": backup_id,
+            }
+
+        return self.config.run_serialized(transaction)
+
+    def register_catalog(
+        self, catalog_id: str, snapshot_sha256: str,
+        expected_revision: int, expected_confirmation: str,
+    ) -> dict[str, Any]:
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,39}", catalog_id):
+            raise DomainError(400, "invalid catalog_id")
+        if expected_confirmation != catalog_id:
+            raise DomainError(400, "catalog confirmation must equal catalog_id")
+        if type(expected_revision) is not int or expected_revision < 0:
+            raise DomainError(400, "expected_revision must be a nonnegative integer")
+        root = self._catalog_root()
+        try:
+            apps = load_catalog_snapshot(root, snapshot_sha256)
+        except CatalogError as exc:
+            raise DomainError(400, "local index snapshot failed validation") from exc
+        if self.recover_pending():
+            raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before pinning a catalog")
+        registered_at = datetime.now(UTC).isoformat()
+
+        def mutation(config: Config) -> dict[str, Any]:
+            section = config.tools.mcp_docker
+            if section.revision != expected_revision:
+                raise DomainError(409, "Docker MCP revision conflict")
+            if section.schema_version != 2:
+                raise DomainError(409, "migrate MCP Docker config to schema version 2 first")
+            if self._has_pending_unresolved():
+                raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before pinning a catalog")
+            previous = section.trusted_catalogs.get(catalog_id)
+            if previous is not None and previous.snapshot_sha256 != snapshot_sha256:
+                if any(release.catalog_id == catalog_id for release in section.app_releases.values()):
+                    raise DomainError(409, "catalog pin is referenced by installed apps; register a new catalog_id")
+                required = f"{catalog_id}@{previous.snapshot_sha256[:12]}->{snapshot_sha256[:12]}"
+                if expected_confirmation != required:
+                    raise DomainError(400, f"type {required} to replace the trusted catalog pin")
+            elif previous is not None:
+                raise DomainError(409, "catalog snapshot is already trusted")
+            section.trusted_catalogs[catalog_id] = TrustedCatalogConfig(
+                catalog_id=catalog_id,
+                root=str(root),
+                snapshot_sha256=snapshot_sha256,
+                registered_at=registered_at,
+            )
+            section.revision += 1
+            self._audit("register-catalog", catalog_id, "committed", section.revision,
+                        uuid.uuid4().hex)
+            return {"catalogId": catalog_id, "snapshotSha256": snapshot_sha256,
+                    "revision": section.revision, "appCount": len(apps)}
+
+        return self.config.update(mutation)
+
+    def restore_schema_v1(
+        self, backup_id: str, expected_revision: int, expected_confirmation: str,
+    ) -> dict[str, Any]:
+        """Restore the v1 MCP section only when no v2 catalog data was committed."""
+        if (not re.fullmatch(r"schema-v1-[A-Za-z0-9T_-]{1,96}", backup_id) or
+            expected_confirmation != f"restore:{backup_id}"):
+            raise DomainError(400, "schema backup ID and typed restore confirmation are required")
+        backup_dir = self.root / "backups" / backup_id
+        if backup_dir.is_symlink() or backup_dir.resolve().parent != (self.root / "backups").resolve():
+            raise DomainError(400, "schema backup must be a direct child of the private backups directory")
+        snapshot_path = backup_dir / "config-v1.json"
+        manifest_path = backup_dir / "manifest.json"
+        if snapshot_path.is_symlink() or manifest_path.is_symlink() or not snapshot_path.is_file() or not manifest_path.is_file():
+            raise DomainError(400, "schema backup files are unavailable")
+        try:
+            raw = snapshot_path.read_bytes()
+            manifest_value: object = json.loads(manifest_path.read_text(encoding="utf-8"))
+            saved_value: object = json.loads(raw)
+            if not isinstance(manifest_value, dict) or not isinstance(saved_value, dict):
+                raise ValueError("invalid schema backup")
+            manifest = cast(dict[str, Any], manifest_value)
+            saved = cast(dict[str, Any], saved_value)
+            tools_saved = saved.get("tools")
+            if (manifest.get("action") != "migrate-schema" or
+                not hmac.compare_digest(str(manifest.get("sha256", "")), hashlib.sha256(raw).hexdigest()) or
+                not isinstance(tools_saved, dict)):
+                raise ValueError("invalid schema backup")
+            mcp_raw = cast(dict[str, Any], tools_saved).get("mcpDocker")
+            if not isinstance(mcp_raw, dict):
+                raise ValueError("invalid schema backup")
+            mcp_saved = cast(dict[str, Any], mcp_raw)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise DomainError(400, "schema backup is missing, invalid or tampered") from exc
+        if mcp_saved.get("schemaVersion") != 1:
+            raise DomainError(400, "backup does not contain MCP config schema version 1")
+        if type(expected_revision) is not int or expected_revision < 0:
+            raise DomainError(400, "expected_revision must be a nonnegative integer")
+
+        def transaction(path: Path) -> dict[str, Any]:
+            from nanobot.config.loader import load_config, save_config
+
+            config = load_config(path)
+            section = config.tools.mcp_docker
+            if section.revision != expected_revision:
+                raise DomainError(409, "Docker MCP revision conflict")
+            if section.schema_version != 2 or section.trusted_catalogs or section.app_releases:
+                raise DomainError(409, "schema rollback is unsupported after catalog trust or app install")
+            saved_servers = mcp_saved.get("servers")
+            saved_configs = mcp_saved.get("configurations")
+            current_servers = {key: item.model_dump(mode="json", by_alias=True)
+                               for key, item in section.servers.items()}
+            current_configs = {}
+            for key, host in section.configurations.items():
+                value = host.model_dump(mode="json", by_alias=True)
+                value.pop("appMounts", None)
+                current_configs[key] = value
+            if current_servers != saved_servers or current_configs != saved_configs:
+                raise DomainError(409, "schema rollback requires the managed server state to match its v1 snapshot")
+            if self._has_pending_unresolved():
+                raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before rollback")
+            section.schema_version = 1
+            section.installation_id = None
+            section.trusted_catalogs.clear()
+            section.app_releases.clear()
+            section.revision += 1
+            save_config(config, path)
+            self._audit("restore-schema-v1", "catalog", "committed", section.revision,
+                        uuid.uuid4().hex)
+            return {"schemaVersion": 1, "revision": section.revision, "backupId": backup_id}
+
+        return self.config.run_serialized(transaction)
+
+    def export_capabilities(self) -> dict[str, Any]:
+        def transaction(path: Path) -> dict[str, Any]:
+            from nanobot.config.loader import load_config
+
+            section = load_config(path).tools.mcp_docker
+            if section.schema_version != 2 or section.installation_id is None:
+                raise DomainError(409, "migrate MCP Docker config to schema version 2 before export")
+            servers: list[dict[str, Any]] = []
+            for server_id, server in sorted(section.servers.items()):
+                host = section.configurations[server_id]
+                entry: dict[str, Any] = {
+                    "server_id": server_id,
+                    "owner": "native-mcp-manager",
+                    "active": server.active,
+                    "state": server.state,
+                    "source": server.source.model_dump(mode="json"),
+                    "observed": "unknown",
+                    "configuration": {
+                        "network": host.network,
+                        "host_mounts": "full" if host.mounts is None else "reduced",
+                        "app_mounts": [
+                            {"target": item.target, "kind": item.kind, "read_only": item.read_only}
+                            for item in host.app_mounts
+                        ],
+                    },
+                }
+                release = section.app_releases.get(server_id)
+                if release is not None:
+                    entry["app_release"] = release.model_dump(mode="json", by_alias=False)
+                servers.append(entry)
+            snapshot = {
+                "schema_version": 1,
+                "installation_id": section.installation_id,
+                "owner": "native-mcp-manager",
+                "revision": section.revision,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "servers": servers,
+            }
+            try:
+                export_schema = json.loads(
+                    Path(__file__).with_name("capabilities.schema.1.0.json").read_text(encoding="utf-8")
+                )
+                validator: Any = Draft202012Validator(export_schema)
+                validator.check_schema(export_schema)
+                errors = sorted(validator.iter_errors(snapshot), key=lambda error: list(map(str, error.absolute_path)))
+            except (OSError, ValueError, TypeError) as exc:
+                raise DomainError(500, "capabilities export schema is unavailable") from exc
+            if errors:
+                raise DomainError(500, "capabilities snapshot did not validate")
+            raw = (json.dumps(snapshot, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode()
+            self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+            os.chmod(self.root, 0o700)
+            fd, temporary = tempfile.mkstemp(prefix=".capabilities.", suffix=".tmp", dir=self.root)
+            try:
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "wb") as handle:
+                    handle.write(raw)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temporary, self.root / "capabilities.lock")
+                dir_fd = os.open(self.root, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            except Exception:
+                try:
+                    os.unlink(temporary)
+                except FileNotFoundError:
+                    pass
+                raise
+            return {
+                "revision": section.revision,
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "capabilities": snapshot,
+            }
+
+        return self.config.run_serialized(transaction)
+
+    def install_catalog_app(
+        self,
+        *,
+        catalog_id: str,
+        app_id: str,
+        server_id: str,
+        expected_revision: int,
+        expected_confirmation: str,
+        mount_sources: dict[str, str],
+        environment: dict[str, DockerEnvValue],
+        host_mounts: list[str],
+        network: str | None = None,
+    ) -> dict[str, Any]:
+        if not SERVER_ID.fullmatch(server_id):
+            raise DomainError(400, "invalid server_id")
+        if self.recover_pending():
+            raise DomainError(503, "an MCP Docker transition is unresolved; inspect recovery before catalog install")
+        if type(expected_revision) is not int or expected_revision < 0:
+            raise DomainError(400, "expected_revision must be a nonnegative integer")
+        section = self.config.load().tools.mcp_docker
+        if section.revision != expected_revision:
+            raise DomainError(409, "Docker MCP revision conflict")
+        if section.schema_version != 2:
+            raise DomainError(409, "migrate MCP Docker config to schema version 2 first")
+        if server_id in section.servers:
+            raise DomainError(409, "server already exists")
+        trusted = section.trusted_catalogs.get(catalog_id)
+        if trusted is None:
+            raise DomainError(404, "catalog is not trusted")
+        try:
+            apps = load_catalog_snapshot(Path(trusted.root), trusted.snapshot_sha256)
+        except (CatalogError, OSError) as exc:
+            raise DomainError(409, "trusted local catalog snapshot is stale or invalid") from exc
+        app = next((item for item in apps if item.app_id == app_id), None)
+        if app is None:
+            raise DomainError(404, "approved app release is not present in the trusted catalog")
+        confirmation = f"{server_id}/{app.app_id}@{app.version}"
+        if expected_confirmation != confirmation:
+            raise DomainError(400, f"type {confirmation} to confirm this local catalog install")
+        try:
+            host = resolve_app_profile(
+                app,
+                mount_sources=mount_sources,
+                environment=environment,
+                host_mounts=host_mounts,
+                network=network,
+            )
+        except (CatalogError, ValidationError, ValueError) as exc:
+            raise DomainError(400, "installation configuration does not satisfy the app profile") from exc
+        try:
+            health = self.broker.action("health", "broker", {})
+        except (BrokerUnavailableError, BrokerRejectedError, BrokerError):
+            raise
+        if (health.get("minimumMountsSupported") is not True or health.get("appMountsSupported") is not True or
+            health.get("catalogAcquisitionSupported") is not True):
+            raise DomainError(409, "Docker broker does not support catalog mounts or policy-governed acquisition")
+        correlation_id = uuid.uuid4().hex
+        self._audit("acquire", server_id, "started", expected_revision, correlation_id)
+        try:
+            acquired = self.broker.action("acquire", server_id, {
+                "reference": app.repository_digest,
+                "platform": app.platform,
+            })
+        except (BrokerUnavailableError, BrokerRejectedError, BrokerError):
+            self._audit("acquire", server_id, "failed", expected_revision, correlation_id)
+            raise
+        if acquired.get("repositoryDigest") != app.repository_digest or acquired.get("platform") != app.platform:
+            self._audit("acquire", server_id, "failed", expected_revision, correlation_id)
+            raise DomainError(502, "broker acquisition identity did not match the catalog pin")
+        self._audit("acquire", server_id, "committed", expected_revision, correlation_id)
+        app_reference = ManagedAppReference(
+            catalog_id=catalog_id,
+            snapshot_sha256=app.snapshot_sha256,
+            app_id=app.app_id,
+            mcp_name=app.mcp_name,
+            version=app.version,
+            source_class=app.source_class,
+            repository_digest=app.repository_digest,
+            platform=app.platform,
+            manifest_sha256=app.manifest_sha256,
+            server_json_sha256=app.server_json_sha256,
+            consent_revision=expected_revision,
+            consented_at=datetime.now(UTC).isoformat(),
+        )
+        result = self.act("install", {
+            "server_id": server_id,
+            "expected_revision": expected_revision,
+            "expected_confirmation": confirmation,
+            "source": {"type": "pinned-image", "reference": app.repository_digest},
+            "configuration": host.model_dump(mode="json"),
+            "app_release": app_reference.model_dump(mode="json"),
+        })
+        result["appId"] = app.app_id
+        result["appVersion"] = app.version
+        return result
+
+    @staticmethod
+    def _validate_app_host(
+        section: McpDockerConfig, release: ManagedAppReference, host: DockerHostConfig,
+    ) -> None:
+        trusted = section.trusted_catalogs.get(release.catalog_id)
+        if trusted is None or trusted.snapshot_sha256 != release.snapshot_sha256:
+            raise DomainError(409, "installed app no longer matches a trusted catalog pin")
+        try:
+            apps = load_catalog_snapshot(Path(trusted.root), trusted.snapshot_sha256)
+        except (CatalogError, OSError) as exc:
+            raise DomainError(409, "installed app catalog snapshot is stale or invalid") from exc
+        app = next((item for item in apps if item.app_id == release.app_id), None)
+        if app is None or (
+            app.mcp_name != release.mcp_name or app.version != release.version or
+            app.source_class != release.source_class or app.repository_digest != release.repository_digest or
+            app.platform != release.platform or app.manifest_sha256 != release.manifest_sha256 or
+            app.server_json_sha256 != release.server_json_sha256
+        ):
+            raise DomainError(409, "installed app release does not match its trusted catalog snapshot")
+        if host.mounts is None:
+            raise DomainError(400, "catalog apps require an explicit reduced host access profile")
+        requirements = {mount.target: mount for mount in app.mounts}
+        provided = {mount.target: mount for mount in host.app_mounts}
+        if set(provided) - set(requirements) or {mount.target for mount in app.mounts if mount.required} - set(provided):
+            raise DomainError(400, "configured app mounts do not match the catalog profile")
+        for target, configured in provided.items():
+            requirement = requirements[target]
+            if configured.kind != requirement.kind or configured.read_only != (requirement.access == "read-only"):
+                raise DomainError(400, "configured app mount access does not match the catalog profile")
+        if host.network == "bridge" and not app.needs_network:
+            raise DomainError(400, "configured network access exceeds the catalog profile")
+        env_requirements = {item.name: item for item in app.environment_variables}
+        if set(host.env) - set(env_requirements):
+            raise DomainError(400, "configured environment contains undeclared app variables")
+        for name, requirement in env_requirements.items():
+            configured = host.env.get(name)
+            if requirement.required and configured is None:
+                raise DomainError(400, "required app environment value is missing")
+            if configured is not None and (
+                (requirement.secret and configured.kind != "secret") or
+                (not requirement.secret and configured.kind == "secret") or
+                (requirement.required and not configured.value)
+            ):
+                raise DomainError(400, "configured app environment type does not match the catalog")
 
     def _backups(self) -> list[dict[str, Any]]:
         backups = self.root / "backups"
@@ -197,9 +678,12 @@ class DockerMcpService:
             if isinstance(server_id, str) and SERVER_ID.fullmatch(server_id) and type(revision) is int and revision >= 0:
                 backup = {"backupId": entry.name, "serverId": server_id, "sourceRevision": revision}
                 action = data.get("action")
-                if isinstance(action, str) and action in {"update-image", "exclude"}:
+                if isinstance(action, str) and action in {"update-image", "exclude", "migrate-schema"}:
                     backup["action"] = action
                 result.append(backup)
+            elif data.get("action") == "migrate-schema" and type(revision) is int and revision >= 0:
+                result.append({"backupId": entry.name, "serverId": "schema",
+                               "sourceRevision": revision, "action": "migrate-schema"})
         return result
 
     def _transition_path(self, server_id: str) -> Path:
@@ -338,7 +822,7 @@ class DockerMcpService:
                 return None
             self.broker.action("recover", server_id, {
                 "source": server.source.model_dump(mode="json"),
-                "configuration": host.model_dump(mode="json"),
+                "configuration": host.broker_payload(),
                 "active": server.active,
                 "tools_disabled": server.tools_disabled,
                 "running": server.active and server.state != "stopped-persistent",
@@ -355,7 +839,7 @@ class DockerMcpService:
         old_host = DockerHostConfig.model_validate(before.get("configuration"))
         self.broker.action("recover", server_id, {
             "source": old_server.source.model_dump(mode="json"),
-            "configuration": old_host.model_dump(mode="json"),
+            "configuration": old_host.broker_payload(),
             "active": old_server.active,
             "tools_disabled": old_server.tools_disabled,
             "running": old_server.active and old_server.state != "stopped-persistent",
@@ -377,8 +861,9 @@ class DockerMcpService:
         except OSError:
             return []
         actions = {
-            "install", "configure", "disable-tool", "enable-tool", "activate",
+            "install", "configure", "disable-tool", "enable-tool", "activate", "acquire",
             "deactivate", "update-image", "restart", "start", "stop", "exclude", "restore",
+            "migrate-schema", "restore-schema-v1", "register-catalog",
         }
         phases = {"started", "committed", "failed", "compensation-failed"}
         events: list[dict[str, Any]] = []
@@ -431,6 +916,8 @@ class DockerMcpService:
             "source_revision": section.revision,
             "server": section.servers[server_id].model_dump(mode="json", by_alias=True),
             "configuration": section.configurations[server_id].model_dump(mode="json", by_alias=True),
+            "app_release": section.app_releases[server_id].model_dump(mode="json", by_alias=True)
+            if server_id in section.app_releases else None,
         }
         manifest["sha256"] = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         path = folder / "manifest.json"
@@ -460,7 +947,7 @@ class DockerMcpService:
 
     def act(self, action: str, payload: dict[str, Any]) -> dict[str, Any]:
         allowed: dict[str, set[str]] = {
-            "install": {"source", "configuration"},
+            "install": {"source", "configuration", "app_release", "expected_confirmation"},
             "configure": {"configuration", "expected_confirmation"},
             "disable-tool": {"tool"}, "enable-tool": {"tool"},
             "activate": set(), "deactivate": set(),
@@ -524,8 +1011,25 @@ class DockerMcpService:
             try:
                 source = DockerImageSource.model_validate(payload["source"]) if action in {"install", "update-image"} else None
                 host = self._host(payload["configuration"], section.configurations.get(server_id)) if action in {"install", "configure"} else None
+                raw_app_release = payload.get("app_release")
+                app_release = ManagedAppReference.model_validate(raw_app_release) if raw_app_release is not None else None
             except (ValidationError, KeyError, ValueError) as exc:
                 raise DomainError(400, "invalid image or host configuration") from exc
+            if action == "install" and app_release is not None:
+                if section.schema_version != 2 or source is None or host is None:
+                    raise DomainError(409, "catalog apps require MCP config schema version 2")
+                if (source.type != "pinned-image" or source.reference != app_release.repository_digest or
+                    payload.get("expected_confirmation") != f"{server_id}/{app_release.app_id}@{app_release.version}"):
+                    raise DomainError(400, "catalog install confirmation or digest does not match the approved app")
+                self._validate_app_host(section, app_release, host)
+            if action == "install" and section.schema_version == 1 and payload.get("app_release") is not None:
+                raise DomainError(409, "migrate MCP Docker config to schema version 2 first")
+            if action == "configure" and current is not None and host is not None:
+                release = section.app_releases.get(server_id)
+                if release is not None:
+                    self._validate_app_host(section, release, host)
+            if action == "update-image" and server_id in section.app_releases:
+                raise DomainError(409, "catalog-managed images must be updated from a trusted catalog release")
             scope_changes: list[str] = []
             if action == "configure" and current is not None and host is not None:
                 previous_host = section.configurations[server_id]
@@ -545,6 +1049,8 @@ class DockerMcpService:
             before = None if current is None else {
                 "server": current.model_dump(mode="json", by_alias=True),
                 "configuration": section.configurations[server_id].model_dump(mode="json", by_alias=True),
+                "app_release": section.app_releases[server_id].model_dump(mode="json", by_alias=True)
+                if server_id in section.app_releases else None,
             }
             journal: dict[str, Any] = {
                 "schemaVersion": 1,
@@ -568,14 +1074,14 @@ class DockerMcpService:
                     managed_host = section.configurations[server_id]
                     managed_state = {
                         "source": current.source.model_dump(mode="json"),
-                        "configuration": managed_host.model_dump(mode="json", by_alias=True),
+                        "configuration": managed_host.broker_payload(),
                         "active": current.active,
                         "tools_disabled": list(current.tools_disabled),
                         "tools": list(current.tools),
                     }
                 broker_payload = {
                     **({"source": source.model_dump(mode="json")} if source else {}),
-                    **({"configuration": host.model_dump(mode="json")} if host else {}),
+                    **({"configuration": host.broker_payload()} if host else {}),
                     **({"tool": tool} if action in {"disable-tool", "enable-tool"} else {}),
                     **({"expected_confirmation": server_id} if action == "exclude" else {}),
                 }
@@ -600,9 +1106,12 @@ class DockerMcpService:
                                                                 tools=result.get("tools", []),
                                                                 state="running" if result.get("running") else "pending-broker")
                     section.configurations[server_id] = host
+                    if app_release is not None:
+                        section.app_releases[server_id] = app_release
                 elif action == "exclude":
                     del section.servers[server_id]
                     del section.configurations[server_id]
+                    section.app_releases.pop(server_id, None)
                 elif current is not None:
                     current.revision += 1
                     if action == "configure" and host is not None:
@@ -699,6 +1208,8 @@ class DockerMcpService:
             server_id = manifest_obj.get("server_id")
             server = DockerServer.model_validate(manifest_obj.get("server"))
             host = DockerHostConfig.model_validate(manifest_obj.get("configuration"))
+            raw_app_release = manifest_obj.get("app_release")
+            app_release = ManagedAppReference.model_validate(raw_app_release) if raw_app_release is not None else None
             if not isinstance(server_id, str) or server.server_id != server_id:
                 raise ValueError("server ID mismatch")
         except (OSError, ValueError, TypeError, ValidationError) as exc:
@@ -722,6 +1233,10 @@ class DockerMcpService:
                 raise DomainError(503, "an MCP Docker transition is unresolved; inspect the pending recovery state")
             if server_id in section.servers:
                 raise DomainError(409, "restore refuses to overwrite an existing server")
+            if app_release is not None:
+                if section.schema_version != 2:
+                    raise DomainError(409, "catalog-managed backup requires MCP config schema version 2")
+                self._validate_app_host(section, app_release, host)
             journal: dict[str, Any] = {
                 "schemaVersion": 1,
                 "server_id": server_id,
@@ -740,7 +1255,7 @@ class DockerMcpService:
             try:
                 result = self.broker.action("reconcile", server_id, {
                     "source": server.source.model_dump(mode="json"),
-                    "configuration": host.model_dump(mode="json"),
+                    "configuration": host.broker_payload(),
                     "active": server.active,
                     "tools_disabled": server.tools_disabled,
                 })
@@ -752,6 +1267,8 @@ class DockerMcpService:
                 server.state = "running" if result.get("running") else "configured-disabled"
                 section.servers[server_id] = server
                 section.configurations[server_id] = host
+                if app_release is not None:
+                    section.app_releases[server_id] = app_release
                 section.revision += 1
                 save_config(config, path)
             except Exception:

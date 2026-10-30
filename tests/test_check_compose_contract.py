@@ -117,3 +117,23 @@ def test_agentmail_inbox_identifier_is_sensitive_but_file_reference_is_not() -> 
         env_file_keys=set(),
     )
     assert any(f.severity == "error" and f.rule == "secret_in_config" for f in findings)
+
+
+def test_catalog_policy_and_index_mounts_must_be_read_only() -> None:
+    service = valid_http()
+    service["volumes"] = [
+        {"target": "/run/pblabs-mcp-index", "read_only": True},
+        {"target": "/run/secrets/percival-mcp-acquisition-policy.json", "read_only": False},
+    ]
+    findings = findings_for(
+        service,
+        expected=ServiceSpec(
+            role="core-http",
+            restart="persistent",
+            read_only_mount_targets=(
+                "/run/pblabs-mcp-index",
+                "/run/secrets/percival-mcp-acquisition-policy.json",
+            ),
+        ),
+    )
+    assert [(finding) for finding in findings if finding == "volumes"] == ["volumes"]

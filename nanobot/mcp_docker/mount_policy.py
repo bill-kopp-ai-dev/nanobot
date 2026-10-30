@@ -12,6 +12,8 @@ import re
 import stat
 from pathlib import Path, PurePosixPath
 
+from nanobot.mcp_docker.contracts import DockerAppMount
+
 _OCTAL = re.compile(r"\\([0-7]{3})")
 _SKIP = ("/proc", "/sys", "/dev", "/run")
 
@@ -144,11 +146,38 @@ class MountPolicy:
             resolved_cover = cover
         return _inside(cover, path) or _inside(resolved_cover, resolved_path)
 
-    def docker_args(self, mounts: list[str] | None) -> list[str]:
-        """Return bind arguments followed by covers; [] never binds host paths."""
+    def docker_args(
+        self, mounts: list[str] | None, app_mounts: list[DockerAppMount] | None = None,
+    ) -> list[str]:
+        """Return host-policy binds, declared app binds and mandatory covers."""
+        app_mounts = app_mounts or []
+        if app_mounts and mounts is None:
+            raise ValueError("app mounts require an explicit reduced host access profile")
         requested = ["/"] if mounts is None else [_absolute(path) for path in mounts]
         if mounts is not None and "/" in requested:
             raise ValueError("full host access uses the default, not a custom mount")
+        app_sources: list[str] = []
+        app_targets: list[str] = []
+        for mount in app_mounts:
+            source = _absolute(mount.source)
+            target = _absolute(mount.target)
+            if source == "/" or not self._safe(source) or not self.host_root.joinpath(source.lstrip("/")).exists():
+                raise ValueError("app mount source is unavailable or a control-plane path")
+            canonical = resolve_host_path(source, self.host_root)
+            if any(_inside(canonical, cover) or _inside(source, cover) for cover in self.protected):
+                raise ValueError("app mount source reopens a protected host path")
+            if any(_inside(source, existing) or _inside(existing, source) for existing in app_sources):
+                raise ValueError("overlapping app mount sources are not allowed")
+            if any(_inside(target, existing) or _inside(existing, target) for existing in app_targets):
+                raise ValueError("overlapping app mount targets are not allowed")
+            app_sources.append(source)
+            app_targets.append(target)
+
+        if mounts is not None and any(
+            _inside(source, app_source) or _inside(app_source, source)
+            for source in requested for app_source in app_sources
+        ):
+            raise ValueError("app mount source must not also be exposed under /host")
         args: list[str] = []
         if mounts is None:
             submounts = [p for p in self.targets if p != "/" and self._safe(p)
@@ -163,6 +192,11 @@ class MountPolicy:
             if any(_inside(canonical, cover) or _inside(source, cover) for cover in self.protected):
                 raise ValueError("custom mount reopens a protected host path")
             args += ["--mount", f"type=bind,src={source},dst=/host{source if source != '/' else ''},bind-recursive=disabled"]
+        for mount in app_mounts:
+            options = f"type=bind,src={mount.source},dst={mount.target},bind-recursive=disabled"
+            if mount.read_only:
+                options += ",readonly"
+            args += ["--mount", options]
         # Protect paths accessible through *any* selected parent, including
         # a separately bound /home; masks must be applied after every bind.
         covers = [p for p in self.protected if any(self._covers(source, p) for source in sources)]

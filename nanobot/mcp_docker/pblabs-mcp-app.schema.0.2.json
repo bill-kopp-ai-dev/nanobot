@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pblabs:schema:pblabs-mcp-app:0.2",
+  "title": "PBLabs MCP app operational metadata",
+  "description": "Proposed 0.2 extension. Requirements and observations only; never grants runtime privileges.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "0.2" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,99}$" },
+    "mcp_name": {
+      "description": "Proposed external MCP Registry identity. Required for approved releases; the namespace claim must be verified before publication.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 200,
+      "pattern": "^[a-zA-Z0-9.-]+/[a-zA-Z0-9._-]+$"
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "publisher": { "type": "string", "minLength": 1 },
+    "source_class": { "enum": ["official", "community"] },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "container": { "const": true },
+        "transport": { "enum": ["stdio", "sse", "streamable-http"] },
+        "startup": { "enum": ["on-demand", "manual"] }
+      },
+      "required": ["container", "transport", "startup"]
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "products": { "type": "array", "items": { "enum": ["percival", "positronic"] }, "uniqueItems": true },
+        "platforms": { "type": "array", "items": { "pattern": "^linux/(amd64|arm64)$" }, "uniqueItems": true }
+      },
+      "required": ["products", "platforms"]
+    },
+    "resources": {
+      "description": "Optional sizing requirements. Omit unknown values rather than inventing estimates.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memory_mb": { "type": "integer", "minimum": 1 },
+        "cpus": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "minProperties": 1
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_secrets": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "writable_data": { "type": "boolean" }
+      },
+      "required": ["required_secrets", "writable_data"]
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "needs_network": { "type": "boolean" } },
+      "required": ["needs_network"]
+    },
+    "mounts": {
+      "description": "Container-side requirements only. Host source paths are installation configuration and are never represented here.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target": { "type": "string", "pattern": "^/[^\\u0000]*$" },
+          "kind": { "enum": ["data", "cache", "secret"] },
+          "access": { "enum": ["read-only", "read-write"] },
+          "required": { "type": "boolean" },
+          "source": { "const": "installation-configured" }
+        },
+        "required": ["target", "kind", "access", "required", "source"]
+      }
+    },
+    "lifecycle": {
+      "description": "Declares the single lifecycle owner and records observed behavior separately from runtime policy.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": { "const": "native-mcp-manager" },
+        "init": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required": { "const": true },
+            "provider": { "const": "container-runtime" }
+          },
+          "required": ["required", "provider"]
+        },
+        "restart_policy": { "const": "manager-policy" },
+        "grace_period_seconds": { "type": ["integer", "null"], "minimum": 1 },
+        "observed": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "readiness": { "enum": ["mcp-initialize", "unverified"] },
+            "stdin_eof_exit_code": { "type": ["integer", "null"] },
+            "sigterm_exit_code": { "type": ["integer", "null"] },
+            "sigterm_shutdown_hook": { "enum": ["ran", "not-run", "not-verified"] },
+            "sigint": { "enum": ["exits", "does-not-terminate", "not-observed"] }
+          },
+          "required": ["readiness", "stdin_eof_exit_code", "sigterm_exit_code", "sigterm_shutdown_hook", "sigint"]
+        }
+      },
+      "required": ["owner", "init", "restart_policy", "grace_period_seconds", "observed"]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["draft", "approved", "deprecated"] },
+        "approved_release": { "type": "string", "minLength": 1 }
+      },
+      "required": ["status"]
+    }
+  },
+  "required": ["schema_version", "id", "version", "publisher", "source_class", "runtime", "compatibility", "configuration", "security", "mounts", "lifecycle", "review"],
+  "allOf": [
+    {
+      "if": { "properties": { "review": { "properties": { "status": { "const": "approved" } }, "required": ["status"] } }, "required": ["review"] },
+      "then": { "required": ["mcp_name"], "properties": { "review": { "required": ["approved_release"] } } }
+    }
+  ]
+}

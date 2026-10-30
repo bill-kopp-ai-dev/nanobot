@@ -30,7 +30,8 @@ RUN python3 -m venv /opt/broker-venv && \
 WORKDIR /app
 COPY nanobot/__init__.py nanobot/config_base.py nanobot/
 COPY nanobot/mcp_docker/__init__.py nanobot/mcp_docker/contracts.py \
-     nanobot/mcp_docker/mount_policy.py nanobot/mcp_docker/broker.py \
+     nanobot/mcp_docker/acquisition_policy.py nanobot/mcp_docker/mount_policy.py \
+     nanobot/mcp_docker/broker.py \
      nanobot/mcp_docker/probe.py nanobot/mcp_docker/
 RUN chmod -R a+rX /app/nanobot
 

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pblabs:schema:capabilities-lock:1.0",
+  "title": "Native MCP Manager capabilities export",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "installation_id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "owner": { "const": "native-mcp-manager" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "servers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "server_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$" },
+          "owner": { "enum": ["native-mcp-manager", "externally-managed"] },
+          "active": { "type": "boolean" },
+          "state": { "type": "string", "minLength": 1 },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": { "enum": ["local-image", "pinned-image"] },
+              "reference": { "type": "string", "minLength": 1 }
+            },
+            "required": ["type", "reference"]
+          },
+          "observed": { "enum": ["unknown", "running", "stopped", "missing"] },
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "network": { "enum": ["none", "bridge"] },
+              "host_mounts": { "enum": ["full", "reduced"] },
+              "app_mounts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "target": { "type": "string", "pattern": "^/[^\\u0000]*$" },
+                    "kind": { "enum": ["data", "cache", "secret"] },
+                    "read_only": { "type": "boolean" }
+                  },
+                  "required": ["target", "kind", "read_only"]
+                }
+              }
+            },
+            "required": ["network", "host_mounts", "app_mounts"]
+          },
+          "app_release": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "catalog_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$" },
+              "snapshot_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "app_id": { "type": "string", "minLength": 1 },
+              "mcp_name": { "type": "string", "minLength": 3, "maxLength": 200 },
+              "version": { "type": "string", "minLength": 1 },
+              "source_class": { "enum": ["official", "community"] },
+              "repository_digest": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._:/-]{0,199}@sha256:[a-f0-9]{64}$" },
+              "platform": { "const": "linux/amd64" },
+              "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "server_json_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "consent_revision": { "type": "integer", "minimum": 0 },
+              "consented_at": { "type": "string", "minLength": 1 }
+            },
+            "required": [
+              "catalog_id", "snapshot_sha256", "app_id", "mcp_name", "version", "source_class",
+              "repository_digest", "platform", "manifest_sha256", "server_json_sha256",
+              "consent_revision", "consented_at"
+            ]
+          }
+        },
+        "required": ["server_id", "owner", "active", "state", "source", "observed", "configuration"]
+      }
+    }
+  },
+  "required": ["schema_version", "installation_id", "owner", "revision", "generated_at", "servers"]
+}

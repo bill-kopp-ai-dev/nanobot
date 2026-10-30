@@ -93,7 +93,7 @@ jobs:
                   docker_required=true
                   mcp_broker_required=true
                   ;;
-                Dockerfile.mcp-broker|docker-compose.mcp-broker.yml|nanobot/mcp_docker/*|nanobot/agent/tools/mcp.py|nanobot/config/mcp_docker.py|nanobot/config/schema.py|nanobot/config/loader.py|nanobot/webui/settings_routes.py|nanobot/webui/ws_http.py|tests/mcp_docker/*|scripts/percival-f2-*)
+                Dockerfile.mcp-broker|docker-compose.mcp-broker.yml|docker-compose.mcp-catalog.yml|nanobot/mcp_docker/*|nanobot/agent/tools/mcp.py|nanobot/config/mcp_docker.py|nanobot/config/schema.py|nanobot/config/loader.py|nanobot/webui/settings_routes.py|nanobot/webui/ws_http.py|tests/mcp_docker/*|scripts/percival-f2-*)
                   python_required=true
                   docker_required=true
                   mcp_broker_required=true
@@ -108,7 +108,7 @@ jobs:
                   python_required=true
                   docker_required=true
                   ;;
-                tests/test_docker.sh|scripts/percival-f5-*|scripts/write_docker_ci_manifest.py|scripts/percival-remote-ssh-regression.py)
+                tests/test_docker.sh|tests/test_check_compose_contract.py|scripts/check_compose_contract.py|scripts/percival-f5-*|scripts/write_docker_ci_manifest.py|scripts/percival-remote-ssh-regression.py)
                   docker_required=true
                   ;;
                 pyproject.toml|hatch_build.py|scripts/install_channel_dependencies.py)

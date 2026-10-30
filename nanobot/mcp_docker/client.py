@@ -14,7 +14,7 @@ from nanobot.config.mcp_docker import SERVER_ID
 _OPERATIONS = frozenset({
     "install", "configure", "disable-tool", "enable-tool", "activate",
     "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
-    "hydrate", "status", "observe", "health",
+    "hydrate", "status", "observe", "health", "acquire",
 })
 
 
@@ -52,7 +52,8 @@ class BrokerClient:
         try:
             # Ignore proxy variables for the dedicated localhost transport.
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-            with opener.open(request, timeout=30) as response:
+            timeout = 330 if operation == "acquire" else 30
+            with opener.open(request, timeout=timeout) as response:
                 response_payload: object = json.load(response)
             if not isinstance(response_payload, dict):
                 raise BrokerUnavailableError("invalid broker response", reason="invalid-response")

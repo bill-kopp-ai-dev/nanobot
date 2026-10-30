@@ -98,11 +98,17 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   privileges. Socket separation does not prove total isolation: retain B23–B25's
   indirect-risk limits. Bill's decision for a target may be recorded once and reused
   while that target and risk remain unchanged.
-- Current MCP execution accepts local IDs or locally present RepoDigests and uses
-  `--pull=never`. I1 selects restricted broker acquisition; I6 implements and verifies
-  it before spawn. Do not enable arbitrary pulls, reserved `repository` sources or
-  catalog trust implicitly.
+- Existing direct MCP install/update operations accept local IDs or locally present
+  RepoDigests and use `--pull=never`. The schema-2 catalog-install path is separate:
+  it requires an explicitly pinned local index snapshot, a broker policy file
+  provisioned independently of the catalog, local operator consent and an exact
+  repo digest/platform. The broker verifies acquisition before manager install.
+  Missing policy, unpinned/stale metadata, unsupported mounts or arbitrary pulls
+  fail closed; catalog metadata never grants trust or runtime privilege.
   Preserve current clients/pins/policies until a compatible change is approved.
+- MCP config schema 1 remains in its historical serialized shape. Schema 2 is enabled
+  only by an explicit, backed-up CAS migration; downgrade is refused after catalog/app
+  state changes or if server configuration no longer matches the v1 snapshot.
 - Local builds/worktree candidates and `:dev` are development artifacts. Production
   consumes approved version tags plus real OCI digests, not builds from a VPS checkout.
   Image IDs are not manifest digests. Image CI must distinguish PR conformance without

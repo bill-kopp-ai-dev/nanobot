@@ -53,7 +53,7 @@ import { isSubagentTask } from "./subagent-tasks";
 
 const API_READ_TIMEOUT_MS = 20_000;
 const API_MUTATION_TIMEOUT_MS = 20_000;
-const MCP_DOCKER_MUTATION_TIMEOUT_MS = 120_000;
+const MCP_DOCKER_MUTATION_TIMEOUT_MS = 360_000;
 const PACKAGE_MUTATION_TIMEOUT_MS = 150_000;
 const SLASH_COMMAND_LIFECYCLES = new Set<SlashCommandLifecycle>([
   "side_channel",
@@ -715,7 +715,44 @@ export interface McpDockerSnapshot {
   allowRemoteAdmin: boolean;
   minimumMountsSupported?: boolean;
   supportedNetworks?: string[];
+  appMountsSupported?: boolean;
+  catalogAcquisitionSupported?: boolean;
   brokerStatus?: { status: "ready" | "unavailable"; reason?: string; message?: string };
+  catalogs?: Array<{
+    catalogId: string;
+    snapshotSha256: string;
+    status: "ready" | "stale";
+    apps: Array<{
+      id: string;
+      name: string;
+      version: string;
+      sourceClass: "official" | "community";
+      platform: string;
+      repositoryDigest: string;
+      needsNetwork: boolean;
+      environmentVariables: Array<{ name: string; required: boolean; secret: boolean }>;
+      mounts: Array<{ target: string; kind: "data" | "cache" | "secret"; access: "read-only" | "read-write"; required: boolean }>;
+    }>;
+  }>;
+  localCatalogCandidate?: {
+    status: "ready" | "unavailable";
+    snapshotSha256?: string;
+    appCount?: number;
+  };
+  appReleases?: Record<string, {
+    catalogId: string;
+    snapshotSha256: string;
+    appId: string;
+    mcpName: string;
+    version: string;
+    sourceClass: "official" | "community";
+    repositoryDigest: string;
+    platform: string;
+    manifestSha256: string;
+    serverJsonSha256: string;
+    consentRevision: number;
+    consentedAt: string;
+  }>;
   servers: Record<string, {
     serverId: string;
     source: { type: string; reference: string };
@@ -736,6 +773,7 @@ export interface McpDockerSnapshot {
     configuration: {
       persistent: boolean;
       mounts?: string[] | null;
+      appMounts?: Array<{ source: string; target: string; readOnly: boolean; kind: "data" | "cache" | "secret" }>;
       network: string;
       env: Record<string, { kind: string; value: string; maskHint?: string }>;
     };
@@ -749,7 +787,7 @@ export interface McpDockerSnapshot {
     correlation_id: string;
   }>;
   pendingTransitions: Array<{ server_id: string; state: string; action?: string }>;
-  backups: Array<{ backupId: string; serverId: string; sourceRevision: number; action?: "exclude" | "update-image" }>;
+  backups: Array<{ backupId: string; serverId: string; sourceRevision: number; action?: "exclude" | "update-image" | "migrate-schema" }>;
 }
 
 export function fetchMcpDockerSnapshot(token: string): Promise<McpDockerSnapshot> {

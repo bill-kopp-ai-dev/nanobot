@@ -1625,7 +1625,7 @@ class MCPProvider:
             try:
                 result = broker.action("reconcile", server_id, {
                     "source": server.source.model_dump(mode="json"),
-                    "configuration": host.model_dump(mode="json"),
+                    "configuration": host.broker_payload(),
                     "active": server.active,
                     "tools_disabled": server.tools_disabled,
                 })
