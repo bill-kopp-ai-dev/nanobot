@@ -1094,6 +1094,10 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     stable. Bill aprovou VEX `fixed` para CVE-2026-60002 e `not_affected` para
     CVE-2026-49138 somente no gateway E20; isso não aceita os outros CVEs nem é sign-off
     de release.
+24. **A-008 / hardening do broker — decisão de Bill em 2026-10-30:** aplicar a correção
+    estreita recomendada após rescan: remover o setuid de `/usr/bin/mount` e remover
+    `/usr/bin/nsenter` e `/usr/bin/infocmp` do broker; rebuildar o par limpo e repetir
+    smoke/SBOM/scan. Os image IDs mudarão; VEXs aprovados para E20 não se transferem.
 
 **Pendências técnicas e condições de retomada:** X02 foi reconciliado em E15; run #52
 falhou no startup por problema do arquivo de workflow, enquanto run #67 no SHA

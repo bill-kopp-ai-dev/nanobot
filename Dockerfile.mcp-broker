@@ -16,6 +16,7 @@ RUN python3 -c 'import hashlib, urllib.request; url="https://download.docker.com
     dpkg -i /tmp/docker-ce-cli.deb && \
     python3 -c 'import hashlib, pathlib, urllib.request; url="https://raw.githubusercontent.com/docker/cli/v29.9.2/LICENSE"; data=urllib.request.urlopen(url).read(); expected="2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0"; actual=hashlib.sha256(data).hexdigest(); assert actual == expected, f"docker CLI license sha256 mismatch: {actual}"; pathlib.Path("/usr/share/doc/docker-ce-cli/copyright").write_bytes(data)' && \
     rm /tmp/docker-ce-cli.deb
+RUN chmod u-s /usr/bin/mount && rm -f /usr/bin/nsenter /usr/bin/infocmp
 RUN python3 -m venv /opt/broker-venv && \
     /opt/broker-venv/bin/pip install --no-cache-dir --require-hashes --no-deps \
       -r /tmp/mcp-broker-requirements.lock && \
