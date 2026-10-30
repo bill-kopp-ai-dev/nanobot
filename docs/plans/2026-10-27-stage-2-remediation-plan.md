@@ -989,7 +989,7 @@ autorizou commits locais separados após a verificação; não houve push.
   `chardet` continua com texto LGPL 2.1 empacotado (E19); o SBOM normaliza o metadata
   como LGPL-2.0-or-later. A reconciliação por pacote e quaisquer obrigações de fonte
   continuam abertas.
-- **VEX draft para E21:**
+- **VEX E21:** o VEX draft PURL-scoped para os dois images está em
   `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-pair-openvex-draft.json`
   (9 statements). O scan diagnóstico com o draft filtrou todos os IDs cobertos em cada
   image; validações em `...-gateway-vex-draft-validation.json` (SHA-256
@@ -997,12 +997,22 @@ autorizou commits locais separados após a verificação; não houve push.
   `...-broker-vex-draft-validation.json` (SHA-256
   `3336ed9b69d6feb05d451c4dafd504d9741d4fd79b0277b0b3fd7117f9cdb051`). O draft cobre
   os dois VEX aprovados em E20 atualizados aos IDs E21, mais CVEs associados a helpers
-  ausentes e às mitigações de `mount`; statements condicionais às configurações Compose
-  padrão ainda exigem revisão do owner. O scan bruto está preservado. Nenhum VEX para
-  E21 foi aprovado ainda.
-- **Estado:** hardening, build, smokes e scans foram executados; VEX E21, restante dos
-  CVEs, reconciliação integral de licenças e sign-off B13 continuam pendentes. Sem push,
-  publicação, release ou deploy.
+  ausentes e às mitigações de `mount`.
+- Bill aprovou as duas disposições gateway (`CVE-2026-60002` fixed; `CVE-2026-49138`
+  not_affected) e apenas as declarações de código ausente para E21. O VEX owner-approved,
+  que exclui as declarações de mount, está em
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-pair-openvex-owner-approved.json`
+  (SHA-256 `f649016d320ef118f69081d9073ab09688ba0ddac31e958318a4d0c30367f451`). A
+  validação diagnóstica do Trivy filtrou os IDs aprovados nos dois reports:
+  gateway `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-gateway-vex-owner-validation.json`
+  (SHA-256 `09fb5c70bd92d85a79f23c99037e568032f1e353c2d31724a28fb022d368c73b`) e broker
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-broker-vex-owner-validation.json`
+  (SHA-256 `2d09573a61a1c58eab0831d6f60cb518932bb17fc4c98226af967bc77a4ae50d`). Os três
+  VEX de mount (CVE-2026-76642/78409/78410), condicionais ao perfil Compose suportado,
+  permanecem draft e sem disposição do owner. Scans brutos E21 permanecem preservados.
+- **Estado:** hardening, build, smokes e scans foram executados; revisão VEX dos casos
+  de mount, demais CVEs, reconciliação integral de licenças e sign-off B13 continuam
+  pendentes. Sem push, publicação, release ou deploy.
 
 ### 8.3 Decisões registradas e ações do owner
 
