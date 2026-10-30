@@ -42,7 +42,7 @@ RUN set -eu; \
     done; \
     install -D -m 0644 /tmp/openssh-stage/etc/ssh/ssh_config "$pkg/etc/ssh/ssh_config"; \
     for page in ssh.1 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 sftp.1; do \
-        install -D -m 0644 "/tmp/openssh-stage/usr/share/man/man1/$page" "$pkg/usr/share/man/man1/$page"; \
+        install -D -m 0644 "/tmp/openssh-stage/usr/share/man/cat1/$page" "$pkg/usr/share/man/man1/$page"; \
     done; \
     install -m 0644 /tmp/openssh-src/LICENCE "$pkg/usr/share/doc/openssh-client/copyright"; \
     printf 'OpenSSH Portable %s\nSource: https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%s.tar.gz\nSHA-256: %s\n' \
