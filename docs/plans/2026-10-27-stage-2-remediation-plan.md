@@ -937,8 +937,14 @@ autorizou commits locais separados após a verificação; não houve push.
   `CVE-2026-60002` como `fixed`, apoiado pela release upstream e regressão; e
   `CVE-2026-49138` como `not_affected / vulnerable_code_not_present`, apoiado pelo
   commit de correção e suíte de segurança (18 passed no SHA, sem diff no código web
-  entre `035735b8` e `adc9f222`). Rascunho não aprovado nem assinado pelo owner; outros
-  CVEs affected não estão cobertos.
+  entre `035735b8` e `adc9f222`). Os produtos estão limitados por PURL ao image e aos
+  subcomponentes exatos. A aplicação diagnóstica do VEX em Trivy filtrou os dois IDs
+  do relatório de validação
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-openssh-backport-adc9f222-gateway-trivy-vex-draft-validation-3.json`
+  (SHA-256 `067b951c8cea8e5b8c5358f096b29892e8e318bb9b1af9054f71aa56c30fae80`); o scan
+  bruto E20 permanece preservado. Rascunho (SHA-256
+  `762ef2a9a44cb6deecb5165cc29eebb05d65d7f446e72a67f7e4ce0ac4687050`) não aprovado
+  nem assinado pelo owner; outros CVEs affected não estão cobertos.
 - **Estado:** backport e smoke passam; o scan fonte Debian ainda requer VEX/disposição
   para o OpenSSH local e triagem dos demais CVEs. A reconciliação licença-a-pacote e
   sign-off B13 continuam abertos; sem publicação autorizada.
