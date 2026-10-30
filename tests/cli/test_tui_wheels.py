@@ -115,7 +115,7 @@ def test_platform_wheel_record_permissions_and_complete_bundle(tmp_path, candida
     [
         ({"stale_source": True}, "source does not match"),
         ({"wrong_architecture": True}, "architecture"),
-        ({"omit": "SOURCE_OFFER.md"}, "incomplete"),
+        ({"omit": "LGPL-2.1.txt"}, "incomplete"),
     ],
 )
 def test_rejects_bad_native_bundle(tmp_path, candidate, kwargs, error):

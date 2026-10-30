@@ -37,8 +37,9 @@
 > **Percival development repository (private).** Percival is an independent
 > project derived from HKUDS/nanobot. The upstream installation instructions
 > and `nanobot-ai` badges below describe the inherited nanobot distribution,
-> not a published Percival package. Percival 0.1.0 is planned, with Linux-only
-> support; its public repository and distribution will follow implementation
+> not a published Percival package. Percival 0.1.0 is planned for `linux/amd64`
+> images based on Debian stable slim; this does not claim qualification of every
+> Linux host distribution, Windows, or macOS. Its public repository and distribution will follow implementation
 > and validation. See [project governance](docs/percival-governance.md) and
 > [candidate KG release notes](docs/kg-release-notes.md).
 
@@ -90,7 +91,7 @@ Pick **one** install method:
 | Stable | installer, `uv`, or pip | the same package tool | one released Python/WebUI/TUI version |
 | Current source | editable Git checkout | `git pull --ff-only` + editable dependency sync | Python, WebUI, and TUI from that checkout |
 
-Prerequisites: Python 3.11 or newer. Git and [Bun](https://bun.sh/) are only needed for a source install. Published packages include the WebUI, and supported platform wheels also include the native TUI. A source-distribution install can fetch a checksummed, version-matched TUI archive—with its licenses, notices, corresponding application source, source offer, and relinking instructions—on first use.
+Prerequisites: Python 3.11 or newer. Git and [Bun](https://bun.sh/) are only needed for a source install. Published packages include the WebUI, and supported platform wheels also include the native TUI. A source-distribution install can fetch a checksummed, version-matched TUI archive—with its licenses, notices, and corresponding application source—on first use.
 
 If terminals, API keys, or config files are new to you, use the guided zero-background walkthrough in [Start Without Technical Background](./docs/start-without-technical-background.md) instead of this compact README path.
 

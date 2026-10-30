@@ -9,8 +9,10 @@ upgrade/rollback de bundles reais. O pacote atual é `nanobot-ai` 0.3.5;
 F9 histórico consta das [notas candidatas](kg-release-notes.md) e deverá
 ser repetida no candidato final. O operador fará pessoalmente B6/B7
 (ensaio com cópia de bundle real e decisão de cutover). CI e empacotamento
-Percival ainda precisam ser alinhados ao suporte Linux-only; ver
-[governança](percival-governance.md).
+Percival ainda precisam ser alinhados ao alvo de primeira versão
+`linux/amd64` com runtime Debian stable slim; isso não declara suporte de host
+para todas as distribuições Linux, Windows ou macOS. Ver
+[governança](percival-governance.md) e o tracker Stage-2 vigente.
 
 ## Antes de tocar dados
 
@@ -61,9 +63,10 @@ aumentá-lo. `diskcache`
 é cache opcional/lazy para multimodal; `markitdown` é CLI externo opcional
 para converter formatos documentais durante ingest (instale e valide o
 binário antes de usar esse path). `networkx`, `markdown-it-py` e as deps do
-core estão no pacote Python. O lock KG ainda usa `fcntl`; o Percival é
-**Linux-only** (decisão do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
-§B4). O backend `msvcrt` permanece no vendor para quem desenvolve em
+core estão no pacote Python. O lock KG ainda usa `fcntl`; o primeiro alvo de
+imagens do Percival é `linux/amd64`, runtime Debian stable slim (decisão de Bill
+em 2026-10-30; ver Stage-2 §8.3 item 21). Isso não qualifica toda distro Linux
+nem Windows/macOS como host. O backend `msvcrt` permanece no vendor para quem desenvolve em
 Windows, sem CI nem gate de release. A SPA em dev requer Bun; wheel/sdist
 incluem assets prebuilt quando a integridade do snapshot passa.
 

@@ -169,9 +169,11 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   branding in this project. Preserve third-party attribution and licenses.
 - Percival's CI is the verification authority: `pytest`, `basedpyright
   nanobot` and `ruff check .`, plus affected UI, KG, packaging and Docker-MCP
-  gates. Supported release platform is Linux; Docker images initially target
-  `linux/amd64`, with ARM64 only after its own build/smoke evidence. Inspect the
-  current workflows rather than repeating historical platform claims. Reuse
+  gates. The first Percival image release targets `linux/amd64` with Debian
+  stable slim runtime bases. This is an image/architecture target, not a claim
+  that every Linux host distribution, Windows or macOS has been qualified;
+  Docker images initially target `linux/amd64`, with ARM64 only after its own
+  build/smoke evidence. Inspect the current workflows rather than repeating historical platform claims. Reuse
   unaffected evidence per `.agent/workflow.md`; documentation-only changes need
   link/consistency checks and `git diff --check`, not an unrelated runtime rebuild.
   Upstream CI success or local tests do not close candidate-specific remote gates.

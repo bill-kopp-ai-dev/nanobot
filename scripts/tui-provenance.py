@@ -122,7 +122,7 @@ def generate(revision: str) -> str:
         lines.append(f"| `{path}` | {start}-{end} | `{origin.revision[:12]}` | {author} | {subject} |")
     lines.extend([
         "",
-        "The code itself and the Git attribution were not rewritten. Commit authorship is historical metadata, not proof of copyright ownership or license compliance. Release notices, corresponding-source offer, Bun/OpenTUI materials, exact clean-SHA build and owner review remain separate gates.",
+        "The code itself and the Git attribution were not rewritten. Commit authorship is historical metadata, not proof of copyright ownership or license compliance. Release notices and Bun/OpenTUI materials, exact clean-SHA build, applicable license review and owner review remain separate gates. Source-offer and relinking files are historical entries; Bill's 2026-10-30 removal decision is recorded in the active Stage-2 tracker.",
         "",
     ])
     return "\n".join(lines)

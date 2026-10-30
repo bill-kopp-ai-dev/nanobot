@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       compliance_reviewed:
-        description: Confirm notices, source offer, source archive, and relinking were reviewed
+        description: Confirm notices, licenses, and source archive were reviewed
         required: true
         type: boolean
         default: false

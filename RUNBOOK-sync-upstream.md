@@ -58,6 +58,7 @@ diferenças de comportamento e evidência da revisão.
   ou core; confira o guia [KG](docs/kg-migration.md).
 - CI do Percival, contrato de TUI/WebUI e release em
   [`docs/releasing.md`](docs/releasing.md). Rode checks afetados na branch;
-  antes da tag, rode o gate completo no commit exato. O CI herdado ainda
-  contém jobs Windows e precisa ser reconciliado com a política Linux-only;
+  antes da tag, rode o gate completo no commit exato. O primeiro alvo de imagem
+  é `linux/amd64` com Debian stable slim; isso não qualifica todos os hosts Linux,
+  Windows ou macOS. O CI herdado ainda contém jobs Windows e precisa ser reconciliado;
   um sync validado localmente não autoriza tag ou deploy.

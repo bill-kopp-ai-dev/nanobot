@@ -2,7 +2,9 @@
 
 **Rascunho para revisão do operador — sem sign-off, tag ou publicação.**
 Percival é independente, derivado do nanobot. Primeira versão pretendida:
-0.1.0; pacote e canal de distribuição ainda serão definidos. Ver
+0.1.0; o escopo inicial de imagem é `linux/amd64` com runtime Debian stable
+slim. O conjunto final de artefatos/canais (incluindo eventual pacote Python ou
+TUI standalone) e seus destinos ainda requer definição e gates próprios. Ver
 [governança](percival-governance.md).
 
 - Distribuição existente: `nanobot-ai` 0.3.5; sem versão/tag KG aprovada.
@@ -20,13 +22,13 @@ Percival é independente, derivado do nanobot. Primeira versão pretendida:
   arquivo à Groq, requer credencial/configuração explícita e não troca o
   modelo de chat do turno. A integração foi testada com HTTP simulado; falta
   prova com credencial e arquivo reais.
-- Distribuição/plataformas: o Percival declara **Linux-only** (decisão
-  do operador 2026-10-06 — `docs/reports/2026-10-05-kg-f0-execution-status.md`
-  §B4). O backend `msvcrt` continua no vendor do core para desenvolvedores
-  em Windows, mas o gate KG (`kg-platform.yml`) executa **somente** em
-  `ubuntu-latest`. O CI geral ainda inclui Windows e requer ajuste. macOS
-  não é mais prometido nem anunciado. Quem roda em outras plataformas o
-  faz por conta própria, sem SLA nem gate de release.
+- Distribuição/plataformas: primeira versão de imagens do Percival planejada
+  para `linux/amd64` com base de runtime Debian stable slim (decisão de Bill,
+  2026-10-30; Stage-2 §8.3 item 21). Isso não qualifica todas as distribuições
+  Linux, Windows ou macOS como hosts. O backend `msvcrt` continua no vendor do
+  core para desenvolvedores Windows; CI KG executa em `ubuntu-latest`. ARM64,
+  outros hosts e a base Debian decidida ainda dependem de implementação e
+  validação próprias antes de qualquer anúncio de suporte.
 
 ## Proveniência verificada em clone limpo do fork (A3)
 
@@ -61,7 +63,8 @@ isolada em Python 3.12:
   plataformas. Ajustar ambos e validar artefatos Linux antes da release.
 - UI e memória customizadas e suporte MCP-in-Docker ainda têm trabalho
   planejado; não anunciá-los como funcionalidades lançadas.
-- SHA candidato, destino de distribuição e sign-off final indefinidos.
+- SHA candidato final, conjunto de artefatos/destinos e sign-off final ainda
+  indefinidos; o alvo de imagem linux/amd64 não é autorização de publicação.
 
 Gate de publicação: seguir [checklist Percival](releasing.md),
 [F9](plans/closed/kg-integration-plan.md#f9--skills-documentação-migração-e-release),

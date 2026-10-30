@@ -12,7 +12,7 @@ These repository docs describe `main`, which can be newer than the released pack
 - Access to one supported AI provider, company endpoint, or local model server.
 - The credential, endpoint URL, and model ID required by that service. Local providers such as Ollama may not require a key.
 
-Git and [Bun](https://bun.sh/) are only needed for an editable source install. Platform wheels contain the matching native TUI and its licenses, notices, corresponding application source, source offer, and relinking instructions. They support macOS 13+ (Apple Silicon and Intel), glibc 2.17+ Linux (ARM64 and x64), and Windows x64. Pip selects the right wheel; first TUI launch does not download from GitHub. Source distributions contain no native TUI: install a matching external client from an operator-approved distribution and set `NANOBOT_TUI_BIN`, or use the WebUI / `nanobot --classic`. See the [terminal requirements](./cli-reference.md#agent-cli).
+Git and [Bun](https://bun.sh/) are only needed for an editable source install. Platform wheels contain the matching native TUI and its licenses, notices, and corresponding application source. They support macOS 13+ (Apple Silicon and Intel), glibc 2.17+ Linux (ARM64 and x64), and Windows x64. Pip selects the right wheel; first TUI launch does not download from GitHub. Source distributions contain no native TUI: install a matching external client from an operator-approved distribution and set `NANOBOT_TUI_BIN`, or use the WebUI / `nanobot --classic`. See the [terminal requirements](./cli-reference.md#agent-cli).
 
 ## 1. Install nanobot
 

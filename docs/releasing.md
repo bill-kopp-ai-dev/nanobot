@@ -5,8 +5,11 @@
 retains inherited nanobot instructions for reference; references below to
 five platform wheels, macOS/Windows archives, HKUDS documentation and
 `nanobot-ai` publication do **not** constitute a Percival release recipe.
-Percival supports Linux only. Its TUI packaging and general CI still require
-reconciliation with that policy before a release gate can be declared closed.
+The first Percival image target is `linux/amd64` with Debian stable slim runtime
+bases. This does not claim qualification of every Linux host distribution,
+Windows, or macOS. Standalone native TUI artifacts and Python package channels
+are separate scope decisions; their inherited packaging/CI still require
+reconciliation before those release gates can be closed.
 Use applicable checks with the inherited [Release Packaging Contract](../CONTRIBUTING.md#release-packaging-contract).
 Preparing a release does not publish it. Pushing a Git tag, publishing a GitHub Release,
 uploading to PyPI, and deploying the documentation are separate operations.
@@ -33,12 +36,12 @@ uploading to PyPI, and deploying the documentation are separate operations.
    the checked candidate. The inherited `Re-bin/nanobot-web` process applies
    to HKUDS/nanobot, not automatically to Percival. Never advertise an
    unpublished version as publicly available.
-8. Review the pinned Bun/OpenTUI licenses, corresponding-source materials, and relinking
-   instructions now, not after pushing the tag. Verify the exact upstream revisions are
-   retrievable and the runtime versions match the lockfile and notices. Obtain the maintainer's
-   commitment to honor `tui/SOURCE_OFFER.md` for its entire stated period; tests cannot grant it.
-9. Define and verify the **Linux-only Percival** TUI/package artifact set
-   before release. The inherited five-platform packaging workflow below
+8. Review the pinned Bun/OpenTUI licenses and notices before pushing the tag. Verify the runtime
+   versions match the lockfile and notices.
+9. Define and verify the first **`linux/amd64` Percival image release**, targeted
+   to Debian stable slim runtime bases, before release. This image target does not
+   claim host qualification for every Linux distribution, Windows or macOS. The
+   inherited five-platform TUI packaging workflow below
    must be adapted and tested; it is **not** a completed Percival gate.
    For selected Linux targets, verify archive checksums, manifests, binary
    architecture, notices/licenses, embedded source, wheel RECORDs/tags,
@@ -126,8 +129,9 @@ and any remaining release gates. Rebuild and recheck if the packaged source chan
 ## Publish, with maintainer approval
 
 For Percival, publication is a **separate operator-authorized action** after
-the Linux-only artifact set, destination and version have been approved and
-verified. The commands and counts in the inherited sequence below describe
+the first `linux/amd64` image artifact set (target runtime base: Debian stable slim),
+destination and version have been approved and verified. This is not a host-support
+claim for every Linux distribution, Windows or macOS. The commands and counts in the inherited sequence below describe
 nanobot-ai; do not run them to publish Percival as-is. Check the reviewed
 public repository history, credentials/data, licenses and provenance first.
 

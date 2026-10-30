@@ -161,8 +161,8 @@ A stable install must never combine Python from one version with a TUI from anot
 this order:
 
 1. Before pushing a tag, set the package version, verify the exact candidate, build the source
-   distribution, all five platform wheels and TUI archives, and review licenses, source offer, and relinking
-   materials. Obtain the maintainer's source-offer commitment before publication.
+   distribution, all five platform wheels and TUI archives, and review the applicable licenses,
+   notices, and source materials.
 2. Merge the release preparation, verify that its packaged sources match the checked candidate,
    then publish the matching GitHub release tag (`vX.Y.Z`). Recheck any changed sources first.
 3. Attach the preverified TUI archives and checksums to the matching GitHub Release. Alternatively,
@@ -179,16 +179,13 @@ The source distribution remains platform-neutral and does not bundle native bina
 Keep the platform-specific release archives for fallback/source-built installations. Both the
 wheel's `nanobot/tui/bin/` bundle and its matching archive must contain the executable,
 target-specific third-party notices, project and runtime licenses, corresponding application
-source, a written source offer, relinking instructions, and a checksum manifest. Never upload a
-naked TUI executable. Review the minimum OS, libc, architecture and runtime CPU requirements
+source, and a checksum manifest. Never upload a naked TUI executable. Review the minimum OS,
+libc, architecture and runtime CPU requirements
 when changing Bun/OpenTUI; never apply portable platform tags without checking their binaries.
 Source checkouts use an editable Python install, run `tui/` with Bun, and
 rebuild stale `webui/` assets locally.
 
-The confirmation is an operational commitment, not a cosmetic checkbox. Before accepting it,
-verify that the exact Bun/WebKit revisions remain retrievable and that the project can honor the
-archive's corresponding-source offer for its full stated period. Preserve published archives and
-their source materials.
+Preserve published archives and their source materials.
 
 ## Questions?
 

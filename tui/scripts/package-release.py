@@ -28,12 +28,6 @@ def _validate_opentui_version(root: Path, notices: str) -> None:
     version = json.loads((root / "package.json").read_text())["dependencies"]["@opentui/core"]
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise ValueError("OpenTUI must be pinned to an exact release version")
-    relinking = (root / "RELINKING.md").read_text()
-    if (
-        set(re.findall(r"OpenTUI (\d+\.\d+\.\d+)", relinking)) != {version}
-        or f"https://www.npmjs.com/package/@opentui/core/v/{version}>" not in relinking
-    ):
-        raise ValueError(f"RELINKING.md must describe OpenTUI {version}")
     if f"===== @opentui/core {version} (" not in notices:
         raise ValueError(f"third-party notices must describe OpenTUI {version}")
 
@@ -41,8 +35,6 @@ def _validate_opentui_version(root: Path, notices: str) -> None:
 def _source_archive(root: Path) -> bytes:
     included = [
         "README.md",
-        "RELINKING.md",
-        "SOURCE_OFFER.md",
         "package.json",
         "bun.lock",
         "tsconfig.json",
@@ -83,8 +75,6 @@ def main() -> None:
     files = {
         asset: (dist / asset).read_bytes(),
         "THIRD_PARTY_NOTICES.txt": notices,
-        "RELINKING.md": (root / "RELINKING.md").read_bytes(),
-        "SOURCE_OFFER.md": (root / "SOURCE_OFFER.md").read_bytes(),
         "LICENSE": (project_root / "LICENSE").read_bytes(),
         "BUN-1.4.4-LICENSE.md": (root / "licenses" / "BUN-1.4.4-LICENSE.md").read_bytes(),
         "LGPL-2.0.txt": (root / "licenses" / "LGPL-2.0.txt").read_bytes(),

@@ -5,6 +5,8 @@
 **Attributed contiguous hunks:** 2516
 **Method:** Git `blame --line-porcelain`, preserving upstream commit attribution and local edits. Coverage includes TUI source, package/relinking/release files, shared client-events, launcher and packaging tests; generated `tui/dist/` artifacts are excluded. This is a technical provenance map, not a legal opinion or B13 approval.
 
+**Historical snapshot:** this map records files present at candidate `51a5d382`. Bill's 2026-10-30 decision to remove `tui/SOURCE_OFFER.md` and `tui/RELINKING.md` is recorded in the active Stage-2 tracker; their historical attribution rows below are retained as provenance, not current release requirements.
+
 | File | Lines | Commit | Author recorded by Git | Commit subject recorded by Git |
 |---|---:|---|---|---|
 | `nanobot/cli/tui_launcher.py` | 1-11 | `ce070c832d3d` | Xubin Ren | feat(cli): add native TypeScript terminal UI |
@@ -2524,4 +2526,4 @@
 | `tui/tsconfig.json` | 11-12 | `3fdf7ae64a46` | Xubin Ren | chore(tui): tighten TypeScript checks |
 | `tui/tsconfig.json` | 13-17 | `ce070c832d3d` | Xubin Ren | feat(cli): add native TypeScript terminal UI |
 
-The code itself and the Git attribution were not rewritten. Commit authorship is historical metadata, not proof of copyright ownership or license compliance. Release notices, corresponding-source offer, Bun/OpenTUI materials, exact clean-SHA build and owner review remain separate gates.
+The code itself and the Git attribution were not rewritten. Commit authorship is historical metadata, not proof of copyright ownership or license compliance. Release notices and Bun/OpenTUI materials, exact clean-SHA build, applicable license review and owner review remain separate gates. The source-offer and relinking files listed in this historical map were removed by Bill's 2026-10-30 decision, recorded in the active Stage-2 tracker.
