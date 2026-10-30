@@ -238,11 +238,10 @@ diferir/aceitar a limitação; não exige handoff ou aceite de outro owner.
   Alterados os pins de CI/release, `@types/bun`, lockfile, `RELINKING.md`, release
   notices, wheel/archive packagers e documentação de release. Artefato gerado só
   localmente; B13, provenance map e CI remoto continuam pendentes.
-- **CI remoto — estado anterior:** run #52/`4086251288` não foi verificado. O endpoint GitHub retorna
-  404 para este repositório privado; o `gh` local é wrapper do mise que para diante
-  da configuração global não confiada. Não foi alterada nem confiada configuração
-  global para contornar isso. Essa observação antecede a instalação/auth local do
-  GitHub CLI e ainda não fornece resultado do Actions para `51a5d382`.
+- **CI remoto — estado em 2026-10-29:** run #52/`40862581288` ainda não tinha sido
+  verificado. A consulta sem a configuração padrão do GitHub CLI retornava 404/não
+  autenticado; esse registro antecede a autenticação local e a reconciliação feita em
+  2026-10-30 abaixo.
 - **E10 / A-008 — build limpo e scan Trivy (2026-10-29):** criado worktree detached
   limpo em `/home/bill/.positronic/runtime/tmp/opencode/percival-stage2-20261029-51a5d382`
   no SHA `51a5d3821bce6082bd448dcd9cd8b9e213cad95b`. Builds locais com os Dockerfiles
@@ -310,8 +309,8 @@ do índice local em `6a23188ef24d1beebaec7c74f2e94d9dbf6f3748` (sem remoto).
 | A-008 | Scan do candidato exato concluído; postura aprovada para o artefato citado | Gateway e broker foram construídos em worktree limpo do SHA `51a5d382` e exportados para TAR. Trivy 0.76.1, DB `UpdatedAt 2026-10-29T13:09:46Z`: 1 MEDIUM `CVE-2026-49138` no gateway (`nanobot-ai 0.1.0`, fix indicado `0.2.1`); broker sem CVEs. Scan também não reportou segredos nem misconfigurations (0 arquivos de configuração detectados). SBOMs CycloneDX 1.7: 237 componentes gateway, 46 broker. Bill aprovou `not_affected / vulnerable_code_not_present` em 2026-10-29 apenas para gateway image ID `sha256:1fef7c37…`; decisão registrada em E12 e artefato OpenVEX owner-approved. Sem promoção ou autorização de release. |
 | A-009 | Implementação local integrada; release/install ainda indisponível | Índice local gera snapshot hash-pinado, valida todos os drafts 0.2 e exige hashes/schema para cada release; o manager valida `pblabs.app.yaml`/`server.json`, perfis, variáveis declaradas, digest e revisão. Broker recebe policy independente read-only, só adquire repositório/plataforma permitidos por digest exato; config v1→v2 usa migração explícita, backup/CAS; mounts são mapeados por instalação e `capabilities.lock` é export derivado, atômico e sem secrets/host paths. Os seis perfis e casos de policy/migração/export passaram localmente. Nomes candidatos `io.github.p-bean-labs/*` foram definidos conforme identidade informada por Bill e formato atual do Registry; claim/autenticação não foram verificados, por isso manifestos seguem draft. Índice local sem remoto e `catalog.yaml`/`public/catalog.json` sem entries/digests; nenhum pull/instalação MCP real foi feito. |
 | A-010 | Bridge revalidada localmente; pós-deploy pendente | Notes e bridge resources/prompts passaram em DinD e no candidato limpo documentado; na revisão atual, 190 testes `test_broker.py`, `test_contract.py` e `test_mcp_tool.py` passaram no checkout. Run #64/SHA `9735441c` permanece evidência CI histórica; não houve novo CI autenticado. O teste completo do MCP diretamente pelo agente requer deploy autorizado e alvo que Bill confirmará depois. Streaming, resource templates e cancelamento seguem fora do escopo acordado. |
-| A-011 | Implementação local verificada; integração bundle pendente | IaC adicionou `scripts/preflight.py`: claim de instalação por rede interna com nome global e labels (inclui ID do Engine); lock de writer temporário por nome global durante o comando; falha fechada em colisão/estado não reconhecido. Percival adicionou fixture consumidora em `tests/mcp_docker/fixtures/a011/`. Implementação IaC commit `79cb3ad`; fixture/provenance/tracker Percival commit `22b9e33`. Teste unitário com Docker fake e corrida + segunda instalação em DinD real 27.5.1 passaram; evidência em E7. Falta integrar o wrapper ao bootstrap/bundle canônico. |
-| A-012 | Aceite local sintético; manter em fixtures | DinD isolado validou chamada em voo, SIGTERM/drain e restart/reconcile (§6.2). Bill decidiu não avançar para runtime real enquanto não houver necessidade operacional concreta. Se surgir, preparar alvo, janela, carga, backup, critério de parada e autorização do owner antes do ensaio. |
+| A-011 | Integração local ao entrypoint canônico concluída; instalação de bundle P0-C ainda não implementada | IaC tem `scripts/preflight.py` e novo `bootstrap/install.sh`, que executa o bundle local sob claim/lock do daemon; teste de integração comprova encaminhamento de argumentos e recusa de outra instalação antes de executar o payload. Fixture Percival permanece em `tests/mcp_docker/fixtures/a011/`. Testes IaC: 2 passed; `bash -n` e `git diff --check` passaram. Não há fetch, validação ou instalação real de bundle nem mutação de daemon real. |
+| A-012 | Encerrada nesta fase com aceite fixture-only | DinD isolado validou chamada em voo, SIGTERM/drain e restart/reconcile (§6.2). Bill decidiu manter em fixtures até necessidade operacional concreta; não fazer ensaio real agora. Se surgir necessidade, definir alvo, janela, carga, backup, critério de parada e autorização do owner antes de executar. |
 
 #### E11 — CI remoto do Percival (2026-10-29)
 
@@ -387,7 +386,7 @@ preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-acti
 | E0 — Reconciliação | Preparação, L*/D*, estado atual | Relê `AGENTS.md`, workflow, contratos, runbook, handoff e Git; trackers antigos permanecem obsoletos e referências históricas são proveniência, não fonte de execução. Atualiza baseline SHA/worktree e distingue evidência local, externa e histórica. | Bill é owner e decisor único. Acompanhar dependências reais no plano; não criar handoffs ou aceite adicional entre projetos de Bill. |
 | E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | C01/C03 seguem com conteúdo aprovado por Bill no SHA IaC local `bf9c25201453f1f9c89b9a49030def4b2a053599`; cabeçalhos locais alinhados a 0.2-approved, sem declarar adoção. C02 continua aprovado e não exige SHA agora. `/home/bill/Projects/pblabs-mcp-index` está em repo Git local `6a23188`, sem remoto. Tem schemas, seis manifests draft e catálogo vazio. | Vincular contratos aos consumidores e validar schemas/implementação. Índice sem release/digest, remote ou pipeline. Perfis ainda não integrados ao broker nem ao schema 0.1. |
 | E2 — A-007 + trackers | A-007, NB-11 | Bill adiou a consulta do manager até depois do próximo ciclo de execução do plano. Após esse ciclo, identificar instalação e confirmar versão/SHA ou image ID em execução; então usar a página autenticada Contêineres MCP, revisar estado salvo/observado/conectividade e registrar recovery de `list()`. | Não abrir/atualizar a página antes desse marco; `list()` pode executar `recover_pending()` e acionar o broker. A localização e o procedimento estão no guia do owner. Não editar config/audit/registry. |
-| E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Bun 1.4.4, workflows, lockfile, `@types/bun`, licença e relinking foram alinhados; checks anteriores passaram. O mapa Git file/hunk foi gerado para o SHA `51a5d382` (91 arquivos/2.516 hunks) em `docs/provenance/tui-lineage-51a5d382.md`. O mapa é histórico técnico e não substitui avaliação de copyright/licenças. Build/PTY de candidato limpo e revisão/assinatura B13 continuam pendentes. Reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE. | `gh` e Bun não estão disponíveis neste host; Python global 3.14 não tem dependências do projeto e o `.venv` não inicia. CI remoto, build/PTY no SHA exato e gates Python 3.14 atuais não foram reexecutados. Run #52 (`4086251288`) não verificado. Não instalar ferramentas sem autorização. |
+| E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Bun 1.4.4, workflows, lockfile, `@types/bun`, licença e relinking foram alinhados; checks anteriores passaram. O mapa Git file/hunk foi gerado para o SHA `51a5d382` (91 arquivos/2.516 hunks) em `docs/provenance/tui-lineage-51a5d382.md`. O mapa é histórico técnico e não substitui avaliação de copyright/licenças. Build/PTY de candidato limpo e revisão/assinatura B13 continuam pendentes. Reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE. | `gh` e Bun não estavam disponíveis nessa coleta; Python global 3.14 não tinha dependências do projeto e o `.venv` não iniciava. CI remoto, build/PTY TUI no SHA exato e gates Python 3.14 atuais não foram reexecutados então. Run #52 (`40862581288`) não verificado naquela data. Não instalar ferramentas sem autorização. |
 | E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Reexportados os image IDs de E10 e confirmados os TARs originais. Trivy 0.76.1 atualizado: gateway 1 MEDIUM, broker 0. O pacote com finding é o próprio Percival `nanobot-ai 0.1.0`; mudar metadado para upstream `0.2.1` falsearia a identidade SemVer. Código candidato já inclui fix upstream `545294c` e redirects manuais/DNS pinning. Draft OpenVEX foi preparado, sem assinatura. | Bill confirmou que revisará e assinará o draft se concordar. Não há ainda assinatura, VEX aprovado ou decisão de promoção. CI remoto continua aberto. Sem alteração de versão/publicação. |
 | E5 — Broker e consumidor | S2-NB-X01; A-009 | Fundação canônica local do índice no commit `6a23188`; worktree atualizado com schema 0.2, seis manifests draft, nomes candidatos `io.github.p-bean-labs/*`, matriz de perfis e `catalog.schema.1.0` com hashes do snapshot. `catalog.yaml` permanece vazio. Manager/broker agora consomem snapshot local somente sob hash registrado, validam schema 0.2 e `server.json`, mapeiam mounts/env por consumidor e protegem aquisição por policy independente + digest/plataforma exatos. `tests/test_catalog.py`: 9 passed; manager/broker/rotas: 269 passed; build local do broker e gateway passou. Evidência de contrato em `docs/mcp-manager-contract.md`. | Decisões de Bill: GitHub oficial `p-bean-labs`, Docker Hub `pbeanlabs`; AgentMail usa env `secret` tipado até suporte a arquivo; catálogo local por enquanto; policy independente em arquivo read-only. O índice não tem remoto nem release OCI/digest, portanto o catálogo não oferece instalação real; o arquivo de policy de exemplo é vazio e aquisição fica desabilitada até provisionamento explícito. Namespace Registry permanece candidato até autenticação/claim. Sem mutação de runtime ou pull de MCP. |
 | E6 — A-010 bridge | A-010 | Broker/MCPProvider mantêm `resources/list/read` e `prompts/list/get` para Notes, com descoberta paginada condicionada a capabilities, validação de IDs e allowlist de URI/nome descoberto. O código da bridge não foi alterado pelo trabalho de catálogo. | Baseline limpo em `b3e25d73` tinha apenas alterações documentais sobre `9735441c`; suíte focada então passou (189). Na revisão atual, após mudanças adjacentes no broker, `tests/mcp_docker/test_broker.py`, `test_contract.py` e `tests/tools/test_mcp_tool.py`: 190 passed. I2 DinD Engine 27.5.1 existente validou Notes: tools `notes_write`/`notes_read`, resource estático, dois prompts concorrentes, cleanup, restart/hydrate e ausência de attach órfão. Sem deploy ou runtime ativo; validação pós-deploy permanece pendente de alvo e autorização que Bill confirmará depois. Streaming, resource templates e cancelamento seguem fora do escopo. |
@@ -471,7 +470,7 @@ estado foi alterado nesta etapa.
 | Pacote e relinking | `tui/package.json` fixa `@opentui/core` em `0.5.11`; `tui/RELINKING.md` declara Bun `1.3.13`, OpenTUI e revisões de origem do runtime. `ci.yml` usa Bun `1.3.13` no job TUI (`1.3.6` no job WebUI). | A decisão pendente é se manter o pin atual ou alterar conjuntamente CI/build local. Bun disponível localmente é `1.4.2`; `check` e testes passaram nessa versão, sem equivaler ao pin CI. |
 | Avisos e fonte correspondente | O bundle chama o projeto de `nanobot`, inclui a licença MIT herdada, avisos do Bun/OpenTUI e textos LGPL-2.0/2.1. `SOURCE_OFFER.md` ainda atribui a oferta por três anos à HKUDS e direciona pedidos ao upstream; o arquivo de source inclui `tui/`, `packages/client-events/` e licenças/build scripts. | Antes de distribuição como Percival, o owner deve revisar titularidade/atribuição e substituir ou confirmar a oferta de fonte correspondente e seu responsável. Não foram alterados avisos/licenças nem feita conclusão jurídica nesta revisão. |
 | Verificação local | `pytest tests/cli/test_tui_wheels.py tests/cli/test_tui_release_packaging.py tests/cli/test_tui_launcher.py -q`: 49 passed. Bun `1.4.2`: `bun run check` passou; `bun run test`: 255 passed. | Não foi executado `bun run build`, smoke PTY, build de candidato TUI em SHA limpo, Bun `1.3.13`, CI remoto, B13 ou publicação. |
-| Python 3.14 / suíte | Em Python `3.14.8`, após `uv sync --all-extras --dev` e instalação das dependências de canais, `pytest -k 'not test_test_mcp_preset_connects_and_reports_tools and not test_test_mcp_preset_inspects_tools_outside_the_enabled_allowlist'`: 9.365 passed, 51 skipped, 2 deselected; `uv pip check` sem conflitos (170 pacotes). O teste de contrato Matrix que falhou antes por `nh3` passou após instalar as dependências de canal. | Os dois testes excluídos exigem `npx`, ausente no host; sem exclusão, falham por precondição ambiental `npx` ausente, não por teste de protocolo. Isso é execução local, não CI remoto. O wrapper `gh` é bloqueado pela configuração mise não confiada; a página pública da API retorna 404 para o repositório privado. Não houve verificação independente do Actions; o guia do owner registra run #52 iniciado e falha reportada, ainda sem logs/artifacts verificados. |
+| Python 3.14 / suíte | Em Python `3.14.8`, após `uv sync --all-extras --dev` e instalação das dependências de canais, `pytest -k 'not test_test_mcp_preset_connects_and_reports_tools and not test_test_mcp_preset_inspects_tools_outside_the_enabled_allowlist'`: 9.365 passed, 51 skipped, 2 deselected; `uv pip check` sem conflitos (170 pacotes). O teste de contrato Matrix que falhou antes por `nh3` passou após instalar as dependências de canal. | Os dois testes excluídos exigem `npx`, ausente no host; sem exclusão, falham por precondição ambiental `npx` ausente, não por teste de protocolo. Isso é execução local, não CI remoto. Naquela coleta, o wrapper `gh` era bloqueado pela configuração mise não confiada e não houve verificação independente do Actions; a autenticação foi posteriormente resolvida via `GH_CONFIG_DIR`, com reconciliação em E15. |
 
 #### E4 — A-008: candidato e triagem inicial (2026-10-29)
 
@@ -504,12 +503,12 @@ contra a implementação efetiva, mas o metadata de versão continua abaixo do r
 não autoriza autoatribuir `not_affected`. Bill deve assinar a postura/VEX deste image ID, ou
 escolher correção/mitigação/bloqueio conforme R-07. Não houve promoção, smoke do
 candidato no Engine gate ou alteração de versão. O CI remoto foi iniciado (run
-`4086251288`), mas o resultado reportado como falho ainda não foi confirmado nos logs
+`40862581288`), mas o resultado reportado como falho ainda não tinha sido confirmado nos logs
 do Actions.
 
 #### Reconciliação do guia do owner — evidência de 2026-10-29
 
-- **CI — histórico:** Bill iniciou `Test Suite` em `main`; run `4086251288` (#52) apareceu
+- **CI — histórico:** Bill iniciou `Test Suite` em `main`; run `40862581288` (#52) apareceu
   `Queued` na captura com SHA abreviado `fead9`. Bill reportou que a execução falhou,
   mas a evidência encaminhada não é a página do Actions nem mostra resultado final,
   SHA completo, jobs, logs ou artifacts. Manter o gate aberto até reconciliar esses
@@ -562,11 +561,9 @@ do Actions.
   `bun run test` (255), `bun run build` (Linux x64) e PTY smoke do binário passaram.
   SHA256 do executável local: `3db8dc6dc1ca528b223f6f8feb8e1013ca8ed017950360d64a4ba3806d282821`.
   `tui/` não difere do candidato `51a5d382`; build local não é release nem publicação.
-- **CI remoto:** `gh` está instalado, mas `gh auth status` confirma que não há sessão
-  autenticada. O resultado já registrado para o run #64/SHA `9735441c` permanece
-  evidência válida, com TUI skipped; sem autenticação não foi possível reconciliar o
-  run #52 reportado como falho nem inspecionar execuções adicionais. Nenhum workflow
-  foi acionado nesta rodada.
+- **CI remoto — estado naquela coleta:** a CLI não encontrou sessão autenticada no
+  diretório de configuração herdado pelo ambiente e o run #52 ainda não havia sido
+  reconciliado. A autenticação e consulta posterior estão registradas em E15.
 - **A-007 / V-PILOT:** continuam adiados. Nenhuma página do manager foi aberta; nenhum
   `list()`/recovery, deploy, promoção ou mutação de runtime ocorreu. Retomada exige
   confirmar a nova imagem em execução e autorização operacional específica.
@@ -584,7 +581,7 @@ do comportamento e de cobertura, não substitui execução dos testes nesta revi
 | A-002 transporte | `nanobot/mcp_docker/broker.py::_exchange_with_handshake` usa attach stdio sem socket de Engine no gateway; `.github/workflows/ci.yml` define o job `mcp-broker` e executa o smoke. | O comportamento implementado é consistente com a evidência CI E11. Resultado remoto continua atribuído ao run #64/SHA registrado em E11; não foi consultado novamente nesta revisão. |
 | A-009/X01 e R-10 | `nanobot/mcp_docker/service.py` exige `mounts` explícito em `configure` (linhas 514–522), trata `None` como Full, e exige confirmação tipada ao ampliar mounts/rede (529–538), registrando enum `scope_change` no audit (412–456). `tests/mcp_docker/test_contract.py` cobre ausência, confirmação e audit. | Confirma o default amplo e que redução configurada não é ampliada silenciosamente. Não demonstra adoção por cada consumidor, nem muda configurações existentes/runtime. |
 | A-010 bridge | `nanobot/mcp_docker/broker.py::_discover` descobre capabilities anunciadas e a bridge implementa discovery de resources/prompts; `tests/mcp_docker/test_broker.py` cobre paginação e registro. | Consistente com aceite sintético local; não equivale a homologação pós-deploy ou suporte a streaming/templates/cancelamento. |
-| CI registrado | `.github/workflows/ci.yml` contém jobs de Python, Docker e `mcp-broker`, com Ruff `check`; a evidência do resultado do Actions permanece o registro E11. | Código do workflow sozinho não prova execução. O run #64 reportado passou; TUI/WebUI foram skipped por filtro e o run #52 continua sem reconciliação nesta sessão. |
+| CI registrado | `.github/workflows/ci.yml` contém jobs de Python, Docker e `mcp-broker`, com Ruff `check`; a evidência de resultado do Actions foi posteriormente atualizada em E15. | Na revisão E13, #64 passou e TUI/WebUI foram skipped; naquele momento #52 continuava sem reconciliação. E15 registra a reconciliação de #52 e os runs posteriores #65/#67 que passaram TUI/WebUI. |
 
 `git diff --check` passou. Não foi possível executar pytest nesta revisão porque o
 Python selecionado não tem o módulo `pytest`; portanto, nenhuma suíte é reivindicada
@@ -632,6 +629,35 @@ autorizou commits locais separados após a verificação; não houve push.
   provisionado no runtime; CI remoto dos novos commits não foi repetido. Nenhum manager
   real foi consultado, container alterado ou deploy realizado. A-010 pós-deploy aguardará
   o alvo e a autorização operacional de Bill.
+
+#### E15 — X02, A-011 e A-012 (2026-10-30)
+
+- **X02 / GitHub Actions:** Bill forneceu evidência de autenticação em
+  `/home/bill/.config/gh`; o ambiente de execução define `XDG_CONFIG_HOME` para outro
+  diretório, portanto as consultas foram feitas com `GH_CONFIG_DIR=/home/bill/.config/gh`
+  sem expor credenciais. Run #52 é `40862581288` (a referência anterior `4086251288`
+  tinha transposição de dígitos), workflow_dispatch no SHA
+  `feadab9d9d4f822353edca40a02d7a9a65d29d5d`, conclusão `startup_failure`; GitHub
+  informa falha de arquivo/workflow antes de criar jobs, sem logs de job. Runs #53–#63
+  tiveram conclusões `failure` em tentativas subsequentes; #64 e o agendado #65
+  passaram no SHA `9735441c`. O push do commit de catálogo gerou run #67
+  (`41069478879`) no SHA `5e6b2b68`, com todos os jobs aprovados, incluindo Terminal
+  UI e WebUI; assim o skip por filtro observado em #64 foi superado em validação
+  posterior. Runs #65 e #67 também passaram nos jobs TUI/WebUI. O Actions exibiu avisos
+  não bloqueantes de depreciação Node 20 e indisponibilidade/restore de cache; a
+  conclusão global foi sucesso. Nenhum workflow foi disparado manualmente nesta revisão.
+- **A-011 / bootstrap canônico:** criado `bootstrap/install.sh` executável como
+  entrypoint canônico do workspace; recebe ID e bundle local executável, delegando o
+  payload ao `scripts/preflight.py` sob claim e lock. Teste IaC com Docker fake confirma
+  encaminhamento de argumentos e recusa antes de executar para uma identidade diferente;
+  a corrida existente segue coberta. `python -m unittest discover -s tests -p
+  'test_preflight.py' -v`: 2 passed; `bash -n bootstrap/install.sh` e `git diff --check`
+  passaram. O bootstrap não busca, autentica nem valida bundles, e não instala no host;
+  essas funções P0-C não existem neste workspace.
+- **A-012:** aceite sintético da seção E8 confirmado; encerrada nesta fase com a decisão
+  de Bill de manter fixture-only até necessidade operacional concreta. Não foi feito
+  ensaio real. Se necessário futuramente, a execução requer alvo, janela, carga, backup
+  e critério de parada definidos antes do ensaio.
 
 ### 8.3 Decisões registradas e ações do owner
 
@@ -691,10 +717,11 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     `docs/decisions/2026-10-29-iac-c02-percival-executor-transport.md` registra a
     decisão de implementar resources/prompts no Stage-2.
 11. **CI privado / GitHub CLI — decisão de acesso:** Bill autorizou instalar o
-     `github-cli` oficial. Bill instalará e autenticará o CLI pelo fluxo local de
-     navegador; depois disso, Positronic verificará autonomamente o Actions do SHA
-     `51a5d382` e registrará execução, jobs, logs e artifacts. Não compartilhar
-     credenciais no chat.
+      `github-cli` oficial e autenticá-lo pelo fluxo local. Em 2026-10-30 a sessão foi
+      verificada e usada para inspecionar Actions; como o ambiente Positronic define
+      `XDG_CONFIG_HOME` para outro diretório, as consultas apontaram explicitamente
+      para `/home/bill/.config/gh` via `GH_CONFIG_DIR`. Nenhuma credencial foi lida ou
+      registrada no plano.
 12. **A-010 / capabilities Notes — decisão de Bill e resultado local:** implementar
     resources/list, resources/read, prompts/list e prompts/get para Notes; a allowlist
     de tools fica independente e o broker limita read/get ao conjunto anunciado.
@@ -739,21 +766,17 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     implementados/testados localmente. A lista não tem remote, server.json/release
     entries ou digest real; nenhum pull/instalação foi autorizado ou executado.
 
-**Pendências técnicas e condições de retomada:** o CI #64/SHA `9735441c` já foi
-verificado; TUI foi skipped por filtro de paths. `gh` está instalado, mas ainda sem
-autenticação, então falta reconciliar o run #52 reportado como falho e inspecionar
-Actions adicionais. O TUI build/check/test/PTY local passou com Bun 1.4.4; revisão
-B13/proveniência continuam abertas. A postura VEX do image ID `51a5d382` foi aprovada;
-isso não promove ou publica imagem. Retomar manager somente após imagem nova
-confirmada em execução; V-PILOT segue exigindo deploy autorizado e alvo escolhido por
-Bill. Para A-009/X01, publicar/migrar o índice quando autorizado, autenticar o claim
-Registry, adicionar `server.json`/releases com digests reais e provisionar localmente
-o overlay de índice/policy read-only antes de instalar/testar os consumidores. O
-catálogo atual está vazio e a policy de exemplo não permite repositórios; por isso a
-aquisição real fica bloqueada por estado, não por implementação ausente. Integrar
-preflight A-011 ao bundle canônico e vincular C01/C03 aos consumidores continuam
-pendentes. C02 não aguarda SHA de commit: o workspace IaC só será migrado para GitHub
-posteriormente. Bill é o owner responsável pelas escolhas finais e pela IaC.
+**Pendências técnicas e condições de retomada:** X02 foi reconciliado em E15; run #52
+falhou no startup por problema do arquivo de workflow, enquanto run #67 no SHA
+`5e6b2b68` passou inclusive TUI/WebUI. A-011 integrou preflight ao entrypoint
+`bootstrap/install.sh`; o bundle P0-C completo (aquisição/autenticação/validação) ainda
+não existe e não foi instalado. A-012 está encerrada nesta fase em fixture-only pela
+decisão de Bill. Permanecem abertas a revisão B13/proveniência do TUI, a homologação de
+manager/V-PILOT após deploy autorizado, e os passos de A-009/X01: publicar/migrar o
+índice quando autorizado, autenticar o claim Registry, incluir releases/digests reais e
+provisionar overlay read-only de índice/policy antes de testar consumidores. C02 não
+aguarda SHA de commit: o workspace IaC só será migrado para GitHub posteriormente.
+Bill é o owner responsável pelas escolhas finais e pela IaC.
 
 ### 8.4 Critério de encerramento
 

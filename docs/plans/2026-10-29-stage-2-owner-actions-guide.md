@@ -64,7 +64,7 @@ quando CI remoto ainda não havia sido observado; a execução iniciada consta a
 ### Execução iniciada em 2026-10-29
 
 Bill disparou manualmente `Test Suite` em `main`. A captura da página da execução
-`#52` mostra o run [4086251288](https://github.com/bill-kopp-ai-dev/nanobot/actions/runs/4086251288)
+`#52` mostra o run [40862581288](https://github.com/bill-kopp-ai-dev/nanobot/actions/runs/40862581288)
 na fila (`Queued`), com o SHA abreviado exibido como `fead9`. A captura não mostra
 conclusão nem resultados dos jobs; portanto, a execução continua pendente de
 acompanhamento e ainda não fecha o aceite. Registrar o SHA completo, conclusão,
@@ -75,7 +75,7 @@ resultado por job e artifacts depois que o run terminar.
 Bill informou que o item foi executado, mas falhou. A imagem encaminhada mostra o
 diff de um commit (`fead9d9`), não a página do GitHub Actions; ela não identifica o
 run concluído, os jobs com falha nem a causa. Portanto, registramos a falha como
-reportada pelo owner, mas ainda não confirmada contra o run `#52` (`4086251288`).
+reportada pelo owner, mas ainda não confirmada contra o run `#52` (`40862581288`).
 O aceite permanece aberto até conferir a execução e registrar o SHA completo, a
 conclusão, o job/log de falha e os artifacts pertinentes. Não inferir causa nem
 tratar o estado inicial `Queued` como resultado final.
@@ -84,6 +84,19 @@ tratar o estado inicial `Queued` como resultado final.
 artifacts disponíveis e resultado por job registrado. Uma execução de outro SHA é
 histórico útil, mas precisa de análise de aplicabilidade; não fecha automaticamente
 o gate do candidato atual.
+
+### Reconciliação em 2026-10-30
+
+Run #52 é o ID `40862581288` (corrige a transposição `4086251288` em registros
+anteriores),
+workflow_dispatch no SHA `feadab9d9d4f822353edca40a02d7a9a65d29d5d`. GitHub concluiu como
+`startup_failure` em um segundo; `gh run view` informa problema no arquivo de workflow
+e a API não apresenta jobs, portanto não houve execução de testes nem logs de job para
+diagnosticar além do erro de inicialização. As tentativas #53–#63 também tiveram
+falhas; #64 e o run agendado #65 passaram no SHA `9735441c`. O run #67
+(`41069478879`) no SHA `5e6b2b68` passou em todos os jobs, incluindo Terminal UI e
+WebUI; assim os skips por filtro observados em #64 foram cobertos em execução posterior.
+Detalhes e limitações estão no tracker Stage-2, E15.
 
 ## 2. Acesso autenticado ao manager Percival
 
@@ -256,6 +269,15 @@ não mutaram o estado.
 IaC nos SHAs correspondentes. A descrição do requisito neste guia, sem a implementação
 e os resultados dos testes, não fecha o item.
 
+**Atualização em 2026-10-30:** a IaC criou `bootstrap/install.sh` como entrypoint
+canônico e o integrou ao `scripts/preflight.py`. O teste IaC com Docker fake verifica
+encaminhamento de argumentos, retenção/limpeza do writer lock e recusa da segunda
+identidade antes da execução do bundle; a fixture consumidora Percival já cobre a
+interface. `python -m unittest discover -s tests -p 'test_preflight.py' -v`: 2 passed;
+`bash -n bootstrap/install.sh`: passou. A-011 está atendida em fixture. O fetch,
+validação e instalação de bundle P0-C seguem fora da implementação atual; nenhum host
+real foi tocado.
+
 ## 5. O que não é necessário fazer agora
 
 - Não publicar imagem, wheel, pacote ou código-fonte.
@@ -276,11 +298,11 @@ autorizações próprias já previstas no plano stage-2.
 Quando concluir as ações que dependem de você, basta retornar com:
 
 ```text
-CI: link da execução Test Suite em main + SHA completo + conclusão e resultado por job
+CI: X02 reconciliado; run #67 no SHA `5e6b2b68` passou inclusive TUI/WebUI; ver E15
 Manager: adiado até a nova imagem do agente estar em execução; depois registrar imagem/SHA e resultado sanitizado de list()
 Contratos: C01/C03 aprovados por Bill em 2026-10-29; SHAs/revisões canônicas e vínculo aos consumidores
 Índice: checkout/path e owner de pblabs-mcp-index (ou confirmar que falta criar)
-IaC A-011: Bill é responsável; implementação pendente + SHAs/resultados da IaC e do teste consumidor
+IaC A-011: entrypoint `bootstrap/install.sh` integrado ao preflight; testes locais passaram; bundle P0-C ainda não implementado
 ```
 
 Não inclua tokens, credenciais ou valores de configuração secretos nesse retorno.
