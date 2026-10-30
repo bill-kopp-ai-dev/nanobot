@@ -171,7 +171,7 @@ def test_profile_resolution_fails_closed_on_missing_mapping_secret_or_widened_ne
         )
 
 
-def test_catalog_snapshot_rejects_stale_hash_unapproved_or_host_paths(
+def test_catalog_snapshot_rejects_stale_hash_manifest_approval_or_host_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root, _catalog_hash, entry = _write_snapshot(tmp_path, monkeypatch)
@@ -180,7 +180,7 @@ def test_catalog_snapshot_rejects_stale_hash_unapproved_or_host_paths(
 
     app_path = root / entry["manifest"]
     app = yaml.safe_load(app_path.read_text())
-    app["review"] = {"status": "draft"}
+    app["review"] = {"status": "manifest-approved"}
     app_bytes = yaml.safe_dump(app, sort_keys=False).encode()
     app_path.write_bytes(app_bytes)
     entry["manifest_sha256"] = hashlib.sha256(app_bytes).hexdigest()
