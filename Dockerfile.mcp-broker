@@ -1,6 +1,4 @@
-FROM docker:29.9.2-cli-alpine3.24@sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb AS docker-cli
-
-FROM python:3.12-alpine3.24@sha256:b658b05ce9c4eb97ec6fc19424818a1f31993659c2b505a532f470e83807815d
+FROM python:3.12-slim-trixie@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
 
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
@@ -14,7 +12,9 @@ LABEL org.opencontainers.image.title="Percival MCP Broker" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
 COPY docker/mcp-broker-requirements.lock /tmp/mcp-broker-requirements.lock
-COPY --from=docker-cli /usr/local/bin/docker /usr/bin/docker
+RUN python3 -c 'import hashlib, urllib.request; url="https://download.docker.com/linux/debian/dists/trixie/pool/stable/amd64/docker-ce-cli_29.9.2-1~debian.13~trixie_amd64.deb"; data=urllib.request.urlopen(url).read(); expected="6a266cb8acafa475e87ce2414387707024b55fb169d6ca1fb6c3132f234d4cf1"; actual=hashlib.sha256(data).hexdigest(); assert actual == expected, f"docker-ce-cli sha256 mismatch: {actual}"; open("/tmp/docker-ce-cli.deb", "wb").write(data)' && \
+    dpkg -i /tmp/docker-ce-cli.deb && \
+    rm /tmp/docker-ce-cli.deb
 RUN python3 -m venv /opt/broker-venv && \
     /opt/broker-venv/bin/pip install --no-cache-dir --require-hashes --no-deps \
       -r /tmp/mcp-broker-requirements.lock && \
