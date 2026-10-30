@@ -13,6 +13,44 @@ RUN mkdir -p /app/nanobot/web && npm run build
 # the current Debian stable release; the runtime remains the slim variant.
 FROM ghcr.io/astral-sh/uv:0.9.30-python3.12-trixie-slim@sha256:41eb228142f776ed8df9e51fba89ee31f018c04a0452645c014783546b164c03 AS toolchain
 
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS openssh-builder
+ARG DEBIAN_SNAPSHOT=20261030T000000Z
+ARG OPENSSH_VERSION=10.6p1
+ARG OPENSSH_SHA256=a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39
+RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
+    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
+    rm -f /etc/apt/sources.list.d/debian.sources && \
+    apt-get -o Acquire::Check-Valid-Until=false update && \
+    apt-get install -y --no-install-recommends build-essential ca-certificates curl \
+        libedit-dev libkrb5-dev libssl-dev pkg-config zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
+RUN curl -fsSLo /tmp/openssh.tar.gz \
+        "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-${OPENSSH_VERSION}.tar.gz" && \
+    printf '%s  %s\n' "$OPENSSH_SHA256" /tmp/openssh.tar.gz | sha256sum -c - && \
+    mkdir -p /tmp/openssh-src && \
+    tar -xzf /tmp/openssh.tar.gz --strip-components=1 -C /tmp/openssh-src && \
+    cd /tmp/openssh-src && \
+    ./configure --prefix=/usr --sysconfdir=/etc/ssh --with-privsep-path=/var/empty \
+        --without-pam --without-selinux && \
+    make -j2 && \
+    make install-nokeys DESTDIR=/tmp/openssh-stage
+RUN set -eu; \
+    pkg=/tmp/openssh-package; \
+    mkdir -p "$pkg/DEBIAN" "$pkg/usr/share/doc/openssh-client"; \
+    for program in ssh scp ssh-add ssh-agent ssh-keygen ssh-keyscan sftp; do \
+        install -D -m 0755 "/tmp/openssh-stage/usr/bin/$program" "$pkg/usr/bin/$program"; \
+    done; \
+    install -D -m 0644 /tmp/openssh-stage/etc/ssh/ssh_config "$pkg/etc/ssh/ssh_config"; \
+    for page in ssh.1 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 sftp.1; do \
+        install -D -m 0644 "/tmp/openssh-stage/usr/share/man/man1/$page" "$pkg/usr/share/man/man1/$page"; \
+    done; \
+    install -m 0644 /tmp/openssh-src/LICENCE "$pkg/usr/share/doc/openssh-client/copyright"; \
+    printf 'OpenSSH Portable %s\nSource: https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%s.tar.gz\nSHA-256: %s\n' \
+        "$OPENSSH_VERSION" "$OPENSSH_VERSION" "$OPENSSH_SHA256" > "$pkg/usr/share/doc/openssh-client/BUILD-INFO"; \
+    printf 'Package: openssh-client\nSource: openssh (10.6p1)\nVersion: 1:10.6p1-1+local1\nArchitecture: amd64\nMaintainer: Positronic Bean Labs\nDepends: libc6 (>= 2.34), libedit2, libgssapi-krb5-2, libkrb5-3, libssl3t64, zlib1g\nDescription: OpenSSH client tools built from upstream 10.6p1 for Debian Trixie\n' \
+        > "$pkg/DEBIAN/control"; \
+    dpkg-deb --build --root-owner-group "$pkg" /tmp/openssh-client.deb
+
 FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime
 
 COPY --from=toolchain /usr/local/bin/uv /usr/local/bin/uv
@@ -35,6 +73,8 @@ RUN ln -sf /usr/local/lib/libpython3.12.so.1.0 /usr/local/lib/libpython3.12.so &
 
 ARG VERSION=0.1.0
 ARG GIT_SHA=unknown
+ARG OPENSSH_VERSION=10.6p1
+ARG OPENSSH_SHA256=a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39
 LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.description="Percival Python gateway and WebUI" \
       org.opencontainers.image.source="https://github.com/bill-kopp-ai-dev/nanobot" \
@@ -42,20 +82,24 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="Positronic Bean Labs" \
       org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.revision="${GIT_SHA}"
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      io.percival.openssh.version="${OPENSSH_VERSION}" \
+      io.percival.openssh.source.sha256="${OPENSSH_SHA256}"
 
 ARG DEBIAN_SNAPSHOT=20261030T000000Z
 # The slim base has no CA bundle yet; APT still verifies the signed Release
 # metadata and package hashes while fetching the pinned snapshot over HTTP.
-RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
+RUN --mount=type=bind,from=openssh-builder,source=/tmp/openssh-client.deb,target=/tmp/openssh-client.deb,ro \
+    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
     rm -f /etc/apt/sources.list.d/debian.sources && \
     apt-get -o Acquire::Check-Valid-Until=false update && \
     apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends \
-        ca-certificates git bubblewrap openssh-client libmagic1 \
+        ca-certificates git bubblewrap libmagic1 \
         libffi8 libsqlite3-0 libreadline8 libncursesw6 libtinfo6 \
         libdb5.3 libgdbm6 libbz2-1.0 liblzma5 libuuid1 libzstd1 zlib1g && \
+    dpkg -i /tmp/openssh-client.deb && \
     chmod u-s /usr/bin/mount && \
     rm -f /usr/bin/nsenter /usr/bin/infocmp && \
     rm -rf /var/lib/apt/lists/*

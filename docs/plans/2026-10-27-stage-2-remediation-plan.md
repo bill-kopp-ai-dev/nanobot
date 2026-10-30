@@ -392,7 +392,7 @@ preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-acti
 | E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | Estado-base desta etapa: C01/C03 com conteúdo aprovado por Bill no SHA IaC local `bf9c25201453f1f9c89b9a49030def4b2a053599`; C02 aprovado sem exigir SHA agora. O índice local tinha schemas, seis manifests draft e catálogo vazio. | **Atualização:** integração dos perfis/schema 0.2 ao manager/broker foi implementada e testada localmente em E14/E15. Permanecem sem remote, release OCI/digests, claim autenticado e pipeline; ver E14 e §8.3 item 19 para estado atual. |
 | E2 — A-007 + trackers | A-007, NB-11 | Bill adiou a consulta do manager até depois do próximo ciclo de execução do plano. Após esse ciclo, identificar instalação e confirmar versão/SHA ou image ID em execução; então usar a página autenticada Contêineres MCP, revisar estado salvo/observado/conectividade e registrar recovery de `list()`. | Não abrir/atualizar a página antes desse marco; `list()` pode executar `recover_pending()` e acionar o broker. A localização e o procedimento estão no guia do owner. Não editar config/audit/registry. |
 | E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Estado observado naquela coleta: Bun 1.4.4 e materiais alinhados; mapa Git file/hunk de `51a5d382` (91 arquivos/2.516 hunks) em `docs/provenance/tui-lineage-51a5d382.md`; build/PTY TUI e CI remoto ainda pendentes naquele momento. O mapa não é avaliação jurídica. | **Reconciliação posterior:** build/PTY local passou (E6), CI #67 passou TUI/WebUI para `5e6b2b68` (E15) e o candidato limpo atual está em E16. B13 continua pendente. Os gates ambientais e #52 descritos aqui são histórico daquela coleta, não estado atual. |
-| E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Registro-base de `51a5d382`: Trivy encontrou 1 MEDIUM no gateway e 0 no broker; código contém fix upstream `545294c`; VEX foi então draft e sem decisão. | **Atualização E16:** novo scan do par `035735b8` e disposição owner-approved para o gateway image ID exato estão registrados. Isso não é assinatura, promoção ou release; triagem do resultado de licença continua pendente antes de distribuição pública. Nenhuma imagem foi publicada. |
+| E4 — A-008 + S2-NB-X02 | Gate de segurança/distribuição | Registro-base de `51a5d382`: Trivy encontrou 1 MEDIUM no gateway e 0 no broker; código contém fix upstream `545294c`; VEX foi então draft e sem decisão. | **Atualização E19:** candidato limpo Debian stable `cf162b11` e SBOM/scans finais locais registrados em E19. O VEX de E16 não se transfere; CVE-2026-49138 reaparece no gateway e a base Trixie introduz CVE-2026-60002 (CRITICAL no Trivy), sem disposição deste image ID. A-008/B13 e distribuição continuam não aprovados. |
 | E5 — Broker e consumidor | S2-NB-X01; A-009 | Fundação canônica local do índice no commit `6a23188`; worktree atualizado com schema 0.2, seis manifests draft, nomes candidatos `io.github.p-bean-labs/*`, matriz de perfis e `catalog.schema.1.0` com hashes do snapshot. `catalog.yaml` permanece vazio. Manager/broker agora consomem snapshot local somente sob hash registrado, validam schema 0.2 e `server.json`, mapeiam mounts/env por consumidor e protegem aquisição por policy independente + digest/plataforma exatos. `tests/test_catalog.py`: 9 passed; manager/broker/rotas: 269 passed; build local do broker e gateway passou. Evidência de contrato em `docs/mcp-manager-contract.md`. | Decisões de Bill: GitHub oficial `p-bean-labs`, Docker Hub `pbeanlabs`; AgentMail usa env `secret` tipado até suporte a arquivo; catálogo local por enquanto; policy independente em arquivo read-only. O índice não tem remoto nem release OCI/digest, portanto o catálogo não oferece instalação real; o arquivo de policy de exemplo é vazio e aquisição fica desabilitada até provisionamento explícito. Namespace Registry permanece candidato até autenticação/claim. Sem mutação de runtime ou pull de MCP. |
 | E6 — A-010 bridge | A-010 | Broker/MCPProvider mantêm `resources/list/read` e `prompts/list/get` para Notes, com descoberta paginada condicionada a capabilities, validação de IDs e allowlist de URI/nome descoberto. O código da bridge não foi alterado pelo trabalho de catálogo. | Baseline limpo em `b3e25d73` tinha apenas alterações documentais sobre `9735441c`; suíte focada então passou (189). Na revisão atual, após mudanças adjacentes no broker, `tests/mcp_docker/test_broker.py`, `test_contract.py` e `tests/tools/test_mcp_tool.py`: 190 passed. I2 DinD Engine 27.5.1 existente validou Notes: tools `notes_write`/`notes_read`, resource estático, dois prompts concorrentes, cleanup, restart/hydrate e ausência de attach órfão. Sem deploy ou runtime ativo; validação pós-deploy permanece pendente de alvo e autorização que Bill confirmará depois. Streaming, resource templates e cancelamento seguem fora do escopo. |
 | E7 — A-011 preflight | A-011 | `scripts/preflight.py`/`docs/preflight.md` na IaC (`79cb3ad`) e fixture consumidora no Percival (`22b9e33`); integração posterior ao entrypoint `bootstrap/install.sh` registrada em E15. O wrapper reserva claim durável por daemon e lock temporário de writer durante o comando. | Unidade com Docker fake e teste de integração do entrypoint passaram (E15); DinD descartável Docker 27.5.1: concorrência exit 0/2, segunda instalação recusada antes do comando sem alterar daemon. O bootstrap não busca, autentica nem valida bundles e não instala no host; bundle P0-C completo permanece ausente. |
@@ -821,11 +821,67 @@ autorizou commits locais separados após a verificação; não houve push.
   `scripts/percival-remote-ssh-regression.py` exige OpenSSH >=10.4. A imagem estável
   pode, portanto, expor um finding de segurança e falhar esse gate; ainda não há
   disposição para o novo image ID. Fonte: <https://security-tracker.debian.org/tracker/CVE-2026-60002>.
-- **Próximo gate:** reconstruir o candidato limpo `linux/amd64`, emitir SBOMs e repetir
-  scan de licença/segurança contra os image IDs finais. Após reconciliação componente-a-
-  componente, apresentar a Bill a lista residual e opções de disposição antes de qualquer
-  distribuição. Sem conclusão jurídica, sign-off B13 ou autorização de publicação nesta
-  etapa.
+- **Próximo gate:** o build limpo, SBOMs e scans para a base estável foram executados e
+  estão registrados em E19. Resta reconciliar as licenças por pacote/source/copyright e
+  obter a disposição do owner para os findings de segurança do image ID E19. Sem conclusão
+  jurídica, sign-off B13 ou autorização de publicação nesta etapa.
+
+#### E19 — A-008: candidato limpo Debian stable, SBOM e rescan (2026-10-30)
+
+- **Candidato:** SHA limpo `cf162b11b08b48ddf4e75a68fba7f1252a1636de`, versão `0.1.0`,
+  `linux/amd64`, sem worktree diff. Build args do gateway incluem snapshot APT
+  `20261030T000000Z`. Gateway `percival-gateway:0.1.0-cf162b1`, image ID
+  `sha256:ebf3c08e513d02a440f1da89234e94057abc146723d6ce9acfa3d569d6d78327`; broker
+  `percival-mcp-broker:0.1.0-cf162b1`, image ID
+  `sha256:2ca52da8c12d7fb78fef043d10fe93fbbe72e4218f02e17cf7d3b4631ee4abca`. O gateway
+  usa `debian:trixie-slim@sha256:f6b08b09…`; o broker usa
+  `python:3.12-slim-trixie@sha256:aa943ce4…`. Nenhuma imagem foi publicada.
+- **Verificações locais:** `docker build --check` passou nos dois Dockerfiles. Smoke do
+  gateway confirmou entrypoint/drop de privilégios; o erro de configuração ausente é
+  esperado sem volume/config de teste. Smoke do broker importou o módulo e executou
+  Docker CLI **29.9.2**. `dpkg-query` confirmou `openssh-client 1:10.0p1-7+deb13u4`
+  (runtime `ssh -V`: OpenSSH 10.0p2).
+- **SBOMs:** Trivy CycloneDX 1.7, gateway 235 componentes e broker 96. Arquivos:
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-candidate-cf162b11-gateway-sbom.cdx.json`
+  SHA-256 `2a3dcd55334d06ba4ae8708e839b7165bbafbed27b1c7b614ff0477c6ad87b9b`; e
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-candidate-cf162b11-broker-sbom.cdx.json`
+  SHA-256 `300a1ca4e6c1c415c6d0071876e08c85cfbf359b9e814e1e04555e6af4df2e97`.
+- **Scan:** Trivy 0.76.1, vulnerability DB `UpdatedAt=2026-10-30T13:06:28Z`; relatórios
+  JSON em `/home/bill/.positronic/runtime/tmp/opencode/percival-license-candidate-cf162b11-`
+  `gateway-trivy.json` (SHA-256 `c344049832054fd4cf76be5f425e194817faec4086b883810c890618cf4230f7`) e
+  `...-broker-trivy.json` (SHA-256 `91aa8d7e9d93d36de9c56eb626c40c4abf9d0eb9e3d6cd8509dfabf8d21d4c01`).
+  Misconfigurations/secrets: zero em ambos. Vulnerabilities: gateway 296 OS records
+  (1 CRITICAL, 54 HIGH, 95 MEDIUM, 139 LOW, 7 UNKNOWN) e um MEDIUM Python
+  `CVE-2026-49138` (`nanobot-ai 0.1.0`); broker 164 OS records (0 CRITICAL, 44 HIGH,
+  58 MEDIUM, 61 LOW, 1 UNKNOWN). O VEX owner-approved para IDs anteriores não se aplica
+  a estes images.
+- **Findings de licença:** gateway `OS Packages`: 423 `HIGH/restricted` records em 101
+  nomes de pacotes; Python: 1 record para `chardet 5.2.0`. Broker `OS Packages`: 318
+  `HIGH/restricted` records em 74 nomes; Python sem HIGH. As linhas são registros
+  pacote/licença, não componentes distintos. CycloneDX enumera 124 componentes Debian
+  no gateway e 88 no broker; todos têm metadados `SrcName`, e a inspeção dos dois
+  filesystems confirmou `/usr/share/doc/<package>/copyright` para os 124/88 pacotes
+  instalados. Isso evidencia os avisos Debian presentes, mas não substitui a revisão
+  do conteúdo de copyright/licença e de como satisfazer quaisquer obrigações de fonte.
+- **Reconciliados por conteúdo do artefato:** `chardet` aparece no SBOM como
+  `LGPL-2.0-or-later`, mas o `LICENSE` efetivamente empacotado em
+  `/app/.venv/lib/python3.12/site-packages/chardet-5.2.0.dist-info/LICENSE` (26.530 bytes,
+  SHA-256 `dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551`) é LGPL
+  2.1. O código e o texto estão presentes na imagem; ainda requerem aviso e análise da
+  forma de integração antes de concluir obrigações. O componente `docker-ce-cli`
+  29.9.2 tem SBOM sem expressão de licença; o copyright no filesystem foi adicionado
+  a partir de `docker/cli` tag `v29.9.2` (Apache-2.0; arquivo upstream com SHA-256
+  `2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0`).
+- **Gate de segurança pendente:** Trivy classifica `CVE-2026-60002` como CRITICAL e
+  affected no OpenSSH `1:10.0p1-7+deb13u4`, sem fixed version no feed. O Debian Security
+  Tracker consultado em 2026-10-30 lista Trixie vulnerável, com issue minor/no-DSA; o
+  teste Remote SSH do projeto exige versão >=10.4. O candidato não satisfaz esse gate.
+  Há também 15 CVE IDs HIGH no gateway e 8 no broker. Não foi feita disposição VEX para
+  este par; não aprovar distribuição com base nestes scans.
+- **Estado:** o objetivo técnico de gerar um candidato limpo, SBOMs e rescans foi
+  cumprido; a triagem ainda não autoriza distribuição. A reconciliação integral de
+  licenças de 101/74 pacotes permanece aberta. Em 2026-10-30 Bill escolheu backport de
+  OpenSSH >=10.4 para Trixie; a implementação local/novo candidato e rescan ainda pendem.
 
 ### 8.3 Decisões registradas e ações do owner
 
@@ -847,13 +903,13 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
    próximo ciclo de execução do plano. Então identificar a instalação e confirmar
    SHA/image ID em execução antes de abrir a página; registrar estado salvo/observado,
    conectividade e eventual recovery.
-3. **A-008/X02 — abordagem e estado atual:** reconstruir e escanear o candidato
-   exato, com SBOM e identificadores registrados. E16 registra o scan do par
-   `035735b8` e a aprovação owner `not_affected / vulnerable_code_not_present` para
-   o gateway ID `sha256:5303…`; essa disposição não é assinatura criptográfica,
-   aprovação de release ou promoção. A aprovação anterior para `51a5d382` não é
-   transferível. Findings de outro image ID exigem decisão própria; release continua
-   condicionada aos gates aplicáveis, incluindo triagem de licença reportada em E16.
+3. **A-008/X02 — abordagem e estado atual:** candidato limpo, SBOMs e rescan do par
+   Debian stable `cf162b11` estão em E19. A disposição owner
+   `not_affected / vulnerable_code_not_present` de E16 refere-se somente ao gateway
+   `sha256:5303…`; não se transfere ao candidato E19. O finding MEDIUM
+   `CVE-2026-49138` reaparece, e a base Trixie traz `CVE-2026-60002` CRITICAL no Trivy,
+   além de outros CVEs. A triagem de licenças também permanece em aberto; nenhum
+   VEX/sign-off/publicação está aprovado para os image IDs de E19.
 4. **A-009/A-010 — decisão registrada em 2026-10-29:** usar Notes como app de
    referência para catálogo/consumidor e homologação da bridge. A escolha não
    substitui a aprovação de receita isolada nem a evidência de teste exigida.
@@ -954,10 +1010,10 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     Linux nem com hosts Windows/macOS. ARM64 fica fora do primeiro escopo. A migração
     já foi aplicada localmente: `Dockerfile` usa `debian:trixie-slim` e
     `Dockerfile.mcp-broker` usa `python:3.12-slim-trixie`, ambos com digest fixado. O
-    gateway passa a usar OpenSSH estável Trixie ainda vulnerável a CVE-2026-60002 e o
-    teste de Remote SSH exige >=10.4; essa pendência de segurança/compatibilidade deve
-    ser resolvida ou ter disposição explícita antes de aprovação de release. Build,
-    smoke e scans das imagens estáveis ainda pendem.
+    candidato E19 usa OpenSSH Trixie 10.0p2 ainda vulnerável a CVE-2026-60002 e o teste
+    Remote SSH exige >=10.4. Bill escolheu backport para Trixie; o worktree implementa
+    OpenSSH Portable 10.6p1 com SHA upstream fixado. O novo candidato deve demonstrar
+    build, teste, SBOM e rescan antes de qualquer disposição/sign-off.
 22. **A-004 / B13 — resposta de Bill em 2026-10-30:** candidato de revisão
     `035735b8`; Bill está satisfeito e aprova a atribuição e os avisos do TUI; pretende
     prosseguir com a distribuição após o fechamento das pendências aplicáveis. Esta
@@ -968,6 +1024,12 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     no item 20, e foi construído com gateway Forky + broker Alpine, não com as bases
     Debian stable slim decididas no item 21. O B13 final deve avaliar um novo candidato
     limpo que incorpore essas decisões e os gates de release aplicáveis.
+23. **A-008 / OpenSSH — decisão de Bill em 2026-10-30:** manter runtime Debian stable
+    Trixie e backportar versão upstream >=10.4 do cliente OpenSSH para resolver o
+    conflito entre `CVE-2026-60002` e o gate Remote SSH. Implementação local seleciona
+    Portable OpenSSH 10.6p1, com SHA-256 da release oficial fixado no Dockerfile; ela
+    ainda não está buildada/testada em candidato limpo e não implica VEX, aceite de CVE
+    ou sign-off de release. Reexecutar Remote SSH, SBOM e scan no novo image ID.
 
 **Pendências técnicas e condições de retomada:** X02 foi reconciliado em E15; run #52
 falhou no startup por problema do arquivo de workflow, enquanto run #67 no SHA
@@ -978,8 +1040,8 @@ decisão de Bill. E16 registra o novo par local, o VEX owner-approved do gateway
 `sha256:5303c329…` e o smoke integrado DinD concluído. `V-PILOT` está parcial: falta
 executar os prompts E9 numa sessão Percival ativa, ainda indisponível nesta conversa.
 O primeiro artefato de imagem deve ser `linux/amd64` com runtime Debian stable slim;
-a migração local das duas bases e pins está registrada em E18. Build/smoke e scans do
-candidato estável ainda estão abertos; E16 usa Forky no gateway e Alpine no broker.
+o candidato limpo Debian estável e seus scans estão em E19. A disposição dos CVEs,
+triagem integral de licenças e B13 seguem abertos; E16 (Forky/Alpine) é histórico.
 Também permanece a revisão B13/proveniência/licenças do TUI, agora sem exigir oferta
 escrita ou documento de relinking por decisão registrada no item 20. Permanecem também
 os passos de A-009/X01: publicar/migrar o índice quando autorizado, autenticar o claim Registry, incluir
