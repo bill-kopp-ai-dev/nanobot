@@ -988,7 +988,9 @@ autorizou commits locais separados após a verificação; não houve push.
   zero Python HIGH. São registros de scanner por pacote/licença, não conclusões legais.
   `chardet` continua com texto LGPL 2.1 empacotado (E19); o SBOM normaliza o metadata
   como LGPL-2.0-or-later. A reconciliação por pacote e quaisquer obrigações de fonte
-  continuam abertas.
+  continuam abertas. A decisão de Bill sobre materiais de fonte e a consequência se
+  obrigações forem aplicáveis estão registradas em §8.3 item 25; ela não afirma
+  conformidade.
 - **VEX E21:** o VEX draft PURL-scoped para os dois images está em
   `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-pair-openvex-draft.json`
   (9 statements). O scan diagnóstico com o draft filtrou todos os IDs cobertos em cada
@@ -999,20 +1001,18 @@ autorizou commits locais separados após a verificação; não houve push.
   os dois VEX aprovados em E20 atualizados aos IDs E21, mais CVEs associados a helpers
   ausentes e às mitigações de `mount`.
 - Bill aprovou as duas disposições gateway (`CVE-2026-60002` fixed; `CVE-2026-49138`
-  not_affected) e apenas as declarações de código ausente para E21. O VEX owner-approved,
-  que exclui as declarações de mount, está em
+  not_affected) e as declarações de utilitários ausentes/mitigações mount para E21. O VEX
+  owner-approved PURL-scoped está em
   `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-pair-openvex-owner-approved.json`
-  (SHA-256 `f649016d320ef118f69081d9073ab09688ba0ddac31e958318a4d0c30367f451`). A
-  validação diagnóstica do Trivy filtrou os IDs aprovados nos dois reports:
-  gateway `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-gateway-vex-owner-validation.json`
-  (SHA-256 `09fb5c70bd92d85a79f23c99037e568032f1e353c2d31724a28fb022d368c73b`) e broker
-  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-broker-vex-owner-validation.json`
-  (SHA-256 `2d09573a61a1c58eab0831d6f60cb518932bb17fc4c98226af967bc77a4ae50d`). Os três
-  VEX de mount (CVE-2026-76642/78409/78410), condicionais ao perfil Compose suportado,
-  permanecem draft e sem disposição do owner. Scans brutos E21 permanecem preservados.
-- **Estado:** hardening, build, smokes e scans foram executados; revisão VEX dos casos
-  de mount, demais CVEs, reconciliação integral de licenças e sign-off B13 continuam
-  pendentes. Sem push, publicação, release ou deploy.
+  (9 statements; SHA-256 `a03ceb0c36983f56a14a29772d911506f735aea23c315878ee2a403a78dec3d3`).
+  Trivy aplicado diagnosticamente filtrou os IDs declarados nos dois reports de validação:
+  gateway `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-gateway-vex-owner-validation-2.json`
+  (SHA-256 `66613365b2edb0f58cad06f1ca244262c17032144e7a9eb682307440d98580ff`) e broker
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-license-final-eda0acff-broker-vex-owner-validation-2.json`
+  (SHA-256 `aa8f4353bb272dcd406f40cfcbdb0f5de321d238c715bc5d9239e2f776775b12d`). O scan
+  bruto E21 continua preservado; aprovação VEX não é assinatura criptográfica ou
+  sign-off de release. CVEs não cobertos, reconciliação integral de licenças e B13
+  continuam pendentes. Sem push, publicação, release ou deploy.
 
 ### 8.3 Decisões registradas e ações do owner
 
@@ -1037,9 +1037,10 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
 3. **A-008/X02 — abordagem e estado atual:** hardening broker, candidato limpo Debian
    stable, SBOMs, rescan e smokes estão em E21. Os VEXs aprovados em E20 eram limitados
    aos antigos IDs `sha256:f3a8…`/`sha256:2e51…`; não se transferem aos IDs E21
-   `sha256:e68d…`/`sha256:654f…`. Novo VEX draft PURL-scoped está validado pelo Trivy,
-   mas aguarda decisão de Bill. Outros CVEs e a reconciliação das licenças permanecem
-   abertos; nenhum sign-off/publicação está aprovado.
+   `sha256:e68d…`/`sha256:654f…`. Bill aprovou VEX PURL-scoped E21 para OpenSSH e
+   declarações de código ausente/mitigações Compose registradas em E21; Trivy confirmou
+   os matches. CVEs restantes e reconciliação das licenças permanecem abertos; nenhum
+   sign-off/publicação está aprovado.
 4. **A-009/A-010 — decisão registrada em 2026-10-29:** usar Notes como app de
    referência para catálogo/consumidor e homologação da bridge. A escolha não
    substitui a aprovação de receita isolada nem a evidência de teste exigida.
@@ -1158,13 +1159,20 @@ anteriores incompatíveis. Permanecem abertas somente as ações técnicas indic
     Debian stable Trixie e backportar versão upstream >=10.4 do cliente OpenSSH. E20
     instalou OpenSSH Portable 10.6p1 compilado contra Trixie; Remote SSH regression e
     I2 DinD passaram em E20/E21. Bill aprovou VEX `fixed` para CVE-2026-60002 e
-    `not_affected` para CVE-2026-49138 somente no gateway E20. VEX para gateway E21
-    exige nova decisão; o backport não é aceite de outros CVEs nem sign-off de release.
+    `not_affected` para CVE-2026-49138 somente no gateway E20. No gateway E21, Bill
+    aprovou novamente essas duas disposições; o backport não é aceite dos outros CVEs
+    nem sign-off de release.
 24. **A-008 / hardening do broker — decisão e execução de Bill em 2026-10-30:** remover
     setuid de `/usr/bin/mount` e `/usr/bin/nsenter` e `/usr/bin/infocmp` do broker.
     E21 confirmou os modos/binários esperados e reexecutou o par limpo, smoke, SBOM e
-    scans. VEXs para novos IDs foram preparados como draft; os aprovados para E20 não
-    se transferem.
+    scans. Bill aprovou VEX E21 para binários ausentes (infocmp, nsenter, systemd-homed,
+    curl CLI) e para os CVEs de mount sob as mitigações do perfil Compose suportado.
+    Os statements condicionais são limitados aos image IDs e configuração suportada.
+25. **A-008 / fontes de terceiros em imagens — decisão de Bill em 2026-10-30:** não
+    oferecer nem acrescentar materiais de fonte correspondentes aos artefatos de imagem.
+    Isso não altera os termos das licenças. Se a revisão por componente identificar que
+    tais materiais são necessários para distribuir, segurar a distribuição pública ou
+    substituir o componente afetado; não presumir conformidade nem dispensar a obrigação.
 
 **Pendências técnicas e condições de retomada:** X02 foi reconciliado em E15; run #52
 falhou no startup por problema do arquivo de workflow, enquanto run #67 no SHA
@@ -1176,8 +1184,10 @@ decisão de Bill. E16 registra o novo par local, o VEX owner-approved do gateway
 executar os prompts E9 numa sessão Percival ativa, ainda indisponível nesta conversa.
 O primeiro artefato de imagem deve ser `linux/amd64` com runtime Debian stable slim; o
 candidato limpo com OpenSSH backport e hardening broker, SBOMs e scans está em E21.
-VEXs PURL-scoped dos novos IDs estão em draft, aguardando decisão de Bill. Disposição
-dos demais CVEs, reconciliação integral de licenças e B13 seguem abertas; E16
+VEXs PURL-scoped E21 para OpenSSH, utilitários ausentes e mitigações de mount estão
+owner-approved no perfil Compose suportado; outros CVEs seguem abertos. A reconciliação
+integral de licenças segue o item 25; B13 permanece
+aberto. E16
 (Forky/Alpine), E19 (OpenSSH 10.0) e E20 (sem hardening do broker) são históricos.
 Também permanece a revisão B13/proveniência/licenças do TUI, agora sem exigir oferta
 escrita ou documento de relinking por decisão registrada no item 20. Permanecem também
