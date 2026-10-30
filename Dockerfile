@@ -45,8 +45,10 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
 ARG DEBIAN_SNAPSHOT=20261027T000000Z
-RUN printf 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
-    printf 'deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
+# The slim base has no CA bundle yet; APT still verifies the signed Release
+# metadata and package hashes while fetching the pinned snapshot over HTTP.
+RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
+    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
     rm -f /etc/apt/sources.list.d/debian.sources && \
     apt-get -o Acquire::Check-Valid-Until=false update && \
     apt-get upgrade -y --no-install-recommends && \
