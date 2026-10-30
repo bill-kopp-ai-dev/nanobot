@@ -14,6 +14,7 @@ LABEL org.opencontainers.image.title="Percival MCP Broker" \
 COPY docker/mcp-broker-requirements.lock /tmp/mcp-broker-requirements.lock
 RUN python3 -c 'import hashlib, urllib.request; url="https://download.docker.com/linux/debian/dists/trixie/pool/stable/amd64/docker-ce-cli_29.9.2-1~debian.13~trixie_amd64.deb"; data=urllib.request.urlopen(url).read(); expected="6a266cb8acafa475e87ce2414387707024b55fb169d6ca1fb6c3132f234d4cf1"; actual=hashlib.sha256(data).hexdigest(); assert actual == expected, f"docker-ce-cli sha256 mismatch: {actual}"; open("/tmp/docker-ce-cli.deb", "wb").write(data)' && \
     dpkg -i /tmp/docker-ce-cli.deb && \
+    python3 -c 'import hashlib, pathlib, urllib.request; url="https://raw.githubusercontent.com/docker/cli/v29.9.2/LICENSE"; data=urllib.request.urlopen(url).read(); expected="2d81ea060825006fc8f3fe28aa5dc0ffeb80faf325b612c955229157b8c10dc0"; actual=hashlib.sha256(data).hexdigest(); assert actual == expected, f"docker CLI license sha256 mismatch: {actual}"; pathlib.Path("/usr/share/doc/docker-ce-cli/copyright").write_bytes(data)' && \
     rm /tmp/docker-ce-cli.deb
 RUN python3 -m venv /opt/broker-venv && \
     /opt/broker-venv/bin/pip install --no-cache-dir --require-hashes --no-deps \
