@@ -1,10 +1,11 @@
 # Stage-2 — Remediação do Percival (`nanobot`)
 
-**Data / revisão:** 2026-10-30 / 1.8.
+**Data / revisão:** 2026-10-30 / 1.9.
 **ID / estado:** S2-NB / em execução; aceite local parcial.
 **Checkout executor:** `/home/bill/Projects/nanobot`.
-**Responsável:** Bill Kopp é o único owner e decisor do Percival, dos servidores MCP
-e da infraestrutura IaC da Positronic Bean Labs; executor técnico: Positronic.
+**Responsável:** Bill Kopp é o único owner, trabalhador, decisor e signatário do
+Percival, das aplicações MCP relacionadas e da infraestrutura IaC da Positronic
+Bean Labs; executor técnico: Positronic.
 Contato: `bill.kopp.dev@gmail.com`; site `labs.positronicbean.com` (em desenvolvimento).
 
 ## 1. Objetivo, fontes e baseline
@@ -26,8 +27,9 @@ I3/B13 ou gates adiados. Os planos ativos L*/D* seguem localmente excluídos; o
 mapeamento disponível no relatório/coordenador foi preservado sem recriar esses
 arquivos. Decisão de Bill em 2026-10-29: trackers L*/D* antigos são obsoletos; seguir
 somente os planos ativos vigentes. Referências legadas permanecem como proveniência,
-não como trackers ativos. A decisão não fecha automaticamente ações sem destino/owner:
-mantê-las abertas neste plano até atribuição rastreável, sem recriar trackers.
+não como trackers ativos. As ações técnicas sem encaminhamento permanecem abertas até
+terem dependência e resultado rastreáveis; Bill continua owner único, sem exigir novo
+owner ou aceite duplicado e sem recriar trackers.
 
 ## 2. Preparação obrigatória da execução
 
@@ -35,11 +37,11 @@ mantê-las abertas neste plano até atribuição rastreável, sem recriar tracke
   reconciliar com bill os trackers L*/D* localmente excluídos. A leitura foi feita;
   Bill decidiu em 2026-10-29 que os trackers antigos são obsoletos e que somente os
   planos ativos vigentes serão usados. Arquivos ausentes não foram restaurados.
-- [x] Registrar SHA/worktree, ambiente e owner técnico. Baseline de execução:
+- [x] Registrar SHA/worktree e ambiente. Baseline de execução:
   HEAD `8c2ac64b68e8428dd1ed38e4474a7e4c91f26720`, worktree dirty preexistente;
-  Python 3.12.14 em `nanobot-stage2-env`; owner executor técnico local, decisões
-  com bill. O caso 143 foi reproduzido antes da correção; alterações de produto/teste
-  foram commitadas em `a51802103a1cfac26e394e469f757fff1072784b`.
+  Python 3.12.14 em `nanobot-stage2-env`; Bill é owner e decisor único, Positronic
+  executa o trabalho técnico. O caso 143 foi reproduzido antes da correção; alterações
+  de produto/teste foram commitadas em `a51802103a1cfac26e394e469f757fff1072784b`.
 - [x] Distinguir IaC **D-01..D-06** de Percival **D01..D12** e usar o mapeamento
   A-001→L06/D08, A-002→L02, A-006→L14/L15/D03 e as dependências das ações abaixo.
 - [x] Decisão `R-02` (2026-10-28): registro histórico da receita restrita e da
@@ -72,7 +74,7 @@ O estado por ação após esta execução está na seção 6. Condições extern
 continuam pendentes. Prioridade é a da ação de origem, não uma nova classificação.
 Áreas abaixo são as apontadas pelo relatório; caminhos foram conferidos no SHA executor.
 
-| Ação | Achado / P | Trabalho no dono e áreas previstas | Dependência / owner externo | Evidência necessária para verificar |
+| Ação | Achado / P | Trabalho e áreas previstas | Dependência técnica / responsável | Evidência suficiente para verificar |
 |---|---|---|---|---|
 | A-001 | F-001 / P0 | Corrigir predicado de ownership em `nanobot/mcp_docker/broker.py`, incluindo inspect/mutate/hydrate/recover/start/exclude; vínculo de instância compatível | L06/D08; decidir adoção de containers históricos | Labels owner/managed-by/server-id ausentes ou divergentes recusadas antes de mutar; ID, estado e dados de fixture alheia preservados; fluxo próprio positivo |
 | A-002 | F-002 / P1 | Segregar transporte de controle do Engine em `scripts/percival-i2-runtime-smoke.py`/harness e CI; não apenas retirar socket | L02; receita autorizada, IaC D-05 se aplicável | Unix e TCP negados de gateway/MCP; controlador e broker autorizados operam; Engine 27.x continua gate, sem override para esconder falha |
@@ -91,7 +93,7 @@ continuam pendentes. Prioridade é a da ação de origem, não uma nova classifi
 
 Estas subtarefas complementares não alteram as 12 ações de origem.
 
-| ID | Origem / execução aqui | Aceite compartilhado |
+| ID | Origem / execução aqui | Decisão e critério compartilhados |
 |---|---|---|
 | S2-NB-X01 | AgentMail A-006/A-008; Research A-005/A-009; Khan A-001/A-002/A-008; OSM A-008 e Weather A-005: implementar perfis explícitos de mounts, init, secrets por arquivo e lifecycle conforme S2-C01 | Default do broker Percival: acesso host amplo R/W, com máscaras/exclusões de superfícies de controle, estado e credenciais conforme B23–B25; sem acesso direto ao socket. Cada app declara e configura seu perfil: `[]` para nenhum bind, mounts estreitos quando necessários; não depender do default para stateless. Aumentar escopo de perfil configurado exige confirmação/auditoria; teste do consumidor |
 | S2-NB-X02 | Khan A-005 e gates de qualificação dos MCPs: receber scans/manifests por candidato e coordenar o CI do gateway quando exigido | Evidência por SHA/image ID/manifest digest e DB; CI remoto não fechado por teste local; retorno para cada plano MCP |
@@ -137,11 +139,13 @@ preservados. Não há requisito de estimar esforço, custo ou prazo (`R-03`).
   `9735441c` passou os jobs aplicáveis de Docker/Python/broker, mas não substitui
   a qualificação integral por V-* nem o aceite de cada app. `V-PILOT` será um teste
   completo do servidor MCP no agente por prompts, após deploy autorizado da imagem.
-- [ ] Runtime real só pela interface do owner, após leitura do runbook operacional,
-  revisão/CAS, autorização e backup; sem deploy, push ou publicação implícitos.
+- [ ] Runtime real só pela interface suportada, após revisão/CAS e backup. Uma
+  autorização explícita de Bill pode cobrir a operação e seus pré-requisitos em um
+  único registro; push de código não implica deploy/publicação.
 
-Aceite local pode ser entregue antes dos externos. Ações transferidas, sem
-evidência de seu dono, continuam abertas; remediação integral não está concluída.
+Evidências locais podem fechar antes de dependências externas. Uma dependência
+permanece aberta até seu resultado ser observado ou Bill decidir explicitamente
+diferir/aceitar a limitação; não exige handoff ou aceite de outro owner.
 
 ## 6. Penúltima etapa — documentar a execução neste plano
 
@@ -343,7 +347,7 @@ Docker socket no scanner.
 
 ## 8. Plano de execução para os itens ainda abertos
 
-**Revisão:** 2026-10-29. **Owner único do produto e das decisões:** Bill Kopp
+**Revisão:** 2026-10-30. **Owner único do produto, trabalho e decisões:** Bill Kopp
 (`bill.kopp.dev@gmail.com`), Positronic Bean Labs. **Executor técnico:** Positronic.
 Este plano detalha a execução
 dos resíduos identificados em S2-NB e não substitui este tracker nem o plano
@@ -355,9 +359,10 @@ preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-acti
 
 ### 8.1 Regras de execução e fronteiras
 
-- Fechar primeiro as decisões/documentos comuns que destravam vários itens; executar
-  em paralelo somente tarefas independentes e locais. Não inferir implementação a
-  partir de um contrato aprovado, nem aceite remoto a partir de testes locais.
+- Fechar decisões/documentos comuns que destravam vários itens; executar em paralelo
+  tarefas independentes. Uma decisão de Bill registrada uma vez cobre os projetos e
+  artefatos explicitamente incluídos nela; não pedir novo aceite em cada repositório.
+  Decisão não prova implementação, e teste local não prova resultado remoto.
 - Escopo deste plano: A-007 e resíduos de A-002/A-004/A-008; A-009–A-012;
   S2-NB-X01/X02; reconciliação dos trackers L*/D*; revalidação da seção 9 do
   relatório de origem; atualização do plano coordenador IaC. A-001/A-003/A-005/A-006
@@ -368,17 +373,18 @@ preflight da IaC, ver o [guia de ações do owner](2026-10-29-stage-2-owner-acti
   A decisão de realizar teste completo por prompts no agente após deploy define o
   método do teste, mas não é execução do deploy nesta revisão. Publicação de artefato
   e alterações no runtime continuam fora do escopo executado aqui.
-- Bill é o único owner do Percival, dos servidores MCP e da IaC; não há aprovação
-  adicional de outra pessoa a obter. A-011 tem implementação e evidência técnica local;
+- Bill é owner único do Percival, das aplicações MCP relacionadas e da IaC, e também
+  o único trabalhador desses projetos; não existem handoffs ou aprovações de terceiros.
+  A-011 tem implementação e evidência técnica local;
   falta acoplá-la ao ponto de entrada canônico do bundle/bootstrap e versionar o trabalho.
   A-012 permanece em fixtures até haver necessidade operacional;
   eventual ensaio real deve ter alvo, janela, carga, backup e critério de parada.
 
 ### 8.2 Sequência de trabalho e aceites
 
-| Lote | Itens | Trabalho / aceite verificável | Dependências e dono |
+| Lote | Itens | Trabalho / critério verificável | Dependências técnicas / responsável único |
 |---|---|---|---|
-| E0 — Reconciliação | Preparação, L*/D*, estado atual | Relê `AGENTS.md`, workflow, contratos, runbook, handoff e Git; a decisão de Bill em 2026-10-29 declara obsoletos os trackers L*/D* antigos e mantém somente os planos ativos vigentes. Referências históricas servem como proveniência, não como fonte de execução; qualquer ação ainda sem destino/owner permanece aberta neste plano até encaminhamento rastreável. Atualiza baseline SHA/worktree e separa evidência local, externa e histórica. | Decisão de obsolescência registrada. Não restaurar trackers; não inferir que itens sem owner/destino foram resolvidos. Mudança futura de owner exige atualização de um plano ativo, sem criar cópia concorrente. |
+| E0 — Reconciliação | Preparação, L*/D*, estado atual | Relê `AGENTS.md`, workflow, contratos, runbook, handoff e Git; trackers antigos permanecem obsoletos e referências históricas são proveniência, não fonte de execução. Atualiza baseline SHA/worktree e distingue evidência local, externa e histórica. | Bill é owner e decisor único. Acompanhar dependências reais no plano; não criar handoffs ou aceite adicional entre projetos de Bill. |
 | E1 — Contratos e ADR | S2-C01, S2-C02, S2-C03; habilita A-009/A-010/X01 | C01/C03 seguem com conteúdo aprovado por Bill no SHA IaC local `bf9c25201453f1f9c89b9a49030def4b2a053599`; cabeçalhos locais alinhados a 0.2-approved, sem declarar adoção. C02 continua aprovado e não exige SHA agora. `/home/bill/Projects/pblabs-mcp-index` está em repo Git local `6a23188`, sem remoto. Tem schemas, seis manifests draft e catálogo vazio. | Vincular contratos aos consumidores e validar schemas/implementação. Índice sem release/digest, remote ou pipeline. Perfis ainda não integrados ao broker nem ao schema 0.1. |
 | E2 — A-007 + trackers | A-007, NB-11 | Bill adiou a consulta do manager até depois do próximo ciclo de execução do plano. Após esse ciclo, identificar instalação e confirmar versão/SHA ou image ID em execução; então usar a página autenticada Contêineres MCP, revisar estado salvo/observado/conectividade e registrar recovery de `list()`. | Não abrir/atualizar a página antes desse marco; `list()` pode executar `recover_pending()` e acionar o broker. A localização e o procedimento estão no guia do owner. Não editar config/audit/registry. |
 | E3 — A-004 residual + A-002 residual | A-004/B13; A-002/CI | Bun 1.4.4, workflows, lockfile, `@types/bun`, licença e relinking foram alinhados; checks anteriores passaram. O mapa Git file/hunk foi gerado para o SHA `51a5d382` (91 arquivos/2.516 hunks) em `docs/provenance/tui-lineage-51a5d382.md`. O mapa é histórico técnico e não substitui avaliação de copyright/licenças. Build/PTY de candidato limpo e revisão/assinatura B13 continuam pendentes. Reconciliar V-BUILD/V-RUN/V-CONFIG/V-DATA/V-MCP/V-FUNC/V-REUSE. | `gh` e Bun não estão disponíveis neste host; Python global 3.14 não tem dependências do projeto e o `.venv` não inicia. CI remoto, build/PTY no SHA exato e gates Python 3.14 atuais não foram reexecutados. Run #52 (`4086251288`) não verificado. Não instalar ferramentas sem autorização. |
@@ -699,13 +705,14 @@ responsável pelas escolhas finais e pela IaC.
 
 ### 8.4 Critério de encerramento
 
-S2-NB só poderá ser marcado concluído quando cada ação A-001–A-012 e S2-NB-X01/X02
-tiver resultado rastreável (verificada, limitação aceita ou transferência com owner,
-aceite e dependência explicitados), os V-* aplicáveis estiverem reconciliados para
-os candidatos exatos, a revalidação histórica estiver anexada e o retorno às seções
-3/7 do coordenador estiver atualizado. O teste end-to-end por prompts após o deploy
-deverá ter casos e resultados registrados; o push de código não é deploy nem
-publicação de imagem.
+S2-NB pode ser concluído quando cada ação A-001–A-012 e S2-NB-X01/X02 tiver um
+resultado objetivo registrado: implementada/verificada com evidência suficiente,
+limitação explicitamente aceita por Bill, ou dependência concretamente diferida.
+Reutilizar evidência histórica ainda aplicável; revalidar apenas se candidato,
+ambiente, código ou risco material mudou. Reconciliar V-* somente para gates que
+forem aplicáveis ao resultado/candidato escolhido e atualizar o coordenador com um
+resumo/link, sem duplicar os detalhes. V-PILOT continua necessário se o plano incluir
+aceite end-to-end pós-deploy; push de código não é deploy nem publicação de imagem.
 
 ### 8.5 Decisão `R-10` — default amplo de mounts do broker Percival
 
@@ -726,8 +733,8 @@ receita de execução restrita já vigente não é desfeito.
   e auditoria. Registros legados/existentes devem manter sua configuração efetiva;
   não migrar nem mutar runtime implicitamente.
 - O contrato comum deve dizer que cada broker declara seu default; o default amplo é
-  específico do broker Percival e não concede privilégios por metadata MCP. Owners
-  dos consumidores devem confirmar seus perfis por app, inclusive Notes.
+  específico do broker Percival e não concede privilégios por metadata MCP. Bill define
+  os perfis por app, inclusive Notes; não são necessários aceites separados por projeto.
 - Atualizar C01, C03 quando descrevem perfis de execução, o plano coordenador e os
   planos consumidores. Preservar o relatório de 2026-10-28 como snapshot histórico e
   acrescentar a decisão posterior como adendo, sem reescrever as evidências coletadas.
@@ -735,3 +742,28 @@ receita de execução restrita já vigente não é desfeito.
 R-10 decide a política, mas **não autoriza mudança de código/runtime, piloto,
 publicação ou deploy**. A implementação permanece pendente de contrato versionado,
 testes de broker/consumidores e autorização operacional específica.
+
+### 8.6 Decisão `R-12` — ownership único e governança proporcional
+
+**Decidido por Bill Kopp em 2026-10-30.** Bill é o único owner, trabalhador,
+decisor e signatário do Percival, das aplicações MCP relacionadas e da infraestrutura
+IaC da Positronic Bean Labs. Contato: `bill.kopp.dev@gmail.com`; website:
+`labs.positronicbean.com` (em desenvolvimento). Positronic executa o trabalho técnico.
+
+- Não há owner externo, transferência entre pessoas, revisão independente obrigatória
+  ou aceite de terceiro a obter nesses projetos. Dependências entre repositórios são
+  dependências técnicas sob o mesmo owner; registrar o artefato, a condição e o próximo
+  passo, sem criar handoff/aceite duplicado.
+- Uma decisão/assinatura de Bill registrada com escopo explícito vale para todos os
+  artefatos e projetos nela listados. Reutilizá-la enquanto escopo, candidato, alvo e
+  risco permanecerem os mesmos; pedir nova decisão somente se um desses elementos
+  mudar materialmente ou se a ação tiver consequência operacional distinta.
+- Preferir uma verificação suficiente e reutilizável. Repetir testes apenas quando
+  código, dependência, ambiente, candidato ou risco relevante mudar, ou quando a
+  evidência anterior não cobrir o critério. Não exigir validação cruzada por rotina.
+- Essa simplificação remove aprovações redundantes, não critérios técnicos: marcar
+  item como verificado exige evidência adequada; itens não executados permanecem
+  pendentes ou são explicitamente diferidos/aceitos por Bill.
+- R-12 não autoriza automaticamente publicação, deploy, mutação de runtime ou uso de
+  dados reais; Bill pode autorizar uma operação concreta em um único registro claro,
+  incluindo alvo e limites, sem repetir a mesma autorização em documentos paralelos.

@@ -2,14 +2,23 @@
 
 ## Company ownership and decision authority
 
-Percival and the related PBLabs projects belong to Positronic Bean Labs
-(PBLabs), owned by Bill Kopp (`bill.kopp.dev@gmail.com`). Bill is the sole
-decision-maker for decisions requiring owner or company approval across PBLabs
-projects. Technical reviews and implementation may be delegated; final approval
-remains with Bill. The company site, `labs.positronicbean.com`, is under
-development and is not an operational service or endpoint. This does not itself
-change GitHub/Docker Hub namespaces, grant runtime access, or authorize publication,
-deployment, or production changes.
+Percival and the related PBLabs applications and IaC belong to Positronic Bean
+Labs (PBLabs), owned and operated solely by Bill Kopp
+(`bill.kopp.dev@gmail.com`). Bill is the only person working on these projects
+and the sole decision-maker and signatory for product, IaC, security, release,
+and company decisions. Positronic is the technical agent/executor. Do not invent
+additional reviewers, approvers, handoffs, or stakeholder acceptances. The company
+site, `labs.positronicbean.com`, is under development and is not an operational
+service or endpoint. This ownership statement does not itself change GitHub/Docker
+Hub namespaces or authorize publication, deployment, or production changes.
+
+Use proportional governance: record a decision once at the scope it covers and
+reference it from affected plans; do not request duplicate approvals or repeat
+the same validation across repositories when one traceable result suffices.
+Keep only evidence that answers a material technical, security, release, or
+operational question. Reuse current, applicable evidence instead of rerunning it.
+Separate gates only when artifact, candidate, target, risk, or state actually
+changes. A decision or approval does not claim an unperformed test or operation.
 
 Percival is an independent project derived from HKUDS/nanobot. Development
 currently takes place in a private repository; a separate public Percival
@@ -87,7 +96,8 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   gateway/LLM and ordinary MCPs do not. Preserve typed authorization, CAS, journal,
   backups and mount protections. No generic Docker execution tool or manifest-granted
   privileges. Socket separation does not prove total isolation: retain B23–B25's
-  indirect-risk limits and target-specific acceptance.
+  indirect-risk limits. Bill's decision for a target may be recorded once and reused
+  while that target and risk remain unchanged.
 - Current MCP execution accepts local IDs or locally present RepoDigests and uses
   `--pull=never`. I1 selects restricted broker acquisition; I6 implements and verifies
   it before spawn. Do not enable arbitrary pulls, reserved `repository` sources or
@@ -101,10 +111,12 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
    I2 aligned inherited metadata/locks/defaults with Percival 0.1.0 locally; a release
    candidate still needs its exact clean SHA and I3 evidence.
 - I1 limits initial P0 support to one Percival instance per Docker daemon. New catalog
-  installs require explicit local consent; missing mounts never inherit Full. Existing
-  configured servers retain their settings. Unsupported mandatory isolation is rejected,
-  not claimed as enforced. Render/install-service stay separate compatibility paths;
-  never run a second gateway writer on the Compose instance's state.
+  installs require explicit local consent. Percival's broker default is broad host R/W
+  with the existing protected-path exclusions; `mounts: []` means no bind and consumers
+  must explicitly configure their intended profile. Existing configured servers retain
+  their settings. Unsupported mandatory isolation is rejected, not claimed as enforced.
+  Render/install-service stay separate compatibility paths; never run a second gateway
+  writer on the Compose instance's state.
 - I4/C2 map `~/.nanobot`, the historical `.percival` proposal and host layout
   `/srv/pblabs/`; preserve supported internal paths until explicit migration. Never
   rename/split state automatically or copy live config/fixture paths into templates.
@@ -126,8 +138,10 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
 - P0 is open infrastructure only; premium GCP, entitlement, billing, marketplace,
   Kubernetes, private customer delivery and a proprietary registry need separate scope.
    Track current Percival implementation in A-001–A-012 and S2-NB-X01/X02 of the
-   Stage-2 tracker; I1–I9 remain source-origin IDs. Removed legacy trackers and their
-   deletion do not close an acceptance gate or imply that transferred work is complete.
+   Stage-2 tracker; I1–I9 remain source-origin IDs. Removed legacy trackers do not
+   erase technical work, but no separate owner handoff is needed: Bill owns Percival,
+   IaC, and the related MCP applications. Track the actual dependency and evidence in
+   the active plan rather than creating duplicate approval records.
 
 ## Development constraints
 
@@ -155,6 +169,11 @@ The Python gateway owns agent execution, sessions, tools, memory, and security p
   unaffected evidence per `.agent/workflow.md`; documentation-only changes need
   link/consistency checks and `git diff --check`, not an unrelated runtime rebuild.
   Upstream CI success or local tests do not close candidate-specific remote gates.
+- Bill is the sole approver. For a multi-repository decision, one recorded approval
+  covers all explicitly listed affected projects/artifacts; do not ask Bill to sign
+  the same decision again in each tracker. Technical criteria still need evidence,
+  and candidate/deploy/release approvals remain distinct when they concern a different
+  artifact or operational action.
 - An agent may draft release notes, but the operator approves the final
   changelog, known limitations and links to evidence for the exact candidate.
   No tag, public repository, package publication or release is authorized by
