@@ -44,7 +44,7 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
-ARG DEBIAN_SNAPSHOT=20261027T000000Z
+ARG DEBIAN_SNAPSHOT=20261030T000000Z
 # The slim base has no CA bundle yet; APT still verifies the signed Release
 # metadata and package hashes while fetching the pinned snapshot over HTTP.
 RUN printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
