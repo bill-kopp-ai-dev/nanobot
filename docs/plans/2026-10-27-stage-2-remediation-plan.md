@@ -1245,6 +1245,66 @@ autorizou commits locais separados após a verificação; não houve push.
   selecionado (`/usr/bin/python`) não tem `pytest`; nenhum teste é reivindicado como
   reexecutado nesta reconciliação.
 
+#### E27 — candidato Khan e atualização local do gateway (2026-10-31)
+
+- Por solicitação de Bill, o servidor Khan foi construído pelo script canônico
+  `scripts/percival-docker-build.py` como candidato de worktree F2. Tag
+  `percival-khan-calendar:0.4.0-5b4698b-f2-0c139187cd1e`; image ID
+  `sha256:0c4d7b334fc5a1c949019ffa466489e352fc67a69132eb95c99739461afea49d`;
+  source `5b4698bf6a6693c7a22fec5239307930d1d84b48`, diff SHA
+  `0c139187cd1eedf939f7cfde1b07825388dc9adb0f9e18416d56d68aba3ccac6`, lock SHA
+  `31761ed82b63fd6bee2c318af48803d282459ddd75313ad228337afef0d70a20`. Trivy
+  0.76.1/DB 2026-10-31 reportou 0 CVEs. `khal 0.14.0`, UID 1000, MCP
+  initialize/tools/list (12 tools) e `khan_get_status` passaram em tmpfs; TAR e
+  JSON em `/home/bill/.positronic/runtime/tmp/opencode/`.
+- Bill autorizou atualizar o gateway Percival antes de retomar o manager UI,
+  conforme a condição registrada no guia do owner. Build clean pelo script canônico:
+  `percival-gateway:0.1.0-4e947c3`, image ID
+  `sha256:c62a5203209f92b613758a816c315ecac1930c0a2ef0b0623ccbe923153c1abe`,
+  revision `4e947c3fe732b815db1b700ccc8372a1a1aff6a1`. Smoke I2 em DinD
+  descartável com broker `sha256:1d90f1357345e85acc55ddca3bc6b7ba35d41a1c59a7664b80958f90c579295e`
+  passou todos os checks; resultados em
+  `/home/bill/.positronic/runtime/tmp/opencode/i2-3khe37_a/results.json`.
+- O gateway local foi atualizado por Compose e está healthy; broker permanece no
+  mesmo image ID e healthy sob `docker-compose.engine29-override.yml` (opção local
+  para Engine 29.9.2, não evidência de compatibilidade de deploy). A primeira
+  recriação omitiu esse override e o broker recusou o Server 29; o par foi
+  recriado com o override existente e ficou saudável. Configuração Compose exata
+  registrada pelo container inclui o override local em runtime tmp.
+- Em 2026-10-31 Bill pinou o candidato no Percival pela WebUI e forneceu três
+  screenshots: server `khan-calendar`, local-image `sha256:0c4d7b334fc5a1c949019ffa466489e352fc67a69132eb95c99739461afea49d`,
+  Docker state `running`, gateway intent `running`, MCP `connected` e 12 tools
+  observadas. O estado local confirma configuração `source.reference` igual ao
+  candidato, `active=true`, revisão global 28 e revisão do servidor 5. Audit:
+  `update-image` `started` na revisão 27 e `committed` na 28, correlation ID
+  `b88132f9a2f443f38364c274bfe1cc75` (2026-10-31 22:06:57–22:07:01 UTC).
+  Container Percival `percival-mcp-khan-calendar` está running no image ID novo.
+  O smoke pré-pinning executou `khan_get_status`; as screenshots pós-pinning
+  demonstram conexão e tools, sem evidência de nova chamada de tool após o update.
+- Bill informou que, após a pinagem, as leituras `khan_get_status`,
+  `khan_list_calendars`, `khan_view_agenda(period="today")`,
+  `khan_list_events` e `khan_view_calendar` passaram sem erro e sem mutações.
+  Resultado reportado: config/layout do khal coerente, lock habilitado, 1 calendário
+  `nanobot`, 0 eventos hoje e grade mensal vazia. `khan_get_status` não expôs fuso
+  horário; registrar como lacuna de observabilidade não bloqueante, não como erro de
+  timezone. O relato diz “4 chamadas”, mas enumera cinco tools distintas; a
+  contagem de invocações permanece ambígua. Nenhum conteúdo de evento foi reproduzido.
+- O pin anterior Percival `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914`
+  foi removido após a atualização e inventário sem referências, conforme a
+  instrução de limpeza de Bill. Consequência: rollback local para A não está
+  disponível; seria necessário reconstruir. O pin Positronic
+  `sha256:e67abbecf0be2c39da607a547dfdf67d0779b47e711b04f33598975ef85d6ac2`
+  permanece ativo e foi preservado por pertencer a outro gestor. Também foram
+  removidos os candidatos sem referência `sha256:bc7e18b0c8208b3a43790179f22c0721571491cbe0cc1cc33350a3faddbb86b2`
+  e `sha256:fccf598a6122d95e2a985ec7ad7d8e07b52c8c0e50ad3ec49ff08354b22e2524`.
+  Limpeza conjunta dos três IDs recuperou aproximadamente 389 MB em camadas
+  únicas. `docker system df`: image store final 10.32 GB (o crescimento líquido
+  desde a fotografia inicial decorre da nova imagem gateway e do candidato).
+- Sem push, release ou publicação. O gateway ativo permanece no candidato local
+  `percival-gateway:0.1.0-4e947c3`; o broker mantém o image ID aprovado local
+  com override descartável de Engine 29.9.2. A compatibilidade Engine 27 foi
+  testada separadamente no smoke I2 em DinD 27.5.1.
+
 ### 8.3 Decisões registradas e ações do owner
 
 As decisões e respostas do owner registradas em 2026-10-29 e 2026-10-30 substituem solicitações

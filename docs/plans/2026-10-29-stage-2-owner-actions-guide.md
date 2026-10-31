@@ -132,6 +132,45 @@ Ao carregar, a página chama `list()` automaticamente e continua atualizando a c
 30 segundos; `list()` pode executar recuperação pelo broker. Não configurar integração
 MCP no chat, iniciar/alterar o broker ou modificar o deploy para antecipar o teste.
 
+### Retomada local — 2026-10-31
+
+- Bill autorizou preparar e atualizar o gateway local antes do teste. O container ativo
+  agora usa `percival-gateway:0.1.0-4e947c3`, image ID
+  `sha256:c62a5203209f92b613758a816c315ecac1930c0a2ef0b0623ccbe923153c1abe`, revision
+  `4e947c3fe732b815db1b700ccc8372a1a1aff6a1`; o healthcheck do gateway passa. O broker
+  permaneceu no image ID `sha256:1d90f1357345e85acc55ddca3bc6b7ba35d41a1c59a7664b80958f90c579295e`
+  e está healthy com o override Engine 29 local já usado neste host. Smoke I2 em
+  DinD 27.5.1 passou; resultado em
+  `/home/bill/.positronic/runtime/tmp/opencode/i2-3khe37_a/results.json`.
+- Novo candidato Khan preparado: tag
+  `percival-khan-calendar:0.4.0-5b4698b-f2-0c139187cd1e`, image ID
+  `sha256:0c4d7b334fc5a1c949019ffa466489e352fc67a69132eb95c99739461afea49d`; Trivy
+  0.76.1/DB 2026-10-31 encontrou 0 CVEs. MCP initialize/tools/list (12) e
+  `khan_get_status` passaram em tmpfs sintético.
+- Bill forneceu screenshots da WebUI após a pinagem. Eles mostram Khan no image ID
+  `sha256:0c4d7b334fc5a1c949019ffa466489e352fc67a69132eb95c99739461afea49d`,
+  `running`, MCP `connected` e 12 tools observadas. Inventário read-only confirma
+  o mesmo ID na configuração, container Percival `percival-mcp-khan-calendar`
+  em execução, versão `0.4.0`, revisão do servidor 5 e revisão global 28. O audit
+  registra `update-image` `started` em 27 → `committed` em 28, correlation ID
+  `b88132f9a2f443f38364c274bfe1cc75`, em 2026-10-31 22:06:57–22:07:01 UTC.
+- Bill informou que, após o pin, passaram sem erro as leituras
+  `khan_get_status`, `khan_list_calendars`, `khan_view_agenda(period="today")`,
+  `khan_list_events` e `khan_view_calendar`; sem escrita, update, delete ou export.
+  Resultado reportado: Khal config/layout coerente, lock ativo, um calendário
+  (`nanobot`), nenhum evento hoje e grade mensal vazia. TZ/offset não é exposto,
+  lacuna de observabilidade de baixa severidade, não evidência de falha de fuso.
+  A mensagem de Bill diz “4 chamadas”, mas enumera cinco tools distintas; não
+  inferir o total de invocações. Nenhum dado de evento foi copiado para o registro.
+- Após confirmar zero referências ativas/config para o pin antigo Percival
+  `sha256:55cd5a038d22e253693d1d0681e108f57b41f060ecbeb231dad3e2f7edd51914`, Bill
+  solicitou removê-lo para liberar espaço. Ele foi removido; rollback local para
+  esse image ID exige reconstrução. Também foram removidos os staging images
+  `sha256:bc7e18b0c8208b3a43790179f22c0721571491cbe0cc1cc33350a3faddbb86b2` e
+  `sha256:fccf598a6122d95e2a985ec7ad7d8e07b52c8c0e50ad3ec49ff08354b22e2524`.
+  O pin Khan `sha256:e67abbecf0be2c39da607a547dfdf67d0779b47e711b04f33598975ef85d6ac2`
+  no Positronic segue ativo e foi preservado. Sem publicação.
+
 ### O que fazer quando o teste for retomado
 
 1. Abra a página WebUI da mesma instalação Percival que será consultada e entre
