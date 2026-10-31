@@ -1,6 +1,6 @@
 # Stage-2 — Remediação do Percival (`nanobot`)
 
-**Data / revisão:** 2026-10-30 / 1.9.
+**Data / revisão:** 2026-10-30 / 2.0.
 **ID / estado:** S2-NB / em execução; aceite local parcial.
 **Checkout executor:** `/home/bill/Projects/nanobot`.
 **Responsável:** Bill Kopp é o único owner, trabalhador, decisor e signatário do
@@ -1218,6 +1218,32 @@ autorizou commits locais separados após a verificação; não houve push.
   com os métodos expostos; se o candidato também bloquear resources/prompts, registrar
   o gate como não suportado e decidir escopo antes de qualquer mudança. Não escrever
   no vault do alvo observado.
+
+#### E26 — reconciliação com o checkout atual (2026-10-30)
+
+- Revisado o checkout Percival em `main`, HEAD
+  `1fa2813864fac36782b8234382735431c8c7faa6`. A alteração de produto deste SHA
+  separa aprovação de conteúdo do manifest (`manifest-approved`) de aprovação de
+  release (`approved` com `approved_release`):
+  `nanobot/mcp_docker/pblabs-mcp-app.schema.0.2.json` aceita os dois estados e
+  `nanobot/mcp_docker/catalog.py` só admite `approved` quando a release corresponde
+  à versão do manifest. A aprovação de manifests registrada em E22/item 26 está,
+  portanto, representada sem tornar releases elegíveis ao catálogo.
+- Cruzamento read-only do índice em `/home/bill/Projects/pblabs-mcp-index`: os seis
+  manifests presentes usam `manifest-approved`; `catalog.yaml` continua com
+  `entries: []`. O schema 0.2 local contém a mesma distinção. O checkout do índice
+  tem alterações não commitadas em README, proposta/schema, snapshot, seis manifests,
+  testes e `uv.lock`; esse estado de trabalho não foi alterado nem tratado como
+  release/remoto. Isso confirma o limite de E22: aprovação de metadata não equivale
+  a release, digest publicado ou disponibilidade de instalação.
+- O plano já refletia o estado de V-PILOT E25 como inconclusivo, a execução A→B→A
+  de A-007 e as disposições E21; não foi encontrada divergência adicional que
+  justificasse mudar esses resultados. Registros anteriores com estados e candidatos
+  mais antigos permanecem evidência histórica, não estado atual.
+- Verificação: `git diff --check` passou no checkout Percival. A tentativa de executar
+  `python -m pytest tests/mcp_docker/test_catalog.py -q` não iniciou porque o Python
+  selecionado (`/usr/bin/python`) não tem `pytest`; nenhum teste é reivindicado como
+  reexecutado nesta reconciliação.
 
 ### 8.3 Decisões registradas e ações do owner
 
