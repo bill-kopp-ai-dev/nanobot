@@ -750,6 +750,19 @@ def test_managed_server_mapping_and_wrapper_rechecks_gate(tmp_path: Path) -> Non
     assert servers[managed_name].allow_resources_prompts is True
     assert servers[managed_name].headers["Authorization"] == "Bearer " + "t" * 64
 
+    config.tools.mcp_docker.servers["deep-research"] = DockerServer(
+        server_id="deep-research",
+        source={"type": "local-image", "reference": IMAGE},
+        state="running", tools=["research_deep"],
+    )
+    config.tools.mcp_docker.configurations["deep-research"] = {}
+    deep_research = _configured_servers(config)["percival_docker_deep-research"]
+    assert deep_research.tool_timeout == 180
+    assert (
+        servers[managed_name].tool_timeout
+        == MCPServerConfig().tool_timeout
+    )
+
     allowed = True
 
     class Session:

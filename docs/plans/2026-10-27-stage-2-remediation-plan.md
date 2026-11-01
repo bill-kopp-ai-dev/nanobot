@@ -1,6 +1,6 @@
 # Stage-2 — Remediação do Percival (`nanobot`)
 
-**Data / revisão:** 2026-10-30 / 2.0.
+**Data / revisão:** 2026-11-01 / 2.1 — follow-up S2-DR de timeouts e resource templates.
 **ID / estado:** S2-NB / em execução; aceite local parcial.
 **Checkout executor:** `/home/bill/Projects/nanobot`.
 **Responsável:** Bill Kopp é o único owner, trabalhador, decisor e signatário do
@@ -85,7 +85,7 @@ continuam pendentes. Prioridade é a da ação de origem, não uma nova classifi
 | A-007 | F-007 / P2 | Manter inventário fonte→imagem→instância, separando saved/observed/connectivity; preparar reconciliação no manager existente | D01/D03; owner e janela próprios para runtime real | Inventário datado e sanitizado; imagem e revisão efetivas identificadas; stopped sob demanda não vira falha por inferência |
 | A-008 | F-008 / P2 | Reancorar triagem do Medium no candidato exato, hashes/código/testes e SBOM/scan com Trivy (`R-11`) | Vulnerability DB atualizada; candidato identificado; gate `R-07` | Scan Trivy de todas as severidades ligado a SHA/image ID e DB; decisão por CVE e VEX assinado pelo owner; CVEs herdados da imagem base seguem a postura por herança; sem mudar metadata para ocultar finding ou reaproveitar waiver de outra imagem |
 | A-009 | F-009 / P2 | Integrar catálogo, aquisição, policy independente e export no manager/broker existentes; CAS/migração explícita | D07/D08/D09; C01/C02/C03; etapas 2/4/5 IaC | Matriz negativa de origem/digest/policy; export atômico sem segredo; estado canônico único; implementação local pode avançar no índice designado; adoção operacional depende de contratos compatíveis e gates próprios |
-| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; Notes, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão. Bill decidiu implementar `resources/list/read` e `prompts/list/get` para Notes (recurso estático e prompts anunciados); gate por server ativo e capability descoberta. Streaming, resource templates e cancelamento ficam fora deste escopo salvo requisito separado. |
+| A-010 | F-010 / P2 | Homologar bridge por app, método e deadline; erro/cancelamento/EOF e attach em `broker.py`/client/MCPProvider | D08; Notes, receita isolada; etapa 5 IaC; formato `R-09` | Correlação de respostas, calls concorrentes, EOF/timeout sem attach órfão. Bill havia limitado `resources/list/read` e `prompts/list/get` a Notes estático. **Follow-up do owner via V-PILOT Deep Research (2026-11-01):** templates são necessários; broker descobre `resources/templates/list`, encaminha somente templates anunciados e permite `resources/read` apenas em URI correspondente; MCPProvider expõe leitura como tool derivada read-only. Long calls recebem deadline broker de 150 s. Streaming e cancelamento permanecem fora do escopo. |
 | A-011 | F-011 / P2 | Especificar restrições do produto e entregar requisito de preflight de writers/instâncias à IaC; produto testa o contrato que controla | Bill é owner único da IaC; implementar bundle/preflight e fixture consumidora | Fixture recusa segundo writer e segunda instância no daemon antes de mutar; mudar nome Compose não é isolamento de instalação |
 | A-012 | F-012 / P2 | Definir e ensaiar shutdown/recovery carregado no broker, preservando store/journal e dados | Teste sintético concluído; manter em fixtures até necessidade operacional concreta | Calls ativas têm término/erro limitado documentado; restart reconcilia operação sem duplicação; não confundir idle/crash sintético com recovery real |
 
@@ -1708,3 +1708,64 @@ IaC da Positronic Bean Labs. Contato: `bill.kopp.dev@gmail.com`; website:
   variáveis são referências `*_FILE` read-only. Nenhum valor de segredo foi registrado.
   A anomalia de dois eventos `update-image committed` para um `started` permanece
   registrada como discrepância de audit, sem inferir mutações duplicadas.
+
+### 8.11 Follow-up S2-DR — transporte longo e resource templates (2026-11-01)
+
+- O relatório read-only do owner no Percival, após pinagem da imagem Deep Research
+  `sha256:b44a6a6e4fe9a80e44111c77732be1f2154a0744085ded92ed80de58045413aa`,
+  confirma que `research_deep` ainda expira em 30 s sem ID. O gateway e o broker
+  ativos continuaram nas imagens anteriores; pinagem apenas do MCP não altera o
+  cliente. A inspeção do código identificou três limites: default gerenciado de
+  `MCPServerConfig` em 30 s, leitura HTTPX Streamable em 30 s e espera do broker
+  de 18 s por linha. O servidor define deadline interno default de 90 s; o
+  override efetivo não foi inspecionado. O relatório informa que o prompt do
+  servidor descreve pesquisas de 30–120 s.
+- A-010 foi ampliada diante desse requisito observado. O gateway candidato
+  configura 180 s para Deep Research e HTTPX 190 s. O broker candidato aplica um
+  deadline total de 150 s a `tools/call`/`resources/read`, mantém 18 s para
+  métodos curtos, descobre/filtra `resources/templates/list` e autoriza leitura
+  apenas para templates simples anunciados. O gateway registra cada template
+  como tool read-only. Uma leitura do recurso pode iniciar nova pesquisa em
+  cache miss; ler somente tópico sabidamente cacheado após `research_deep`
+  bem-sucedido, nunca como retry após timeout.
+- Testes locais: `tests/mcp_docker/test_broker.py`, `test_contract.py`,
+  `tests/tools/test_mcp_tool.py` e `tests/agent/test_mcp_transient_retry.py`:
+  **272 passed**; Ruff nos arquivos alterados passou; BasedPyright dos módulos
+  gateway/broker: **0 errors, 0 warnings**. Suíte completa Nanobot neste QA,
+  antes do refinamento final do reader: **8.795 passed, 61 skipped, 7 failed**.
+  Seis falhas decorreram de dependências opcionais ausentes (`nh3`, `bun`/`npm`,
+  `npx`); a falha restante de read timeout no teste remote-proxy passou isolada.
+  `ruff check .` também passou. O executor local não fez chamadas a provedores;
+  as buscas rápidas no plano local S2-DR §6.4 são resultados reportados pelo owner.
+- Candidatos F2 de worktrees dirty; gateway/broker foram aplicados ao runtime
+  local de teste via Compose, sem alterar configuração manager nem pin MCP:
+  - gateway `percival-gateway:0.1.0-26cad20-f2-7de42eb44f4e`, image ID
+    `sha256:ba98f612aabbfe0c2a7d9454a55ace2e2f01827a6f713eac1bc2eb285d115b79`;
+  - broker `percival-mcp-broker:0.1.0-26cad20-f2-7de42eb44f4e`, image ID
+    `sha256:5f449a092238634323ea735937e6ea0cec85b81f8a38318cbf9eb7599b7ddf0f`;
+  - Deep Research docs/description refresh
+    `percival-deep-research:3.0.1-09c3903-f2-8e267db4bd7f`, image ID
+    `sha256:feecce7c7575da94a6673cbb30440ee17a74164999c35086641f7096ce305629`.
+- O candidato Deep Research passou conformance stdio (UID 1000, cinco tools) e
+  probe sintético de timeout em 2 s (resposta explícita em 2,257 s, exit 0).
+  Trivy 0.76.1/DB `2026-11-01T13:02:34Z`: 0 vulnerabilidades nessa imagem. Os
+  findings de vulnerabilidade do gateway/broker candidatos são idênticos aos das
+  imagens ativas, sem entradas novas ou removidas. O scan do gateway ainda tem
+  quatro Critical e 80 High, incluindo entradas antigas do OpenSSH; seguem sem
+  adjudicação, e a comparação não os resolve.
+- Pós-Compose, `docker inspect` confirmou gateway `sha256:ba98f612aabbfe0c2a7d9454a55ace2e2f01827a6f713eac1bc2eb285d115b79`
+  e broker `sha256:5f449a092238634323ea735937e6ea0cec85b81f8a38318cbf9eb7599b7ddf0f`,
+  ambos `healthy`. Smoke MCP read-only através do gateway conectou ao Deep
+  Research b44a, antes da pinagem final: 5 tools nativas, 4 prompts e 1 wrapper
+  de template; não chamou
+  ferramentas de pesquisa nem `resources/read`.
+- O owner pinou depois a imagem `sha256:feecce7c7575da94a6673cbb30440ee17a74164999c35086641f7096ce305629`;
+  `docker ps` e inspect confirmam o container correspondente em execução,
+  revision `09c3903`. Não foi feito V-PILOT após essa pinagem.
+- **Estado:** gateway/broker foram atualizados via Compose e ambos estão healthy;
+  configuração, env, mounts e perfil não foram alterados. O MCP
+  `feecce…` agora está pinado. O owner também reportou `INFERENCE_API_KEY` legível na
+  configuração, `allowRemoteAdmin:true` e mounts host RW amplos. Nenhum segredo
+  foi acessado ou copiado; A-009/R-01 permanecem. Não promover/publicar estes
+  core images até a triagem apropriada. Fechar a issue somente após o V-PILOT
+  obter ID real, getters e relatório.

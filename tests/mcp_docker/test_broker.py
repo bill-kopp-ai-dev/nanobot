@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import http.server
 import json
+import os
 import threading
 import urllib.error
 import uuid
@@ -62,19 +63,11 @@ def test_mcp_attach_is_reaped_after_eof_or_timeout(
         def close(self) -> None:
             self.closed = True
 
-    class Output:
-        reads = 0
-
-        def readline(self) -> bytes:
-            self.reads += 1
-            if self.reads == 1:
-                return b'{"jsonrpc":"2.0","id":-1,"result":{"capabilities":{}}}\n'
-            return b""
-
     class Process:
         def __init__(self) -> None:
+            read_fd, self.write_fd = os.pipe()
             self.stdin = Input()
-            self.stdout = Output()
+            self.stdout = os.fdopen(read_fd, "rb", buffering=0)
             self.killed = False
             self.waited = False
 
@@ -84,14 +77,24 @@ def test_mcp_attach_is_reaped_after_eof_or_timeout(
         def wait(self, *, timeout: int) -> int:
             assert timeout == 5
             self.waited = True
+            self.stdout.close()
+            os.close(self.write_fd)
             return 0
 
     process = Process()
+    chunks = [b'{"jsonrpc":"2.0","id":-1,"result":{"capabilities":{}}}\n']
+    if failure == "eof":
+        chunks.append(b"")
+
+    def read(_fd: int, _size: int) -> bytes:
+        return chunks.pop(0)
+
     monkeypatch.setattr(broker, "_running", lambda _server_id: True)
     monkeypatch.setattr(broker.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(broker.os, "read", read)
     select_calls = 0
 
-    def select(readers: list[object], _writers: list[object], _errors: list[object], _timeout: int):
+    def select(readers: list[object], _writers: list[object], _errors: list[object], _timeout: float):
         nonlocal select_calls
         select_calls += 1
         if select_calls == 1 or failure == "eof":
@@ -104,6 +107,80 @@ def test_mcp_attach_is_reaped_after_eof_or_timeout(
 
     assert process.killed and process.waited and process.stdin.closed
     assert select_calls == 2
+
+
+@pytest.mark.parametrize(
+    ("method", "first_timeout", "second_timeout"),
+    [("tools/list", 18.0, 13.0), ("tools/call", 150.0, 145.0)],
+)
+def test_mcp_exchange_uses_bounded_method_specific_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+    first_timeout: float,
+    second_timeout: float,
+) -> None:
+    class Input:
+        closed = False
+
+        def write(self, _value: str) -> None:
+            return None
+
+        def flush(self) -> None:
+            return None
+
+        def close(self) -> None:
+            self.closed = True
+
+    class Process:
+        def __init__(self) -> None:
+            read_fd, self.write_fd = os.pipe()
+            self.stdin = Input()
+            self.stdout = os.fdopen(read_fd, "rb", buffering=0)
+
+        def kill(self) -> None:
+            return None
+
+        def wait(self, *, timeout: int) -> int:
+            assert timeout == 5
+            self.stdout.close()
+            os.close(self.write_fd)
+            return 0
+
+    process = Process()
+    chunks = [
+        b'{"jsonrpc":"2.0","id":-1,',
+        b'"result":{"capabilities":{}}}\n',
+        b'{"jsonrpc":"2.0","id":8,"result":{}}\n',
+    ]
+    now = 100.0
+    timeouts: list[float] = []
+
+    def monotonic() -> float:
+        return now
+
+    def select(readers: list[object], _writers: list[object], _errors: list[object], timeout: float):
+        nonlocal now
+        timeouts.append(timeout)
+        now += 5.0
+        return readers, [], []
+
+    def read(_fd: int, _size: int) -> bytes:
+        return chunks.pop(0)
+
+    monkeypatch.setattr(broker, "_running", lambda _server_id: True)
+    monkeypatch.setattr(broker.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(broker.time, "monotonic", monotonic)
+    monkeypatch.setattr(broker.os, "read", read)
+    monkeypatch.setattr(broker.select, "select", select)
+
+    _handshake, response = broker._exchange_with_handshake(
+        "deep-research",
+        {"jsonrpc": "2.0", "id": 8, "method": method, "params": {}},
+    )
+
+    assert response == {"jsonrpc": "2.0", "id": 8, "result": {}}
+    assert timeouts == [first_timeout, second_timeout, second_timeout - 5.0]
+    assert process.stdin.closed
 
 
 @pytest.mark.parametrize(("label", "value"), [
@@ -176,7 +253,9 @@ async def _discard_event(_event: AgentEvent) -> None:
     return None
 
 
-def test_discovery_paginates_and_stores_resources_and_prompts(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_discovery_paginates_and_stores_resources_templates_and_prompts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     server = broker.ManagedServer(
         "notes",
         broker.DockerImageSource(type="local-image", reference="sha256:" + "a" * 64),
@@ -196,6 +275,10 @@ def test_discovery_paginates_and_stores_resources_and_prompts(monkeypatch: pytes
                     "resources": [{"uri": "notes://guide/one"}], "nextCursor": "page-2",
                 }}
             return {"result": {"resources": [{"uri": "notes://guide/two"}]}}
+        if method == "resources/templates/list":
+            return {"result": {"resourceTemplates": [
+                {"uriTemplate": "research://{topic}"},
+            ]}}
         if method == "prompts/list":
             return {"result": {"prompts": [{"name": "notes_create_concept"}]}}
         raise AssertionError(method)
@@ -215,12 +298,14 @@ def test_discovery_paginates_and_stores_resources_and_prompts(monkeypatch: pytes
 
     assert broker._discover("notes") == ["notes_read"]
     assert server.resources == ["notes://guide/one", "notes://guide/two"]
+    assert server.resource_templates == ["research://{topic}"]
     assert server.prompts == ["notes_create_concept"]
     assert server.resources_supported is True
     assert server.prompts_supported is True
     assert calls == [
         ("resources/list", None),
         ("resources/list", "page-2"),
+        ("resources/templates/list", None),
         ("prompts/list", None),
     ]
 
@@ -270,6 +355,7 @@ def test_broker_routes_only_discovered_resource_and_prompt_capabilities(
         broker.DockerHostConfig(),
     )
     server.resources = ["notes://guide/okf-v0.2"]
+    server.resource_templates = ["research://{topic}"]
     server.prompts = ["notes_create_concept"]
     server.resources_supported = True
     server.prompts_supported = True
@@ -281,6 +367,13 @@ def test_broker_routes_only_discovered_resource_and_prompt_capabilities(
             return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"resources": [
                 {"uri": "notes://guide/okf-v0.2"}, {"uri": "notes://hidden"},
             ]}}
+        if method == "resources/templates/list":
+            return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {
+                "resourceTemplates": [
+                    {"uriTemplate": "research://{topic}"},
+                    {"uriTemplate": "hidden://{topic}"},
+                ],
+            }}
         if method == "prompts/list":
             return {"jsonrpc": "2.0", "id": payload.get("id"), "result": {"prompts": [
                 {"name": "notes_create_concept"}, {"name": "hidden_prompt"},
@@ -307,13 +400,18 @@ def test_broker_routes_only_discovered_resource_and_prompt_capabilities(
         assert post("resources/list")["result"]["resources"] == [
             {"uri": "notes://guide/okf-v0.2"},
         ]
+        assert post("resources/templates/list")["result"]["resourceTemplates"] == [
+            {"uriTemplate": "research://{topic}"},
+        ]
         assert post("prompts/list")["result"]["prompts"] == [
             {"name": "notes_create_concept"},
         ]
         post("resources/read", {"uri": "notes://guide/okf-v0.2"})
+        post("resources/read", {"uri": "research://heat+pumps"})
         post("prompts/get", {"name": "notes_create_concept", "arguments": {"topic": "test"}})
         for method, params, expected_error in (
             ("resources/read", {"uri": "notes://hidden"}, "resource unavailable"),
+            ("resources/read", {"uri": "research://"}, "resource unavailable"),
             ("prompts/get", {"name": "hidden_prompt"}, "prompt unavailable"),
         ):
             with pytest.raises(urllib.error.HTTPError) as denied:

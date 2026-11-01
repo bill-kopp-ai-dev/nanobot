@@ -34,8 +34,13 @@ ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activ
                    "hydrate", "status", "observe", "health", "acquire"})
 MCP = frozenset({
     "initialize", "notifications/initialized", "tools/list", "tools/call",
-    "resources/list", "resources/read", "prompts/list", "prompts/get",
+    "resources/list", "resources/templates/list", "resources/read",
+    "prompts/list", "prompts/get",
 })
+_MCP_SHORT_REQUEST_TIMEOUT_S = 18.0
+_MCP_LONG_REQUEST_TIMEOUT_S = 150.0
+_MCP_LONG_METHODS = frozenset({"tools/call", "resources/read"})
+_URI_TEMPLATE_VARIABLE = re.compile(r"\{([A-Za-z][A-Za-z0-9_]*)\}")
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
 
@@ -340,22 +345,37 @@ def _exchange_with_handshake(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     if not _running(server_id):
         raise BrokerError("server not running")
+    method = request.get("method")
+    timeout_s = (
+        _MCP_LONG_REQUEST_TIMEOUT_S
+        if method in _MCP_LONG_METHODS
+        else _MCP_SHORT_REQUEST_TIMEOUT_S
+    )
+    deadline = time.monotonic() + timeout_s
     proc = subprocess.Popen([DOCKER, "attach", "--sig-proxy=false", _name(server_id)],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, bufsize=1)
+    response_buffer = bytearray()
 
     def send(message: dict[str, Any]) -> dict[str, Any]:
         if proc.stdin is None or proc.stdout is None:
             raise BrokerError("MCP transport unavailable")
         proc.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
         proc.stdin.flush()
-        readable, _, _ = select.select([proc.stdout], [], [], 18)
-        if not readable:
-            raise BrokerError("MCP response timed out", 503)
-        raw = proc.stdout.readline()
-        if not raw:
-            raise BrokerError("MCP server closed transport", 503)
-        data: object = json.loads(raw)
+        while b"\n" not in response_buffer:
+            remaining_s = deadline - time.monotonic()
+            if remaining_s <= 0:
+                raise BrokerError("MCP response timed out", 503)
+            readable, _, _ = select.select([proc.stdout], [], [], remaining_s)
+            if not readable:
+                raise BrokerError("MCP response timed out", 503)
+            chunk = os.read(proc.stdout.fileno(), 65536)
+            if not chunk:
+                raise BrokerError("MCP server closed transport", 503)
+            response_buffer.extend(chunk)
+        raw, _, remainder = response_buffer.partition(b"\n")
+        response_buffer[:] = remainder
+        data: object = json.loads(raw.decode("utf-8"))
         if not isinstance(data, dict):
             raise BrokerError("MCP response malformed")
         response = cast(dict[str, Any], data)
@@ -417,6 +437,15 @@ def _discover(server_id: str) -> list[str]:
             _discover_collection(server_id, "resources/list", "resources", "uri")
             if supports_resources else []
         )
+        server.resource_templates = (
+            _discover_collection(
+                server_id,
+                "resources/templates/list",
+                "resourceTemplates",
+                "uriTemplate",
+            )
+            if supports_resources else []
+        )
         server.prompts = (
             _discover_collection(server_id, "prompts/list", "prompts", "name")
             if supports_prompts else []
@@ -453,6 +482,26 @@ def _discover_collection(server_id: str, method: str, field: str, name_field: st
         seen_cursors.add(next_cursor)
         cursor = next_cursor
     return values
+
+
+def _uri_matches_template(uri: str, template: str) -> bool:
+    """Match a discovered URI template with simple named path variables."""
+    matches = list(_URI_TEMPLATE_VARIABLE.finditer(template))
+    if not matches:
+        return False
+    cursor = 0
+    pattern_parts: list[str] = []
+    for match in matches:
+        literal = template[cursor:match.start()]
+        if "{" in literal or "}" in literal:
+            return False
+        pattern_parts.extend((re.escape(literal), r"[^/]+"))
+        cursor = match.end()
+    suffix = template[cursor:]
+    if "{" in suffix or "}" in suffix:
+        return False
+    pattern_parts.append(re.escape(suffix))
+    return re.fullmatch("".join(pattern_parts), uri) is not None
 
 
 def _observe(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -515,6 +564,7 @@ class ManagedServer:
         self.disabled: set[str] = set()
         self.tools: list[str] = []
         self.resources: list[str] = []
+        self.resource_templates: list[str] = []
         self.prompts: list[str] = []
         self.resources_supported = False
         self.prompts_supported = False
@@ -814,10 +864,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             raise BrokerError("tool unavailable")
                     elif method == "resources/list" and not server.resources_supported:
                         raise BrokerError("resources unavailable")
+                    elif method == "resources/templates/list" and not server.resources_supported:
+                        raise BrokerError("resource templates unavailable")
                     elif method == "resources/read":
                         params = payload.get("params")
                         uri = cast(dict[str, object], params).get("uri") if isinstance(params, dict) else None
-                        if not server.resources_supported or not isinstance(uri, str) or uri not in server.resources:
+                        discovered = isinstance(uri, str) and (
+                            uri in server.resources
+                            or any(
+                                _uri_matches_template(uri, template)
+                                for template in server.resource_templates
+                            )
+                        )
+                        if not server.resources_supported or not discovered:
                             raise BrokerError("resource unavailable")
                     elif method == "prompts/list" and not server.prompts_supported:
                         raise BrokerError("prompts unavailable")
@@ -835,6 +894,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         result["result"]["resources"] = [
                             item for item in listed if isinstance(item, dict)
                             and cast(dict[str, object], item).get("uri") in server.resources
+                        ]
+                    elif method == "resources/templates/list" and isinstance(result.get("result"), dict):
+                        listed = result["result"].get("resourceTemplates", [])
+                        result["result"]["resourceTemplates"] = [
+                            item for item in listed if isinstance(item, dict)
+                            and cast(dict[str, object], item).get("uriTemplate")
+                            in server.resource_templates
                         ]
                     elif method == "prompts/list" and isinstance(result.get("result"), dict):
                         listed = result["result"].get("prompts", [])
