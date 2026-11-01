@@ -616,6 +616,7 @@ class MCPToolWrapper(_MCPWrapperBase):
     ):
         self._set_mcp_connection(session, server_name)
         self._original_name = tool_def.name
+        self._replay_safe = tool_def.name not in {"research_deep", "research_write_report"}
         self._name = _sanitize_mcp_tool_name(f"mcp_{server_name}_{tool_def.name}")
         self._description = tool_def.description or tool_def.name
         raw_schema = tool_def.inputSchema or {"type": "object", "properties": {}}
@@ -671,6 +672,11 @@ class MCPToolWrapper(_MCPWrapperBase):
                 logger.warning("MCP tool '{}' was cancelled by server/SDK", self._name)
                 return ToolResult.error("(MCP tool call was cancelled)")
             except Exception as exc:
+                if not self._replay_safe:
+                    return ToolResult.error(
+                        f"(MCP research call failed: {type(exc).__name__}; outcome unknown. "
+                        "Do not automatically repeat the research or use a resource fallback.)"
+                    )
                 if await self._refresh_session_after_termination(
                     exc,
                     refreshed_session,
@@ -848,6 +854,11 @@ class MCPResourceWrapper(_MCPWrapperBase):
                 logger.warning("MCP resource '{}' was cancelled by server/SDK", self._name)
                 return "(MCP resource read was cancelled)"
             except Exception as exc:
+                if str(uri).startswith("research://"):
+                    return ToolResult.error(
+                        f"(MCP research resource failed: {type(exc).__name__}; outcome unknown. "
+                        "Do not automatically repeat: a cache miss can start new research.)"
+                    )
                 if await self._refresh_session_after_termination(
                     exc,
                     refreshed_session,
@@ -1110,7 +1121,7 @@ async def connect_mcp_servers(
     entered the MCP SDK contexts alive so reconnect and shutdown can close
     AnyIO cancel scopes from their owning task.
     """
-    from mcp import ClientSession, StdioServerParameters, types
+    from mcp import StdioServerParameters, types
     from mcp.client.sse import sse_client
     from mcp.client.stdio import stdio_client
     from mcp.client.streamable_http import streamable_http_client
@@ -1256,7 +1267,9 @@ async def connect_mcp_servers(
                 return False
 
             read = _filter_malformed_mcp_progress_notifications(read, name)
-            session = await server_stack.enter_async_context(ClientSession(read, write))
+            from nanobot.agent.tools.mcp_session import CancellableClientSession
+
+            session = await server_stack.enter_async_context(CancellableClientSession(read, write))
             initialize_result = await session.initialize()
             server_capabilities = getattr(initialize_result, "capabilities", None)
             supports_resources = (

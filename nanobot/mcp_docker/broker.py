@@ -7,6 +7,7 @@ the gateway container must not mount a socket or the Docker CLI.
 from __future__ import annotations
 
 import argparse
+import copy
 import hmac
 import http.server
 import json
@@ -18,6 +19,8 @@ import subprocess
 import threading
 import time
 import uuid
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -33,16 +36,62 @@ ADMIN = frozenset({"install", "configure", "disable-tool", "enable-tool", "activ
                    "deactivate", "update-image", "restart", "start", "stop", "exclude", "reconcile", "recover",
                    "hydrate", "status", "observe", "health", "acquire"})
 MCP = frozenset({
-    "initialize", "notifications/initialized", "tools/list", "tools/call",
+    "initialize", "notifications/initialized", "notifications/cancelled", "tools/list", "tools/call",
     "resources/list", "resources/templates/list", "resources/read",
     "prompts/list", "prompts/get",
 })
 _MCP_SHORT_REQUEST_TIMEOUT_S = 18.0
 _MCP_LONG_REQUEST_TIMEOUT_S = 150.0
+_OBSERVATION_CACHE_TTL_S = 10.0
 _MCP_LONG_METHODS = frozenset({"tools/call", "resources/read"})
 _URI_TEMPLATE_VARIABLE = re.compile(r"\{([A-Za-z][A-Za-z0-9_]*)\}")
 _STORE: dict[str, ManagedServer] = {}
 _LOCK = threading.RLock()
+_REQUEST_CONTEXT = threading.local()
+
+
+@dataclass
+class _MCPRequest:
+    deadline: float
+    cancelled: threading.Event = field(default_factory=threading.Event)
+
+
+_REQUESTS: dict[tuple[str, str, str | int], _MCPRequest] = {}
+
+
+@contextmanager
+def _admit_mcp_request(server: ManagedServer, payload: dict[str, Any], session: str):
+    """One bounded queue and one stdio writer per managed server."""
+    request_id = payload.get("id")
+    if type(request_id) not in (str, int):
+        raise BrokerError("invalid MCP request ID", 400)
+    key = (server.server_id, session, cast(str | int, request_id))
+    timeout = (_MCP_LONG_REQUEST_TIMEOUT_S if payload.get("method") in _MCP_LONG_METHODS
+               else _MCP_SHORT_REQUEST_TIMEOUT_S)
+    request = _MCPRequest(time.monotonic() + timeout)
+    with _LOCK:
+        if key in _REQUESTS:
+            raise BrokerError("MCP request already in flight", 409)
+        _REQUESTS[key] = request
+    acquired = False
+    try:
+        while not acquired:
+            if request.cancelled.is_set():
+                raise BrokerError("MCP request cancelled", 409)
+            remaining = request.deadline - time.monotonic()
+            if remaining <= 0:
+                raise BrokerError("MCP admission timed out", 503)
+            acquired = server.lock.acquire(timeout=min(0.1, remaining))
+        if server.transport_uncertain:
+            raise BrokerError("MCP transport requires explicit manager restart", 503)
+        _REQUEST_CONTEXT.request = request
+        yield
+    finally:
+        _REQUEST_CONTEXT.request = None
+        if acquired:
+            server.lock.release()
+        with _LOCK:
+            _REQUESTS.pop(key, None)
 
 
 class BrokerError(Exception):
@@ -59,9 +108,15 @@ class ImageMissingError(BrokerError):
 
 
 def docker(*args: str, timeout: int = 35) -> str:
+    request = cast(_MCPRequest | None, getattr(_REQUEST_CONTEXT, "request", None))
+    effective_timeout = float(timeout)
+    if request is not None:
+        effective_timeout = min(effective_timeout, request.deadline - time.monotonic())
+        if effective_timeout <= 0:
+            raise BrokerError("MCP request timed out", 503)
     try:
         result = subprocess.run([DOCKER, *args], text=True, capture_output=True,
-                                timeout=timeout, check=False)
+                                timeout=effective_timeout, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise BrokerError("Docker CLI or daemon unavailable", 503) from exc
     if result.returncode:
@@ -270,6 +325,7 @@ def _spawn(server: ManagedServer) -> None:
         cover in cast(dict[str, object], tmpfs) for cover in required_covers
     )):
         raise BrokerError("mandatory Docker covers not present")
+    server.transport_uncertain = False
 
 
 def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
@@ -343,47 +399,72 @@ def _start_stopped(server: ManagedServer, container: dict[str, Any]) -> None:
 def _exchange_with_handshake(
     server_id: str, request: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    if not _running(server_id):
-        raise BrokerError("server not running")
     method = request.get("method")
     timeout_s = (
         _MCP_LONG_REQUEST_TIMEOUT_S
         if method in _MCP_LONG_METHODS
         else _MCP_SHORT_REQUEST_TIMEOUT_S
     )
-    deadline = time.monotonic() + timeout_s
+    context = cast(_MCPRequest | None, getattr(_REQUEST_CONTEXT, "request", None))
+    deadline = context.deadline if context is not None else time.monotonic() + timeout_s
+    if not _running(server_id):
+        raise BrokerError("server not running")
     proc = subprocess.Popen([DOCKER, "attach", "--sig-proxy=false", _name(server_id)],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, bufsize=1)
     response_buffer = bytearray()
+    pending: dict[str, Any] | None = None
 
-    def send(message: dict[str, Any]) -> dict[str, Any]:
+    def write(message: dict[str, Any]) -> None:
         if proc.stdin is None or proc.stdout is None:
             raise BrokerError("MCP transport unavailable")
         proc.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
         proc.stdin.flush()
-        while b"\n" not in response_buffer:
-            remaining_s = deadline - time.monotonic()
+
+    def receive(message: dict[str, Any], until: float, *, cancellable: bool = True) -> dict[str, Any]:
+        assert proc.stdout is not None
+        while True:
+            if cancellable and context is not None and context.cancelled.is_set():
+                raise BrokerError("MCP request cancelled", 409)
+            remaining_s = until - time.monotonic()
             if remaining_s <= 0:
                 raise BrokerError("MCP response timed out", 503)
-            readable, _, _ = select.select([proc.stdout], [], [], remaining_s)
+            if b"\n" in response_buffer:
+                raw, _, remainder = response_buffer.partition(b"\n")
+                response_buffer[:] = remainder
+                data: object = json.loads(raw.decode("utf-8"))
+                if not isinstance(data, dict):
+                    raise BrokerError("MCP response malformed")
+                response = cast(dict[str, Any], data)
+                if "id" not in response and isinstance(response.get("method"), str):
+                    if response["method"].startswith("notifications/"):
+                        continue  # progress is not the response to this request
+                _validate_mcp_response_id(message, response)
+                return response
+            poll_s = min(0.1, remaining_s) if context is not None else remaining_s
+            readable, _, _ = select.select([proc.stdout], [], [], poll_s)
             if not readable:
+                if context is not None:
+                    continue
                 raise BrokerError("MCP response timed out", 503)
             chunk = os.read(proc.stdout.fileno(), 65536)
             if not chunk:
                 raise BrokerError("MCP server closed transport", 503)
             response_buffer.extend(chunk)
-        raw, _, remainder = response_buffer.partition(b"\n")
-        response_buffer[:] = remainder
-        data: object = json.loads(raw.decode("utf-8"))
-        if not isinstance(data, dict):
-            raise BrokerError("MCP response malformed")
-        response = cast(dict[str, Any], data)
-        _validate_mcp_response_id(message, response)
+            if len(response_buffer) > 16 * 1024 * 1024:
+                raise BrokerError("MCP response too large", 503)
+
+    def send(message: dict[str, Any]) -> dict[str, Any]:
+        nonlocal pending
+        pending = message
+        write(message)
+        response = receive(message, deadline)
+        pending = None
         return response
 
     try:
-        handshake = send({"jsonrpc": "2.0", "id": -1, "method": "initialize", "params": {
+        handshake_id = f"init-{uuid.uuid4().hex}" if context is not None else -1
+        handshake = send({"jsonrpc": "2.0", "id": handshake_id, "method": "initialize", "params": {
             "protocolVersion": PROTOCOL, "capabilities": {},
             "clientInfo": {"name": "percival-broker", "version": "0.1"},
         }})
@@ -394,14 +475,34 @@ def _exchange_with_handshake(
         proc.stdin.flush()
         response = (
             {"jsonrpc": "2.0", "id": request.get("id"), "result": handshake["result"]}
-            if request["method"] == "initialize" else send(request)
+            if request["method"] == "initialize" else send({
+                **request, "id": f"call-{uuid.uuid4().hex}" if context is not None else request.get("id"),
+            })
         )
+        response["id"] = request.get("id")
         return handshake, response
     except (OSError, ValueError) as exc:
         raise BrokerError("MCP transport failed", 503) from exc
     finally:
+        if pending is not None and pending.get("method") in _MCP_LONG_METHODS:
+            # A detached Docker CLI is not a cancelled MCP request. Send the
+            # protocol cancellation and consume its terminal response before
+            # another request can acquire the server lock.
+            try:
+                write({"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {
+                    "requestId": pending["id"], "reason": "Percival request ended",
+                }})
+                receive(pending, time.monotonic() + 5, cancellable=False)
+            except (BrokerError, OSError, ValueError):
+                with _LOCK:
+                    server = _STORE.get(server_id)
+                    if server is not None:
+                        server.transport_uncertain = True
         if proc.stdin and not proc.stdin.closed:
-            proc.stdin.close()
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
         proc.kill()
         proc.wait(timeout=5)
 
@@ -412,6 +513,15 @@ def _exchange(server_id: str, request: dict[str, Any]) -> dict[str, Any]:
 
 
 def _discover(server_id: str) -> list[str]:
+    with _LOCK:
+        server = _STORE.get(server_id)
+    if server is None:
+        return _discover_unlocked(server_id)
+    with server.lock:
+        return _discover_unlocked(server_id)
+
+
+def _discover_unlocked(server_id: str) -> list[str]:
     handshake, response = _exchange_with_handshake(server_id, {
         "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
     })
@@ -510,6 +620,31 @@ def _observe(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
         source = DockerImageSource.model_validate(data["source"])
     except (KeyError, ValidationError) as exc:
         raise BrokerError("invalid observation source", 400) from exc
+    with _LOCK:
+        server = _STORE.get(server_id)
+    if server is None or server.source != source:
+        return _observe_uncached(server_id, data)
+    # Multiple dashboards may poll simultaneously. Serialize a single
+    # read-only discovery per server and let overlapping callers share its
+    # bounded result instead of queueing repeated Docker attaches behind the
+    # server lock. The short TTL preserves prompt visibility of state changes.
+    with server.lock:
+        if (
+            server.observation_cache is not None
+            and time.monotonic() - server.observation_cache_at < _OBSERVATION_CACHE_TTL_S
+        ):
+            return copy.deepcopy(server.observation_cache)
+        result = _observe_uncached(server_id, data)
+        server.observation_cache = copy.deepcopy(result)
+        server.observation_cache_at = time.monotonic()
+        return result
+
+
+def _observe_uncached(server_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    try:
+        source = DockerImageSource.model_validate(data["source"])
+    except (KeyError, ValidationError) as exc:
+        raise BrokerError("invalid observation source", 400) from exc
     try:
         image_reference(source)
     except ImageMissingError:
@@ -569,6 +704,9 @@ class ManagedServer:
         self.resources_supported = False
         self.prompts_supported = False
         self.lock = threading.RLock()
+        self.transport_uncertain = False
+        self.observation_cache: dict[str, Any] | None = None
+        self.observation_cache_at = 0.0
 
 
 def _managed_server_from_state(server_id: str, state: object) -> ManagedServer:
@@ -690,6 +828,10 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
             raise BrokerError("unknown server_id", 404)
     assert server is not None
     with server.lock:
+        # Any manager intent can change connectivity/configuration. Invalidate
+        # before attempting it, including failed mutations and restarts.
+        server.observation_cache = None
+        server.observation_cache_at = 0.0
         if op in {"install", "reconcile"}:
             try:
                 if server.active:
@@ -755,6 +897,7 @@ def action(op: str, server_id: str, data: dict[str, Any]) -> dict[str, Any]:
                 raise BrokerError("server inactive")
             _remove(server_id)
             _spawn(server)
+            server.transport_uncertain = False
             server.tools = _discover(server_id)
         elif op in {"disable-tool", "enable-tool"}:
             tool = data.get("tool")
@@ -805,8 +948,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        session = getattr(self, "_mcp_session", None)
+        if isinstance(session, str):
+            self.send_header("Mcp-Session-Id", session)
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # A disconnected client must not obscure owned transport cleanup.
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        # The broker's per-request sessions have no persistent HTTP session to
+        # delete. MCP explicitly permits 405 for unsupported session termination.
+        self.send_json(405 if self.authorized() else 401, {"error": "session termination unavailable"})
 
     def authorized(self) -> bool:
         token_file = Path(os.environ["PERCIVAL_BROKER_TOKEN_FILE"])
@@ -824,6 +978,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self.authorized():
             self.send_json(401, {"error": "unauthorized"})
             return
+        payload: dict[str, Any] = {}
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 65536:
@@ -849,14 +1004,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     server = _STORE.get(server_id)
                 if server is None:
                     raise BrokerError("server not found", 404)
-                with server.lock:
-                    if not server.active or not _running(server_id):
+                session = self.headers.get("Mcp-Session-Id", "")
+                if method == "notifications/cancelled":
+                    params = payload.get("params")
+                    request_id: object = (cast(dict[str, object], params).get("requestId")
+                                          if isinstance(params, dict) else None)
+                    if type(request_id) not in (str, int):
+                        raise BrokerError("invalid cancellation request ID", 400)
+                    with _LOCK:
+                        active = _REQUESTS.get((server_id, session, cast(str | int, request_id)))
+                        if active is not None:
+                            active.cancelled.set()
+                    self.send_response(202)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                if method == "notifications/initialized":
+                    self.send_response(202)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                with _admit_mcp_request(server, payload, session):
+                    if not server.active:
                         raise BrokerError("server unavailable")
-                    if method == "notifications/initialized":
-                        self.send_response(202)
-                        self.send_header("Content-Length", "0")
-                        self.end_headers()
-                        return
                     if method == "tools/call":
                         params = payload.get("params")
                         name = cast(dict[str, object], params).get("name") if isinstance(params, dict) else None
@@ -886,6 +1056,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         if not server.prompts_supported or not isinstance(name, str) or name not in server.prompts:
                             raise BrokerError("prompt unavailable")
                     result = _exchange(server_id, payload)
+                    if method == "initialize":
+                        self._mcp_session = session or uuid.uuid4().hex
                     if method == "tools/list" and isinstance(result.get("result"), dict):
                         listed = result["result"].get("tools", [])
                         result["result"]["tools"] = [t for t in listed if isinstance(t, dict) and cast(dict[str, object], t).get("name") not in server.disabled]
@@ -913,7 +1085,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_json(200, result)
         except (BrokerError, ValueError, TypeError, KeyError, OSError) as exc:
             error = exc if isinstance(exc, BrokerError) else BrokerError("invalid broker request", 400)
-            self.send_json(error.status, {"error": str(error)})
+            if isinstance(exc, BrokerError) and str(exc) == "MCP request cancelled":
+                self.send_json(200, {"jsonrpc": "2.0", "id": payload.get("id"), "error": {
+                    "code": 0, "message": "Request cancelled",
+                }})
+            else:
+                self.send_json(error.status, {"error": str(error)})
 
 
 class DrainingThreadingHTTPServer(http.server.ThreadingHTTPServer):

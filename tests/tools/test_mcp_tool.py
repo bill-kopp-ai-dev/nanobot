@@ -125,6 +125,9 @@ def _fake_mcp_module(
     mod.ClientSession = _FakeClientSession
     mod.StdioServerParameters = _FakeStdioServerParameters
     monkeypatch.setitem(sys.modules, "mcp", mod)
+    session_mod = ModuleType("nanobot.agent.tools.mcp_session")
+    session_mod.CancellableClientSession = lambda read, write: mod.ClientSession(read, write)
+    monkeypatch.setitem(sys.modules, "nanobot.agent.tools.mcp_session", session_mod)
 
     client_mod = ModuleType("mcp.client")
     stdio_mod = ModuleType("mcp.client.stdio")

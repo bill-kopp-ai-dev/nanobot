@@ -1,0 +1,10 @@
+# Explicit local test rollout overlay; pin both variables to local image IDs.
+# Apply after the existing deployment files. Removing this overlay restores
+# their previous images. The native MCP Manager still owns Deep Research.
+services:
+  nanobot-gateway:
+    image: ${PERCIVAL_RESEARCH_GATEWAY_IMAGE:?set the tested immutable gateway image ID}
+    pull_policy: never
+  percival-mcp-broker:
+    image: ${PERCIVAL_RESEARCH_BROKER_IMAGE:?set the tested immutable broker image ID}
+    pull_policy: never
