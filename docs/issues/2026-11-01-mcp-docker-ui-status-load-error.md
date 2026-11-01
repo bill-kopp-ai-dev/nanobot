@@ -31,6 +31,23 @@ Inventário read-only posterior confirmou os containers ativos:
 Esses sinais não provam que a leitura autenticada do snapshot esteja saudável;
 health do gateway/broker e conectividade MCP são checks distintos da rota WebUI.
 
+### Atualização — captura posterior da WebUI (2026-11-01)
+
+Em captura fornecida pelo operador após a limpeza de imagens, a página
+`#/mcp-containers` carregou a lista de seis servidores Percival. Os seis cards
+mostram Docker `running` e MCP `connected`: AgentMail, Weather, OSM, Deep
+Research, Notes e Khan Calendar. AgentMail está selecionado; o detalhe mostra
+gateway intent `running`, `Enabled in gateway: yes`, 24 tools observadas e o
+image ID completo `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`.
+Os demais image IDs aparecem truncados na captura.
+
+Esta captura é evidência de que a página carregou e apresentou um snapshot
+conectado naquele momento. Ela não identifica a causa do erro anterior, não
+correlaciona um request HTTP específico nem demonstra que o comportamento
+permaneça estável em polling/retry. A issue continua aberta até a causa ou uma
+regressão reproduzível ser esclarecida e os critérios de resolução serem
+verificados.
+
 Captura anterior de logs do gateway mostrou três respostas `200` à rota
 `/api/settings/mcp-docker/list`, com durações de `6583`, `5439` e `4997` ms.
 Essas linhas indicam latência elevada, mas não explicam o alerta visual; não há
