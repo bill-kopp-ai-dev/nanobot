@@ -121,6 +121,7 @@ describe("MCP container observability page", () => {
       repositoryDigest: digest,
       needsNetwork: true,
       environmentVariables: [{ name: "API_KEY", required: true, secret: true }],
+      secretFiles: [],
       mounts: [{ target: "/data", kind: "data" as const, access: "read-write" as const, required: true }],
     };
     const first: McpDockerSnapshot = {
@@ -164,6 +165,58 @@ describe("MCP container observability page", () => {
       network: "bridge",
     }), expect.any(Number)));
     expect(await screen.findByRole("heading", { name: "example" })).toBeInTheDocument();
+  });
+
+  it("installs file-backed secrets as read-only path mappings without sending secret values", async () => {
+    vi.mocked(fetchMcpDockerOperatorBootstrap).mockResolvedValue({ configured: true });
+    const app = {
+      id: "pblabs.agentmail",
+      name: "io.github.p-bean-labs/percival-agentmail-mcp",
+      version: "0.4.0",
+      sourceClass: "official" as const,
+      platform: "linux/amd64",
+      repositoryDigest: "docker.io/pbeanlabs/percival-agentmail-mcp@sha256:" + "a".repeat(64),
+      needsNetwork: true,
+      environmentVariables: [
+        { name: "AGENTMAIL_API_KEY", required: false, secret: true },
+        { name: "AGENTMAIL_API_KEY_FILE", required: false, secret: false },
+      ],
+      secretFiles: [{ name: "AGENTMAIL_API_KEY", environmentVariable: "AGENTMAIL_API_KEY_FILE", target: "/app/.secrets/agentmail_api_key" }],
+      mounts: [{ target: "/app/.secrets/agentmail_api_key", kind: "secret" as const, access: "read-only" as const, required: true }],
+    };
+    const first: McpDockerSnapshot = {
+      ...snapshot(),
+      schemaVersion: 2,
+      revision: 4,
+      servers: {},
+      minimumMountsSupported: true,
+      appMountsSupported: true,
+      catalogAcquisitionSupported: true,
+      supportedNetworks: ["none", "bridge"],
+      localCatalogCandidate: { status: "ready", snapshotSha256: "b".repeat(64), appCount: 1 },
+      catalogs: [{ catalogId: "pblabs", snapshotSha256: "b".repeat(64), status: "ready", apps: [app] }],
+    };
+    const installed: McpDockerSnapshot = {
+      ...first,
+      revision: 5,
+      servers: { agentmail: { ...snapshot().servers.weather, serverId: "agentmail" } },
+    };
+    vi.mocked(fetchMcpDockerSnapshot).mockResolvedValueOnce(first).mockResolvedValue(installed);
+    const client = clientStub();
+    vi.mocked(client.requestMutation).mockResolvedValueOnce({ revision: 5, server: "agentmail" });
+    render(<ClientProvider client={client} token="token" session={sessionStub()}><McpContainersPage /></ClientProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "Add MCP server" }));
+    fireEvent.change(await screen.findByLabelText("Catalog app"), { target: { value: "pblabs:pblabs.agentmail" } });
+    fireEvent.change(screen.getByLabelText("Manager server ID"), { target: { value: "agentmail" } });
+    fireEvent.change(screen.getByLabelText(/Host secret-file reference for \/app\/\.secrets\/agentmail_api_key/), { target: { value: "/home/user/.config/agentmail/api_key" } });
+    const confirmation = "agentmail/pblabs.agentmail@0.4.0";
+    fireEvent.change(screen.getByLabelText(`Type ${confirmation} to consent to acquisition and install`), { target: { value: confirmation } });
+    fireEvent.click(screen.getByRole("button", { name: "Acquire pinned digest and install" }));
+    await waitFor(() => expect(client.requestMutation).toHaveBeenCalledWith("settings.mcp_docker.install_catalog", expect.objectContaining({
+      server_id: "agentmail",
+      mount_sources: { "/app/.secrets/agentmail_api_key": "/home/user/.config/agentmail/api_key" },
+      environment: {},
+    }), expect.any(Number)));
   });
 
   it("blocks unchanged image updates and keeps the modal confirmation contextual", async () => {

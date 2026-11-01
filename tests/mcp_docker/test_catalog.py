@@ -17,6 +17,7 @@ from nanobot.mcp_docker.catalog import (
     CatalogEnvironmentVariable,
     CatalogError,
     CatalogMount,
+    CatalogSecretFile,
     load_catalog_snapshot,
     resolve_app_profile,
 )
@@ -24,7 +25,9 @@ from nanobot.mcp_docker.service import DockerMcpService, DomainError
 from nanobot.webui.settings_services import WebUISettingsConfig
 
 
-def _write_snapshot(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str, dict[str, str]]:
+def _write_snapshot(
+    root: Path, monkeypatch: pytest.MonkeyPatch, *, file_secret: bool = False,
+) -> tuple[Path, str, dict[str, str]]:
     app = {
         "schema_version": "0.2",
         "id": "pblabs.example",
@@ -39,7 +42,10 @@ def _write_snapshot(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, 
         "mounts": [{
             "target": "/data", "kind": "data", "access": "read-write",
             "required": True, "source": "installation-configured",
-        }],
+        }, *([{
+            "target": "/app/.secrets/api_key", "kind": "secret", "access": "read-only",
+            "required": True, "source": "installation-configured",
+        }] if file_secret else [])],
         "lifecycle": {
             "owner": "native-mcp-manager",
             "init": {"required": True, "provider": "container-runtime"},
@@ -62,7 +68,12 @@ def _write_snapshot(root: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, 
             "registryType": "oci",
             "identifier": "docker.io/pbeanlabs/example-mcp@sha256:" + "a" * 64,
             "transport": {"type": "stdio"},
-            "environmentVariables": [{"name": "API_KEY", "isRequired": True, "isSecret": True}],
+            "environmentVariables": (
+                [
+                    {"name": "API_KEY", "isRequired": False, "isSecret": True},
+                    {"name": "API_KEY_FILE", "isRequired": True, "isSecret": False, "format": "filepath"},
+                ] if file_secret else [{"name": "API_KEY", "isRequired": True, "isSecret": True}]
+            ),
         }],
     }
     app_path = root / "servers/example/pblabs.app.yaml"
@@ -144,6 +155,53 @@ def test_load_catalog_snapshot_validates_0_2_profile_and_pinned_digests(
     assert host.app_mounts[0].read_only is False
 
 
+def test_catalog_secret_file_mapping_uses_read_only_host_reference_without_secret_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, catalog_hash, _entry = _write_snapshot(tmp_path, monkeypatch, file_secret=True)
+
+    app = load_catalog_snapshot(root, catalog_hash)[0]
+    assert app.required_secrets == ("API_KEY",)
+    assert app.secret_files == (CatalogSecretFile("API_KEY", "API_KEY_FILE", "/app/.secrets/api_key"),)
+    assert all(not item.required for item in app.environment_variables)
+
+    host = resolve_app_profile(
+        app,
+        mount_sources={"/data": "/srv/example-data", "/app/.secrets/api_key": "/home/operator/.config/example/api_key"},
+        environment={},
+        host_mounts=[],
+    )
+
+    assert host.app_mounts[1].kind == "secret"
+    assert host.app_mounts[1].read_only is True
+    assert host.app_mounts[1].source == "/home/operator/.config/example/api_key"
+    assert host.env["API_KEY_FILE"].value == "/app/.secrets/api_key"
+    assert "API_KEY" not in host.env
+    assert host.mounts == []
+
+
+def test_catalog_secret_file_mapping_rejects_secret_values_and_missing_file_mount(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, catalog_hash, _entry = _write_snapshot(tmp_path, monkeypatch, file_secret=True)
+    app = load_catalog_snapshot(root, catalog_hash)[0]
+
+    with pytest.raises(CatalogError, match="mount mappings"):
+        resolve_app_profile(
+            app,
+            mount_sources={"/data": "/srv/example-data"},
+            environment={},
+            host_mounts=[],
+        )
+    with pytest.raises(CatalogError, match="read-only file references"):
+        resolve_app_profile(
+            app,
+            mount_sources={"/data": "/srv/example-data", "/app/.secrets/api_key": "/home/operator/api_key"},
+            environment={"API_KEY": DockerEnvValue(kind="secret", value="must-not-be-persisted")},
+            host_mounts=[],
+        )
+
+
 def test_profile_resolution_fails_closed_on_missing_mapping_secret_or_widened_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -168,6 +226,13 @@ def test_profile_resolution_fails_closed_on_missing_mapping_secret_or_widened_ne
             environment={"API_KEY": secret},
             host_mounts=[],
             network="bridge",
+        )
+    with pytest.raises(CatalogError, match="app mount mapping is invalid"):
+        resolve_app_profile(
+            app,
+            mount_sources={"/data": "/srv/example-data,readonly"},
+            environment={"API_KEY": secret},
+            host_mounts=[],
         )
 
 
@@ -244,6 +309,7 @@ def test_manager_catalog_install_acquires_under_policy_and_exports_without_priva
         needs_network=True,
         required_secrets=("API_KEY",),
         environment_variables=(CatalogEnvironmentVariable("API_KEY", True, True),),
+        secret_files=(),
         mounts=(CatalogMount("/data", "data", "read-write", True),),
         manifest_sha256="b" * 64,
         server_json_sha256="c" * 64,
@@ -310,6 +376,84 @@ def test_manager_catalog_install_acquires_under_policy_and_exports_without_priva
     assert str(tmp_path / "private-data") not in export_text
     assert "/data" in export_text
     assert (path.parent / "mcp-docker" / "capabilities.lock").is_file()
+
+
+def test_manager_catalog_install_projects_secret_file_reference_without_literal_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_digest = "docker.io/pbeanlabs/example-mcp@sha256:" + "a" * 64
+    target = "/app/.secrets/api_key"
+    host_source = str(tmp_path / "private" / "api_key")
+    app = CatalogApp(
+        app_id="pblabs.example",
+        mcp_name="io.github.p-bean-labs/example-mcp",
+        version="1.2.3",
+        source_class="official",
+        repository_digest=repo_digest,
+        platform="linux/amd64",
+        needs_network=True,
+        required_secrets=("API_KEY",),
+        environment_variables=(
+            CatalogEnvironmentVariable("API_KEY", False, True),
+            CatalogEnvironmentVariable("API_KEY_FILE", False, False, "filepath"),
+        ),
+        secret_files=(CatalogSecretFile("API_KEY", "API_KEY_FILE", target),),
+        mounts=(
+            CatalogMount("/data", "data", "read-write", True),
+            CatalogMount(target, "secret", "read-only", True),
+        ),
+        manifest_sha256="b" * 64,
+        server_json_sha256="c" * 64,
+        snapshot_sha256="d" * 64,
+    )
+
+    class Broker:
+        def action(self, operation: str, _server_id: str, _data: dict) -> dict:
+            if operation == "health":
+                return {
+                    "ready": True,
+                    "minimumMountsSupported": True,
+                    "appMountsSupported": True,
+                    "catalogAcquisitionSupported": True,
+                }
+            if operation == "acquire":
+                return {"repositoryDigest": repo_digest, "imageId": "sha256:" + "e" * 64, "platform": "linux/amd64"}
+            return {"running": True, "tools": ["status"]}
+
+    index_root = tmp_path / "index"
+    index_root.mkdir()
+    monkeypatch.setattr("nanobot.mcp_docker.service.load_catalog_snapshot", lambda *_args: (app,))
+    path = tmp_path / "config.json"
+    config = load_config(path)
+    section = config.tools.mcp_docker
+    section.schema_version = 2
+    section.installation_id = "12345678-1234-4234-8234-123456789abc"
+    section.trusted_catalogs["pblabs"] = TrustedCatalogConfig(
+        catalog_id="pblabs", root=str(index_root), snapshot_sha256="d" * 64,
+        registered_at="2026-10-31T12:00:00Z",
+    )
+    save_config(config, path)
+    service = DockerMcpService(WebUISettingsConfig(path), Broker())
+
+    service.install_catalog_app(
+        catalog_id="pblabs",
+        app_id="pblabs.example",
+        server_id="example",
+        expected_revision=0,
+        expected_confirmation="example/pblabs.example@1.2.3",
+        mount_sources={"/data": str(tmp_path / "private-data"), target: host_source},
+        environment={},
+        host_mounts=[],
+    )
+
+    current = load_config(path).tools.mcp_docker
+    host = current.configurations["example"]
+    assert host.env["API_KEY_FILE"].value == target
+    assert "API_KEY" not in host.env
+    assert host.app_mounts[1].source == host_source
+    assert host.app_mounts[1].read_only is True
+    exported = json.dumps(service.export_capabilities())
+    assert host_source not in exported
 
 
 def test_trusted_catalog_registration_is_local_path_pinned_and_cas_guarded(

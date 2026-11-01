@@ -50,6 +50,14 @@ class CatalogEnvironmentVariable:
     name: str
     required: bool
     secret: bool
+    format: str | None = None
+
+
+@dataclass(frozen=True)
+class CatalogSecretFile:
+    name: str
+    environment_variable: str
+    target: str
 
 
 @dataclass(frozen=True)
@@ -63,6 +71,7 @@ class CatalogApp:
     needs_network: bool
     required_secrets: tuple[str, ...]
     environment_variables: tuple[CatalogEnvironmentVariable, ...]
+    secret_files: tuple[CatalogSecretFile, ...]
     mounts: tuple[CatalogMount, ...]
     manifest_sha256: str
     server_json_sha256: str
@@ -213,12 +222,15 @@ def load_catalog_snapshot(root_path: Path, expected_snapshot_sha256: str) -> tup
             name = variable.get("name")
             required = variable.get("isRequired", False)
             secret = variable.get("isSecret", False)
+            value_format = variable.get("format")
             if (not isinstance(name, str) or not ENV_NAME.fullmatch(name) or
-                type(required) is not bool or type(secret) is not bool or "value" in variable):
+                type(required) is not bool or type(secret) is not bool or
+                (value_format is not None and value_format not in {"string", "number", "boolean", "filepath"}) or
+                "value" in variable):
                 raise CatalogError("catalog app environment variable declaration is invalid")
             if any(existing.name == name for existing in environment_variables):
                 raise CatalogError("catalog app environment variable names must be unique")
-            environment_variables.append(CatalogEnvironmentVariable(name, required, secret))
+            environment_variables.append(CatalogEnvironmentVariable(name, required, secret, value_format))
         runtime = _object(app.get("runtime"), "runtime")
         if runtime.get("container") is not True or runtime.get("transport") != "stdio":
             raise CatalogError("catalog app runtime is not supported by this manager")
@@ -234,11 +246,6 @@ def load_catalog_snapshot(root_path: Path, expected_snapshot_sha256: str) -> tup
         mounts_value = app.get("mounts")
         if not isinstance(required_secrets, list) or not isinstance(mounts_value, list):
             raise CatalogError("catalog app configuration is malformed")
-        declared_environment = {item.name: item for item in environment_variables}
-        for secret_name in cast(list[str], required_secrets):
-            declaration = declared_environment.get(secret_name)
-            if declaration is None or not declaration.secret or not declaration.required:
-                raise CatalogError("PBLabs required_secrets must match required secret inputs in server.json")
         mounts = tuple(
             CatalogMount(
                 target=cast(str, mount["target"]),
@@ -248,6 +255,37 @@ def load_catalog_snapshot(root_path: Path, expected_snapshot_sha256: str) -> tup
             )
             for mount in cast(list[dict[str, object]], mounts_value)
         )
+        declared_environment = {item.name: item for item in environment_variables}
+        secret_files: list[CatalogSecretFile] = []
+        file_handled_names: set[str] = set()
+        for secret_name in cast(list[str], required_secrets):
+            declaration = declared_environment.get(secret_name)
+            if declaration is not None and declaration.secret and declaration.required:
+                continue
+            file_environment_name = f"{secret_name}_FILE"
+            file_declaration = declared_environment.get(file_environment_name)
+            matching_mounts = [
+                item for item in mounts
+                if item.kind == "secret" and item.target.rsplit("/", 1)[-1] == secret_name.lower()
+            ]
+            mount = matching_mounts[0] if len(matching_mounts) == 1 else None
+            if (
+                declaration is None or not declaration.secret or declaration.required or
+                file_declaration is None or file_declaration.secret or not file_declaration.required or
+                file_declaration.format != "filepath" or mount is None or mount.kind != "secret" or
+                mount.access != "read-only" or not mount.required
+            ):
+                raise CatalogError(
+                    "PBLabs required_secrets must match a required secret input or its read-only *_FILE mount"
+                )
+            secret_files.append(CatalogSecretFile(secret_name, file_environment_name, mount.target))
+            file_handled_names.update({secret_name, file_environment_name})
+        if file_handled_names:
+            environment_variables = [
+                CatalogEnvironmentVariable(item.name, False, item.secret, item.format)
+                if item.name in file_handled_names else item
+                for item in environment_variables
+            ]
         result.append(CatalogApp(
             app_id=app_id,
             mcp_name=mcp_name,
@@ -258,6 +296,7 @@ def load_catalog_snapshot(root_path: Path, expected_snapshot_sha256: str) -> tup
             needs_network=security.get("needs_network") is True,
             required_secrets=tuple(cast(list[str], required_secrets)),
             environment_variables=tuple(environment_variables),
+            secret_files=tuple(secret_files),
             mounts=mounts,
             manifest_sha256=cast(str, entry["manifest_sha256"]),
             server_json_sha256=cast(str, entry["server_json_sha256"]),
@@ -275,6 +314,13 @@ def resolve_app_profile(
     network: str | None = None,
 ) -> DockerHostConfig:
     """Resolve draft metadata to a least-privilege installation-specific config."""
+    environment = dict(environment)
+    for secret_file in app.secret_files:
+        if secret_file.name in environment or secret_file.environment_variable in environment:
+            raise CatalogError("secret-file requirements must use read-only file references, not environment values")
+        environment[secret_file.environment_variable] = DockerEnvValue(
+            kind="plain", value=secret_file.target,
+        )
     requirements = {mount.target: mount for mount in app.mounts}
     if len(requirements) != len(app.mounts):
         raise CatalogError("app manifest has duplicate mount targets")
@@ -283,14 +329,17 @@ def resolve_app_profile(
     if unknown_targets or missing_targets:
         raise CatalogError("installation mount mappings do not match the app profile")
     resolved_mounts: list[DockerAppMount] = []
-    for target, source in mount_sources.items():
-        requirement = requirements[target]
-        resolved_mounts.append(DockerAppMount(
-            source=source,
-            target=target,
-            read_only=requirement.access == "read-only",
-            kind=requirement.kind,
-        ))
+    try:
+        for target, source in mount_sources.items():
+            requirement = requirements[target]
+            resolved_mounts.append(DockerAppMount(
+                source=source,
+                target=target,
+                read_only=requirement.access == "read-only",
+                kind=requirement.kind,
+            ))
+    except ValueError as exc:
+        raise CatalogError("installation app mount mapping is invalid") from exc
     environment_requirements = {item.name: item for item in app.environment_variables}
     if set(environment) - set(environment_requirements):
         raise CatalogError("installation environment contains undeclared app variables")

@@ -68,8 +68,9 @@ class DockerAppMount(Base):
         if (not self.source.startswith("/") or str(source) != self.source or self.source == "/" or
             ".." in self.source.split("/") or not self.target.startswith("/") or
             str(target) != self.target or self.target == "/" or ".." in self.target.split("/") or
+            any(char in self.source or char in self.target for char in (",", "\x00", "\n", "\r")) or
             any(self.target == path or self.target.startswith(path + "/") for path in reserved)):
-            raise ValueError("app mount source/target must be canonical and target must not be a control path")
+            raise ValueError("app mount source/target must be canonical, Docker-safe and outside control paths")
         return self
 
 

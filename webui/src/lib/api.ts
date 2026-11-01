@@ -731,6 +731,7 @@ export interface McpDockerSnapshot {
       repositoryDigest: string;
       needsNetwork: boolean;
       environmentVariables: Array<{ name: string; required: boolean; secret: boolean }>;
+      secretFiles?: Array<{ name: string; environmentVariable: string; target: string }>;
       mounts: Array<{ target: string; kind: "data" | "cache" | "secret"; access: "read-only" | "read-write"; required: boolean }>;
     }>;
   }>;

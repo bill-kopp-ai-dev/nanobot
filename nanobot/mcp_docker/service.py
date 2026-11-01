@@ -236,6 +236,10 @@ class DockerMcpService:
                             {"name": variable.name, "required": variable.required, "secret": variable.secret}
                             for variable in app.environment_variables
                         ],
+                        "secretFiles": [
+                            {"name": item.name, "environmentVariable": item.environment_variable, "target": item.target}
+                            for item in app.secret_files
+                        ],
                         "mounts": [
                             {"target": mount.target, "kind": mount.kind,
                              "access": mount.access, "required": mount.required}
@@ -652,6 +656,15 @@ class DockerMcpService:
                 (requirement.required and not configured.value)
             ):
                 raise DomainError(400, "configured app environment type does not match the catalog")
+        configured_mounts = {item.target: item for item in host.app_mounts}
+        for secret_file in app.secret_files:
+            mount = configured_mounts.get(secret_file.target)
+            file_environment = host.env.get(secret_file.environment_variable)
+            if (
+                secret_file.name in host.env or mount is None or mount.kind != "secret" or not mount.read_only or
+                file_environment is None or file_environment.kind != "plain" or file_environment.value != secret_file.target
+            ):
+                raise DomainError(400, "configured app secret-file mapping does not match the catalog")
 
     def _backups(self) -> list[dict[str, Any]]:
         backups = self.root / "backups"

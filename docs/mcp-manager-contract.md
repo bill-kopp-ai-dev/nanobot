@@ -49,14 +49,20 @@ URLs.
   catalog app. Sources cannot also be exposed under `/host`; destinations cannot
   overlap or target control paths. Read-only requirements stay read-only.
 - `needs_network: false` forbids bridge networking; `true` permits the operator to
-  choose `bridge` or the stricter `none`. Required secrets must use the typed
-  `secret` configuration and never enter manifests or generated exports. Other
-  runtime environment prompts come from the pinned `server.json` package's
+  choose `bridge` or the stricter `none`. Required secrets must use either the
+  typed `secret` environment input or a declared read-only `kind: secret` mount
+  paired with a required `<NAME>_FILE` filepath input. For file inputs, the UI
+  requests only the existing host file path; the gateway derives the in-container
+  path from the unique secret mount whose target basename matches the lowercase
+  secret variable name, and never receives the file contents. The broker rejects secret mounts
+  that are writable, symlinks or non-regular files. Host file permissions must
+  permit the image UID to read; the manager does not change ownership or ACLs.
+  Other runtime environment prompts come from the pinned `server.json` package's
   `environmentVariables`; the manager cross-checks required secret names against
   PBLabs metadata, rejects undeclared values and rejects embedded `value` fields
-  in registry environment declarations. AgentMail's API key uses this
-  env-secret path because that app currently consumes an env var; file-secret
-  delivery remains future work.
+  in registry environment declarations. AgentMail's draft profile uses the
+  read-only file-reference path; no approved OCI app release is currently
+  installable and no manager was changed at runtime.
 - `tools.mcpDocker` schema 1 remains readable/writable in its historical shape.
   Schema 2 is opt-in through `migrate-schema`, which requires the exact typed
   confirmation, expected revision, writer lock, no unresolved transition and a

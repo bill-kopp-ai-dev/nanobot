@@ -245,8 +245,10 @@ export function McpDockerManagement({
     const value = catalogMountSources[mount.target]?.trim();
     return Boolean(value && invalidHostPaths([value]));
   }) ?? false;
+  const catalogSecretFiles = selectedCatalogChoice?.app.secretFiles ?? [];
+  const catalogSecretFileEnvironment = new Set(catalogSecretFiles.flatMap((item) => [item.name, item.environmentVariable]));
   const catalogMissingEnvironment = selectedCatalogChoice?.app.environmentVariables.some(
-    (variable) => variable.required && !catalogEnvironment[variable.name]?.trim(),
+    (variable) => variable.required && !catalogSecretFileEnvironment.has(variable.name) && !catalogEnvironment[variable.name]?.trim(),
   ) ?? false;
   const catalogBrokerReady = snapshot.minimumMountsSupported === true && snapshot.appMountsSupported === true && snapshot.catalogAcquisitionSupported === true;
   const catalogInstallReady = Boolean(
@@ -397,7 +399,9 @@ export function McpDockerManagement({
       if (source.trim()) mountSources[target] = source.trim();
     }
     const environment: Record<string, { kind: "secret" | "plain"; value: string }> = {};
+    const secretFileEnvironment = new Set((app.secretFiles ?? []).flatMap((item) => [item.name, item.environmentVariable]));
     for (const variable of app.environmentVariables) {
+      if (secretFileEnvironment.has(variable.name)) continue;
       const value = catalogEnvironment[variable.name]?.trim() ?? "";
       if (value) environment[variable.name] = { kind: variable.secret ? "secret" : "plain", value };
     }
@@ -577,8 +581,9 @@ export function McpDockerManagement({
                   <Label>Manager server ID<Input value={catalogServerId} onChange={(event) => { setCatalogServerId(event.target.value); setCatalogInstallConfirmation(""); }} placeholder="example-server" /></Label>
                   <Label>Network access<select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={catalogNetwork} onChange={(event) => setCatalogNetwork(event.target.value as "none" | "bridge")}><option value="none">none</option>{selectedCatalogChoice.app.needsNetwork && snapshot.supportedNetworks?.includes("bridge") && <option value="bridge">bridge</option>}</select></Label>
                 </div>
-                {selectedCatalogChoice.app.mounts.map((mount) => <Label key={mount.target}>Host source for {mount.target} ({mount.kind}, {mount.access}{mount.required ? ", required" : ", optional"})<Input value={catalogMountSources[mount.target] ?? ""} onChange={(event) => setCatalogMountSources((current) => ({ ...current, [mount.target]: event.target.value }))} placeholder="Absolute installation-specific path" /></Label>)}
-                {selectedCatalogChoice.app.environmentVariables.map((variable) => <Label key={variable.name}>{variable.name} ({variable.secret ? "secret" : "configuration"}{variable.required ? ", required" : ", optional"})<Input type={variable.secret ? "password" : "text"} autoComplete="new-password" value={catalogEnvironment[variable.name] ?? ""} onChange={(event) => setCatalogEnvironment((current) => ({ ...current, [variable.name]: event.target.value }))} /></Label>)}
+                 {selectedCatalogChoice.app.mounts.map((mount) => <Label key={mount.target}>{mount.kind === "secret" ? "Host secret-file reference for" : "Host source for"} {mount.target} ({mount.kind}, {mount.access}{mount.required ? ", required" : ", optional"})<Input value={catalogMountSources[mount.target] ?? ""} onChange={(event) => setCatalogMountSources((current) => ({ ...current, [mount.target]: event.target.value }))} placeholder={mount.kind === "secret" ? "Absolute path to an existing secret file" : "Absolute installation-specific path"} /></Label>)}
+                 {(selectedCatalogChoice.app.secretFiles ?? []).map((item) => <p key={item.name} className="text-xs text-muted-foreground">{item.name} will be mounted read-only at <code>{item.target}</code>; the manager sets <code>{item.environmentVariable}</code> from that mapping. Enter a file path above, never the secret value.</p>)}
+                 {selectedCatalogChoice.app.environmentVariables.filter((variable) => !catalogSecretFileEnvironment.has(variable.name)).map((variable) => <Label key={variable.name}>{variable.name} ({variable.secret ? "secret" : "configuration"}{variable.required ? ", required" : ", optional"})<Input type={variable.secret ? "password" : "text"} autoComplete="new-password" value={catalogEnvironment[variable.name] ?? ""} onChange={(event) => setCatalogEnvironment((current) => ({ ...current, [variable.name]: event.target.value }))} /></Label>)}
                 <Label>Type {catalogInstallPhrase} to consent to acquisition and install<Input value={catalogInstallConfirmation} onChange={(event) => setCatalogInstallConfirmation(event.target.value)} /></Label>
                 {(catalogRequiredMountMissing || catalogInvalidMount || catalogMissingEnvironment) && <p role="alert" className="text-sm text-destructive">Provide every required mount source and environment value using canonical absolute paths and declared variables.</p>}
                 <Button disabled={!catalogInstallReady} onClick={() => void submitCatalogInstall()}>Acquire pinned digest and install</Button>

@@ -161,7 +161,12 @@ class MountPolicy:
         for mount in app_mounts:
             source = _absolute(mount.source)
             target = _absolute(mount.target)
-            if source == "/" or not self._safe(source) or not self.host_root.joinpath(source.lstrip("/")).exists():
+            host_source = self.host_root.joinpath(source.lstrip("/"))
+            if mount.kind == "secret" and (
+                not mount.read_only or host_source.is_symlink() or not host_source.is_file()
+            ):
+                raise ValueError("secret app mount must be a read-only regular file, not a symlink")
+            if source == "/" or not self._safe(source) or not host_source.exists():
                 raise ValueError("app mount source is unavailable or a control-plane path")
             canonical = resolve_host_path(source, self.host_root)
             if any(_inside(canonical, cover) or _inside(source, cover) for cover in self.protected):
