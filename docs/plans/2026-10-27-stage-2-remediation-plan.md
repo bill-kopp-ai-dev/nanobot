@@ -1566,3 +1566,145 @@ IaC da Positronic Bean Labs. Contato: `bill.kopp.dev@gmail.com`; website:
 - R-12 não autoriza automaticamente publicação, deploy, mutação de runtime ou uso de
   dados reais; Bill pode autorizar uma operação concreta em um único registro claro,
   incluindo alvo e limites, sem repetir a mesma autorização em documentos paralelos.
+
+### 8.7 Preflight do teste local AgentMail no Percival (2026-11-01; snapshot pré-pin)
+
+- Bill solicitou atualizar o gateway Percival e piná-lo no MCP AgentMail local para
+  teste manual pela UI. O alvo observado é o Compose local `nanobot`; não houve
+  publicação, deploy nem alteração de runtime nesta preflight.
+- O gateway em execução é `percival-gateway:0.1.0-4e947c3`, image ID
+  `sha256:c62a5203209f92b613758a816c315ecac1930c0a2ef0b0623ccbe923153c1abe`;
+  o broker em execução permanece em `sha256:1d90f1357345e85acc55ddca3bc6b7ba35d41a1c59a7664b80958f90c579295e`.
+  O checkout Percival está limpo no commit `e4630dc46c1ecce9081349d6bfd4a9dd126566c2`,
+  que inclui suporte a secrets de app por arquivo ainda ausente do gateway ativo.
+- O MCP AgentMail da Percival continua pinado em
+  `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104`.
+  O candidato local novo, source tree `b89a97f866714878d328abdc0bdc9111f9d79858`,
+  é `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`;
+  Trivy 0.76.1 reportou zero vulnerabilidades e o conformance offline de MCP passou.
+- Para o gateway, `tests/mcp_docker`: 121 passaram; Vitest
+  `webui/src/tests/mcp-containers.test.tsx`: 19 passaram. O primeiro build de
+  `e4630dc` revelou 7 HIGH em `pypdf 6.21.2`; `uv.lock` foi atualizado para 6.21.4
+  (fix indicada pelo scanner) e gerado candidato de worktree
+  `percival-gateway:0.1.0-e4630dc-f3-b6199c3bb410`, image ID
+  `sha256:694d1b785844c65f67f1c0b14d1e6e8630fea87cf2360a7940f3418b13c1b79d`.
+  Smoke offline retornou `0.1.0`; varredura nova não reporta mais `pypdf` vulnerável.
+- Para remover caminhos de exploração de `CVE-2026-9538` e `CVE-2026-8458`, o
+  Dockerfile agora exclui o parser Perl `Archive::Tar` e os helpers Git que carregam
+  libcurl (`git-http-fetch`, `git-http-push`, `git-imap-send`, `git-remote-ftp[s]`,
+  `git-remote-http[s]`). Git local continua disponível; transports remotos HTTP/FTP
+  via Git ficam indisponíveis nessa imagem. Verificações no candidato endurecido
+  confirmaram os arquivos removidos, `git --version` funcionando e nenhum executável
+  instalado ligado a libcurl. O container isolado manteve UID 1000 e zero capacidades
+  efetivas. Candidato atual:
+  `percival-gateway:0.1.0-e4630dc-f3-4ddbd3bacec0`, image ID
+  `sha256:2ef398971ec5effc90a11dd298530a23ffc82a8726ae379ab99531bca980a3d0`,
+  source-diff SHA-256 `4ddbd3bacec0d9125e73e1abf10302438c02b442c8ead4c399f042798d7cf778`.
+  Trivy 0.76.1 ReportID `01a19731-e6a5-7f36-98d0-aa37bd987d31` ainda reportou CVEs
+  por metadados dos pacotes Debian; para `CVE-2026-9538` o código vulnerável foi
+  removido, e para `CVE-2026-8458` não restou consumidor ELF instalado. Bill aprovou
+  um VEX PURL/image-ID-scoped com 17 declarações, limitado a este teste local, em
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-gateway-e4630dc-f3-4ddbd3bacec0-openvex-owner-approved.json`
+  (SHA-256 `72e3b116b4d206b430578a3976019a226aeed407acab9f3f2dd00f7c62e25151`).
+  Trivy com esse VEX (ReportID `01a19737-9ab2-75bd-b68d-c092d5d66ee4`, SHA-256
+  `a6a85fc30ae9aadd3171cfd5b52542e1b586aa5e3a983db5a2214c3b0033793f`) classifica
+  todos os registros HIGH/CRITICAL como `fixed`, sem HIGH/CRITICAL afetado ou
+  `fix_deferred` restantes. Debian Security Tracker mantém Trixie vulnerável/adiado
+  para parte dos pacotes; não havia versões corrigidas nos índices consultados para
+  `20261101T000000Z`. A fonte upstream curl classifica `CVE-2026-8458` como Low,
+  divergindo do HIGH escolhido por Trivy. A aprovação do VEX não autoriza release,
+  publicação ou uso fora deste teste local.
+- **Deploy local do core concluído em 2026-11-01:** Compose recriou gateway e broker
+  em conjunto, com `--no-build --pull never`, usando o override
+  `/home/bill/.positronic/runtime/tmp/opencode/percival-agentmail-test-4ddbd3b.compose.override.yml`.
+  O gateway ativo é o candidato `sha256:2ef398971ec5effc90a11dd298530a23ffc82a8726ae379ab99531bca980a3d0`
+  (source `e4630dc`, diff `4ddbd3bacec0`); broker preservado em
+  `sha256:1d90f1357345e85acc55ddca3bc6b7ba35d41a1c59a7664b80958f90c579295e`.
+  Health HTTP retornou `ready: true`; ambos containers estão `healthy`; `nanobot
+  mcp-docker doctor` confirmou broker, token, transporte e política do host. O deploy
+  usa deliberadamente o override local de Engine 29.9.2; não prova compatibilidade com
+  o gate Engine 27.x. O gateway anterior e seu override de rollback continuam retidos.
+- **Estado na preflight:** a inspeção pós-deploy daquele momento confirmou que Percival executava
+  AgentMail no pin A `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104`;
+  o candidato B `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`
+  está local. A mutação deve ocorrer pela UI/API autenticada do manager Percival; esta
+  interface não possui sessão autenticada para essa operação. Não editar
+  `~/.nanobot/config.json`. Bill precisa selecionar/pinar B pela UI; então verificar
+  `initialize`, `tools/list` e uma chamada segura (`mail_get_status`) antes do teste real
+  pela UI. O pin foi atualizado depois, conforme §8.9, e o teste funcional foi registrado
+  em §8.10.
+
+### 8.8 Auditoria de containers antes da pinagem AgentMail (2026-11-01)
+
+- Esta é a fotografia imediatamente anterior à atualização manual do pin; o estado
+  AgentMail e a contagem pós-pin estão reconciliados no §8.9.
+- Leitura somente leitura de `docker ps` + `nanobot.mcp_docker.inventory` encontrou
+  14 containers ativos: 2 do core Compose, 6 MCPs do owner Percival e 6 MCPs do owner
+  Positronic. A captura enviada mostra 13 linhas: falta nela
+  `positronic-mcp-weather-9026e7f83287`, que está ativo agora usando
+  `sha256:680872039a8f530f7feb53610478087c5271d5a5aec451c1f668f799e0e8a0ee`.
+  Se a captura pretendia ser a lista completa, ela está desatualizada por esse container.
+- O gateway Percival está saudável no novo image ID `sha256:2ef398971ec5effc90a11dd298530a23ffc82a8726ae379ab99531bca980a3d0`; o broker está saudável em
+  `sha256:1d90f1357345e85acc55ddca3bc6b7ba35d41a1c59a7664b80958f90c579295e`.
+  A única publicação do core é loopback: `127.0.0.1:8765` e `127.0.0.1:18790`.
+  `nanobot mcp-docker doctor` passou. Containers MCP stdio aparecem `running` sem
+  healthcheck; isso não equivale, por si, a `initialize`/`tools/list` ou chamada MCP.
+- Há dois servidores AgentMail distintos e pertencentes a managers diferentes:
+  Percival (`percival-mcp-agentmail`) continua no pin antigo
+  `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104`; Positronic
+  (`positronic-mcp-agentmail-2fcc7d4fcd4c`) está em
+  `sha256:636909633313299046313aea6bd904589371d4b73c43422763e2cb1a69a80928`. O candidato
+  novo para Percival (`sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`)
+  está local, mas ainda não roda em nenhum container.
+- A auditoria de mounts mostra quatro MCPs Percival (AgentMail, Deep Research, OSM e
+  Weather) com bind R/W da raiz do host em `/host`, além de mounts host relacionados;
+  Notes e Khan Calendar têm apenas os diretórios de dados respectivos como R/W.
+  Esse acesso amplo é uma exposição importante e consistente com a configuração atual
+  do broker Percival; a auditoria não alterou os perfis. As instâncias Positronic têm
+  mounts de secrets redigidos pelo inventory e não foram modificadas.
+
+### 8.9 Pin AgentMail atualizado pela UI do Percival (2026-11-01)
+
+- Bill informou que atualizou o pin pela UI. As capturas fornecidas mostram o estado
+  anterior em `sha256:e104ac7549510d4fff5c103c66f60ddc105b297dc4ee430801cd0bb6e1ecc104`
+  e o novo em `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`;
+  ambas exibem MCP connected, Docker state running, gateway intent running, enabled yes
+  e 24 tools observadas.
+- Verificação independente pós-pin: `docker ps` e inventory Percival confirmam o
+  container `percival-mcp-agentmail` rodando exatamente em
+  `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`, owner
+  `percival`, `server-id=agentmail`; instance ID `606f4989-5677-48f2-a23c-3f398ba1d73e`.
+  O pin Positronic permanece separado e inalterado em
+  `sha256:636909633313299046313aea6bd904589371d4b73c43422763e2cb1a69a80928`.
+- A configuração mostrada na UI ainda indica bridge network, Full host access e 3
+  variáveis de ambiente. O profile de mount não foi alterado nesta operação. A atividade
+  recente mostra um `update-image started` e dois eventos `committed`; a duplicação de
+  evento é consistente com a anomalia de auditoria já registrada em E2 e não é tratada
+  como duas mutações distintas.
+- O resultado do teste funcional real relatado por Bill está em §8.10.
+
+### 8.10 Teste funcional do AgentMail pelo Percival (2026-11-01)
+
+- Bill reportou o teste após a pinagem manual, usando referência
+  `PCT-20261101T132909Z-7c1e`. O teste fez leituras limitadas (status, versão, inbox
+  info, até 5 mensagens/threads/drafts), sem ler corpos preexistentes nem expor dados
+  pessoais. `mail_get_status`: `online`, `api_reachable=true`, `api_error=null`,
+  latência reportada de 264 ms; versão 0.4.0, Python 3.12.15.
+- A única escrita foi um email de teste ao próprio owner, sem CC/BCC/anexos, enviado
+  uma vez e sem retry. A leitura do `message_id` confirmou assunto/referência e label
+  `sent`; `mail_get_thread` reportou `message_count=1`. Nenhuma falha foi reportada.
+  Isso é evidência de funcionamento do MCP e acesso ao provider real naquele teste,
+  não de todos os fluxos de email nem do timeout numérico do broker.
+- O relatório de teste não verificou o image digest durante a sessão. O inventory
+  independente pós-relato confirmou o container ativo `percival-mcp-agentmail` em
+  `sha256:ccf56dbe83f91efb1411f381b5de17d4a9673721b58584212d52f74deb87196c`; o pin
+  Positronic permaneceu separado. As capturas de UI mostram MCP connected/running e
+  24 tools observadas.
+- **Riscos/pendências preservados:** a UI mostra Full host access, bridge network e
+  3 environment variables; o inventory confirma mounts R/W da raiz do host. Isso não
+  corresponde ao perfil AgentMail stateless sem binds definido em A-006. A-007 passou
+  quanto ao health autenticado e conectividade, mas o timeout numérico não foi
+  registrado. A-008 passou funcionalmente, mas as capturas não demonstram que as
+  variáveis são referências `*_FILE` read-only. Nenhum valor de segredo foi registrado.
+  A anomalia de dois eventos `update-image committed` para um `started` permanece
+  registrada como discrepância de audit, sem inferir mutações duplicadas.

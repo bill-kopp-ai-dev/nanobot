@@ -89,6 +89,8 @@ LABEL org.opencontainers.image.title="Percival Gateway" \
 ARG DEBIAN_SNAPSHOT=20261030T000000Z
 # The slim base has no CA bundle yet; APT still verifies the signed Release
 # metadata and package hashes while fetching the pinned snapshot over HTTP.
+# The gateway uses local Dulwich repositories; it does not require Perl's
+# vulnerable Archive::Tar parser or Git's libcurl-backed remote transports.
 RUN --mount=type=bind,from=openssh-builder,source=/tmp/openssh-client.deb,target=/tmp/openssh-client.deb,ro \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s trixie main\n' "$DEBIAN_SNAPSHOT" > /etc/apt/sources.list && \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s trixie-security main\n' "$DEBIAN_SNAPSHOT" >> /etc/apt/sources.list && \
@@ -102,6 +104,15 @@ RUN --mount=type=bind,from=openssh-builder,source=/tmp/openssh-client.deb,target
     dpkg -i /tmp/openssh-client.deb && \
     chmod u-s /usr/bin/mount && \
     rm -f /usr/bin/nsenter /usr/bin/infocmp && \
+    rm -f /usr/share/perl/5.40.1/Archive/Tar.pm \
+          /usr/lib/git-core/git-http-fetch \
+          /usr/lib/git-core/git-http-push \
+          /usr/lib/git-core/git-imap-send \
+          /usr/lib/git-core/git-remote-ftp \
+          /usr/lib/git-core/git-remote-ftps \
+          /usr/lib/git-core/git-remote-http \
+          /usr/lib/git-core/git-remote-https && \
+    rm -rf /usr/share/perl/5.40.1/Archive/Tar && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
